@@ -53,34 +53,8 @@ jobs:
     - name: Build
       run: cmake --build build
 
-    - name: Run
+    - name: Run Application
       run: ./build/snake_actors
 
-  build-with-tests:
-    runs-on: ubuntu-24.04
-    container:
-      image: gcc:14
-
-    steps:
-    - uses: actions/checkout@v4
-
-    - name: Install dependencies
-      run: apt-get update && apt-get install -y zip git
-
-    - name: Setup CMake
-      uses: lukka/get-cmake@latest
-      with:
-        cmakeVersion: 3.31.2
-
-    - name: Configure CMake with Tests
-      run: |
-        cmake -S . -B build \
-          -DCMAKE_CXX_STANDARD=17 \
-          -DCMAKE_CXX_FLAGS="-Werror" \
-          -DSNAKE_BUILD_TESTS=ON
-
-    - name: Build
-      run: cmake --build build
-
-    - name: Test
+    - name: Run Tests
       run: ./build/test_snake
