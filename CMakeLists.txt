@@ -38,8 +38,11 @@ endif()
 # Main executable
 add_executable(snake_actors
   src/main.cpp
-  src/calculator_actor.cpp
-  src/result_actor.cpp
+  src/game_manager.cpp
+  src/game_session.cpp
+  src/clock.cpp
+  src/input_actor.cpp
+  src/renderer.cpp
 )
 
 target_include_directories(snake_actors PRIVATE
@@ -73,7 +76,14 @@ if(SNAKE_BUILD_TESTS)
   endif()
 
   enable_testing()
-  add_executable(test_snake tests/test_actors.cpp src/calculator_actor.cpp src/result_actor.cpp)
+  add_executable(test_snake
+    tests/test_actors.cpp
+    src/game_manager.cpp
+    src/game_session.cpp
+    src/clock.cpp
+    src/input_actor.cpp
+    src/renderer.cpp
+  )
 
   target_link_libraries(test_snake PRIVATE gtest_main gmock_main asio)
   target_include_directories(test_snake PRIVATE
