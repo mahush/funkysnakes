@@ -25,10 +25,10 @@ class GameSession : public Actor<GameSession>,
                     public MessageSink<ResumeGame> {
  public:
   // MessageSink interface implementations
-  void post(Tick msg) override;
-  void post(DirectionChange msg) override;
-  void post(PauseGame msg) override;
-  void post(ResumeGame msg) override;
+  void onEvent(Tick msg) override;
+  void onEvent(DirectionChange msg) override;
+  void onEvent(PauseGame msg) override;
+  void onEvent(ResumeGame msg) override;
 
  protected:
   friend class Actor<GameSession>;
@@ -49,16 +49,11 @@ class GameSession : public Actor<GameSession>,
               std::shared_ptr<Topic<StartClock>> startclock_topic,
               std::shared_ptr<Topic<StopClock>> stopclock_topic);
 
-  void subscribeToTopics() override;
+  auto subscribeToTopics() {
+    return std::make_tuple(tick_topic_, direction_topic_);
+  }
 
  private:
-  void onTick(const Tick& msg);
-  void onDirectionChange(const DirectionChange& msg);
-  void onPauseGame(const PauseGame& msg);
-  void onResumeGame(const ResumeGame& msg);
-
-  asio::strand<asio::io_context::executor_type> strand_;
-
   // Topics for subscribing
   std::shared_ptr<Topic<Tick>> tick_topic_;
   std::shared_ptr<Topic<DirectionChange>> direction_topic_;

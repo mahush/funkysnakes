@@ -8,7 +8,10 @@ template<typename Msg>
 class MessageSink {
  public:
   virtual ~MessageSink() = default;
-  virtual void post(Msg msg) = 0;
+
+  // Event handler called when a message is received
+  // This is called on the actor's strand by Topic::publish()
+  virtual void onEvent(Msg msg) = 0;
 };
 
 }  // namespace snake

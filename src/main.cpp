@@ -22,6 +22,9 @@ int main() {
   auto startclock_topic = std::make_shared<snake::Topic<snake::StartClock>>();
   auto stopclock_topic = std::make_shared<snake::Topic<snake::StopClock>>();
   auto tickrate_topic = std::make_shared<snake::Topic<snake::TickRateChange>>();
+  auto joinrequest_topic = std::make_shared<snake::Topic<snake::JoinRequest>>();
+  auto leaverequest_topic = std::make_shared<snake::Topic<snake::LeaveRequest>>();
+  auto startgame_topic = std::make_shared<snake::Topic<snake::StartGame>>();
 
   // Create actors using factory methods - clean single-stage construction!
   auto renderer = snake::Renderer::create(io, state_topic, gameover_topic, level_topic);
@@ -30,7 +33,7 @@ int main() {
                                             stopclock_topic);
 
   auto manager = snake::GameManager::create(io, tick_topic, gameover_topic, startclock_topic, stopclock_topic,
-                                            tickrate_topic);
+                                            tickrate_topic, joinrequest_topic, leaverequest_topic, startgame_topic);
 
   auto input_actor = snake::InputActor::create(io, direction_topic, "game_001");
 
@@ -38,15 +41,15 @@ int main() {
   std::thread runner([&io] { io.run(); });
 
   std::cout << "Joining players...\n";
-  manager->post(snake::JoinRequest{"player1"});
-  manager->post(snake::JoinRequest{"player2"});
+  joinrequest_topic->publish(snake::JoinRequest{"player1"});
+  joinrequest_topic->publish(snake::JoinRequest{"player2"});
   std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
   std::cout << "\nStarting game...\n";
   snake::StartGame start;
   start.starting_level = 1;
   start.players = {"player1", "player2"};
-  manager->post(start);
+  startgame_topic->publish(start);
   std::this_thread::sleep_for(std::chrono::milliseconds(200));
 
   std::cout << "\n--- Game Running ---\n";

@@ -23,9 +23,9 @@ class Renderer : public Actor<Renderer>,
                  public MessageSink<LevelChange> {
  public:
   // MessageSink interface implementations
-  void post(StateUpdate msg) override;
-  void post(GameOver msg) override;
-  void post(LevelChange msg) override;
+  void onEvent(StateUpdate msg) override;
+  void onEvent(GameOver msg) override;
+  void onEvent(LevelChange msg) override;
 
  protected:
   friend class Actor<Renderer>;  // Allow Actor to call protected constructor
@@ -42,14 +42,11 @@ class Renderer : public Actor<Renderer>,
            std::shared_ptr<Topic<GameOver>> gameover_topic,
            std::shared_ptr<Topic<LevelChange>> level_topic);
 
-  void subscribeToTopics() override;
+  auto subscribeToTopics() {
+    return std::make_tuple(state_topic_, gameover_topic_, level_topic_);
+  }
 
  private:
-  void onStateUpdate(const StateUpdate& msg);
-  void onGameOver(const GameOver& msg);
-  void onLevelChange(const LevelChange& msg);
-
-  asio::strand<asio::io_context::executor_type> strand_;
   std::shared_ptr<Topic<StateUpdate>> state_topic_;
   std::shared_ptr<Topic<GameOver>> gameover_topic_;
   std::shared_ptr<Topic<LevelChange>> level_topic_;

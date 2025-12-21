@@ -29,13 +29,13 @@ class GameManager : public Actor<GameManager>,
                     public MessageSink<TickRateChange> {
  public:
   // MessageSink interface implementations
-  void post(JoinRequest msg) override;
-  void post(LeaveRequest msg) override;
-  void post(StartGame msg) override;
-  void post(GameOver msg) override;
-  void post(StartClock msg) override;
-  void post(StopClock msg) override;
-  void post(TickRateChange msg) override;
+  void onEvent(JoinRequest msg) override;
+  void onEvent(LeaveRequest msg) override;
+  void onEvent(StartGame msg) override;
+  void onEvent(GameOver msg) override;
+  void onEvent(StartClock msg) override;
+  void onEvent(StopClock msg) override;
+  void onEvent(TickRateChange msg) override;
 
  protected:
   friend class Actor<GameManager>;
@@ -45,31 +45,32 @@ class GameManager : public Actor<GameManager>,
    * @param io The io_context for async operations
    * @param tick_topic Topic to publish game ticks
    * @param gameover_topic Topic to subscribe for game over notifications
+   * @param startclock_topic Topic to subscribe for clock start commands
+   * @param stopclock_topic Topic to subscribe for clock stop commands
    * @param tickrate_topic Topic to subscribe for tick rate changes
+   * @param joinrequest_topic Topic to subscribe for join requests
+   * @param leaverequest_topic Topic to subscribe for leave requests
+   * @param startgame_topic Topic to subscribe for start game commands
    */
   GameManager(asio::io_context& io,
               std::shared_ptr<Topic<Tick>> tick_topic,
               std::shared_ptr<Topic<GameOver>> gameover_topic,
               std::shared_ptr<Topic<StartClock>> startclock_topic,
               std::shared_ptr<Topic<StopClock>> stopclock_topic,
-              std::shared_ptr<Topic<TickRateChange>> tickrate_topic);
+              std::shared_ptr<Topic<TickRateChange>> tickrate_topic,
+              std::shared_ptr<Topic<JoinRequest>> joinrequest_topic,
+              std::shared_ptr<Topic<LeaveRequest>> leaverequest_topic,
+              std::shared_ptr<Topic<StartGame>> startgame_topic);
 
-  void subscribeToTopics() override;
+  auto subscribeToTopics() {
+    return std::make_tuple(gameover_topic_, startclock_topic_, stopclock_topic_, tickrate_topic_,
+                           joinrequest_topic_, leaverequest_topic_, startgame_topic_);
+  }
 
  private:
-  void onJoinRequest(const JoinRequest& msg);
-  void onLeaveRequest(const LeaveRequest& msg);
-  void onStartGame(const StartGame& msg);
-  void onGameOver(const GameOver& msg);
-
-  void onStartClock(const StartClock& msg);
-  void onStopClock(const StopClock& msg);
-  void onTickRateChange(const TickRateChange& msg);
-
   void scheduleTick();
   void onTimerExpired(const asio::error_code& ec);
 
-  asio::strand<asio::io_context::executor_type> strand_;
   std::vector<PlayerId> registered_players_;
 
   // Topics for publishing
@@ -80,6 +81,9 @@ class GameManager : public Actor<GameManager>,
   std::shared_ptr<Topic<StartClock>> startclock_topic_;
   std::shared_ptr<Topic<StopClock>> stopclock_topic_;
   std::shared_ptr<Topic<TickRateChange>> tickrate_topic_;
+  std::shared_ptr<Topic<JoinRequest>> joinrequest_topic_;
+  std::shared_ptr<Topic<LeaveRequest>> leaverequest_topic_;
+  std::shared_ptr<Topic<StartGame>> startgame_topic_;
 
   // Timer for game ticks
   asio::steady_timer timer_;

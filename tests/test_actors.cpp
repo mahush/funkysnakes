@@ -13,10 +13,11 @@ namespace snake {
 TEST(ActorTest, InputActor_ProcessesUserInput) {
   asio::io_context io;
 
-  // Create topic and mock subscriber
+  // Create topic and mock subscriber with strand
   auto direction_topic = std::make_shared<Topic<DirectionChange>>();
   auto mock_subscriber = std::make_shared<MockDirectionChangeSubscriber>();
-  direction_topic->subscribe(mock_subscriber);
+  auto mock_strand = asio::make_strand(io);
+  direction_topic->subscribe(mock_subscriber, mock_strand);
 
   // Create InputActor with the topic
   auto input_actor = InputActor::create(io, direction_topic, "game_001");
@@ -46,13 +47,17 @@ TEST(ActorTest, GameManager_CoordinatesStartGame) {
   auto startclock_topic = std::make_shared<Topic<StartClock>>();
   auto stopclock_topic = std::make_shared<Topic<StopClock>>();
   auto tickrate_topic = std::make_shared<Topic<TickRateChange>>();
+  auto joinrequest_topic = std::make_shared<Topic<JoinRequest>>();
+  auto leaverequest_topic = std::make_shared<Topic<LeaveRequest>>();
+  auto startgame_topic = std::make_shared<Topic<StartGame>>();
 
   // Create GameManager
-  auto manager = GameManager::create(io, tick_topic, gameover_topic, startclock_topic, stopclock_topic, tickrate_topic);
+  auto manager = GameManager::create(io, tick_topic, gameover_topic, startclock_topic, stopclock_topic, tickrate_topic,
+                                     joinrequest_topic, leaverequest_topic, startgame_topic);
 
-  // Join players
-  manager->post(JoinRequest{"player1"});
-  manager->post(JoinRequest{"player2"});
+  // Join players via topic
+  joinrequest_topic->publish(JoinRequest{"player1"});
+  joinrequest_topic->publish(JoinRequest{"player2"});
 
   // Note: We don't test StartGame here because it starts an infinite timer loop.
   // Timer functionality is tested separately in GameManager_SendsPeriodicTicks.
@@ -74,17 +79,18 @@ TEST(ActorTest, GameSession_HandlesTicks) {
   auto startclock_topic = std::make_shared<Topic<StartClock>>();
   auto stopclock_topic = std::make_shared<Topic<StopClock>>();
 
-  // Create mock subscriber for state updates
+  // Create mock subscriber for state updates with strand
   auto mock_state_subscriber = std::make_shared<MockStateUpdateSubscriber>();
-  state_topic->subscribe(mock_state_subscriber);
+  auto mock_strand = asio::make_strand(io);
+  state_topic->subscribe(mock_state_subscriber, mock_strand);
 
   // Create GameSession
   auto session = GameSession::create(io, tick_topic, direction_topic, state_topic, startclock_topic, stopclock_topic);
 
-  // Simulate a tick
+  // Simulate a tick by publishing to the topic
   Tick tick;
   tick.game_id = "game_001";
-  session->post(tick);
+  tick_topic->publish(tick);
 
   // Run all pending work
   io.run();
@@ -104,19 +110,24 @@ TEST(ActorTest, GameManager_SendsPeriodicTicks) {
   auto startclock_topic = std::make_shared<Topic<StartClock>>();
   auto stopclock_topic = std::make_shared<Topic<StopClock>>();
   auto tickrate_topic = std::make_shared<Topic<TickRateChange>>();
+  auto joinrequest_topic = std::make_shared<Topic<JoinRequest>>();
+  auto leaverequest_topic = std::make_shared<Topic<LeaveRequest>>();
+  auto startgame_topic = std::make_shared<Topic<StartGame>>();
 
-  // Create mock subscriber for ticks
+  // Create mock subscriber for ticks with strand
   auto mock_tick_subscriber = std::make_shared<MockTickSubscriber>();
-  tick_topic->subscribe(mock_tick_subscriber);
+  auto mock_strand = asio::make_strand(io);
+  tick_topic->subscribe(mock_tick_subscriber, mock_strand);
 
   // Create GameManager
-  auto manager = GameManager::create(io, tick_topic, gameover_topic, startclock_topic, stopclock_topic, tickrate_topic);
+  auto manager = GameManager::create(io, tick_topic, gameover_topic, startclock_topic, stopclock_topic, tickrate_topic,
+                                     joinrequest_topic, leaverequest_topic, startgame_topic);
 
   // Start game with short interval for testing
   StartClock start;
   start.game_id = "game_001";
   start.interval_ms = 10;  // 10ms for fast test
-  manager->post(start);
+  startclock_topic->publish(start);
 
   // Run for a bit to allow some ticks
   io.run_for(std::chrono::milliseconds(50));
@@ -124,7 +135,7 @@ TEST(ActorTest, GameManager_SendsPeriodicTicks) {
   // Stop
   StopClock stop;
   stop.game_id = "game_001";
-  manager->post(stop);
+  stopclock_topic->publish(stop);
   io.run();
 
   // Should have received multiple ticks (at least 3-4)

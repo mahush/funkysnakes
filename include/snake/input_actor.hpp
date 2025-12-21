@@ -43,7 +43,10 @@ class InputActor : public Actor<InputActor>, public MessageSink<UserInputEvent> 
    */
   bool isReading() const { return input_thread_.joinable() && !should_stop_; }
 
-  void post(UserInputEvent msg) override;
+  void onEvent(UserInputEvent msg) override;
+
+  // Helper for background thread and tests to post events to this actor's strand
+  void post(UserInputEvent msg);
 
  protected:
   friend class Actor<InputActor>;
@@ -56,15 +59,17 @@ class InputActor : public Actor<InputActor>, public MessageSink<UserInputEvent> 
    */
   InputActor(asio::io_context& io, std::shared_ptr<Topic<DirectionChange>> direction_topic, GameId game_id);
 
-  void subscribeToTopics() override;
+  auto subscribeToTopics() {
+    // InputActor doesn't subscribe to any topics from other actors
+    // It only receives self-posted UserInputEvents from the background thread
+    return std::make_tuple();
+  }
 
  private:
-  void onUserInputEvent(const UserInputEvent& msg);
   Direction charToDirection(char key) const;
   void readInputLoop();
   PlayerId keyToPlayer(char key) const;
 
-  asio::strand<asio::io_context::executor_type> strand_;
   std::shared_ptr<Topic<DirectionChange>> direction_topic_;
   GameId game_id_;
 

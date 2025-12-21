@@ -13,7 +13,7 @@ namespace snake {
  */
 class MockTickSubscriber : public MessageSink<Tick> {
  public:
-  void post(Tick msg) override { ticks.push_back(msg); }
+  void onEvent(Tick msg) override { ticks.push_back(msg); }
   std::vector<Tick> ticks;
 };
 
@@ -22,7 +22,7 @@ class MockTickSubscriber : public MessageSink<Tick> {
  */
 class MockDirectionChangeSubscriber : public MessageSink<DirectionChange> {
  public:
-  void post(DirectionChange msg) override { direction_changes.push_back(msg); }
+  void onEvent(DirectionChange msg) override { direction_changes.push_back(msg); }
   std::vector<DirectionChange> direction_changes;
 };
 
@@ -31,7 +31,7 @@ class MockDirectionChangeSubscriber : public MessageSink<DirectionChange> {
  */
 class MockStateUpdateSubscriber : public MessageSink<StateUpdate> {
  public:
-  void post(StateUpdate msg) override { state_updates.push_back(msg); }
+  void onEvent(StateUpdate msg) override { state_updates.push_back(msg); }
   std::vector<StateUpdate> state_updates;
 };
 
@@ -40,7 +40,7 @@ class MockStateUpdateSubscriber : public MessageSink<StateUpdate> {
  */
 class MockGameOverSubscriber : public MessageSink<GameOver> {
  public:
-  void post(GameOver msg) override { game_overs.push_back(msg); }
+  void onEvent(GameOver msg) override { game_overs.push_back(msg); }
   std::vector<GameOver> game_overs;
 };
 
@@ -49,7 +49,7 @@ class MockGameOverSubscriber : public MessageSink<GameOver> {
  */
 class MockStartClockSubscriber : public MessageSink<StartClock> {
  public:
-  void post(StartClock msg) override { start_clocks.push_back(msg); }
+  void onEvent(StartClock msg) override { start_clocks.push_back(msg); }
   std::vector<StartClock> start_clocks;
 };
 
@@ -58,7 +58,7 @@ class MockStartClockSubscriber : public MessageSink<StartClock> {
  */
 class MockStopClockSubscriber : public MessageSink<StopClock> {
  public:
-  void post(StopClock msg) override { stop_clocks.push_back(msg); }
+  void onEvent(StopClock msg) override { stop_clocks.push_back(msg); }
   std::vector<StopClock> stop_clocks;
 };
 

@@ -10,7 +10,7 @@ GameSession::GameSession(asio::io_context& io,
                          std::shared_ptr<Topic<StateUpdate>> state_topic,
                          std::shared_ptr<Topic<StartClock>> startclock_topic,
                          std::shared_ptr<Topic<StopClock>> stopclock_topic)
-    : strand_(asio::make_strand(io)),
+    : Actor(io),
       tick_topic_(tick_topic),
       direction_topic_(direction_topic),
       state_topic_(state_topic),
@@ -20,44 +20,7 @@ GameSession::GameSession(asio::io_context& io,
   state_.running = false;
 }
 
-void GameSession::subscribeToTopics() {
-  tick_topic_->subscribe(shared_from_this());
-  direction_topic_->subscribe(shared_from_this());
-}
-
-void GameSession::post(Tick msg) {
-  asio::post(strand_, [weak_self = weak_from_this(), msg] {
-    if (auto self = weak_self.lock()) {
-      self->onTick(msg);
-    }
-  });
-}
-
-void GameSession::post(DirectionChange msg) {
-  asio::post(strand_, [weak_self = weak_from_this(), msg] {
-    if (auto self = weak_self.lock()) {
-      self->onDirectionChange(msg);
-    }
-  });
-}
-
-void GameSession::post(PauseGame msg) {
-  asio::post(strand_, [weak_self = weak_from_this(), msg] {
-    if (auto self = weak_self.lock()) {
-      self->onPauseGame(msg);
-    }
-  });
-}
-
-void GameSession::post(ResumeGame msg) {
-  asio::post(strand_, [weak_self = weak_from_this(), msg] {
-    if (auto self = weak_self.lock()) {
-      self->onResumeGame(msg);
-    }
-  });
-}
-
-void GameSession::onTick(const Tick& msg) {
+void GameSession::onEvent(Tick msg) {
   if (!state_.running) {
     return;
   }
@@ -71,7 +34,7 @@ void GameSession::onTick(const Tick& msg) {
   state_topic_->publish(update);
 }
 
-void GameSession::onDirectionChange(const DirectionChange& msg) {
+void GameSession::onEvent(DirectionChange msg) {
   std::cout << "[GameSession] Player '" << msg.player_id << "' changed direction to "
             << static_cast<int>(msg.new_direction) << "\n";
 
@@ -79,7 +42,7 @@ void GameSession::onDirectionChange(const DirectionChange& msg) {
   // For now, just acknowledge
 }
 
-void GameSession::onPauseGame(const PauseGame& msg) {
+void GameSession::onEvent(PauseGame msg) {
   std::cout << "[GameSession] Game '" << msg.game_id << "' paused\n";
   state_.running = false;
 
@@ -88,7 +51,7 @@ void GameSession::onPauseGame(const PauseGame& msg) {
   stopclock_topic_->publish(stop);
 }
 
-void GameSession::onResumeGame(const ResumeGame& msg) {
+void GameSession::onEvent(ResumeGame msg) {
   std::cout << "[GameSession] Game '" << msg.game_id << "' resumed\n";
   state_.running = true;
 

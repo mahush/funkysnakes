@@ -5,12 +5,7 @@
 namespace snake {
 
 InputActor::InputActor(asio::io_context& io, std::shared_ptr<Topic<DirectionChange>> direction_topic, GameId game_id)
-    : strand_(asio::make_strand(io)), direction_topic_(direction_topic), game_id_(std::move(game_id)) {}
-
-void InputActor::subscribeToTopics() {
-  // InputActor doesn't subscribe to any topics from other actors
-  // It only receives self-posted UserInputEvents from the background thread
-}
+    : Actor(io), direction_topic_(direction_topic), game_id_(std::move(game_id)) {}
 
 InputActor::~InputActor() { stopReading(); }
 
@@ -36,10 +31,27 @@ void InputActor::stopReading() {
   }
 }
 
+void InputActor::onEvent(UserInputEvent msg) {
+  std::cout << "[InputActor] Player '" << msg.player_id << "' pressed key '" << msg.key << "'\n";
+
+  // Translate key to direction
+  Direction dir = charToDirection(msg.key);
+
+  // Publish direction change to topic
+  DirectionChange change;
+  change.game_id = game_id_;
+  change.player_id = msg.player_id;
+  change.new_direction = dir;
+
+  std::cout << "[InputActor] Publishing DirectionChange (dir=" << static_cast<int>(dir) << ")\n";
+  direction_topic_->publish(change);
+}
+
+// Helper method for background thread to post events to this actor's strand
 void InputActor::post(UserInputEvent msg) {
   asio::post(strand_, [weak_self = weak_from_this(), msg] {
     if (auto self = weak_self.lock()) {
-      self->onUserInputEvent(msg);
+      self->onEvent(msg);
     }
   });
 }
@@ -77,22 +89,6 @@ void InputActor::readInputLoop() {
   }
 
   std::cout << "[InputActor] Stopped reading from stdin\n";
-}
-
-void InputActor::onUserInputEvent(const UserInputEvent& msg) {
-  std::cout << "[InputActor] Player '" << msg.player_id << "' pressed key '" << msg.key << "'\n";
-
-  // Translate key to direction
-  Direction dir = charToDirection(msg.key);
-
-  // Publish direction change to topic
-  DirectionChange change;
-  change.game_id = game_id_;
-  change.player_id = msg.player_id;
-  change.new_direction = dir;
-
-  std::cout << "[InputActor] Publishing DirectionChange (dir=" << static_cast<int>(dir) << ")\n";
-  direction_topic_->publish(change);
 }
 
 PlayerId InputActor::keyToPlayer(char key) const {

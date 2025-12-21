@@ -9,60 +9,27 @@ GameManager::GameManager(asio::io_context& io,
                          std::shared_ptr<Topic<GameOver>> gameover_topic,
                          std::shared_ptr<Topic<StartClock>> startclock_topic,
                          std::shared_ptr<Topic<StopClock>> stopclock_topic,
-                         std::shared_ptr<Topic<TickRateChange>> tickrate_topic)
-    : strand_(asio::make_strand(io)),
+                         std::shared_ptr<Topic<TickRateChange>> tickrate_topic,
+                         std::shared_ptr<Topic<JoinRequest>> joinrequest_topic,
+                         std::shared_ptr<Topic<LeaveRequest>> leaverequest_topic,
+                         std::shared_ptr<Topic<StartGame>> startgame_topic)
+    : Actor(io),
       tick_topic_(tick_topic),
       gameover_topic_(gameover_topic),
       startclock_topic_(startclock_topic),
       stopclock_topic_(stopclock_topic),
       tickrate_topic_(tickrate_topic),
+      joinrequest_topic_(joinrequest_topic),
+      leaverequest_topic_(leaverequest_topic),
+      startgame_topic_(startgame_topic),
       timer_(io) {}
 
-void GameManager::subscribeToTopics() {
-  gameover_topic_->subscribe(shared_from_this());
-  startclock_topic_->subscribe(shared_from_this());
-  stopclock_topic_->subscribe(shared_from_this());
-  tickrate_topic_->subscribe(shared_from_this());
-}
-
-void GameManager::post(JoinRequest msg) {
-  asio::post(strand_, [weak_self = weak_from_this(), msg] {
-    if (auto self = weak_self.lock()) {
-      self->onJoinRequest(msg);
-    }
-  });
-}
-
-void GameManager::post(LeaveRequest msg) {
-  asio::post(strand_, [weak_self = weak_from_this(), msg] {
-    if (auto self = weak_self.lock()) {
-      self->onLeaveRequest(msg);
-    }
-  });
-}
-
-void GameManager::post(StartGame msg) {
-  asio::post(strand_, [weak_self = weak_from_this(), msg] {
-    if (auto self = weak_self.lock()) {
-      self->onStartGame(msg);
-    }
-  });
-}
-
-void GameManager::post(GameOver msg) {
-  asio::post(strand_, [weak_self = weak_from_this(), msg] {
-    if (auto self = weak_self.lock()) {
-      self->onGameOver(msg);
-    }
-  });
-}
-
-void GameManager::onJoinRequest(const JoinRequest& msg) {
+void GameManager::onEvent(JoinRequest msg) {
   std::cout << "[GameManager] Player '" << msg.player_id << "' joined\n";
   registered_players_.push_back(msg.player_id);
 }
 
-void GameManager::onLeaveRequest(const LeaveRequest& msg) {
+void GameManager::onEvent(LeaveRequest msg) {
   std::cout << "[GameManager] Player '" << msg.player_id << "' left\n";
   // Remove from registered players (simple implementation)
   auto it = std::find(registered_players_.begin(), registered_players_.end(), msg.player_id);
@@ -71,7 +38,7 @@ void GameManager::onLeaveRequest(const LeaveRequest& msg) {
   }
 }
 
-void GameManager::onStartGame(const StartGame& msg) {
+void GameManager::onEvent(StartGame msg) {
   std::cout << "[GameManager] Starting game with level " << msg.starting_level << " and " << msg.players.size()
             << " players\n";
 
@@ -90,7 +57,7 @@ void GameManager::onStartGame(const StartGame& msg) {
   scheduleTick();
 }
 
-void GameManager::onGameOver(const GameOver& msg) {
+void GameManager::onEvent(GameOver msg) {
   std::cout << "[GameManager] Game '" << msg.summary.game_id << "' ended at level " << msg.summary.final_level << "\n";
   std::cout << "[GameManager] Final scores:\n";
   for (const auto& [player_id, score] : msg.summary.final_scores) {
@@ -102,31 +69,7 @@ void GameManager::onGameOver(const GameOver& msg) {
   timer_.cancel();
 }
 
-void GameManager::post(StartClock msg) {
-  asio::post(strand_, [weak_self = weak_from_this(), msg] {
-    if (auto self = weak_self.lock()) {
-      self->onStartClock(msg);
-    }
-  });
-}
-
-void GameManager::post(StopClock msg) {
-  asio::post(strand_, [weak_self = weak_from_this(), msg] {
-    if (auto self = weak_self.lock()) {
-      self->onStopClock(msg);
-    }
-  });
-}
-
-void GameManager::post(TickRateChange msg) {
-  asio::post(strand_, [weak_self = weak_from_this(), msg] {
-    if (auto self = weak_self.lock()) {
-      self->onTickRateChange(msg);
-    }
-  });
-}
-
-void GameManager::onStartClock(const StartClock& msg) {
+void GameManager::onEvent(StartClock msg) {
   std::cout << "[GameManager] Starting game timer with interval " << msg.interval_ms << "ms\n";
   current_game_id_ = msg.game_id;
   interval_ms_ = msg.interval_ms;
@@ -134,13 +77,13 @@ void GameManager::onStartClock(const StartClock& msg) {
   scheduleTick();
 }
 
-void GameManager::onStopClock(const StopClock& msg) {
+void GameManager::onEvent(StopClock msg) {
   std::cout << "[GameManager] Stopping game timer for '" << msg.game_id << "'\n";
   running_ = false;
   timer_.cancel();
 }
 
-void GameManager::onTickRateChange(const TickRateChange& msg) {
+void GameManager::onEvent(TickRateChange msg) {
   std::cout << "[GameManager] Changing tick rate to " << msg.interval_ms << "ms\n";
   interval_ms_ = msg.interval_ms;
   // New interval will take effect on next tick
