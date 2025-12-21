@@ -40,7 +40,6 @@ add_executable(snake_actors
   src/main.cpp
   src/game_manager.cpp
   src/game_session.cpp
-  src/clock.cpp
   src/input_actor.cpp
   src/renderer.cpp
 )
@@ -80,7 +79,6 @@ if(SNAKE_BUILD_TESTS)
     tests/test_actors.cpp
     src/game_manager.cpp
     src/game_session.cpp
-    src/clock.cpp
     src/input_actor.cpp
     src/renderer.cpp
   )

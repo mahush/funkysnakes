@@ -4,18 +4,43 @@
 
 namespace snake {
 
-Renderer::Renderer(asio::io_context& io) : strand_(asio::make_strand(io)) {}
+Renderer::Renderer(asio::io_context& io,
+                   std::shared_ptr<Topic<StateUpdate>> state_topic,
+                   std::shared_ptr<Topic<GameOver>> gameover_topic,
+                   std::shared_ptr<Topic<LevelChange>> level_topic)
+    : strand_(asio::make_strand(io)),
+      state_topic_(state_topic),
+      gameover_topic_(gameover_topic),
+      level_topic_(level_topic) {}
+
+void Renderer::subscribeToTopics() {
+  state_topic_->subscribe(shared_from_this());
+  gameover_topic_->subscribe(shared_from_this());
+  level_topic_->subscribe(shared_from_this());
+}
 
 void Renderer::post(StateUpdate msg) {
-  asio::post(strand_, [self = shared_from_this(), msg] { self->onStateUpdate(msg); });
+  asio::post(strand_, [weak_self = weak_from_this(), msg] {
+    if (auto self = weak_self.lock()) {
+      self->onStateUpdate(msg);
+    }
+  });
 }
 
 void Renderer::post(GameOver msg) {
-  asio::post(strand_, [self = shared_from_this(), msg] { self->onGameOver(msg); });
+  asio::post(strand_, [weak_self = weak_from_this(), msg] {
+    if (auto self = weak_self.lock()) {
+      self->onGameOver(msg);
+    }
+  });
 }
 
 void Renderer::post(LevelChange msg) {
-  asio::post(strand_, [self = shared_from_this(), msg] { self->onLevelChange(msg); });
+  asio::post(strand_, [weak_self = weak_from_this(), msg] {
+    if (auto self = weak_self.lock()) {
+      self->onLevelChange(msg);
+    }
+  });
 }
 
 void Renderer::onStateUpdate(const StateUpdate& msg) {

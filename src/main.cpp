@@ -2,78 +2,69 @@
 #include <iostream>
 #include <thread>
 
-#include "snake/clock.hpp"
 #include "snake/game_manager.hpp"
 #include "snake/game_session.hpp"
 #include "snake/input_actor.hpp"
 #include "snake/renderer.hpp"
+#include "snake/topic.hpp"
 
 int main() {
-  std::cout << "=== Snake Game Actor Demo ===\n\n";
+  std::cout << "=== Snake Game - Interactive Demo ===\n\n";
 
   asio::io_context io;
 
-  // Create all actors
-  auto renderer = std::make_shared<snake::Renderer>(io);
-  auto session = std::make_shared<snake::GameSession>(io, renderer, nullptr, nullptr);
-  auto clock = std::make_shared<snake::Clock>(io, session);
-  auto input_actor = std::make_shared<snake::InputActor>(io, session, "game_001");
+  // Create all topics first
+  auto tick_topic = std::make_shared<snake::Topic<snake::Tick>>();
+  auto direction_topic = std::make_shared<snake::Topic<snake::DirectionChange>>();
+  auto state_topic = std::make_shared<snake::Topic<snake::StateUpdate>>();
+  auto gameover_topic = std::make_shared<snake::Topic<snake::GameOver>>();
+  auto level_topic = std::make_shared<snake::Topic<snake::LevelChange>>();
+  auto startclock_topic = std::make_shared<snake::Topic<snake::StartClock>>();
+  auto stopclock_topic = std::make_shared<snake::Topic<snake::StopClock>>();
+  auto tickrate_topic = std::make_shared<snake::Topic<snake::TickRateChange>>();
 
-  // Update session and create manager with proper dependencies
-  session = std::make_shared<snake::GameSession>(io, renderer, clock, nullptr);
-  auto manager = std::make_shared<snake::GameManager>(io, session, clock, renderer);
+  // Create actors using factory methods - clean single-stage construction!
+  auto renderer = snake::Renderer::create(io, state_topic, gameover_topic, level_topic);
 
-  // Update session with manager
-  session = std::make_shared<snake::GameSession>(io, renderer, clock, manager);
+  auto session = snake::GameSession::create(io, tick_topic, direction_topic, state_topic, startclock_topic,
+                                            stopclock_topic);
 
-  // Update input actor with correct session
-  input_actor = std::make_shared<snake::InputActor>(io, session, "game_001");
+  auto manager = snake::GameManager::create(io, tick_topic, gameover_topic, startclock_topic, stopclock_topic,
+                                            tickrate_topic);
+
+  auto input_actor = snake::InputActor::create(io, direction_topic, "game_001");
 
   // Run io_context in background thread
   std::thread runner([&io] { io.run(); });
 
-  std::cout << "1. Joining players...\n";
+  std::cout << "Joining players...\n";
   manager->post(snake::JoinRequest{"player1"});
   manager->post(snake::JoinRequest{"player2"});
   std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
-  std::cout << "\n2. Starting game...\n";
+  std::cout << "\nStarting game...\n";
   snake::StartGame start;
   start.starting_level = 1;
   start.players = {"player1", "player2"};
   manager->post(start);
   std::this_thread::sleep_for(std::chrono::milliseconds(200));
 
-  std::cout << "\n3. Simulating user inputs...\n";
-  // Player 1 presses 'w' (UP)
-  input_actor->post(snake::UserInputEvent{"player1", 'w'});
-  std::this_thread::sleep_for(std::chrono::milliseconds(100));
+  std::cout << "\n--- Game Running ---\n";
+  std::cout << "Type keys to control the snakes (press Enter after each key):\n\n";
 
-  // Player 2 presses 'd' (RIGHT)
-  input_actor->post(snake::UserInputEvent{"player2", 'd'});
-  std::this_thread::sleep_for(std::chrono::milliseconds(100));
+  // Start reading keyboard input
+  input_actor->startReading();
 
-  // Player 1 presses 'a' (LEFT)
-  input_actor->post(snake::UserInputEvent{"player1", 'a'});
-  std::this_thread::sleep_for(std::chrono::milliseconds(100));
+  // Wait for input thread to finish (when user presses 'q' or EOF)
+  while (input_actor->isReading()) {
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+  }
 
-  std::cout << "\n4. Letting game tick for a few seconds...\n";
-  std::this_thread::sleep_for(std::chrono::seconds(2));
-
-  std::cout << "\n5. Simulating game over...\n";
-  snake::GameSummary summary;
-  summary.game_id = "game_001";
-  summary.final_level = 3;
-  summary.final_scores = {{"player1", 15}, {"player2", 12}};
-
-  manager->post(snake::GameOver{summary});
-  renderer->post(snake::GameOver{summary});
-  std::this_thread::sleep_for(std::chrono::milliseconds(200));
-
-  std::cout << "\n6. Shutting down...\n";
+  std::cout << "\nShutting down...\n";
+  input_actor->stopReading();
   io.stop();
   runner.join();
 
-  std::cout << "\nDemo complete!\n";
+  std::cout << "Demo complete!\n";
   return 0;
 }

@@ -1,16 +1,17 @@
 #pragma once
 
 #include <asio.hpp>
+#include <atomic>
 #include <map>
 #include <memory>
+#include <thread>
 
+#include "snake/actor.hpp"
 #include "snake/game_messages.hpp"
-#include "snake/input_actor_sink.hpp"
+#include "snake/message_sink.hpp"
+#include "snake/topic.hpp"
 
 namespace snake {
-
-// Forward declaration
-class GameSessionSink;
 
 /**
  * @brief Captures and processes user input
@@ -18,26 +19,57 @@ class GameSessionSink;
  * InputActor receives input events, tags them with player ID,
  * and translates them into DirectionChange commands.
  * Supports multiple players (shared controller/keyboard).
+ * Reads from stdin in a background thread.
  */
-class InputActor : public InputActorSink, public std::enable_shared_from_this<InputActor> {
+class InputActor : public Actor<InputActor>, public MessageSink<UserInputEvent> {
  public:
+  /**
+   * @brief Destructor - stops the input reading thread
+   */
+  ~InputActor();
+
+  /**
+   * @brief Start reading from stdin in background thread
+   */
+  void startReading();
+
+  /**
+   * @brief Stop reading from stdin
+   */
+  void stopReading();
+
+  /**
+   * @brief Check if the input thread is still running
+   */
+  bool isReading() const { return input_thread_.joinable() && !should_stop_; }
+
+  void post(UserInputEvent msg) override;
+
+ protected:
+  friend class Actor<InputActor>;
+
   /**
    * @brief Construct a new Input Actor
    * @param io The io_context for async operations
-   * @param session The game session that receives direction changes
+   * @param direction_topic Topic to publish direction changes
    * @param game_id The current game ID
    */
-  InputActor(asio::io_context& io, std::shared_ptr<GameSessionSink> session, GameId game_id);
+  InputActor(asio::io_context& io, std::shared_ptr<Topic<DirectionChange>> direction_topic, GameId game_id);
 
-  void post(UserInputEvent msg) override;
+  void subscribeToTopics() override;
 
  private:
   void onUserInputEvent(const UserInputEvent& msg);
   Direction charToDirection(char key) const;
+  void readInputLoop();
+  PlayerId keyToPlayer(char key) const;
 
   asio::strand<asio::io_context::executor_type> strand_;
-  std::shared_ptr<GameSessionSink> session_;
+  std::shared_ptr<Topic<DirectionChange>> direction_topic_;
   GameId game_id_;
+
+  std::atomic<bool> should_stop_{false};
+  std::thread input_thread_;
 };
 
 }  // namespace snake

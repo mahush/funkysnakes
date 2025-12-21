@@ -2,82 +2,64 @@
 
 #include <vector>
 
-#include "snake/clock_sink.hpp"
-#include "snake/game_manager_sink.hpp"
-#include "snake/game_session_sink.hpp"
-#include "snake/input_actor_sink.hpp"
-#include "snake/renderer_sink.hpp"
+#include "snake/control_messages.hpp"
+#include "snake/game_messages.hpp"
+#include "snake/message_sink.hpp"
 
 namespace snake {
 
 /**
- * @brief Mock GameSessionSink for testing
+ * @brief Mock subscriber for Tick messages
  */
-class MockGameSession : public GameSessionSink {
+class MockTickSubscriber : public MessageSink<Tick> {
  public:
   void post(Tick msg) override { ticks.push_back(msg); }
-  void post(DirectionChange msg) override { direction_changes.push_back(msg); }
-  void post(PauseGame msg) override { pauses.push_back(msg); }
-  void post(ResumeGame msg) override { resumes.push_back(msg); }
-
   std::vector<Tick> ticks;
-  std::vector<DirectionChange> direction_changes;
-  std::vector<PauseGame> pauses;
-  std::vector<ResumeGame> resumes;
 };
 
 /**
- * @brief Mock RendererSink for testing
+ * @brief Mock subscriber for DirectionChange messages
  */
-class MockRenderer : public RendererSink {
+class MockDirectionChangeSubscriber : public MessageSink<DirectionChange> {
+ public:
+  void post(DirectionChange msg) override { direction_changes.push_back(msg); }
+  std::vector<DirectionChange> direction_changes;
+};
+
+/**
+ * @brief Mock subscriber for StateUpdate messages
+ */
+class MockStateUpdateSubscriber : public MessageSink<StateUpdate> {
  public:
   void post(StateUpdate msg) override { state_updates.push_back(msg); }
-  void post(GameOver msg) override { game_overs.push_back(msg); }
-  void post(LevelChange msg) override { level_changes.push_back(msg); }
-
   std::vector<StateUpdate> state_updates;
-  std::vector<GameOver> game_overs;
-  std::vector<LevelChange> level_changes;
 };
 
 /**
- * @brief Mock ClockSink for testing
+ * @brief Mock subscriber for GameOver messages
  */
-class MockClock : public ClockSink {
+class MockGameOverSubscriber : public MessageSink<GameOver> {
+ public:
+  void post(GameOver msg) override { game_overs.push_back(msg); }
+  std::vector<GameOver> game_overs;
+};
+
+/**
+ * @brief Mock subscriber for StartClock messages
+ */
+class MockStartClockSubscriber : public MessageSink<StartClock> {
  public:
   void post(StartClock msg) override { start_clocks.push_back(msg); }
-  void post(StopClock msg) override { stop_clocks.push_back(msg); }
-  void post(TickRateChange msg) override { tick_rate_changes.push_back(msg); }
-
   std::vector<StartClock> start_clocks;
+};
+
+/**
+ * @brief Mock subscriber for StopClock messages
+ */
+class MockStopClockSubscriber : public MessageSink<StopClock> {
+ public:
+  void post(StopClock msg) override { stop_clocks.push_back(msg); }
   std::vector<StopClock> stop_clocks;
-  std::vector<TickRateChange> tick_rate_changes;
-};
-
-/**
- * @brief Mock GameManagerSink for testing
- */
-class MockGameManager : public GameManagerSink {
- public:
-  void post(JoinRequest msg) override { join_requests.push_back(msg); }
-  void post(LeaveRequest msg) override { leave_requests.push_back(msg); }
-  void post(StartGame msg) override { start_games.push_back(msg); }
-  void post(GameOver msg) override { game_overs.push_back(msg); }
-
-  std::vector<JoinRequest> join_requests;
-  std::vector<LeaveRequest> leave_requests;
-  std::vector<StartGame> start_games;
-  std::vector<GameOver> game_overs;
-};
-
-/**
- * @brief Mock InputActorSink for testing
- */
-class MockInputActor : public InputActorSink {
- public:
-  void post(UserInputEvent msg) override { user_inputs.push_back(msg); }
-
-  std::vector<UserInputEvent> user_inputs;
 };
 
 }  // namespace snake

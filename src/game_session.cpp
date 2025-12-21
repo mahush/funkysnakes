@@ -2,32 +2,59 @@
 
 #include <iostream>
 
-#include "snake/clock_sink.hpp"
-#include "snake/game_manager_sink.hpp"
-#include "snake/renderer_sink.hpp"
-
 namespace snake {
 
-GameSession::GameSession(asio::io_context& io, std::shared_ptr<RendererSink> renderer, std::shared_ptr<ClockSink> clock,
-                         std::shared_ptr<GameManagerSink> manager)
-    : strand_(asio::make_strand(io)), renderer_(std::move(renderer)), clock_(std::move(clock)),
-      manager_(std::move(manager)) {
+GameSession::GameSession(asio::io_context& io,
+                         std::shared_ptr<Topic<Tick>> tick_topic,
+                         std::shared_ptr<Topic<DirectionChange>> direction_topic,
+                         std::shared_ptr<Topic<StateUpdate>> state_topic,
+                         std::shared_ptr<Topic<StartClock>> startclock_topic,
+                         std::shared_ptr<Topic<StopClock>> stopclock_topic)
+    : strand_(asio::make_strand(io)),
+      tick_topic_(tick_topic),
+      direction_topic_(direction_topic),
+      state_topic_(state_topic),
+      startclock_topic_(startclock_topic),
+      stopclock_topic_(stopclock_topic) {
   state_.game_id = "game_001";
   state_.running = false;
 }
 
-void GameSession::post(Tick msg) { asio::post(strand_, [self = shared_from_this(), msg] { self->onTick(msg); }); }
+void GameSession::subscribeToTopics() {
+  tick_topic_->subscribe(shared_from_this());
+  direction_topic_->subscribe(shared_from_this());
+}
+
+void GameSession::post(Tick msg) {
+  asio::post(strand_, [weak_self = weak_from_this(), msg] {
+    if (auto self = weak_self.lock()) {
+      self->onTick(msg);
+    }
+  });
+}
 
 void GameSession::post(DirectionChange msg) {
-  asio::post(strand_, [self = shared_from_this(), msg] { self->onDirectionChange(msg); });
+  asio::post(strand_, [weak_self = weak_from_this(), msg] {
+    if (auto self = weak_self.lock()) {
+      self->onDirectionChange(msg);
+    }
+  });
 }
 
 void GameSession::post(PauseGame msg) {
-  asio::post(strand_, [self = shared_from_this(), msg] { self->onPauseGame(msg); });
+  asio::post(strand_, [weak_self = weak_from_this(), msg] {
+    if (auto self = weak_self.lock()) {
+      self->onPauseGame(msg);
+    }
+  });
 }
 
 void GameSession::post(ResumeGame msg) {
-  asio::post(strand_, [self = shared_from_this(), msg] { self->onResumeGame(msg); });
+  asio::post(strand_, [weak_self = weak_from_this(), msg] {
+    if (auto self = weak_self.lock()) {
+      self->onResumeGame(msg);
+    }
+  });
 }
 
 void GameSession::onTick(const Tick& msg) {
@@ -41,7 +68,7 @@ void GameSession::onTick(const Tick& msg) {
   // For now, just send state update
   StateUpdate update;
   update.state = state_;
-  renderer_->post(update);
+  state_topic_->publish(update);
 }
 
 void GameSession::onDirectionChange(const DirectionChange& msg) {
@@ -58,7 +85,7 @@ void GameSession::onPauseGame(const PauseGame& msg) {
 
   StopClock stop;
   stop.game_id = msg.game_id;
-  clock_->post(stop);
+  stopclock_topic_->publish(stop);
 }
 
 void GameSession::onResumeGame(const ResumeGame& msg) {
@@ -68,7 +95,7 @@ void GameSession::onResumeGame(const ResumeGame& msg) {
   StartClock start;
   start.game_id = msg.game_id;
   start.interval_ms = 500;  // TODO: Use actual tick rate
-  clock_->post(start);
+  startclock_topic_->publish(start);
 }
 
 }  // namespace snake

@@ -2,15 +2,81 @@
 
 #include <iostream>
 
-#include "snake/game_session_sink.hpp"
-
 namespace snake {
 
-InputActor::InputActor(asio::io_context& io, std::shared_ptr<GameSessionSink> session, GameId game_id)
-    : strand_(asio::make_strand(io)), session_(std::move(session)), game_id_(std::move(game_id)) {}
+InputActor::InputActor(asio::io_context& io, std::shared_ptr<Topic<DirectionChange>> direction_topic, GameId game_id)
+    : strand_(asio::make_strand(io)), direction_topic_(direction_topic), game_id_(std::move(game_id)) {}
+
+void InputActor::subscribeToTopics() {
+  // InputActor doesn't subscribe to any topics from other actors
+  // It only receives self-posted UserInputEvents from the background thread
+}
+
+InputActor::~InputActor() { stopReading(); }
+
+void InputActor::startReading() {
+  if (input_thread_.joinable()) {
+    return;  // Already running
+  }
+
+  should_stop_ = false;
+  // Note: Background thread keeps shared_ptr to keep actor alive while reading
+  input_thread_ = std::thread([self = shared_from_this()] { self->readInputLoop(); });
+
+  std::cout << "[InputActor] Started reading from stdin\n";
+  std::cout << "[InputActor] Player 1: w=UP, a=LEFT, s=DOWN, d=RIGHT\n";
+  std::cout << "[InputActor] Player 2: i=UP, j=LEFT, k=DOWN, l=RIGHT\n";
+  std::cout << "[InputActor] Press 'q' to quit\n";
+}
+
+void InputActor::stopReading() {
+  should_stop_ = true;
+  if (input_thread_.joinable()) {
+    input_thread_.join();
+  }
+}
 
 void InputActor::post(UserInputEvent msg) {
-  asio::post(strand_, [self = shared_from_this(), msg] { self->onUserInputEvent(msg); });
+  asio::post(strand_, [weak_self = weak_from_this(), msg] {
+    if (auto self = weak_self.lock()) {
+      self->onUserInputEvent(msg);
+    }
+  });
+}
+
+void InputActor::readInputLoop() {
+  while (!should_stop_) {
+    char ch;
+    if (std::cin.get(ch)) {
+      // Skip newlines and whitespace for cleaner input
+      if (ch == '\n' || ch == ' ') {
+        continue;
+      }
+
+      // Check for quit command
+      if (ch == 'q' || ch == 'Q') {
+        std::cout << "[InputActor] Quit requested\n";
+        should_stop_ = true;
+        break;
+      }
+
+      // Determine which player this key belongs to
+      PlayerId player = keyToPlayer(ch);
+      if (!player.empty()) {
+        UserInputEvent event;
+        event.player_id = player;
+        event.key = ch;
+
+        // Post to our own strand for thread-safe processing
+        post(event);
+      }
+    } else {
+      // EOF or error
+      break;
+    }
+  }
+
+  std::cout << "[InputActor] Stopped reading from stdin\n";
 }
 
 void InputActor::onUserInputEvent(const UserInputEvent& msg) {
@@ -19,33 +85,76 @@ void InputActor::onUserInputEvent(const UserInputEvent& msg) {
   // Translate key to direction
   Direction dir = charToDirection(msg.key);
 
-  // Send direction change to game session
+  // Publish direction change to topic
   DirectionChange change;
   change.game_id = game_id_;
   change.player_id = msg.player_id;
   change.new_direction = dir;
 
-  session_->post(change);
+  std::cout << "[InputActor] Publishing DirectionChange (dir=" << static_cast<int>(dir) << ")\n";
+  direction_topic_->publish(change);
 }
 
-Direction InputActor::charToDirection(char key) const {
-  // Simple mapping: w=UP, s=DOWN, a=LEFT, d=RIGHT
-  // Could be extended for multiple players with different key bindings
+PlayerId InputActor::keyToPlayer(char key) const {
+  // Hardcoded mapping:
+  // Player 1: w/a/s/d
+  // Player 2: i/j/k/l
   switch (key) {
     case 'w':
     case 'W':
-      return Direction::UP;
-    case 's':
-    case 'S':
-      return Direction::DOWN;
     case 'a':
     case 'A':
-      return Direction::LEFT;
+    case 's':
+    case 'S':
     case 'd':
     case 'D':
-      return Direction::RIGHT;
+      return "player1";
+
+    case 'i':
+    case 'I':
+    case 'j':
+    case 'J':
+    case 'k':
+    case 'K':
+    case 'l':
+    case 'L':
+      return "player2";
+
     default:
-      return Direction::UP;  // Default
+      return "";  // Unknown key
+  }
+}
+
+Direction InputActor::charToDirection(char key) const {
+  // Player 1: w=UP, a=LEFT, s=DOWN, d=RIGHT
+  // Player 2: i=UP, j=LEFT, k=DOWN, l=RIGHT
+  switch (key) {
+    case 'w':
+    case 'W':
+    case 'i':
+    case 'I':
+      return Direction::UP;
+
+    case 's':
+    case 'S':
+    case 'k':
+    case 'K':
+      return Direction::DOWN;
+
+    case 'a':
+    case 'A':
+    case 'j':
+    case 'J':
+      return Direction::LEFT;
+
+    case 'd':
+    case 'D':
+    case 'l':
+    case 'L':
+      return Direction::RIGHT;
+
+    default:
+      return Direction::UP;  // Default fallback
   }
 }
 
