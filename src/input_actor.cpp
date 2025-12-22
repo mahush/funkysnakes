@@ -1,6 +1,7 @@
 #include "snake/input_actor.hpp"
 
 #include <iostream>
+#include <unistd.h>
 
 namespace snake {
 
@@ -14,13 +15,15 @@ void InputActor::startReading() {
     return;  // Already running
   }
 
+  enableRawMode();
+
   should_stop_ = false;
   // Note: Background thread keeps shared_ptr to keep actor alive while reading
   input_thread_ = std::thread([self = shared_from_this()] { self->readInputLoop(); });
 
-  std::cout << "[InputActor] Started reading from stdin\n";
-  std::cout << "[InputActor] Player 1: w=UP, a=LEFT, s=DOWN, d=RIGHT\n";
-  std::cout << "[InputActor] Player 2: i=UP, j=LEFT, k=DOWN, l=RIGHT\n";
+  std::cout << "[InputActor] Started reading from stdin (raw mode)\n";
+  std::cout << "[InputActor] Player 1 (Snake A): w=UP, a=LEFT, s=DOWN, d=RIGHT\n";
+  std::cout << "[InputActor] Player 2 (Snake B): Arrow keys (↑ ↓ ← →)\n";
   std::cout << "[InputActor] Press 'q' to quit\n";
 }
 
@@ -29,11 +32,10 @@ void InputActor::stopReading() {
   if (input_thread_.joinable()) {
     input_thread_.join();
   }
+  disableRawMode();
 }
 
 void InputActor::onUserInput(UserInputEvent msg) {
-  std::cout << "[InputActor] Player '" << msg.player_id << "' pressed key '" << msg.key << "'\n";
-
   // Translate key to direction
   Direction dir = charToDirection(msg.key);
 
@@ -43,7 +45,6 @@ void InputActor::onUserInput(UserInputEvent msg) {
   change.player_id = msg.player_id;
   change.new_direction = dir;
 
-  std::cout << "[InputActor] Publishing DirectionChange (dir=" << static_cast<int>(dir) << ")\n";
   direction_pub_->publish(change);
 }
 
@@ -60,16 +61,36 @@ void InputActor::readInputLoop() {
   while (!should_stop_) {
     char ch;
     if (std::cin.get(ch)) {
-      // Skip newlines and whitespace for cleaner input
-      if (ch == '\n' || ch == ' ') {
-        continue;
-      }
-
       // Check for quit command
       if (ch == 'q' || ch == 'Q') {
-        std::cout << "[InputActor] Quit requested\n";
+        std::cout << "\n[InputActor] Quit requested\n";
         should_stop_ = true;
         break;
+      }
+
+      // Check for escape sequences (arrow keys)
+      if (ch == 27) {  // ESC
+        char seq1, seq2;
+        if (std::cin.get(seq1) && std::cin.get(seq2)) {
+          if (seq1 == '[') {
+            // Arrow key detected
+            char arrow_key = 0;
+            switch (seq2) {
+              case 'A': arrow_key = 'i'; break;  // Up arrow -> 'i'
+              case 'B': arrow_key = 'k'; break;  // Down arrow -> 'k'
+              case 'C': arrow_key = 'l'; break;  // Right arrow -> 'l'
+              case 'D': arrow_key = 'j'; break;  // Left arrow -> 'j'
+            }
+
+            if (arrow_key) {
+              UserInputEvent event;
+              event.player_id = "player2";  // Arrow keys control player2
+              event.key = arrow_key;
+              post(event);
+            }
+          }
+        }
+        continue;
       }
 
       // Determine which player this key belongs to
@@ -88,7 +109,7 @@ void InputActor::readInputLoop() {
     }
   }
 
-  std::cout << "[InputActor] Stopped reading from stdin\n";
+  std::cout << "\n[InputActor] Stopped reading from stdin\n";
 }
 
 PlayerId InputActor::keyToPlayer(char key) const {
@@ -151,6 +172,38 @@ Direction InputActor::charToDirection(char key) const {
 
     default:
       return Direction::UP;  // Default fallback
+  }
+}
+
+void InputActor::enableRawMode() {
+  // Get current terminal attributes
+  if (tcgetattr(STDIN_FILENO, &orig_termios_) == -1) {
+    std::cerr << "[InputActor] Failed to get terminal attributes\n";
+    return;
+  }
+
+  termios raw = orig_termios_;
+
+  // Disable canonical mode (line buffering) and echo
+  raw.c_lflag &= ~(ICANON | ECHO);
+
+  // Set minimum characters to read and timeout
+  raw.c_cc[VMIN] = 1;   // Read one character at a time
+  raw.c_cc[VTIME] = 0;  // No timeout
+
+  // Apply new settings
+  if (tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw) == -1) {
+    std::cerr << "[InputActor] Failed to set raw mode\n";
+    return;
+  }
+
+  raw_mode_enabled_ = true;
+}
+
+void InputActor::disableRawMode() {
+  if (raw_mode_enabled_) {
+    tcsetattr(STDIN_FILENO, TCSAFLUSH, &orig_termios_);
+    raw_mode_enabled_ = false;
   }
 }
 

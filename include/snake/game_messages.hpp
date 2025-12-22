@@ -41,7 +41,7 @@ struct GameState {
   std::vector<SnakeState> snakes;
   Position food;
   int level{1};
-  int board_width{30};
+  int board_width{60};
   int board_height{20};
   bool running{false};
 };

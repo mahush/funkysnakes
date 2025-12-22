@@ -63,8 +63,9 @@ class GameManager : public Actor<GameManager> {
 
   std::vector<PlayerId> registered_players_;
 
-  // Publisher for sending messages
+  // Publishers for sending messages
   std::shared_ptr<TopicPublisher<Tick>> tick_pub_;
+  std::shared_ptr<TopicPublisher<StartClock>> startclock_pub_;
 
   // Subscriptions for pulling messages
   std::shared_ptr<TopicSubscription<GameOver>> gameover_sub_;

@@ -44,7 +44,7 @@ struct StartSession {
   GameId game_id;
   int starting_level;
   std::vector<PlayerId> players;
-  int board_width{30};
+  int board_width{60};
   int board_height{20};
 };
 

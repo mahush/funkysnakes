@@ -5,6 +5,7 @@
 #include <map>
 #include <memory>
 #include <thread>
+#include <termios.h>
 
 #include "snake/actor.hpp"
 #include "snake/game_messages.hpp"
@@ -64,12 +65,16 @@ class InputActor : public Actor<InputActor> {
   Direction charToDirection(char key) const;
   void readInputLoop();
   PlayerId keyToPlayer(char key) const;
+  void enableRawMode();
+  void disableRawMode();
 
   std::shared_ptr<TopicPublisher<DirectionChange>> direction_pub_;
   GameId game_id_;
 
   std::atomic<bool> should_stop_{false};
   std::thread input_thread_;
+  termios orig_termios_{};
+  bool raw_mode_enabled_{false};
 };
 
 }  // namespace snake

@@ -1,6 +1,7 @@
 #include "snake/renderer.hpp"
 
 #include <iostream>
+#include <vector>
 
 namespace snake {
 
@@ -33,17 +34,55 @@ void Renderer::processMessages() {
 
 void Renderer::onStateUpdate(const StateUpdate& msg) {
   const auto& state = msg.state;
-  std::cout << "[Renderer] ========== Game State ==========\n";
-  std::cout << "[Renderer] Game: " << state.game_id << " | Level: " << state.level
-            << " | Running: " << (state.running ? "Yes" : "No") << "\n";
-  std::cout << "[Renderer] Board: " << state.board_width << "x" << state.board_height << "\n";
-  std::cout << "[Renderer] Food at: (" << state.food.x << ", " << state.food.y << ")\n";
 
+  // Clear screen (simple version - just add newlines)
+  std::cout << "\n\n";
+
+  std::cout << "========== SNAKE GAME ==========\n";
+  std::cout << "Game: " << state.game_id << " | Level: " << state.level << " | Running: " << (state.running ? "Yes" : "No") << "\n";
+
+  // Create board
+  std::vector<std::vector<char>> board(state.board_height, std::vector<char>(state.board_width, '.'));
+
+  // Draw snakes
   for (const auto& snake : state.snakes) {
-    std::cout << "[Renderer] Snake '" << snake.player_id << "': Score=" << snake.score
-              << ", Alive=" << (snake.alive ? "Yes" : "No") << ", Length=" << snake.body.size() << "\n";
+    if (snake.alive && !snake.body.empty()) {
+      // Draw head
+      Position head = snake.body[0];
+      if (head.y >= 0 && head.y < state.board_height && head.x >= 0 && head.x < state.board_width) {
+        board[head.y][head.x] = (snake.player_id == "player1") ? 'A' : 'B';
+      }
+
+      // Draw body
+      for (size_t i = 1; i < snake.body.size(); ++i) {
+        Position segment = snake.body[i];
+        if (segment.y >= 0 && segment.y < state.board_height && segment.x >= 0 && segment.x < state.board_width) {
+          board[segment.y][segment.x] = (snake.player_id == "player1") ? 'a' : 'b';
+        }
+      }
+    }
   }
-  std::cout << "[Renderer] ================================\n";
+
+  // Print board
+  for (int y = 0; y < state.board_height; ++y) {
+    for (int x = 0; x < state.board_width; ++x) {
+      std::cout << board[y][x];
+    }
+    std::cout << "\n";
+  }
+
+  // Print player info
+  std::cout << "================================\n";
+  for (const auto& snake : state.snakes) {
+    std::cout << snake.player_id << ": " << (snake.alive ? "ALIVE" : "DEAD")
+              << " | Score: " << snake.score
+              << " | Length: " << snake.body.size();
+    if (!snake.body.empty()) {
+      std::cout << " | Head: (" << snake.body[0].x << "," << snake.body[0].y << ")";
+    }
+    std::cout << "\n";
+  }
+  std::cout << "================================\n";
 }
 
 void Renderer::onGameOver(const GameOver& msg) {

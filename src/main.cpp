@@ -13,6 +13,7 @@ int main() {
   std::cout << "=== Snake Game - Interactive Demo ===\n\n";
 
   asio::io_context io;
+  auto work_guard = asio::make_work_guard(io);  // Keep io_context alive
 
   // Create all topics first
   auto tick_topic = std::make_shared<snake::Topic<snake::Tick>>();
@@ -43,7 +44,11 @@ int main() {
   snake::TopicPublisher<snake::StartGame> startgame_pub{startgame_topic};
 
   // Run io_context in background thread
-  std::thread runner([&io] { io.run(); });
+  std::thread runner([&io] {
+    std::cout << "[Main] io_context thread started\n";
+    io.run();
+    std::cout << "[Main] io_context thread finished\n";
+  });
 
   std::cout << "Joining players...\n";
   joinrequest_pub.publish(snake::JoinRequest{"player1"});

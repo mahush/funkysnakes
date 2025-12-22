@@ -15,6 +15,7 @@ GameManager::GameManager(asio::io_context& io,
                          std::shared_ptr<Topic<StartGame>> startgame_topic)
     : Actor(io),
       tick_pub_(create_pub(tick_topic)),
+      startclock_pub_(create_pub(startclock_topic)),
       gameover_sub_(create_sub(gameover_topic)),
       startclock_sub_(create_sub(startclock_topic)),
       stopclock_sub_(create_sub(stopclock_topic)),
@@ -73,17 +74,16 @@ void GameManager::onStartGame(const StartGame& msg) {
   std::cout << "[GameManager] Starting game with level " << msg.starting_level << " and " << msg.players.size()
             << " players\n";
 
-  // Create StartSession message for GameSession
-  StartSession session_msg;
-  session_msg.game_id = "game_001";  // Simple ID for now
-  session_msg.starting_level = msg.starting_level;
-  session_msg.players = msg.players;
+  current_game_id_ = "game_001";
+  interval_ms_ = 200;  // 200ms per tick for responsive gameplay
 
-  // TODO: Send StartSession to GameSession (not yet implemented in interface)
+  // Send StartClock to GameSession to begin the game
+  StartClock start_clock;
+  start_clock.game_id = current_game_id_;
+  start_clock.interval_ms = interval_ms_;
+  startclock_pub_->publish(start_clock);
 
-  // Start the game timer
-  current_game_id_ = session_msg.game_id;
-  interval_ms_ = 500;  // 500ms per tick initially
+  // Start the timer for ticks
   running_ = true;
   scheduleTick();
 }
