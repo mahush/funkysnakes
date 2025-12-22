@@ -31,8 +31,7 @@ int main() {
   // Create actors using factory methods - clean single-stage construction!
   auto renderer = snake::Renderer::create(io, state_topic, gameover_topic, level_topic);
 
-  auto session = snake::GameSession::create(io, tick_topic, direction_topic, state_topic, startclock_topic,
-                                            stopclock_topic);
+  auto session = snake::GameSession::create(io, tick_topic, direction_topic, state_topic);
 
   auto manager = snake::GameManager::create(io, tick_topic, gameover_topic, startclock_topic, stopclock_topic,
                                             tickrate_topic, joinrequest_topic, leaverequest_topic, startgame_topic);

@@ -43,7 +43,6 @@ struct GameState {
   int level{1};
   int board_width{60};
   int board_height{20};
-  bool running{false};
 };
 
 /**

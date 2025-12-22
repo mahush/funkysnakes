@@ -78,14 +78,12 @@ TEST(ActorTest, GameSession_HandlesTicks) {
   auto tick_topic = std::make_shared<Topic<Tick>>();
   auto direction_topic = std::make_shared<Topic<DirectionChange>>();
   auto state_topic = std::make_shared<Topic<StateUpdate>>();
-  auto startclock_topic = std::make_shared<Topic<StartClock>>();
-  auto stopclock_topic = std::make_shared<Topic<StopClock>>();
 
   // Create mock subscriber for state updates
   auto mock_state_subscriber = MockStateUpdateSubscriber::create(io, state_topic);
 
   // Create GameSession
-  auto session = GameSession::create(io, tick_topic, direction_topic, state_topic, startclock_topic, stopclock_topic);
+  auto session = GameSession::create(io, tick_topic, direction_topic, state_topic);
 
   // Create publisher to send ticks
   Publisher<Tick> tick_pub{tick_topic};
@@ -98,9 +96,9 @@ TEST(ActorTest, GameSession_HandlesTicks) {
   // Run all pending work
   io.run();
 
-  // For now, session doesn't send state updates when not running
-  // This test just verifies no crash
-  SUCCEED();
+  // Verify session sent a state update
+  ASSERT_EQ(mock_state_subscriber->state_updates.size(), 1u);
+  EXPECT_EQ(mock_state_subscriber->state_updates[0].state.game_id, "game_001");
 }
 
 // Test GameManager sends periodic ticks

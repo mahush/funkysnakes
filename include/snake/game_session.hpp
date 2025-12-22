@@ -32,21 +32,15 @@ class GameSession : public Actor<GameSession> {
    * @param tick_topic Topic to subscribe for game ticks
    * @param direction_topic Topic to subscribe for direction changes
    * @param state_topic Topic to publish state updates
-   * @param startclock_topic Topic to subscribe for clock start commands
-   * @param stopclock_topic Topic to subscribe for clock stop commands
    */
   GameSession(asio::io_context& io,
               TopicPtr<Tick> tick_topic,
               TopicPtr<DirectionChange> direction_topic,
-              TopicPtr<StateUpdate> state_topic,
-              TopicPtr<StartClock> startclock_topic,
-              TopicPtr<StopClock> stopclock_topic);
+              TopicPtr<StateUpdate> state_topic);
 
  private:
   void onTick(const Tick& msg);
   void onDirectionChange(const DirectionChange& msg);
-  void onStartClock(const StartClock& msg);
-  void onStopClock(const StopClock& msg);
 
   // Game logic helpers
   void initializeSnake(const PlayerId& player_id);
@@ -59,8 +53,6 @@ class GameSession : public Actor<GameSession> {
   // Subscriptions for pulling messages
   SubscriptionPtr<Tick> tick_sub_;
   SubscriptionPtr<DirectionChange> direction_sub_;
-  SubscriptionPtr<StartClock> startclock_sub_;
-  SubscriptionPtr<StopClock> stopclock_sub_;
 
   GameState state_;
 };

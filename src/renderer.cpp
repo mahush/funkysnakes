@@ -39,7 +39,7 @@ void Renderer::onStateUpdate(const StateUpdate& msg) {
   std::cout << "\n\n";
 
   std::cout << "========== SNAKE GAME ==========\n";
-  std::cout << "Game: " << state.game_id << " | Level: " << state.level << " | Running: " << (state.running ? "Yes" : "No") << "\n";
+  std::cout << "Game: " << state.game_id << " | Level: " << state.level << "\n";
 
   // Create board
   std::vector<std::vector<char>> board(state.board_height, std::vector<char>(state.board_width, '.'));

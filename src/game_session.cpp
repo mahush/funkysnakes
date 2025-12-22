@@ -5,18 +5,14 @@
 namespace snake {
 
 GameSession::GameSession(asio::io_context& io, TopicPtr<Tick> tick_topic, TopicPtr<DirectionChange> direction_topic,
-                         TopicPtr<StateUpdate> state_topic, TopicPtr<StartClock> startclock_topic,
-                         TopicPtr<StopClock> stopclock_topic)
+                         TopicPtr<StateUpdate> state_topic)
     : Actor(io),
       state_pub_(create_pub(state_topic)),
       tick_sub_(create_sub(tick_topic)),
-      direction_sub_(create_sub(direction_topic)),
-      startclock_sub_(create_sub(startclock_topic)),
-      stopclock_sub_(create_sub(stopclock_topic)) {
+      direction_sub_(create_sub(direction_topic)) {
   state_.game_id = "game_001";
   state_.board_width = 60;
   state_.board_height = 20;
-  state_.running = false;
 
   // Initialize snakes for player1 and player2
   initializeSnake("player1");
@@ -24,30 +20,18 @@ GameSession::GameSession(asio::io_context& io, TopicPtr<Tick> tick_topic, TopicP
 }
 
 void GameSession::processMessages() {
-  // Process clock control first
-  while (auto msg = startclock_sub_->tryReceive()) {
-    onStartClock(*msg);
-  }
-  while (auto msg = stopclock_sub_->tryReceive()) {
-    onStopClock(*msg);
-  }
-
-  // Then process ticks
+  // Process ticks
   while (auto tick = tick_sub_->tryReceive()) {
     onTick(*tick);
   }
 
-  // Finally process direction changes
+  // Process direction changes
   while (auto dir = direction_sub_->tryReceive()) {
     onDirectionChange(*dir);
   }
 }
 
-void GameSession::onTick(const Tick& msg) {
-  if (!state_.running) {
-    return;
-  }
-
+void GameSession::onTick(const Tick&) {
   // Move all snakes
   for (auto& snake : state_.snakes) {
     if (snake.alive) {
@@ -80,21 +64,6 @@ void GameSession::onDirectionChange(const DirectionChange& msg) {
       break;
     }
   }
-}
-
-void GameSession::onStartClock(const StartClock& msg) {
-  std::cout << "[GameSession] Starting game '" << msg.game_id << "'\n";
-  state_.running = true;
-
-  // Send initial state update
-  StateUpdate update;
-  update.state = state_;
-  state_pub_->publish(update);
-}
-
-void GameSession::onStopClock(const StopClock& msg) {
-  std::cout << "[GameSession] Stopping game '" << msg.game_id << "'\n";
-  state_.running = false;
 }
 
 void GameSession::initializeSnake(const PlayerId& player_id) {
