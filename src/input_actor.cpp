@@ -31,7 +31,7 @@ void InputActor::stopReading() {
   }
 }
 
-void InputActor::onEvent(UserInputEvent msg) {
+void InputActor::onUserInput(UserInputEvent msg) {
   std::cout << "[InputActor] Player '" << msg.player_id << "' pressed key '" << msg.key << "'\n";
 
   // Translate key to direction
@@ -51,7 +51,7 @@ void InputActor::onEvent(UserInputEvent msg) {
 void InputActor::post(UserInputEvent msg) {
   asio::post(strand_, [weak_self = weak_from_this(), msg] {
     if (auto self = weak_self.lock()) {
-      self->onEvent(msg);
+      self->onUserInput(msg);
     }
   });
 }

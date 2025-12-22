@@ -6,8 +6,8 @@
 #include "snake/actor.hpp"
 #include "snake/control_messages.hpp"
 #include "snake/game_messages.hpp"
-#include "snake/message_sink.hpp"
 #include "snake/topic.hpp"
+#include "snake/topic_subscription.hpp"
 
 namespace snake {
 
@@ -18,17 +18,10 @@ namespace snake {
  * Processes ticks, direction changes, and game logic.
  * Sends state updates and clock control messages via topics.
  */
-class GameSession : public Actor<GameSession>,
-                    public MessageSink<Tick>,
-                    public MessageSink<DirectionChange>,
-                    public MessageSink<PauseGame>,
-                    public MessageSink<ResumeGame> {
+class GameSession : public Actor<GameSession> {
  public:
-  // MessageSink interface implementations
-  void onEvent(Tick msg) override;
-  void onEvent(DirectionChange msg) override;
-  void onEvent(PauseGame msg) override;
-  void onEvent(ResumeGame msg) override;
+  // Process messages from subscribed topics
+  void processMessages() override;
 
  protected:
   friend class Actor<GameSession>;
@@ -49,19 +42,18 @@ class GameSession : public Actor<GameSession>,
               std::shared_ptr<Topic<StartClock>> startclock_topic,
               std::shared_ptr<Topic<StopClock>> stopclock_topic);
 
-  auto subscribeToTopics() {
-    return std::make_tuple(tick_topic_, direction_topic_);
-  }
-
  private:
-  // Topics for subscribing
-  std::shared_ptr<Topic<Tick>> tick_topic_;
-  std::shared_ptr<Topic<DirectionChange>> direction_topic_;
+  void onTick(const Tick& msg);
+  void onDirectionChange(const DirectionChange& msg);
 
   // Topics for publishing
   std::shared_ptr<Topic<StateUpdate>> state_topic_;
   std::shared_ptr<Topic<StartClock>> startclock_topic_;
   std::shared_ptr<Topic<StopClock>> stopclock_topic_;
+
+  // Subscriptions for pulling messages
+  std::shared_ptr<TopicSubscription<Tick>> tick_sub_;
+  std::shared_ptr<TopicSubscription<DirectionChange>> direction_sub_;
 
   GameState state_;
 };

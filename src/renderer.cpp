@@ -9,11 +9,29 @@ Renderer::Renderer(asio::io_context& io,
                    std::shared_ptr<Topic<GameOver>> gameover_topic,
                    std::shared_ptr<Topic<LevelChange>> level_topic)
     : Actor(io),
-      state_topic_(state_topic),
-      gameover_topic_(gameover_topic),
-      level_topic_(level_topic) {}
+      state_sub_(create_sub(state_topic)),
+      gameover_sub_(create_sub(gameover_topic)),
+      level_sub_(create_sub(level_topic)) {
+}
 
-void Renderer::onEvent(StateUpdate msg) {
+void Renderer::processMessages() {
+  // Process all pending state updates
+  while (auto msg = state_sub_->tryReceive()) {
+    onStateUpdate(*msg);
+  }
+
+  // Process game over messages
+  while (auto msg = gameover_sub_->tryReceive()) {
+    onGameOver(*msg);
+  }
+
+  // Process level changes
+  while (auto msg = level_sub_->tryReceive()) {
+    onLevelChange(*msg);
+  }
+}
+
+void Renderer::onStateUpdate(const StateUpdate& msg) {
   const auto& state = msg.state;
   std::cout << "[Renderer] ========== Game State ==========\n";
   std::cout << "[Renderer] Game: " << state.game_id << " | Level: " << state.level
@@ -28,7 +46,7 @@ void Renderer::onEvent(StateUpdate msg) {
   std::cout << "[Renderer] ================================\n";
 }
 
-void Renderer::onEvent(GameOver msg) {
+void Renderer::onGameOver(const GameOver& msg) {
   std::cout << "[Renderer] ********** GAME OVER **********\n";
   std::cout << "[Renderer] Game: " << msg.summary.game_id << " | Final Level: " << msg.summary.final_level << "\n";
   std::cout << "[Renderer] Final Scores:\n";
@@ -38,7 +56,7 @@ void Renderer::onEvent(GameOver msg) {
   std::cout << "[Renderer] ******************************\n";
 }
 
-void Renderer::onEvent(LevelChange msg) {
+void Renderer::onLevelChange(const LevelChange& msg) {
   std::cout << "[Renderer] >>>>>> LEVEL UP! Now at level " << msg.new_level << " <<<<<<\n";
 }
 

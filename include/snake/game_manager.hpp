@@ -7,8 +7,8 @@
 #include "snake/actor.hpp"
 #include "snake/control_messages.hpp"
 #include "snake/game_messages.hpp"
-#include "snake/message_sink.hpp"
 #include "snake/topic.hpp"
+#include "snake/topic_subscription.hpp"
 
 namespace snake {
 
@@ -19,23 +19,10 @@ namespace snake {
  * game control (start, stop, player join/leave).
  * Also owns the game timer and generates ticks.
  */
-class GameManager : public Actor<GameManager>,
-                    public MessageSink<JoinRequest>,
-                    public MessageSink<LeaveRequest>,
-                    public MessageSink<StartGame>,
-                    public MessageSink<GameOver>,
-                    public MessageSink<StartClock>,
-                    public MessageSink<StopClock>,
-                    public MessageSink<TickRateChange> {
+class GameManager : public Actor<GameManager> {
  public:
-  // MessageSink interface implementations
-  void onEvent(JoinRequest msg) override;
-  void onEvent(LeaveRequest msg) override;
-  void onEvent(StartGame msg) override;
-  void onEvent(GameOver msg) override;
-  void onEvent(StartClock msg) override;
-  void onEvent(StopClock msg) override;
-  void onEvent(TickRateChange msg) override;
+  // Process messages from subscribed topics
+  void processMessages() override;
 
  protected:
   friend class Actor<GameManager>;
@@ -62,28 +49,31 @@ class GameManager : public Actor<GameManager>,
               std::shared_ptr<Topic<LeaveRequest>> leaverequest_topic,
               std::shared_ptr<Topic<StartGame>> startgame_topic);
 
-  auto subscribeToTopics() {
-    return std::make_tuple(gameover_topic_, startclock_topic_, stopclock_topic_, tickrate_topic_,
-                           joinrequest_topic_, leaverequest_topic_, startgame_topic_);
-  }
-
  private:
   void scheduleTick();
   void onTimerExpired(const asio::error_code& ec);
 
+  void onJoinRequest(const JoinRequest& msg);
+  void onLeaveRequest(const LeaveRequest& msg);
+  void onStartGame(const StartGame& msg);
+  void onGameOver(const GameOver& msg);
+  void onStartClock(const StartClock& msg);
+  void onStopClock(const StopClock& msg);
+  void onTickRateChange(const TickRateChange& msg);
+
   std::vector<PlayerId> registered_players_;
 
-  // Topics for publishing
+  // Topic for publishing
   std::shared_ptr<Topic<Tick>> tick_topic_;
 
-  // Topics for subscribing
-  std::shared_ptr<Topic<GameOver>> gameover_topic_;
-  std::shared_ptr<Topic<StartClock>> startclock_topic_;
-  std::shared_ptr<Topic<StopClock>> stopclock_topic_;
-  std::shared_ptr<Topic<TickRateChange>> tickrate_topic_;
-  std::shared_ptr<Topic<JoinRequest>> joinrequest_topic_;
-  std::shared_ptr<Topic<LeaveRequest>> leaverequest_topic_;
-  std::shared_ptr<Topic<StartGame>> startgame_topic_;
+  // Subscriptions for pulling messages
+  std::shared_ptr<TopicSubscription<GameOver>> gameover_sub_;
+  std::shared_ptr<TopicSubscription<StartClock>> startclock_sub_;
+  std::shared_ptr<TopicSubscription<StopClock>> stopclock_sub_;
+  std::shared_ptr<TopicSubscription<TickRateChange>> tickrate_sub_;
+  std::shared_ptr<TopicSubscription<JoinRequest>> joinrequest_sub_;
+  std::shared_ptr<TopicSubscription<LeaveRequest>> leaverequest_sub_;
+  std::shared_ptr<TopicSubscription<StartGame>> startgame_sub_;
 
   // Timer for game ticks
   asio::steady_timer timer_;

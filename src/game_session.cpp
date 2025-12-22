@@ -11,16 +11,28 @@ GameSession::GameSession(asio::io_context& io,
                          std::shared_ptr<Topic<StartClock>> startclock_topic,
                          std::shared_ptr<Topic<StopClock>> stopclock_topic)
     : Actor(io),
-      tick_topic_(tick_topic),
-      direction_topic_(direction_topic),
       state_topic_(state_topic),
       startclock_topic_(startclock_topic),
-      stopclock_topic_(stopclock_topic) {
+      stopclock_topic_(stopclock_topic),
+      tick_sub_(create_sub(tick_topic)),
+      direction_sub_(create_sub(direction_topic)) {
   state_.game_id = "game_001";
   state_.running = false;
 }
 
-void GameSession::onEvent(Tick msg) {
+void GameSession::processMessages() {
+  // Process all pending ticks first
+  while (auto tick = tick_sub_->tryReceive()) {
+    onTick(*tick);
+  }
+
+  // Then process direction changes
+  while (auto dir = direction_sub_->tryReceive()) {
+    onDirectionChange(*dir);
+  }
+}
+
+void GameSession::onTick(const Tick& msg) {
   if (!state_.running) {
     return;
   }
@@ -34,31 +46,12 @@ void GameSession::onEvent(Tick msg) {
   state_topic_->publish(update);
 }
 
-void GameSession::onEvent(DirectionChange msg) {
+void GameSession::onDirectionChange(const DirectionChange& msg) {
   std::cout << "[GameSession] Player '" << msg.player_id << "' changed direction to "
             << static_cast<int>(msg.new_direction) << "\n";
 
   // TODO: Update snake direction in state
   // For now, just acknowledge
-}
-
-void GameSession::onEvent(PauseGame msg) {
-  std::cout << "[GameSession] Game '" << msg.game_id << "' paused\n";
-  state_.running = false;
-
-  StopClock stop;
-  stop.game_id = msg.game_id;
-  stopclock_topic_->publish(stop);
-}
-
-void GameSession::onEvent(ResumeGame msg) {
-  std::cout << "[GameSession] Game '" << msg.game_id << "' resumed\n";
-  state_.running = true;
-
-  StartClock start;
-  start.game_id = msg.game_id;
-  start.interval_ms = 500;  // TODO: Use actual tick rate
-  startclock_topic_->publish(start);
 }
 
 }  // namespace snake

@@ -17,7 +17,7 @@ TEST(ActorTest, InputActor_ProcessesUserInput) {
   auto direction_topic = std::make_shared<Topic<DirectionChange>>();
   auto mock_subscriber = std::make_shared<MockDirectionChangeSubscriber>();
   auto mock_strand = asio::make_strand(io);
-  direction_topic->subscribe(mock_subscriber, mock_strand);
+  mock_subscriber->setup(direction_topic, mock_strand);
 
   // Create InputActor with the topic
   auto input_actor = InputActor::create(io, direction_topic, "game_001");
@@ -82,7 +82,7 @@ TEST(ActorTest, GameSession_HandlesTicks) {
   // Create mock subscriber for state updates with strand
   auto mock_state_subscriber = std::make_shared<MockStateUpdateSubscriber>();
   auto mock_strand = asio::make_strand(io);
-  state_topic->subscribe(mock_state_subscriber, mock_strand);
+  mock_state_subscriber->setup(state_topic, mock_strand);
 
   // Create GameSession
   auto session = GameSession::create(io, tick_topic, direction_topic, state_topic, startclock_topic, stopclock_topic);
@@ -117,7 +117,7 @@ TEST(ActorTest, GameManager_SendsPeriodicTicks) {
   // Create mock subscriber for ticks with strand
   auto mock_tick_subscriber = std::make_shared<MockTickSubscriber>();
   auto mock_strand = asio::make_strand(io);
-  tick_topic->subscribe(mock_tick_subscriber, mock_strand);
+  mock_tick_subscriber->setup(tick_topic, mock_strand);
 
   // Create GameManager
   auto manager = GameManager::create(io, tick_topic, gameover_topic, startclock_topic, stopclock_topic, tickrate_topic,

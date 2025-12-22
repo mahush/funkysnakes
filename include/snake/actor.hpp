@@ -1,31 +1,33 @@
 #ifndef SNAKE_ACTOR_HPP
 #define SNAKE_ACTOR_HPP
 
+#include "snake/message_processor_interface.hpp"
+#include "snake/topic.hpp"
+#include "snake/topic_subscription.hpp"
+
+#include <functional>
 #include <memory>
-#include <tuple>
 #include <utility>
+#include <vector>
 
 #include "asio.hpp"
 
 namespace snake {
 
 // CRTP base class for all actors
-// Provides factory pattern, strand management, and automatic topic subscription
+// Provides factory pattern, strand management, and subscription lifecycle
 template<typename Derived>
-class Actor : public std::enable_shared_from_this<Derived> {
+class Actor : public MessageProcessorInterface,
+              public std::enable_shared_from_this<Derived> {
  public:
-  // Factory method - creates actor and subscribes to topics automatically
-  // This is the only way to construct actors
+  // Factory method - creates actor and finalizes subscriptions
   template<typename... Args>
   static std::shared_ptr<Derived> create(asio::io_context& io, Args&&... args) {
     // Use new instead of make_shared to allow protected constructor
     auto actor = std::shared_ptr<Derived>(new Derived(io, std::forward<Args>(args)...));
 
-    // Get topics from derived class and subscribe automatically
-    auto topics = actor->subscribeToTopics();
-    std::apply([&](auto&&... topic_ptrs) {
-      (topic_ptrs->subscribe(actor, actor->strand_), ...);
-    }, topics);
+    // Finalize deferred subscriptions (now shared_from_this() works)
+    actor->finalize();
 
     return actor;
   }
@@ -34,9 +36,22 @@ class Actor : public std::enable_shared_from_this<Derived> {
   explicit Actor(asio::io_context& io) : strand_(asio::make_strand(io)) {}
   virtual ~Actor() = default;
 
-  // Derived classes must implement: auto subscribeToTopics()
-  // Should return std::make_tuple(topic1, topic2, ...) or std::make_tuple() for no subscriptions
-  // Not declared here - uses CRTP duck typing to call derived implementation
+  // Helper for derived classes to create subscriptions
+  // Returns shared_ptr that can be initialized in initializer list
+  // Defers actual registration until finalize() is called by factory
+  template<typename Msg>
+  std::shared_ptr<TopicSubscription<Msg>> create_sub(std::shared_ptr<Topic<Msg>> topic) {
+    auto sub = std::make_shared<TopicSubscription<Msg>>();
+
+    // Defer registration - will be completed in finalize()
+    deferred_.push_back([this, topic, sub]() {
+      // Register subscription with topic (now shared_from_this() works)
+      // Topic holds weak_ptr to actor - auto-cleanup on actor destruction
+      topic->subscribe(this->shared_from_this(), sub.get(), strand_);
+    });
+
+    return sub;
+  }
 
   // Helper for async callbacks - use weak_ptr to avoid keeping actor alive
   std::weak_ptr<Derived> weak_from_this() {
@@ -44,6 +59,17 @@ class Actor : public std::enable_shared_from_this<Derived> {
   }
 
   asio::strand<asio::io_context::executor_type> strand_;
+
+ private:
+  // Finalize deferred subscriptions (called by factory after construction)
+  void finalize() {
+    for (auto& fn : deferred_) {
+      fn();
+    }
+    deferred_.clear();
+  }
+
+  std::vector<std::function<void()>> deferred_;  // Deferred subscription registrations
 };
 
 }  // namespace snake

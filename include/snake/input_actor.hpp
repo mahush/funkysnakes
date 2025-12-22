@@ -8,7 +8,6 @@
 
 #include "snake/actor.hpp"
 #include "snake/game_messages.hpp"
-#include "snake/message_sink.hpp"
 #include "snake/topic.hpp"
 
 namespace snake {
@@ -21,7 +20,7 @@ namespace snake {
  * Supports multiple players (shared controller/keyboard).
  * Reads from stdin in a background thread.
  */
-class InputActor : public Actor<InputActor>, public MessageSink<UserInputEvent> {
+class InputActor : public Actor<InputActor> {
  public:
   /**
    * @brief Destructor - stops the input reading thread
@@ -43,7 +42,8 @@ class InputActor : public Actor<InputActor>, public MessageSink<UserInputEvent> 
    */
   bool isReading() const { return input_thread_.joinable() && !should_stop_; }
 
-  void onEvent(UserInputEvent msg) override;
+  // No subscriptions - InputActor only publishes
+  void processMessages() override {}
 
   // Helper for background thread and tests to post events to this actor's strand
   void post(UserInputEvent msg);
@@ -59,13 +59,8 @@ class InputActor : public Actor<InputActor>, public MessageSink<UserInputEvent> 
    */
   InputActor(asio::io_context& io, std::shared_ptr<Topic<DirectionChange>> direction_topic, GameId game_id);
 
-  auto subscribeToTopics() {
-    // InputActor doesn't subscribe to any topics from other actors
-    // It only receives self-posted UserInputEvents from the background thread
-    return std::make_tuple();
-  }
-
  private:
+  void onUserInput(UserInputEvent msg);
   Direction charToDirection(char key) const;
   void readInputLoop();
   PlayerId keyToPlayer(char key) const;

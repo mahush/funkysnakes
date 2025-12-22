@@ -15,21 +15,52 @@ GameManager::GameManager(asio::io_context& io,
                          std::shared_ptr<Topic<StartGame>> startgame_topic)
     : Actor(io),
       tick_topic_(tick_topic),
-      gameover_topic_(gameover_topic),
-      startclock_topic_(startclock_topic),
-      stopclock_topic_(stopclock_topic),
-      tickrate_topic_(tickrate_topic),
-      joinrequest_topic_(joinrequest_topic),
-      leaverequest_topic_(leaverequest_topic),
-      startgame_topic_(startgame_topic),
-      timer_(io) {}
+      gameover_sub_(create_sub(gameover_topic)),
+      startclock_sub_(create_sub(startclock_topic)),
+      stopclock_sub_(create_sub(stopclock_topic)),
+      tickrate_sub_(create_sub(tickrate_topic)),
+      joinrequest_sub_(create_sub(joinrequest_topic)),
+      leaverequest_sub_(create_sub(leaverequest_topic)),
+      startgame_sub_(create_sub(startgame_topic)),
+      timer_(io) {
+}
 
-void GameManager::onEvent(JoinRequest msg) {
+void GameManager::processMessages() {
+  // Process messages in priority order
+  // High priority: Clock control
+  while (auto msg = startclock_sub_->tryReceive()) {
+    onStartClock(*msg);
+  }
+  while (auto msg = stopclock_sub_->tryReceive()) {
+    onStopClock(*msg);
+  }
+  while (auto msg = tickrate_sub_->tryReceive()) {
+    onTickRateChange(*msg);
+  }
+
+  // Medium priority: Game lifecycle
+  while (auto msg = startgame_sub_->tryReceive()) {
+    onStartGame(*msg);
+  }
+  while (auto msg = gameover_sub_->tryReceive()) {
+    onGameOver(*msg);
+  }
+
+  // Low priority: Player management
+  while (auto msg = joinrequest_sub_->tryReceive()) {
+    onJoinRequest(*msg);
+  }
+  while (auto msg = leaverequest_sub_->tryReceive()) {
+    onLeaveRequest(*msg);
+  }
+}
+
+void GameManager::onJoinRequest(const JoinRequest& msg) {
   std::cout << "[GameManager] Player '" << msg.player_id << "' joined\n";
   registered_players_.push_back(msg.player_id);
 }
 
-void GameManager::onEvent(LeaveRequest msg) {
+void GameManager::onLeaveRequest(const LeaveRequest& msg) {
   std::cout << "[GameManager] Player '" << msg.player_id << "' left\n";
   // Remove from registered players (simple implementation)
   auto it = std::find(registered_players_.begin(), registered_players_.end(), msg.player_id);
@@ -38,7 +69,7 @@ void GameManager::onEvent(LeaveRequest msg) {
   }
 }
 
-void GameManager::onEvent(StartGame msg) {
+void GameManager::onStartGame(const StartGame& msg) {
   std::cout << "[GameManager] Starting game with level " << msg.starting_level << " and " << msg.players.size()
             << " players\n";
 
@@ -57,7 +88,7 @@ void GameManager::onEvent(StartGame msg) {
   scheduleTick();
 }
 
-void GameManager::onEvent(GameOver msg) {
+void GameManager::onGameOver(const GameOver& msg) {
   std::cout << "[GameManager] Game '" << msg.summary.game_id << "' ended at level " << msg.summary.final_level << "\n";
   std::cout << "[GameManager] Final scores:\n";
   for (const auto& [player_id, score] : msg.summary.final_scores) {
@@ -69,7 +100,7 @@ void GameManager::onEvent(GameOver msg) {
   timer_.cancel();
 }
 
-void GameManager::onEvent(StartClock msg) {
+void GameManager::onStartClock(const StartClock& msg) {
   std::cout << "[GameManager] Starting game timer with interval " << msg.interval_ms << "ms\n";
   current_game_id_ = msg.game_id;
   interval_ms_ = msg.interval_ms;
@@ -77,13 +108,13 @@ void GameManager::onEvent(StartClock msg) {
   scheduleTick();
 }
 
-void GameManager::onEvent(StopClock msg) {
+void GameManager::onStopClock(const StopClock& msg) {
   std::cout << "[GameManager] Stopping game timer for '" << msg.game_id << "'\n";
   running_ = false;
   timer_.cancel();
 }
 
-void GameManager::onEvent(TickRateChange msg) {
+void GameManager::onTickRateChange(const TickRateChange& msg) {
   std::cout << "[GameManager] Changing tick rate to " << msg.interval_ms << "ms\n";
   interval_ms_ = msg.interval_ms;
   // New interval will take effect on next tick
