@@ -5,7 +5,7 @@
 namespace snake {
 
 InputActor::InputActor(asio::io_context& io, std::shared_ptr<Topic<DirectionChange>> direction_topic, GameId game_id)
-    : Actor(io), direction_topic_(direction_topic), game_id_(std::move(game_id)) {}
+    : Actor(io), direction_pub_(create_pub(direction_topic)), game_id_(std::move(game_id)) {}
 
 InputActor::~InputActor() { stopReading(); }
 
@@ -44,7 +44,7 @@ void InputActor::onUserInput(UserInputEvent msg) {
   change.new_direction = dir;
 
   std::cout << "[InputActor] Publishing DirectionChange (dir=" << static_cast<int>(dir) << ")\n";
-  direction_topic_->publish(change);
+  direction_pub_->publish(change);
 }
 
 // Helper method for background thread to post events to this actor's strand

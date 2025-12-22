@@ -11,9 +11,9 @@ GameSession::GameSession(asio::io_context& io,
                          std::shared_ptr<Topic<StartClock>> startclock_topic,
                          std::shared_ptr<Topic<StopClock>> stopclock_topic)
     : Actor(io),
-      state_topic_(state_topic),
-      startclock_topic_(startclock_topic),
-      stopclock_topic_(stopclock_topic),
+      state_pub_(create_pub(state_topic)),
+      startclock_pub_(create_pub(startclock_topic)),
+      stopclock_pub_(create_pub(stopclock_topic)),
       tick_sub_(create_sub(tick_topic)),
       direction_sub_(create_sub(direction_topic)) {
   state_.game_id = "game_001";
@@ -43,7 +43,7 @@ void GameSession::onTick(const Tick& msg) {
   // For now, just send state update
   StateUpdate update;
   update.state = state_;
-  state_topic_->publish(update);
+  state_pub_->publish(update);
 }
 
 void GameSession::onDirectionChange(const DirectionChange& msg) {

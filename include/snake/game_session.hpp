@@ -46,10 +46,10 @@ class GameSession : public Actor<GameSession> {
   void onTick(const Tick& msg);
   void onDirectionChange(const DirectionChange& msg);
 
-  // Topics for publishing
-  std::shared_ptr<Topic<StateUpdate>> state_topic_;
-  std::shared_ptr<Topic<StartClock>> startclock_topic_;
-  std::shared_ptr<Topic<StopClock>> stopclock_topic_;
+  // Publishers for sending messages
+  std::shared_ptr<TopicPublisher<StateUpdate>> state_pub_;
+  std::shared_ptr<TopicPublisher<StartClock>> startclock_pub_;
+  std::shared_ptr<TopicPublisher<StopClock>> stopclock_pub_;
 
   // Subscriptions for pulling messages
   std::shared_ptr<TopicSubscription<Tick>> tick_sub_;

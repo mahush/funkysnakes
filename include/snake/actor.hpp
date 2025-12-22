@@ -3,6 +3,7 @@
 
 #include "snake/message_processor_interface.hpp"
 #include "snake/topic.hpp"
+#include "snake/topic_publisher.hpp"
 #include "snake/topic_subscription.hpp"
 
 #include <functional>
@@ -51,6 +52,13 @@ class Actor : public MessageProcessorInterface,
     });
 
     return sub;
+  }
+
+  // Helper for derived classes to create publishers
+  // Returns shared_ptr for symmetric API with create_sub
+  template<typename Msg>
+  std::shared_ptr<TopicPublisher<Msg>> create_pub(std::shared_ptr<Topic<Msg>> topic) {
+    return std::make_shared<TopicPublisher<Msg>>(topic);
   }
 
   // Helper for async callbacks - use weak_ptr to avoid keeping actor alive

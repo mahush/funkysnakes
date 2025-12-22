@@ -14,7 +14,7 @@ GameManager::GameManager(asio::io_context& io,
                          std::shared_ptr<Topic<LeaveRequest>> leaverequest_topic,
                          std::shared_ptr<Topic<StartGame>> startgame_topic)
     : Actor(io),
-      tick_topic_(tick_topic),
+      tick_pub_(create_pub(tick_topic)),
       gameover_sub_(create_sub(gameover_topic)),
       startclock_sub_(create_sub(startclock_topic)),
       stopclock_sub_(create_sub(stopclock_topic)),
@@ -147,7 +147,7 @@ void GameManager::onTimerExpired(const asio::error_code& ec) {
   // Publish tick to topic
   Tick tick;
   tick.game_id = current_game_id_;
-  tick_topic_->publish(tick);
+  tick_pub_->publish(tick);
 
   // Schedule next tick
   scheduleTick();

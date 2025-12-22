@@ -63,8 +63,8 @@ class GameManager : public Actor<GameManager> {
 
   std::vector<PlayerId> registered_players_;
 
-  // Topic for publishing
-  std::shared_ptr<Topic<Tick>> tick_topic_;
+  // Publisher for sending messages
+  std::shared_ptr<TopicPublisher<Tick>> tick_pub_;
 
   // Subscriptions for pulling messages
   std::shared_ptr<TopicSubscription<GameOver>> gameover_sub_;

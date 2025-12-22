@@ -65,7 +65,7 @@ class InputActor : public Actor<InputActor> {
   void readInputLoop();
   PlayerId keyToPlayer(char key) const;
 
-  std::shared_ptr<Topic<DirectionChange>> direction_topic_;
+  std::shared_ptr<TopicPublisher<DirectionChange>> direction_pub_;
   GameId game_id_;
 
   std::atomic<bool> should_stop_{false};
