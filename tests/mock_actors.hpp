@@ -26,11 +26,11 @@ class MockTickSubscriber : public Actor<MockTickSubscriber> {
 
  protected:
   friend class Actor<MockTickSubscriber>;
-  MockTickSubscriber(asio::io_context& io, std::shared_ptr<Topic<Tick>> topic)
+  MockTickSubscriber(asio::io_context& io, TopicPtr<Tick> topic)
       : Actor(io), tick_sub_(create_sub(topic)) {}
 
  private:
-  std::shared_ptr<TopicSubscription<Tick>> tick_sub_;
+  SubscriptionPtr<Tick> tick_sub_;
 };
 
 /**
@@ -48,11 +48,11 @@ class MockDirectionChangeSubscriber : public Actor<MockDirectionChangeSubscriber
 
  protected:
   friend class Actor<MockDirectionChangeSubscriber>;
-  MockDirectionChangeSubscriber(asio::io_context& io, std::shared_ptr<Topic<DirectionChange>> topic)
+  MockDirectionChangeSubscriber(asio::io_context& io, TopicPtr<DirectionChange> topic)
       : Actor(io), direction_sub_(create_sub(topic)) {}
 
  private:
-  std::shared_ptr<TopicSubscription<DirectionChange>> direction_sub_;
+  SubscriptionPtr<DirectionChange> direction_sub_;
 };
 
 /**
@@ -70,11 +70,11 @@ class MockStateUpdateSubscriber : public Actor<MockStateUpdateSubscriber> {
 
  protected:
   friend class Actor<MockStateUpdateSubscriber>;
-  MockStateUpdateSubscriber(asio::io_context& io, std::shared_ptr<Topic<StateUpdate>> topic)
+  MockStateUpdateSubscriber(asio::io_context& io, TopicPtr<StateUpdate> topic)
       : Actor(io), state_sub_(create_sub(topic)) {}
 
  private:
-  std::shared_ptr<TopicSubscription<StateUpdate>> state_sub_;
+  SubscriptionPtr<StateUpdate> state_sub_;
 };
 
 /**
@@ -92,11 +92,11 @@ class MockGameOverSubscriber : public Actor<MockGameOverSubscriber> {
 
  protected:
   friend class Actor<MockGameOverSubscriber>;
-  MockGameOverSubscriber(asio::io_context& io, std::shared_ptr<Topic<GameOver>> topic)
+  MockGameOverSubscriber(asio::io_context& io, TopicPtr<GameOver> topic)
       : Actor(io), gameover_sub_(create_sub(topic)) {}
 
  private:
-  std::shared_ptr<TopicSubscription<GameOver>> gameover_sub_;
+  SubscriptionPtr<GameOver> gameover_sub_;
 };
 
 /**
@@ -114,11 +114,11 @@ class MockStartClockSubscriber : public Actor<MockStartClockSubscriber> {
 
  protected:
   friend class Actor<MockStartClockSubscriber>;
-  MockStartClockSubscriber(asio::io_context& io, std::shared_ptr<Topic<StartClock>> topic)
+  MockStartClockSubscriber(asio::io_context& io, TopicPtr<StartClock> topic)
       : Actor(io), startclock_sub_(create_sub(topic)) {}
 
  private:
-  std::shared_ptr<TopicSubscription<StartClock>> startclock_sub_;
+  SubscriptionPtr<StartClock> startclock_sub_;
 };
 
 /**
@@ -136,11 +136,11 @@ class MockStopClockSubscriber : public Actor<MockStopClockSubscriber> {
 
  protected:
   friend class Actor<MockStopClockSubscriber>;
-  MockStopClockSubscriber(asio::io_context& io, std::shared_ptr<Topic<StopClock>> topic)
+  MockStopClockSubscriber(asio::io_context& io, TopicPtr<StopClock> topic)
       : Actor(io), stopclock_sub_(create_sub(topic)) {}
 
  private:
-  std::shared_ptr<TopicSubscription<StopClock>> stopclock_sub_;
+  SubscriptionPtr<StopClock> stopclock_sub_;
 };
 
 }  // namespace snake

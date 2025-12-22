@@ -40,8 +40,8 @@ int main() {
   auto input_actor = snake::InputActor::create(io, direction_topic, "game_001");
 
   // Create publishers for main thread to send commands
-  snake::TopicPublisher<snake::JoinRequest> joinrequest_pub{joinrequest_topic};
-  snake::TopicPublisher<snake::StartGame> startgame_pub{startgame_topic};
+  snake::Publisher<snake::JoinRequest> joinrequest_pub{joinrequest_topic};
+  snake::Publisher<snake::StartGame> startgame_pub{startgame_topic};
 
   // Run io_context in background thread
   std::thread runner([&io] {

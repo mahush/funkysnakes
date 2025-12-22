@@ -11,16 +11,16 @@ namespace snake {
 // Holds a bounded queue of pending messages
 // Owned by the actor as a value type
 template<typename Msg>
-class TopicSubscription {
+class Subscription {
  public:
-  TopicSubscription() = default;
-  explicit TopicSubscription(size_t max_queue_size) : max_queue_size_(max_queue_size) {}
+  Subscription() = default;
+  explicit Subscription(size_t max_queue_size) : max_queue_size_(max_queue_size) {}
 
   // Non-copyable, movable
-  TopicSubscription(const TopicSubscription&) = delete;
-  TopicSubscription& operator=(const TopicSubscription&) = delete;
-  TopicSubscription(TopicSubscription&&) = default;
-  TopicSubscription& operator=(TopicSubscription&&) = default;
+  Subscription(const Subscription&) = delete;
+  Subscription& operator=(const Subscription&) = delete;
+  Subscription(Subscription&&) = default;
+  Subscription& operator=(Subscription&&) = default;
 
   // Try to receive the next message from queue (non-blocking)
   // Returns std::nullopt if queue is empty
@@ -75,6 +75,10 @@ class TopicSubscription {
   std::deque<Msg> queue_;
   size_t max_queue_size_{100};  // Default max queue size
 };
+
+// Convenience type alias for shared_ptr<Subscription<Msg>>
+template<typename Msg>
+using SubscriptionPtr = std::shared_ptr<Subscription<Msg>>;
 
 }  // namespace snake
 

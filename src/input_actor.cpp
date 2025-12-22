@@ -5,7 +5,7 @@
 
 namespace snake {
 
-InputActor::InputActor(asio::io_context& io, std::shared_ptr<Topic<DirectionChange>> direction_topic, GameId game_id)
+InputActor::InputActor(asio::io_context& io, TopicPtr<DirectionChange> direction_topic, GameId game_id)
     : Actor(io), direction_pub_(create_pub(direction_topic)), game_id_(std::move(game_id)) {}
 
 InputActor::~InputActor() { stopReading(); }

@@ -40,14 +40,14 @@ class GameManager : public Actor<GameManager> {
    * @param startgame_topic Topic to subscribe for start game commands
    */
   GameManager(asio::io_context& io,
-              std::shared_ptr<Topic<Tick>> tick_topic,
-              std::shared_ptr<Topic<GameOver>> gameover_topic,
-              std::shared_ptr<Topic<StartClock>> startclock_topic,
-              std::shared_ptr<Topic<StopClock>> stopclock_topic,
-              std::shared_ptr<Topic<TickRateChange>> tickrate_topic,
-              std::shared_ptr<Topic<JoinRequest>> joinrequest_topic,
-              std::shared_ptr<Topic<LeaveRequest>> leaverequest_topic,
-              std::shared_ptr<Topic<StartGame>> startgame_topic);
+              TopicPtr<Tick> tick_topic,
+              TopicPtr<GameOver> gameover_topic,
+              TopicPtr<StartClock> startclock_topic,
+              TopicPtr<StopClock> stopclock_topic,
+              TopicPtr<TickRateChange> tickrate_topic,
+              TopicPtr<JoinRequest> joinrequest_topic,
+              TopicPtr<LeaveRequest> leaverequest_topic,
+              TopicPtr<StartGame> startgame_topic);
 
  private:
   void scheduleTick();
@@ -64,17 +64,17 @@ class GameManager : public Actor<GameManager> {
   std::vector<PlayerId> registered_players_;
 
   // Publishers for sending messages
-  std::shared_ptr<TopicPublisher<Tick>> tick_pub_;
-  std::shared_ptr<TopicPublisher<StartClock>> startclock_pub_;
+  PublisherPtr<Tick> tick_pub_;
+  PublisherPtr<StartClock> startclock_pub_;
 
   // Subscriptions for pulling messages
-  std::shared_ptr<TopicSubscription<GameOver>> gameover_sub_;
-  std::shared_ptr<TopicSubscription<StartClock>> startclock_sub_;
-  std::shared_ptr<TopicSubscription<StopClock>> stopclock_sub_;
-  std::shared_ptr<TopicSubscription<TickRateChange>> tickrate_sub_;
-  std::shared_ptr<TopicSubscription<JoinRequest>> joinrequest_sub_;
-  std::shared_ptr<TopicSubscription<LeaveRequest>> leaverequest_sub_;
-  std::shared_ptr<TopicSubscription<StartGame>> startgame_sub_;
+  SubscriptionPtr<GameOver> gameover_sub_;
+  SubscriptionPtr<StartClock> startclock_sub_;
+  SubscriptionPtr<StopClock> stopclock_sub_;
+  SubscriptionPtr<TickRateChange> tickrate_sub_;
+  SubscriptionPtr<JoinRequest> joinrequest_sub_;
+  SubscriptionPtr<LeaveRequest> leaverequest_sub_;
+  SubscriptionPtr<StartGame> startgame_sub_;
 
   // Timer for game ticks
   asio::steady_timer timer_;

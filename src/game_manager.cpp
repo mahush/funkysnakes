@@ -5,14 +5,14 @@
 namespace snake {
 
 GameManager::GameManager(asio::io_context& io,
-                         std::shared_ptr<Topic<Tick>> tick_topic,
-                         std::shared_ptr<Topic<GameOver>> gameover_topic,
-                         std::shared_ptr<Topic<StartClock>> startclock_topic,
-                         std::shared_ptr<Topic<StopClock>> stopclock_topic,
-                         std::shared_ptr<Topic<TickRateChange>> tickrate_topic,
-                         std::shared_ptr<Topic<JoinRequest>> joinrequest_topic,
-                         std::shared_ptr<Topic<LeaveRequest>> leaverequest_topic,
-                         std::shared_ptr<Topic<StartGame>> startgame_topic)
+                         TopicPtr<Tick> tick_topic,
+                         TopicPtr<GameOver> gameover_topic,
+                         TopicPtr<StartClock> startclock_topic,
+                         TopicPtr<StopClock> stopclock_topic,
+                         TopicPtr<TickRateChange> tickrate_topic,
+                         TopicPtr<JoinRequest> joinrequest_topic,
+                         TopicPtr<LeaveRequest> leaverequest_topic,
+                         TopicPtr<StartGame> startgame_topic)
     : Actor(io),
       tick_pub_(create_pub(tick_topic)),
       startclock_pub_(create_pub(startclock_topic)),

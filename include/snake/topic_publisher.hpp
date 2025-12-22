@@ -9,11 +9,11 @@ template<typename Msg>
 class Topic;
 
 // Publisher interface for sending messages to a topic
-// Provides symmetric API to TopicSubscription
+// Provides symmetric API to Subscription
 template<typename Msg>
-class TopicPublisher {
+class Publisher {
  public:
-  explicit TopicPublisher(std::shared_ptr<Topic<Msg>> topic) : topic_(topic) {}
+  explicit Publisher(TopicPtr<Msg> topic) : topic_(topic) {}
 
   // Publish a message to the topic
   // Takes by value to support both copy (lvalue) and move (rvalue) semantics
@@ -22,8 +22,12 @@ class TopicPublisher {
   }
 
  private:
-  std::shared_ptr<Topic<Msg>> topic_;
+  TopicPtr<Msg> topic_;
 };
+
+// Convenience type alias for shared_ptr<Publisher<Msg>>
+template<typename Msg>
+using PublisherPtr = std::shared_ptr<Publisher<Msg>>;
 
 }  // namespace snake
 

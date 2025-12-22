@@ -55,7 +55,7 @@ TEST(ActorTest, GameManager_CoordinatesStartGame) {
                                      joinrequest_topic, leaverequest_topic, startgame_topic);
 
   // Create publisher to send join requests
-  TopicPublisher<JoinRequest> joinrequest_pub{joinrequest_topic};
+  Publisher<JoinRequest> joinrequest_pub{joinrequest_topic};
 
   // Join players via topic
   joinrequest_pub.publish(JoinRequest{"player1"});
@@ -88,7 +88,7 @@ TEST(ActorTest, GameSession_HandlesTicks) {
   auto session = GameSession::create(io, tick_topic, direction_topic, state_topic, startclock_topic, stopclock_topic);
 
   // Create publisher to send ticks
-  TopicPublisher<Tick> tick_pub{tick_topic};
+  Publisher<Tick> tick_pub{tick_topic};
 
   // Simulate a tick by publishing to the topic
   Tick tick;
@@ -125,8 +125,8 @@ TEST(ActorTest, GameManager_SendsPeriodicTicks) {
                                      joinrequest_topic, leaverequest_topic, startgame_topic);
 
   // Create publishers for clock control
-  TopicPublisher<StartClock> startclock_pub{startclock_topic};
-  TopicPublisher<StopClock> stopclock_pub{stopclock_topic};
+  Publisher<StartClock> startclock_pub{startclock_topic};
+  Publisher<StopClock> stopclock_pub{stopclock_topic};
 
   // Start game with short interval for testing
   StartClock start;

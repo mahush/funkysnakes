@@ -33,9 +33,9 @@ class Renderer : public Actor<Renderer> {
    * @param level_topic Topic for level changes
    */
   Renderer(asio::io_context& io,
-           std::shared_ptr<Topic<StateUpdate>> state_topic,
-           std::shared_ptr<Topic<GameOver>> gameover_topic,
-           std::shared_ptr<Topic<LevelChange>> level_topic);
+           TopicPtr<StateUpdate> state_topic,
+           TopicPtr<GameOver> gameover_topic,
+           TopicPtr<LevelChange> level_topic);
 
  private:
   void onStateUpdate(const StateUpdate& msg);
@@ -43,9 +43,9 @@ class Renderer : public Actor<Renderer> {
   void onLevelChange(const LevelChange& msg);
 
   // Subscriptions for pulling messages
-  std::shared_ptr<TopicSubscription<StateUpdate>> state_sub_;
-  std::shared_ptr<TopicSubscription<GameOver>> gameover_sub_;
-  std::shared_ptr<TopicSubscription<LevelChange>> level_sub_;
+  SubscriptionPtr<StateUpdate> state_sub_;
+  SubscriptionPtr<GameOver> gameover_sub_;
+  SubscriptionPtr<LevelChange> level_sub_;
 };
 
 }  // namespace snake

@@ -41,8 +41,8 @@ class Actor : public MessageProcessorInterface,
   // Returns shared_ptr that can be initialized in initializer list
   // Defers actual registration until finalize() is called by factory
   template<typename Msg>
-  std::shared_ptr<TopicSubscription<Msg>> create_sub(std::shared_ptr<Topic<Msg>> topic) {
-    auto sub = std::make_shared<TopicSubscription<Msg>>();
+  SubscriptionPtr<Msg> create_sub(TopicPtr<Msg> topic) {
+    auto sub = std::make_shared<Subscription<Msg>>();
 
     // Defer registration - will be completed in finalize()
     deferred_.push_back([this, topic, sub]() {
@@ -57,8 +57,8 @@ class Actor : public MessageProcessorInterface,
   // Helper for derived classes to create publishers
   // Returns shared_ptr for symmetric API with create_sub
   template<typename Msg>
-  std::shared_ptr<TopicPublisher<Msg>> create_pub(std::shared_ptr<Topic<Msg>> topic) {
-    return std::make_shared<TopicPublisher<Msg>>(topic);
+  PublisherPtr<Msg> create_pub(TopicPtr<Msg> topic) {
+    return std::make_shared<Publisher<Msg>>(topic);
   }
 
   // Helper for async callbacks - use weak_ptr to avoid keeping actor alive

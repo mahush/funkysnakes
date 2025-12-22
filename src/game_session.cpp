@@ -4,12 +4,9 @@
 
 namespace snake {
 
-GameSession::GameSession(asio::io_context& io,
-                         std::shared_ptr<Topic<Tick>> tick_topic,
-                         std::shared_ptr<Topic<DirectionChange>> direction_topic,
-                         std::shared_ptr<Topic<StateUpdate>> state_topic,
-                         std::shared_ptr<Topic<StartClock>> startclock_topic,
-                         std::shared_ptr<Topic<StopClock>> stopclock_topic)
+GameSession::GameSession(asio::io_context& io, TopicPtr<Tick> tick_topic, TopicPtr<DirectionChange> direction_topic,
+                         TopicPtr<StateUpdate> state_topic, TopicPtr<StartClock> startclock_topic,
+                         TopicPtr<StopClock> stopclock_topic)
     : Actor(io),
       state_pub_(create_pub(state_topic)),
       tick_sub_(create_sub(tick_topic)),
@@ -73,9 +70,9 @@ void GameSession::onDirectionChange(const DirectionChange& msg) {
       Direction current = snake.current_direction;
 
       bool is_opposite = (current == Direction::UP && new_dir == Direction::DOWN) ||
-                        (current == Direction::DOWN && new_dir == Direction::UP) ||
-                        (current == Direction::LEFT && new_dir == Direction::RIGHT) ||
-                        (current == Direction::RIGHT && new_dir == Direction::LEFT);
+                         (current == Direction::DOWN && new_dir == Direction::UP) ||
+                         (current == Direction::LEFT && new_dir == Direction::RIGHT) ||
+                         (current == Direction::RIGHT && new_dir == Direction::LEFT);
 
       if (!is_opposite) {
         snake.current_direction = msg.new_direction;
@@ -113,7 +110,7 @@ void GameSession::initializeSnake(const PlayerId& player_id) {
 
   // Create a snake of length 5, moving right
   // Body is stored with head at index 0
-  for (int i = 0; i < 5; ++i) {
+  for (int i = 0; i < 7; ++i) {
     snake.body.push_back({start_x - i, y_pos});
   }
 

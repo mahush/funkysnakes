@@ -36,11 +36,11 @@ class GameSession : public Actor<GameSession> {
    * @param stopclock_topic Topic to subscribe for clock stop commands
    */
   GameSession(asio::io_context& io,
-              std::shared_ptr<Topic<Tick>> tick_topic,
-              std::shared_ptr<Topic<DirectionChange>> direction_topic,
-              std::shared_ptr<Topic<StateUpdate>> state_topic,
-              std::shared_ptr<Topic<StartClock>> startclock_topic,
-              std::shared_ptr<Topic<StopClock>> stopclock_topic);
+              TopicPtr<Tick> tick_topic,
+              TopicPtr<DirectionChange> direction_topic,
+              TopicPtr<StateUpdate> state_topic,
+              TopicPtr<StartClock> startclock_topic,
+              TopicPtr<StopClock> stopclock_topic);
 
  private:
   void onTick(const Tick& msg);
@@ -54,13 +54,13 @@ class GameSession : public Actor<GameSession> {
   Position getNextHeadPosition(const SnakeState& snake) const;
 
   // Publishers for sending messages
-  std::shared_ptr<TopicPublisher<StateUpdate>> state_pub_;
+  PublisherPtr<StateUpdate> state_pub_;
 
   // Subscriptions for pulling messages
-  std::shared_ptr<TopicSubscription<Tick>> tick_sub_;
-  std::shared_ptr<TopicSubscription<DirectionChange>> direction_sub_;
-  std::shared_ptr<TopicSubscription<StartClock>> startclock_sub_;
-  std::shared_ptr<TopicSubscription<StopClock>> stopclock_sub_;
+  SubscriptionPtr<Tick> tick_sub_;
+  SubscriptionPtr<DirectionChange> direction_sub_;
+  SubscriptionPtr<StartClock> startclock_sub_;
+  SubscriptionPtr<StopClock> stopclock_sub_;
 
   GameState state_;
 };

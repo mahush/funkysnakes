@@ -58,7 +58,7 @@ class InputActor : public Actor<InputActor> {
    * @param direction_topic Topic to publish direction changes
    * @param game_id The current game ID
    */
-  InputActor(asio::io_context& io, std::shared_ptr<Topic<DirectionChange>> direction_topic, GameId game_id);
+  InputActor(asio::io_context& io, TopicPtr<DirectionChange> direction_topic, GameId game_id);
 
  private:
   void onUserInput(UserInputEvent msg);
@@ -68,7 +68,7 @@ class InputActor : public Actor<InputActor> {
   void enableRawMode();
   void disableRawMode();
 
-  std::shared_ptr<TopicPublisher<DirectionChange>> direction_pub_;
+  PublisherPtr<DirectionChange> direction_pub_;
   GameId game_id_;
 
   std::atomic<bool> should_stop_{false};
