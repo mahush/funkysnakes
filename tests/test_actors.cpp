@@ -6,6 +6,7 @@
 #include "snake/input_actor.hpp"
 #include "snake/renderer.hpp"
 #include "snake/topic.hpp"
+#include "snake/topic_publisher.hpp"
 
 namespace snake {
 
@@ -13,11 +14,9 @@ namespace snake {
 TEST(ActorTest, InputActor_ProcessesUserInput) {
   asio::io_context io;
 
-  // Create topic and mock subscriber with strand
+  // Create topic and mock subscriber
   auto direction_topic = std::make_shared<Topic<DirectionChange>>();
-  auto mock_subscriber = std::make_shared<MockDirectionChangeSubscriber>();
-  auto mock_strand = asio::make_strand(io);
-  mock_subscriber->setup(direction_topic, mock_strand);
+  auto mock_subscriber = MockDirectionChangeSubscriber::create(io, direction_topic);
 
   // Create InputActor with the topic
   auto input_actor = InputActor::create(io, direction_topic, "game_001");
@@ -55,9 +54,12 @@ TEST(ActorTest, GameManager_CoordinatesStartGame) {
   auto manager = GameManager::create(io, tick_topic, gameover_topic, startclock_topic, stopclock_topic, tickrate_topic,
                                      joinrequest_topic, leaverequest_topic, startgame_topic);
 
+  // Create publisher to send join requests
+  TopicPublisher<JoinRequest> joinrequest_pub{joinrequest_topic};
+
   // Join players via topic
-  joinrequest_topic->publish(JoinRequest{"player1"});
-  joinrequest_topic->publish(JoinRequest{"player2"});
+  joinrequest_pub.publish(JoinRequest{"player1"});
+  joinrequest_pub.publish(JoinRequest{"player2"});
 
   // Note: We don't test StartGame here because it starts an infinite timer loop.
   // Timer functionality is tested separately in GameManager_SendsPeriodicTicks.
@@ -79,18 +81,19 @@ TEST(ActorTest, GameSession_HandlesTicks) {
   auto startclock_topic = std::make_shared<Topic<StartClock>>();
   auto stopclock_topic = std::make_shared<Topic<StopClock>>();
 
-  // Create mock subscriber for state updates with strand
-  auto mock_state_subscriber = std::make_shared<MockStateUpdateSubscriber>();
-  auto mock_strand = asio::make_strand(io);
-  mock_state_subscriber->setup(state_topic, mock_strand);
+  // Create mock subscriber for state updates
+  auto mock_state_subscriber = MockStateUpdateSubscriber::create(io, state_topic);
 
   // Create GameSession
   auto session = GameSession::create(io, tick_topic, direction_topic, state_topic, startclock_topic, stopclock_topic);
 
+  // Create publisher to send ticks
+  TopicPublisher<Tick> tick_pub{tick_topic};
+
   // Simulate a tick by publishing to the topic
   Tick tick;
   tick.game_id = "game_001";
-  tick_topic->publish(tick);
+  tick_pub.publish(tick);
 
   // Run all pending work
   io.run();
@@ -114,20 +117,22 @@ TEST(ActorTest, GameManager_SendsPeriodicTicks) {
   auto leaverequest_topic = std::make_shared<Topic<LeaveRequest>>();
   auto startgame_topic = std::make_shared<Topic<StartGame>>();
 
-  // Create mock subscriber for ticks with strand
-  auto mock_tick_subscriber = std::make_shared<MockTickSubscriber>();
-  auto mock_strand = asio::make_strand(io);
-  mock_tick_subscriber->setup(tick_topic, mock_strand);
+  // Create mock subscriber for ticks
+  auto mock_tick_subscriber = MockTickSubscriber::create(io, tick_topic);
 
   // Create GameManager
   auto manager = GameManager::create(io, tick_topic, gameover_topic, startclock_topic, stopclock_topic, tickrate_topic,
                                      joinrequest_topic, leaverequest_topic, startgame_topic);
 
+  // Create publishers for clock control
+  TopicPublisher<StartClock> startclock_pub{startclock_topic};
+  TopicPublisher<StopClock> stopclock_pub{stopclock_topic};
+
   // Start game with short interval for testing
   StartClock start;
   start.game_id = "game_001";
   start.interval_ms = 10;  // 10ms for fast test
-  startclock_topic->publish(start);
+  startclock_pub.publish(start);
 
   // Run for a bit to allow some ticks
   io.run_for(std::chrono::milliseconds(50));
@@ -135,7 +140,7 @@ TEST(ActorTest, GameManager_SendsPeriodicTicks) {
   // Stop
   StopClock stop;
   stop.game_id = "game_001";
-  stopclock_topic->publish(stop);
+  stopclock_pub.publish(stop);
   io.run();
 
   // Should have received multiple ticks (at least 3-4)

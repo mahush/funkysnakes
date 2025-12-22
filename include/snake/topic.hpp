@@ -13,6 +13,13 @@
 
 namespace snake {
 
+// Forward declarations
+template<typename Msg>
+class TopicPublisher;
+
+template<typename Derived>
+class Actor;
+
 // Topic implements a typed pub-sub channel for a specific message type
 // Uses pull-based model: actors pull messages from their TopicSubscription
 // Thread-safe: multiple actors can publish concurrently
@@ -20,6 +27,14 @@ template<typename Msg>
 class Topic {
  public:
   Topic() = default;
+
+ private:
+  // Grant access to TopicPublisher for publish()
+  friend class TopicPublisher<Msg>;
+
+  // Grant access to Actor for subscribe() in create_sub()
+  template<typename Derived>
+  friend class Actor;
 
   // Subscribe to this topic
   // processor: Actor that will be notified when messages arrive (via weak_ptr)
@@ -32,7 +47,7 @@ class Topic {
     subscriptions_.push_back({processor, subscription, strand});
   }
 
-  // Unsubscribe a subscription (called by Actor destructor)
+  // Unsubscribe a subscription (currently unused - cleanup is lazy via weak_ptr)
   void unsubscribe(TopicSubscription<Msg>* subscription) {
     std::lock_guard<std::mutex> lock(mutex_);
     subscriptions_.erase(
@@ -72,7 +87,6 @@ class Topic {
     }
   }
 
- private:
   struct Subscription {
     std::weak_ptr<MessageProcessorInterface> processor;
     TopicSubscription<Msg>* subscription;  // Raw pointer - owned by actor

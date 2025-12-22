@@ -7,6 +7,7 @@
 #include "snake/input_actor.hpp"
 #include "snake/renderer.hpp"
 #include "snake/topic.hpp"
+#include "snake/topic_publisher.hpp"
 
 int main() {
   std::cout << "=== Snake Game - Interactive Demo ===\n\n";
@@ -37,19 +38,23 @@ int main() {
 
   auto input_actor = snake::InputActor::create(io, direction_topic, "game_001");
 
+  // Create publishers for main thread to send commands
+  snake::TopicPublisher<snake::JoinRequest> joinrequest_pub{joinrequest_topic};
+  snake::TopicPublisher<snake::StartGame> startgame_pub{startgame_topic};
+
   // Run io_context in background thread
   std::thread runner([&io] { io.run(); });
 
   std::cout << "Joining players...\n";
-  joinrequest_topic->publish(snake::JoinRequest{"player1"});
-  joinrequest_topic->publish(snake::JoinRequest{"player2"});
+  joinrequest_pub.publish(snake::JoinRequest{"player1"});
+  joinrequest_pub.publish(snake::JoinRequest{"player2"});
   std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
   std::cout << "\nStarting game...\n";
   snake::StartGame start;
   start.starting_level = 1;
   start.players = {"player1", "player2"};
-  startgame_topic->publish(start);
+  startgame_pub.publish(start);
   std::this_thread::sleep_for(std::chrono::milliseconds(200));
 
   std::cout << "\n--- Game Running ---\n";
