@@ -13,13 +13,15 @@ namespace snake {
 enum class Direction { UP, DOWN, LEFT, RIGHT };
 
 /**
- * @brief Position on the game board
+ * @brief Point in 2D space
+ *
+ * Represents a position on the game board.
  */
-struct Position {
+struct Point {
   int x;
   int y;
 
-  bool operator==(const Position& other) const { return x == other.x && y == other.y; }
+  bool operator==(const Point& other) const noexcept { return x == other.x && y == other.y; }
 };
 
 /**
@@ -27,7 +29,7 @@ struct Position {
  */
 struct SnakeState {
   PlayerId player_id;
-  std::vector<Position> body;  // Head is at index 0
+  std::vector<Point> body;  // Head is at index 0
   Direction current_direction;
   int score{0};
   bool alive{true};
@@ -39,7 +41,7 @@ struct SnakeState {
 struct GameState {
   GameId game_id;
   std::vector<SnakeState> snakes;
-  Position food;
+  Point food;
   int level{1};
   int board_width{60};
   int board_height{20};

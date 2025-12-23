@@ -42,6 +42,7 @@ add_executable(snake_actors
   src/game_session.cpp
   src/input_actor.cpp
   src/renderer.cpp
+  src/snake_model.cpp
 )
 
 target_include_directories(snake_actors PRIVATE
@@ -81,6 +82,7 @@ if(SNAKE_BUILD_TESTS)
     src/game_session.cpp
     src/input_actor.cpp
     src/renderer.cpp
+    src/snake_model.cpp
   )
 
   target_link_libraries(test_snake PRIVATE gtest_main gmock_main asio)

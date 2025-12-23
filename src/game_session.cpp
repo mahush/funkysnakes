@@ -2,6 +2,8 @@
 
 #include <iostream>
 
+#include "snake/snake_model.hpp"
+
 namespace snake {
 
 GameSession::GameSession(asio::io_context& io, TopicPtr<Tick> tick_topic, TopicPtr<DirectionChange> direction_topic,
@@ -36,6 +38,24 @@ void GameSession::onTick(const Tick&) {
   for (auto& snake : state_.snakes) {
     if (snake.alive) {
       moveSnake(snake);
+    }
+  }
+
+  // Apply collision detection for two-player game
+  if (state_.snakes.size() >= 2 && state_.snakes[0].alive && state_.snakes[1].alive) {
+    // Convert from vector<Point> to Snake type
+    auto snake_a = Snake::fromBody(state_.snakes[0].body);
+    auto snake_b = Snake::fromBody(state_.snakes[1].body);
+
+    // Both snakes must be valid (non-empty)
+    if (snake_a && snake_b) {
+      // Apply bite rule
+      SnakePair snakes{*snake_a, *snake_b};
+      snakes = applyBiteRule(snakes);
+
+      // Convert back to vector<Point>
+      state_.snakes[0].body = snakes.a.toBody();
+      state_.snakes[1].body = snakes.b.toBody();
     }
   }
 
@@ -93,7 +113,7 @@ void GameSession::moveSnake(SnakeState& snake) {
   }
 
   // Get next head position
-  Position new_head = getNextHeadPosition(snake);
+  Point new_head = getNextHeadPosition(snake);
 
   // Wrap around board edges (horizontally)
   if (new_head.x < 0) {
@@ -116,13 +136,13 @@ void GameSession::moveSnake(SnakeState& snake) {
   snake.body.pop_back();
 }
 
-Position GameSession::getNextHeadPosition(const SnakeState& snake) const {
+Point GameSession::getNextHeadPosition(const SnakeState& snake) const {
   if (snake.body.empty()) {
     return {0, 0};
   }
 
-  Position head = snake.body[0];
-  Position next = head;
+  Point head = snake.body[0];
+  Point next = head;
 
   switch (snake.current_direction) {
     case Direction::LEFT:

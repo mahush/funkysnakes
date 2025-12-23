@@ -45,7 +45,7 @@ class GameSession : public Actor<GameSession> {
   // Game logic helpers
   void initializeSnake(const PlayerId& player_id);
   void moveSnake(SnakeState& snake);
-  Position getNextHeadPosition(const SnakeState& snake) const;
+  Point getNextHeadPosition(const SnakeState& snake) const;
 
   // Publishers for sending messages
   PublisherPtr<StateUpdate> state_pub_;

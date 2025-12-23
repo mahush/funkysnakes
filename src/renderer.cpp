@@ -48,14 +48,14 @@ void Renderer::onStateUpdate(const StateUpdate& msg) {
   for (const auto& snake : state.snakes) {
     if (snake.alive && !snake.body.empty()) {
       // Draw head
-      Position head = snake.body[0];
+      Point head = snake.body[0];
       if (head.y >= 0 && head.y < state.board_height && head.x >= 0 && head.x < state.board_width) {
         board[head.y][head.x] = (snake.player_id == "player1") ? 'A' : 'B';
       }
 
       // Draw body
       for (size_t i = 1; i < snake.body.size(); ++i) {
-        Position segment = snake.body[i];
+        Point segment = snake.body[i];
         if (segment.y >= 0 && segment.y < state.board_height && segment.x >= 0 && segment.x < state.board_width) {
           board[segment.y][segment.x] = (snake.player_id == "player1") ? 'a' : 'b';
         }
