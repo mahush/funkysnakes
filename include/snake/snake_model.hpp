@@ -74,31 +74,6 @@ SnakePair applyBiteRule(SnakePair s);
 // ============================================================================
 
 /**
- * @brief Apply a function to a specific snake by player ID
- *
- * This lens focuses on a single snake within the game state, applies
- * an effectful transformation, and properly combines the effects.
- *
- * @tparam F Function type: SnakeState -> SnakeStateWithScoreEffect
- * @param x Current game state with accumulated effects
- * @param player_id ID of the player whose snake to transform
- * @param f Function to apply to the snake
- * @return Updated game state with combined effects
- */
-template <typename F>
-GameStateAndScoreDelta over_snake_with_effects(GameStateAndScoreDelta x, const PlayerId& player_id, F f) {
-  auto it = x.state.snakes.find(player_id);
-  if (it == x.state.snakes.end()) {
-    return x;  // Player not found, return unchanged
-  }
-
-  auto res = f(it->second);
-  it->second = res.state;
-  x.effect = combine(x.effect, res.effect);
-  return x;
-}
-
-/**
  * @brief Apply a function to each snake in the game state
  *
  * This traversal maps an effectful transformation over all snakes,
@@ -145,7 +120,7 @@ GameStateAndScoreDelta over_each_alive_snake_combining_scores(GameStateAndScoreD
 // Helper to unpack tuple results and update state (C++17 compatible)
 template <typename GameStateWithEffect, typename ResultTuple, std::size_t... Is>
 void update_snakes_from_result(GameStateWithEffect& x, const ResultTuple& result,
-                                const std::array<PlayerId, sizeof...(Is)>& players, std::index_sequence<Is...>) {
+                               const std::array<PlayerId, sizeof...(Is)>& players, std::index_sequence<Is...>) {
   ((x.state.snakes[players[Is]] = std::get<Is>(result)), ...);
   x.effect = combine(x.effect, std::get<sizeof...(Is)>(result));
 }
@@ -172,7 +147,7 @@ void update_snakes_from_result(GameStateWithEffect& x, const ResultTuple& result
  */
 template <typename F, typename... PlayerIds>
 GameStateAndScoreDelta over_selected_snakes_combining_scores(GameStateAndScoreDelta x, F f,
-                                                              const PlayerIds&... player_ids) {
+                                                             const PlayerIds&... player_ids) {
   // Helper to look up snake states and create pairs
   auto lookup = [&](const PlayerId& pid) -> std::pair<PlayerId, SnakeState> {
     auto it = x.state.snakes.find(pid);
