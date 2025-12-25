@@ -91,6 +91,32 @@ This project implements a **typed actor model** using standalone Asio for thread
 - **Deferred Initialization**: Subscriptions registered after construction to enable shared_from_this()
 - **Pull-Based Processing**: Actors pull messages from subscriptions rather than push callbacks
 
+### Lens & Traversal Naming
+
+**Goal:** Consistent, self‑descriptive helpers for updating parts of complex state.
+
+| Prefix | Meaning | Type |
+|---------|----------|------|
+| `over_` | Apply a transformation to one sub‑part of a structure | Lens |
+| `over_each_` | Apply a transformation to every element of a contained list | Traversal |
+
+**Rules**
+- Always use lowercase snake_case.
+- Name the focused part explicitly (e.g. `over_snake`, `over_each_food`).
+- Add `_combining_scores` suffix when the helper accumulates score effects.
+
+**Examples**
+```cpp
+// Traversal: calls function multiple times (once per alive snake)
+over_each_alive_snake_combining_scores(state, move_snake);
+
+// Lens: calls function once with all selected snakes as parameters
+over_selected_snakes_combining_scores(state, handle_collision, "player1", "player2");
+```
+
+**Rationale:**
+Functions starting with `over_` clearly signal "apply to part of state"; `over_each_` signals iteration. This keeps transformations declarative, composable, and easily searchable.
+
 ## Important Implementation Notes
 
 ### Actor Creation
