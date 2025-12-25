@@ -179,7 +179,7 @@ void GameSession::onTick(const Tick&) {
 
   // Step 1: Move all alive snakes
   // Uses traversal to apply moveSnake to each alive snake, accumulating effects
-  state_and_score_delta = for_each_alive_snake_combining_scores(
+  state_and_score_delta = over_each_alive_snake_combining_scores(
       state_and_score_delta,
       [this](const SnakeState& snake) { return moveSnake(snake, state_.board_width, state_.board_height); });
 
