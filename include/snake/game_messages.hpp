@@ -1,5 +1,6 @@
 #pragma once
 
+#include <map>
 #include <string>
 #include <vector>
 
@@ -31,7 +32,6 @@ struct SnakeState {
   PlayerId player_id;
   std::vector<Point> body;  // Head is at index 0
   Direction current_direction;
-  int score{0};
   bool alive{true};
 };
 
@@ -41,6 +41,7 @@ struct SnakeState {
 struct GameState {
   GameId game_id;
   std::vector<SnakeState> snakes;
+  std::map<PlayerId, int> scores;  // Player scores
   Point food;
   int level{1};
   int board_width{60};

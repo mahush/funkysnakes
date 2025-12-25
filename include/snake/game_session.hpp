@@ -42,10 +42,8 @@ class GameSession : public Actor<GameSession> {
   void onTick(const Tick& msg);
   void onDirectionChange(const DirectionChange& msg);
 
-  // Game logic helpers
+  // Game initialization helpers
   void initializeSnake(const PlayerId& player_id);
-  void moveSnake(SnakeState& snake);
-  Point getNextHeadPosition(const SnakeState& snake) const;
 
   // Publishers for sending messages
   PublisherPtr<StateUpdate> state_pub_;

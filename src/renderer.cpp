@@ -74,8 +74,13 @@ void Renderer::onStateUpdate(const StateUpdate& msg) {
   // Print player info
   std::cout << "================================\n";
   for (const auto& snake : state.snakes) {
+    int score = 0;
+    auto score_it = state.scores.find(snake.player_id);
+    if (score_it != state.scores.end()) {
+      score = score_it->second;
+    }
     std::cout << snake.player_id << ": " << (snake.alive ? "ALIVE" : "DEAD")
-              << " | Score: " << snake.score
+              << " | Score: " << score
               << " | Length: " << snake.body.size();
     if (!snake.body.empty()) {
       std::cout << " | Head: (" << snake.body[0].x << "," << snake.body[0].y << ")";
