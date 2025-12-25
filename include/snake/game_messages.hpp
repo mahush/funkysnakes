@@ -26,11 +26,47 @@ struct Point {
 };
 
 /**
+ * @brief Snake with guaranteed head
+ *
+ * Represents a snake that always has at least a head.
+ * The tail can be empty (snake of length 1).
+ * This makes illegal states (empty snake) unrepresentable.
+ */
+struct Snake {
+  Point head;
+  std::vector<Point> tail;  // Can be empty
+
+  /**
+   * @brief Create snake from head and optional tail
+   */
+  static Snake create(Point head, std::vector<Point> tail = {}) { return Snake{head, tail}; }
+
+  /**
+   * @brief Get total length of snake
+   */
+  size_t length() const { return 1 + tail.size(); }
+
+  /**
+   * @brief Convert to body representation (vector of points with head at index 0)
+   *
+   * This is mainly for compatibility/serialization purposes.
+   */
+  std::vector<Point> toBody() const {
+    std::vector<Point> body;
+    body.reserve(1 + tail.size());
+    body.push_back(head);
+    body.insert(body.end(), tail.begin(), tail.end());
+    return body;
+  }
+};
+
+/**
  * @brief Snake state for a single player
+ *
+ * Note: player_id is NOT stored here - it's the key in GameState.snakes map
  */
 struct SnakeState {
-  PlayerId player_id;
-  std::vector<Point> body;  // Head is at index 0
+  Snake snake;
   Direction current_direction;
   bool alive{true};
 };
@@ -40,8 +76,8 @@ struct SnakeState {
  */
 struct GameState {
   GameId game_id;
-  std::vector<SnakeState> snakes;
-  std::map<PlayerId, int> scores;  // Player scores
+  std::map<PlayerId, SnakeState> snakes;  // Map from player ID to snake state
+  std::map<PlayerId, int> scores;         // Player scores
   Point food;
   int level{1};
   int board_width{60};

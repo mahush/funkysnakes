@@ -9,34 +9,35 @@
 namespace snake {
 
 /**
- * @brief Apply a function to a specific snake by index
+ * @brief Apply a function to a specific snake by player ID
  *
  * This lens focuses on a single snake within the game state, applies
  * an effectful transformation, and properly combines the effects.
  *
  * @tparam F Function type: SnakeState -> SnakeStateWithScoreEffect
  * @param x Current game state with accumulated effects
- * @param snake_index Index of the snake to transform
+ * @param player_id ID of the player whose snake to transform
  * @param f Function to apply to the snake
  * @return Updated game state with combined effects
  */
 template <typename F>
-GameStateAndScoreDelta over_snake_with_effects(GameStateAndScoreDelta x, size_t snake_index, F f) {
-  if (snake_index >= x.state.snakes.size()) {
-    return x;  // Index out of bounds, return unchanged
+GameStateAndScoreDelta over_snake_with_effects(GameStateAndScoreDelta x, const PlayerId& player_id, F f) {
+  auto it = x.state.snakes.find(player_id);
+  if (it == x.state.snakes.end()) {
+    return x;  // Player not found, return unchanged
   }
 
-  auto res = f(x.state.snakes[snake_index]);
-  x.state.snakes[snake_index] = res.state;
+  auto res = f(it->second);
+  it->second = res.state;
   x.effect = combine(x.effect, res.effect);
   return x;
 }
 
 /**
- * @brief Apply a function to all snakes in the game state
+ * @brief Apply a function to each snake in the game state
  *
- * This lens maps an effectful transformation over all snakes,
- * collecting and combining all effects.
+ * This iteration maps an effectful transformation over all snakes,
+ * calling the function once per snake and combining all effects.
  *
  * @tparam F Function type: SnakeState -> SnakeStateWithScoreEffect
  * @param x Current game state with accumulated effects
@@ -44,19 +45,20 @@ GameStateAndScoreDelta over_snake_with_effects(GameStateAndScoreDelta x, size_t 
  * @return Updated game state with combined effects from all snakes
  */
 template <typename F>
-GameStateAndScoreDelta over_all_snakes_with_effects(GameStateAndScoreDelta x, F f) {
-  for (size_t i = 0; i < x.state.snakes.size(); ++i) {
-    auto res = f(x.state.snakes[i]);
-    x.state.snakes[i] = res.state;
+GameStateAndScoreDelta for_each_snake_combining_scores(GameStateAndScoreDelta x, F f) {
+  for (auto& [player_id, snake_state] : x.state.snakes) {
+    auto res = f(snake_state);
+    snake_state = res.state;
     x.effect = combine(x.effect, res.effect);
   }
   return x;
 }
 
 /**
- * @brief Apply a function to only alive snakes
+ * @brief Apply a function to each alive snake
  *
- * This lens filters to alive snakes before applying the transformation.
+ * This iteration filters to alive snakes before applying the transformation,
+ * calling the function once per alive snake and combining all effects.
  *
  * @tparam F Function type: SnakeState -> SnakeStateWithScoreEffect
  * @param x Current game state with accumulated effects
@@ -64,43 +66,72 @@ GameStateAndScoreDelta over_all_snakes_with_effects(GameStateAndScoreDelta x, F 
  * @return Updated game state with combined effects from all alive snakes
  */
 template <typename F>
-GameStateAndScoreDelta over_alive_snakes_with_combining_scores(GameStateAndScoreDelta x, F f) {
-  for (size_t i = 0; i < x.state.snakes.size(); ++i) {
-    if (x.state.snakes[i].alive) {
-      auto res = f(x.state.snakes[i]);
-      x.state.snakes[i] = res.state;
+GameStateAndScoreDelta for_each_alive_snake_combining_scores(GameStateAndScoreDelta x, F f) {
+  for (auto& [player_id, snake_state] : x.state.snakes) {
+    if (snake_state.alive) {
+      auto res = f(snake_state);
+      snake_state = res.state;
       x.effect = combine(x.effect, res.effect);
     }
   }
   return x;
 }
 
+// Helper to unpack tuple results and update state (C++17 compatible)
+template <typename GameStateWithEffect, typename ResultTuple, std::size_t... Is>
+void update_snakes_from_result(GameStateWithEffect& x, const ResultTuple& result,
+                                const std::array<PlayerId, sizeof...(Is)>& players, std::index_sequence<Is...>) {
+  ((x.state.snakes[players[Is]] = std::get<Is>(result)), ...);
+  x.effect = combine(x.effect, std::get<sizeof...(Is)>(result));
+}
+
 /**
- * @brief Apply a function to a pair of snakes
+ * @brief Lens to apply a function over explicitly selected snakes
  *
- * This lens focuses on two specific snakes for operations like
- * collision detection that need to consider snake interactions.
+ * This variadic lens focuses on explicitly selected snakes and calls the function
+ * ONCE with all selected snakes as parameters. It looks up each player ID,
+ * creates std::pair<PlayerId, SnakeState> for each, passes them all to the function
+ * in a single call, and unpacks the results.
  *
- * The function takes two snake states and returns both updated states
- * plus combined effects.
+ * Use cases:
+ * - Single snake (self-collision): over_selected_snakes_combining_scores(x, f, "player1")
+ *   → calls f(pair1) once
+ * - Two snakes (collision): over_selected_snakes_combining_scores(x, f, "player1", "player2")
+ *   → calls f(pair1, pair2) once
  *
- * @tparam F Function type: (SnakeState, SnakeState) -> (SnakeState, SnakeState, ScoreDelta)
+ * @tparam F Function type taking N pairs and returning tuple of (N SnakeStates..., ScoreDelta)
  * @param x Current game state with accumulated effects
- * @param index_a Index of first snake
- * @param index_b Index of second snake
- * @param f Function to apply to the snake pair
+ * @param f Function to apply over the selected snakes (called once with all snakes)
+ * @param player_ids Variable number of player IDs to operate on
  * @return Updated game state with combined effects
  */
-template <typename F>
-GameStateAndScoreDelta over_snake_pair_with_effects(GameStateAndScoreDelta x, size_t index_a, size_t index_b, F f) {
-  if (index_a >= x.state.snakes.size() || index_b >= x.state.snakes.size() || index_a == index_b) {
-    return x;  // Invalid indices, return unchanged
+template <typename F, typename... PlayerIds>
+GameStateAndScoreDelta over_selected_snakes_combining_scores(GameStateAndScoreDelta x, F f,
+                                                              const PlayerIds&... player_ids) {
+  // Helper to look up snake states and create pairs
+  auto lookup = [&](const PlayerId& pid) -> std::pair<PlayerId, SnakeState> {
+    auto it = x.state.snakes.find(pid);
+    if (it != x.state.snakes.end()) {
+      return {pid, it->second};
+    }
+    // Return empty state if not found (caller should handle)
+    return {pid, SnakeState{}};
+  };
+
+  // Check all players exist
+  auto check_exists = [&](const PlayerId& pid) { return x.state.snakes.find(pid) != x.state.snakes.end(); };
+  if (!(check_exists(player_ids) && ...)) {
+    return x;  // At least one player not found
   }
 
-  auto [new_a, new_b, effect] = f(x.state.snakes[index_a], x.state.snakes[index_b]);
-  x.state.snakes[index_a] = new_a;
-  x.state.snakes[index_b] = new_b;
-  x.effect = combine(x.effect, effect);
+  // Call function with pairs
+  auto result = f(lookup(player_ids)...);
+
+  // Unpack result and update state
+  // Convert player_ids to array of PlayerId (std::string)
+  std::array<PlayerId, sizeof...(PlayerIds)> players{PlayerId(player_ids)...};
+  update_snakes_from_result(x, result, players, std::make_index_sequence<sizeof...(PlayerIds)>{});
+
   return x;
 }
 

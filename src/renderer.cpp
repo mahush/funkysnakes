@@ -45,19 +45,18 @@ void Renderer::onStateUpdate(const StateUpdate& msg) {
   std::vector<std::vector<char>> board(state.board_height, std::vector<char>(state.board_width, '.'));
 
   // Draw snakes
-  for (const auto& snake : state.snakes) {
-    if (snake.alive && !snake.body.empty()) {
+  for (const auto& [player_id, snake_state] : state.snakes) {
+    if (snake_state.alive) {
       // Draw head
-      Point head = snake.body[0];
+      Point head = snake_state.snake.head;
       if (head.y >= 0 && head.y < state.board_height && head.x >= 0 && head.x < state.board_width) {
-        board[head.y][head.x] = (snake.player_id == "player1") ? 'A' : 'B';
+        board[head.y][head.x] = (player_id == "player1") ? 'A' : 'B';
       }
 
-      // Draw body
-      for (size_t i = 1; i < snake.body.size(); ++i) {
-        Point segment = snake.body[i];
+      // Draw tail
+      for (const Point& segment : snake_state.snake.tail) {
         if (segment.y >= 0 && segment.y < state.board_height && segment.x >= 0 && segment.x < state.board_width) {
-          board[segment.y][segment.x] = (snake.player_id == "player1") ? 'a' : 'b';
+          board[segment.y][segment.x] = (player_id == "player1") ? 'a' : 'b';
         }
       }
     }
@@ -73,19 +72,15 @@ void Renderer::onStateUpdate(const StateUpdate& msg) {
 
   // Print player info
   std::cout << "================================\n";
-  for (const auto& snake : state.snakes) {
+  for (const auto& [player_id, snake_state] : state.snakes) {
     int score = 0;
-    auto score_it = state.scores.find(snake.player_id);
+    auto score_it = state.scores.find(player_id);
     if (score_it != state.scores.end()) {
       score = score_it->second;
     }
-    std::cout << snake.player_id << ": " << (snake.alive ? "ALIVE" : "DEAD")
-              << " | Score: " << score
-              << " | Length: " << snake.body.size();
-    if (!snake.body.empty()) {
-      std::cout << " | Head: (" << snake.body[0].x << "," << snake.body[0].y << ")";
-    }
-    std::cout << "\n";
+    std::cout << player_id << ": " << (snake_state.alive ? "ALIVE" : "DEAD") << " | Score: " << score
+              << " | Length: " << snake_state.snake.length() << " | Head: (" << snake_state.snake.head.x << ","
+              << snake_state.snake.head.y << ")\n";
   }
   std::cout << "================================\n";
 }

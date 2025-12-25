@@ -15,15 +15,11 @@ namespace snake {
 /**
  * @brief Get next head position based on current direction
  */
-static Point getNextHeadPosition(const SnakeState& snake) {
-  if (snake.body.empty()) {
-    return {0, 0};
-  }
-
-  Point head = snake.body[0];
+static Point getNextHeadPosition(const SnakeState& snake_state) {
+  Point head = snake_state.snake.head;
   Point next = head;
 
-  switch (snake.current_direction) {
+  switch (snake_state.current_direction) {
     case Direction::LEFT:
       next.x = head.x - 1;
       break;
@@ -66,31 +62,39 @@ static Point wrapPoint(Point p, int board_width, int board_height) {
  * This subsystem handles snake movement, wrapping around board edges.
  * Returns the updated snake state with empty effects.
  *
- * @param snake Current snake state
+ * @param snake_state Current snake state
  * @param board_width Width of game board
  * @param board_height Height of game board
  * @return Snake state with empty effect
  */
-static SnakeStateWithScoreEffect moveSnake(const SnakeState& snake, int board_width, int board_height) {
-  SnakeState new_snake = snake;
+static SnakeStateWithScoreEffect moveSnake(const SnakeState& snake_state, int board_width, int board_height) {
+  SnakeState new_state = snake_state;
 
-  if (new_snake.body.empty() || !new_snake.alive) {
-    return {new_snake, ScoreDelta::empty()};
+  if (!new_state.alive) {
+    return {new_state, ScoreDelta::empty()};
   }
 
   // Get next head position
-  Point new_head = getNextHeadPosition(new_snake);
+  Point new_head = getNextHeadPosition(new_state);
 
   // Wrap around board edges
   new_head = wrapPoint(new_head, board_width, board_height);
 
-  // Add new head at front
-  new_snake.body.insert(new_snake.body.begin(), new_head);
+  // Build new tail: old head + old tail (minus last element to keep fixed length)
+  std::vector<Point> new_tail;
+  new_tail.reserve(new_state.snake.tail.size() + 1);
+  new_tail.push_back(new_state.snake.head);
+  new_tail.insert(new_tail.end(), new_state.snake.tail.begin(), new_state.snake.tail.end());
 
-  // Remove tail to keep fixed length
-  new_snake.body.pop_back();
+  // Remove last element to keep fixed length
+  if (!new_tail.empty()) {
+    new_tail.pop_back();
+  }
 
-  return {new_snake, ScoreDelta::empty()};
+  // Create new snake with updated head and tail
+  new_state.snake = Snake{new_head, new_tail};
+
+  return {new_state, ScoreDelta::empty()};
 }
 
 /**
@@ -100,51 +104,42 @@ static SnakeStateWithScoreEffect moveSnake(const SnakeState& snake, int board_wi
  * the bitten snake gets its tail cut off. This can potentially generate score effects
  * (e.g., penalty for being bitten, bonus for biting).
  *
- * @param snake_a First snake state
- * @param snake_b Second snake state
+ * @param a First player snake pair (player ID + snake state)
+ * @param b Second player snake pair (player ID + snake state)
  * @return Tuple of (updated snake_a, updated snake_b, combined effects)
  */
-static std::tuple<SnakeState, SnakeState, ScoreDelta> handleSnakeCollision(const SnakeState& snake_a,
-                                                                           const SnakeState& snake_b) {
-  SnakeState new_a = snake_a;
-  SnakeState new_b = snake_b;
+static std::tuple<SnakeState, SnakeState, ScoreDelta> handleSnakeCollision(std::pair<PlayerId, SnakeState> a,
+                                                                           std::pair<PlayerId, SnakeState> b) {
+  auto [player_a, snake_a] = a;
+  auto [player_b, snake_b] = b;
   ScoreDelta effect = ScoreDelta::empty();
 
   // Only check collisions if both snakes are alive
-  if (!new_a.alive || !new_b.alive) {
-    return {new_a, new_b, effect};
+  if (!snake_a.alive || !snake_b.alive) {
+    return {snake_a, snake_b, effect};
   }
 
-  // Convert from vector<Point> to Snake type for collision detection
-  auto snake_a_model = Snake::fromBody(new_a.body);
-  auto snake_b_model = Snake::fromBody(new_b.body);
-
-  // Both snakes must be valid (non-empty)
-  if (!snake_a_model || !snake_b_model) {
-    return {new_a, new_b, effect};
-  }
-
-  // Apply bite rule
-  SnakePair snakes{*snake_a_model, *snake_b_model};
+  // Apply bite rule directly (no conversions needed!)
+  SnakePair snakes{snake_a.snake, snake_b.snake};
   SnakePair result = applyBiteRule(snakes);
 
   // Check if snake A got shorter (was bitten by B)
   if (result.a.length() < snakes.a.length()) {
-    // Snake A was bitten - could add score penalty here
-    effect = combine(effect, ScoreDelta::forPlayer(new_a.player_id, -10));
+    // Snake A was bitten - apply score penalty
+    effect = combine(effect, ScoreDelta::forPlayer(player_a, -10));
   }
 
   // Check if snake B got shorter (was bitten by A)
   if (result.b.length() < snakes.b.length()) {
-    // Snake B was bitten - could add score penalty here
-    effect = combine(effect, ScoreDelta::forPlayer(new_b.player_id, -10));
+    // Snake B was bitten - apply score penalty
+    effect = combine(effect, ScoreDelta::forPlayer(player_b, -10));
   }
 
-  // Convert back to vector<Point>
-  new_a.body = result.a.toBody();
-  new_b.body = result.b.toBody();
+  // Update snake states with collision results
+  snake_a.snake = result.a;
+  snake_b.snake = result.b;
 
-  return {new_a, new_b, effect};
+  return {snake_a, snake_b, effect};
 }
 
 // ============================================================================
@@ -183,15 +178,16 @@ void GameSession::onTick(const Tick&) {
   GameStateAndScoreDelta state_and_score_delta = GameStateAndScoreDelta::fromState(state_);
 
   // Step 1: Move all alive snakes
-  // Uses lens to apply moveSnake to each alive snake, accumulating effects
-  state_and_score_delta = over_alive_snakes_with_combining_scores(
+  // Uses traversal to apply moveSnake to each alive snake, accumulating effects
+  state_and_score_delta = for_each_alive_snake_combining_scores(
       state_and_score_delta,
       [this](const SnakeState& snake) { return moveSnake(snake, state_.board_width, state_.board_height); });
 
-  // Step 2: Handle collisions between snake pairs
-  // For two-player game, check collision between snakes 0 and 1
+  // Step 2: Handle collisions between selected snake pairs
+  // For two-player game, check collision between player1 and player2
   if (state_and_score_delta.state.snakes.size() >= 2) {
-    state_and_score_delta = over_snake_pair_with_effects(state_and_score_delta, 0, 1, handleSnakeCollision);
+    state_and_score_delta =
+        over_selected_snakes_combining_scores(state_and_score_delta, handleSnakeCollision, "player1", "player2");
   }
 
   // Step 3: Apply accumulated score effects to the final state
@@ -209,42 +205,48 @@ void GameSession::onTick(const Tick&) {
 
 void GameSession::onDirectionChange(const DirectionChange& msg) {
   // Find the snake for this player
-  for (auto& snake : state_.snakes) {
-    if (snake.player_id == msg.player_id) {
-      // Prevent 180-degree turns (going back into yourself)
-      Direction new_dir = msg.new_direction;
-      Direction current = snake.current_direction;
+  auto it = state_.snakes.find(msg.player_id);
+  if (it == state_.snakes.end()) {
+    return;  // Player not found
+  }
 
-      bool is_opposite = (current == Direction::UP && new_dir == Direction::DOWN) ||
-                         (current == Direction::DOWN && new_dir == Direction::UP) ||
-                         (current == Direction::LEFT && new_dir == Direction::RIGHT) ||
-                         (current == Direction::RIGHT && new_dir == Direction::LEFT);
+  SnakeState& snake_state = it->second;
 
-      if (!is_opposite) {
-        snake.current_direction = msg.new_direction;
-      }
-      break;
-    }
+  // Prevent 180-degree turns (going back into yourself)
+  Direction new_dir = msg.new_direction;
+  Direction current = snake_state.current_direction;
+
+  bool is_opposite = (current == Direction::UP && new_dir == Direction::DOWN) ||
+                     (current == Direction::DOWN && new_dir == Direction::UP) ||
+                     (current == Direction::LEFT && new_dir == Direction::RIGHT) ||
+                     (current == Direction::RIGHT && new_dir == Direction::LEFT);
+
+  if (!is_opposite) {
+    snake_state.current_direction = msg.new_direction;
   }
 }
 
 void GameSession::initializeSnake(const PlayerId& player_id) {
-  SnakeState snake;
-  snake.player_id = player_id;
-  snake.alive = true;
-  snake.current_direction = Direction::RIGHT;
+  SnakeState snake_state;
+  snake_state.alive = true;
+  snake_state.current_direction = Direction::RIGHT;
 
   // Position snakes at different y-levels
   int y_pos = (player_id == "player1") ? 10 : 15;
   int start_x = 5;
 
-  // Create a snake of length 5, moving right
-  // Body is stored with head at index 0
-  for (int i = 0; i < 7; ++i) {
-    snake.body.push_back({start_x - i, y_pos});
+  // Create a snake of length 7, moving right
+  // Head at front, tail behind it
+  Point head = {start_x, y_pos};
+  std::vector<Point> tail;
+  for (int i = 1; i < 7; ++i) {
+    tail.push_back({start_x - i, y_pos});
   }
 
-  state_.snakes.push_back(snake);
+  snake_state.snake = Snake{head, tail};
+
+  // Insert snake into map using player_id as key
+  state_.snakes[player_id] = snake_state;
 
   // Initialize score in GameState
   state_.scores[player_id] = 0;
