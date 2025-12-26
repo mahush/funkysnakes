@@ -44,7 +44,14 @@ void Renderer::onStateUpdate(const StateUpdate& msg) {
   // Create board
   std::vector<std::vector<char>> board(state.board_height, std::vector<char>(state.board_width, '.'));
 
-  // Draw snakes
+  // Draw food items
+  for (const Point& food : state.food_items) {
+    if (food.y >= 0 && food.y < state.board_height && food.x >= 0 && food.x < state.board_width) {
+      board[food.y][food.x] = '*';
+    }
+  }
+
+  // Draw snakes (drawn after food so snakes appear on top)
   for (const auto& [player_id, snake] : state.snakes) {
     if (snake.alive) {
       // Draw head
@@ -72,6 +79,8 @@ void Renderer::onStateUpdate(const StateUpdate& msg) {
 
   // Print player info
   std::cout << "================================\n";
+  std::cout << "Food items: " << state.food_items.size() << "\n";
+  std::cout << "--------------------------------\n";
   for (const auto& [player_id, snake] : state.snakes) {
     int score = 0;
     auto score_it = state.scores.find(player_id);

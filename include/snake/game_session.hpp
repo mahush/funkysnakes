@@ -54,6 +54,8 @@ class GameSession : public Actor<GameSession> {
 
   // Game initialization helpers
   void initializeSnake(const PlayerId& player_id);
+  void initializeFood();
+  Point generateRandomFoodPosition() const;
 
   // Publishers for sending messages
   PublisherPtr<StateUpdate> state_pub_;
@@ -64,6 +66,7 @@ class GameSession : public Actor<GameSession> {
 
   GameState state_;
   CollisionMode collision_mode_{CollisionMode::BITE_REMOVE_TAIL};
+  int tick_count_{0};
 };
 
 }  // namespace snake
