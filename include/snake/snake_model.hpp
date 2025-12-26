@@ -22,6 +22,16 @@ struct SnakePair {
 };
 
 /**
+ * @brief Result of cutting a snake's tail
+ *
+ * Contains both the truncated snake and the segments that were cut off.
+ */
+struct CutResult {
+  Snake snake;                      // Truncated snake
+  std::vector<Point> cut_segments;  // Segments that were removed
+};
+
+/**
  * @brief Get the head position of a snake
  *
  * Always returns the head position since Snake always has a head.
@@ -34,15 +44,16 @@ Point getHead(const Snake& snake);
 /**
  * @brief Cut tail of snake starting at a specific point
  *
- * Returns a new snake that includes all points up to (but excluding)
- * the cut point. The tail from the cut point onwards is removed.
- * If the cut point is the head or not found, returns the original snake.
+ * Returns both the truncated snake and the segments that were cut off.
+ * The cut point and everything after it are removed from the snake and
+ * returned as cut_segments. If the cut point is the head or not found,
+ * returns the original snake with empty cut_segments.
  *
  * @param snake Original snake
  * @param hitPoint Point where to start cutting tail (excluded from result)
- * @return New snake with tail cut off, or original if cut point is head/not found
+ * @return CutResult containing truncated snake and cut segments
  */
-Snake cutTailAt(const Snake& snake, const Point& hitPoint);
+CutResult cutTailAt(const Snake& snake, const Point& hitPoint);
 
 /**
  * @brief Check if first snake's head bites second snake's body
@@ -55,6 +66,17 @@ Snake cutTailAt(const Snake& snake, const Point& hitPoint);
  * @return true if first bites second
  */
 bool firstBitesSecond(const Snake& first, const Snake& second);
+
+/**
+ * @brief Check if both snakes bite each other simultaneously
+ *
+ * Returns true if both snakes' heads hit each other's bodies at the same time.
+ *
+ * @param a First snake
+ * @param b Second snake
+ * @return true if both bite each other
+ */
+bool bothBiteEachOther(const Snake& a, const Snake& b);
 
 /**
  * @brief Apply bite rule to two snakes
@@ -85,11 +107,12 @@ SnakePair applyBiteRule(SnakePair s);
  * @return Updated game state with combined effects from all snakes
  */
 template <typename F>
-GameStateAndScoreDelta over_each_snake_combining_scores(GameStateAndScoreDelta x, F f) {
+GameStateWithEffect over_each_snake_combining_scores(GameStateWithEffect x, F f) {
   for (auto& [player_id, snake_state] : x.state.snakes) {
     auto res = f(snake_state);
     snake_state = res.state;
-    x.effect = combine(x.effect, res.effect);
+    // Lift score delta into game effect
+    x.effect = combine(x.effect, GameEffect::withScores(res.effect));
   }
   return x;
 }
@@ -106,19 +129,20 @@ GameStateAndScoreDelta over_each_snake_combining_scores(GameStateAndScoreDelta x
  * @return Updated game state with combined effects from all alive snakes
  */
 template <typename F>
-GameStateAndScoreDelta over_each_alive_snake_combining_scores(GameStateAndScoreDelta x, F f) {
+GameStateWithEffect over_each_alive_snake_combining_scores(GameStateWithEffect x, F f) {
   for (auto& [player_id, snake_state] : x.state.snakes) {
     if (snake_state.alive) {
       auto res = f(snake_state);
       snake_state = res.state;
-      x.effect = combine(x.effect, res.effect);
+      // Lift score delta into game effect
+      x.effect = combine(x.effect, GameEffect::withScores(res.effect));
     }
   }
   return x;
 }
 
 // Helper to unpack tuple results and update state (C++17 compatible)
-template <typename GameStateWithEffect, typename ResultTuple, std::size_t... Is>
+template <typename ResultTuple, std::size_t... Is>
 void update_snakes_from_result(GameStateWithEffect& x, const ResultTuple& result,
                                const std::array<PlayerId, sizeof...(Is)>& players, std::index_sequence<Is...>) {
   ((x.state.snakes[players[Is]] = std::get<Is>(result)), ...);
@@ -139,15 +163,15 @@ void update_snakes_from_result(GameStateWithEffect& x, const ResultTuple& result
  * - Two snakes (collision): over_selected_snakes_combining_scores(x, f, "player1", "player2")
  *   → calls f(pair1, pair2) once
  *
- * @tparam F Function type taking N pairs and returning tuple of (N SnakeStates..., ScoreDelta)
+ * @tparam F Function type taking N pairs and returning tuple of (N SnakeStates..., GameEffect)
  * @param x Current game state with accumulated effects
  * @param f Function to apply over the selected snakes (called once with all snakes)
  * @param player_ids Variable number of player IDs to operate on
  * @return Updated game state with combined effects
  */
 template <typename F, typename... PlayerIds>
-GameStateAndScoreDelta over_selected_snakes_combining_scores(GameStateAndScoreDelta x, F f,
-                                                             const PlayerIds&... player_ids) {
+GameStateWithEffect over_selected_snakes_combining_scores(GameStateWithEffect x, F f,
+                                                          const PlayerIds&... player_ids) {
   // Helper to look up snake states and create pairs
   auto lookup = [&](const PlayerId& pid) -> std::pair<PlayerId, SnakeState> {
     auto it = x.state.snakes.find(pid);

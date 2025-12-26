@@ -12,6 +12,16 @@
 namespace snake {
 
 /**
+ * @brief Collision handling mode
+ *
+ * Determines what happens when snakes collide.
+ */
+enum class CollisionMode {
+  BITE_REMOVE_TAIL,  // Cut tail is simply removed
+  BITE_DROP_FOOD     // Cut tail segments become food items
+};
+
+/**
  * @brief Core game engine - manages game state and logic
  *
  * GameSession holds all game state: board, snakes, food, scores, level.
@@ -53,6 +63,7 @@ class GameSession : public Actor<GameSession> {
   SubscriptionPtr<DirectionChange> direction_sub_;
 
   GameState state_;
+  CollisionMode collision_mode_{CollisionMode::BITE_REMOVE_TAIL};
 };
 
 }  // namespace snake

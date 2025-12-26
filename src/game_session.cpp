@@ -2,6 +2,7 @@
 
 #include <iostream>
 
+#include "snake/functional_utils.hpp"
 #include "snake/game_state_lenses.hpp"
 #include "snake/snake_model.hpp"
 #include "snake/state_with_effect.hpp"
@@ -98,46 +99,109 @@ static SnakeStateWithScoreEffect moveSnake(const SnakeState& snake_state, int bo
 }
 
 /**
- * @brief Handle collision between two snakes using bite rule
+ * @brief Handle collision between two snakes - drop tail mode
  *
- * This subsystem applies the bite rule: if one snake's head hits another's body,
- * the bitten snake gets its tail cut off. This can potentially generate score effects
- * (e.g., penalty for being bitten, bonus for biting).
+ * Uses cond to pattern match on collision cases. Cut tail segments are simply
+ * dropped (not transformed to food).
  *
  * @param a First player snake pair (player ID + snake state)
  * @param b Second player snake pair (player ID + snake state)
- * @return Tuple of (updated snake_a, updated snake_b, combined effects)
+ * @return Tuple of (updated snake_a, updated snake_b, game effects)
  */
-static std::tuple<SnakeState, SnakeState, ScoreDelta> handleSnakeCollision(std::pair<PlayerId, SnakeState> a,
-                                                                           std::pair<PlayerId, SnakeState> b) {
+static std::tuple<SnakeState, SnakeState, GameEffect> handleSnakeCollision(std::pair<PlayerId, SnakeState> a,
+                                                                            std::pair<PlayerId, SnakeState> b) {
   auto [player_a, snake_a] = a;
   auto [player_b, snake_b] = b;
-  ScoreDelta effect = ScoreDelta::empty();
 
   // Only check collisions if both snakes are alive
   if (!snake_a.alive || !snake_b.alive) {
-    return {snake_a, snake_b, effect};
+    return {snake_a, snake_b, GameEffect::empty()};
   }
 
-  // Apply bite rule directly (no conversions needed!)
-  SnakePair snakes{snake_a.snake, snake_b.snake};
-  SnakePair result = applyBiteRule(snakes);
+  GameEffect effect = GameEffect::empty();
 
-  // Check if snake A got shorter (was bitten by B)
-  if (result.a.length() < snakes.a.length()) {
-    // Snake A was bitten - apply score penalty
-    effect = combine(effect, ScoreDelta::forPlayer(player_a, -10));
+  // Case 1: Both snakes bite each other → both die completely
+  if (bothBiteEachOther(snake_a.snake, snake_b.snake)) {
+    snake_a.alive = false;
+    snake_b.alive = false;
+
+    effect.scores = combine(effect.scores, ScoreDelta::forPlayer(player_a, -10));
+    effect.scores = combine(effect.scores, ScoreDelta::forPlayer(player_b, -10));
+    // Snakes are dead, segments are dropped
+  }
+  // Case 2: Snake A bites Snake B
+  else if (firstBitesSecond(snake_a.snake, snake_b.snake)) {
+    auto cut = cutTailAt(snake_b.snake, snake_a.snake.head);
+    snake_b.snake = cut.snake;
+
+    effect.scores = ScoreDelta::forPlayer(player_b, -10);
+    // cut.cut_segments are ignored (dropped)
+  }
+  // Case 3: Snake B bites Snake A
+  else if (firstBitesSecond(snake_b.snake, snake_a.snake)) {
+    auto cut = cutTailAt(snake_a.snake, snake_b.snake.head);
+    snake_a.snake = cut.snake;
+
+    effect.scores = ScoreDelta::forPlayer(player_a, -10);
+    // cut.cut_segments are ignored (dropped)
+  }
+  // Case 4: No collision - effect already empty
+
+  return {snake_a, snake_b, effect};
+}
+
+/**
+ * @brief Handle collision between two snakes - food drop mode
+ *
+ * Uses cond to pattern match on collision cases. Cut tail segments are
+ * transformed into food items.
+ *
+ * @param a First player snake pair (player ID + snake state)
+ * @param b Second player snake pair (player ID + snake state)
+ * @return Tuple of (updated snake_a, updated snake_b, game effects)
+ */
+static std::tuple<SnakeState, SnakeState, GameEffect> handleSnakeCollisionWithFoodDrop(
+    std::pair<PlayerId, SnakeState> a, std::pair<PlayerId, SnakeState> b) {
+  auto [player_a, snake_a] = a;
+  auto [player_b, snake_b] = b;
+
+  // Only check collisions if both snakes are alive
+  if (!snake_a.alive || !snake_b.alive) {
+    return {snake_a, snake_b, GameEffect::empty()};
   }
 
-  // Check if snake B got shorter (was bitten by A)
-  if (result.b.length() < snakes.b.length()) {
-    // Snake B was bitten - apply score penalty
-    effect = combine(effect, ScoreDelta::forPlayer(player_b, -10));
-  }
+  GameEffect effect = GameEffect::empty();
 
-  // Update snake states with collision results
-  snake_a.snake = result.a;
-  snake_b.snake = result.b;
+  // Case 1: Both snakes bite each other → both die completely and turn to food
+  if (bothBiteEachOther(snake_a.snake, snake_b.snake)) {
+    snake_a.alive = false;
+    snake_b.alive = false;
+
+    effect.scores = combine(effect.scores, ScoreDelta::forPlayer(player_a, -10));
+    effect.scores = combine(effect.scores, ScoreDelta::forPlayer(player_b, -10));
+    // Transform entire snakes to food
+    effect.food = combine(effect.food, FoodEffect::add(snake_a.snake.toBody()));
+    effect.food = combine(effect.food, FoodEffect::add(snake_b.snake.toBody()));
+  }
+  // Case 2: Snake A bites Snake B
+  else if (firstBitesSecond(snake_a.snake, snake_b.snake)) {
+    auto cut = cutTailAt(snake_b.snake, snake_a.snake.head);
+    snake_b.snake = cut.snake;
+
+    effect.scores = ScoreDelta::forPlayer(player_b, -10);
+    // Transform cut segments to food
+    effect.food = FoodEffect::add(cut.cut_segments);
+  }
+  // Case 3: Snake B bites Snake A
+  else if (firstBitesSecond(snake_b.snake, snake_a.snake)) {
+    auto cut = cutTailAt(snake_a.snake, snake_b.snake.head);
+    snake_a.snake = cut.snake;
+
+    effect.scores = ScoreDelta::forPlayer(player_a, -10);
+    // Transform cut segments to food
+    effect.food = FoodEffect::add(cut.cut_segments);
+  }
+  // Case 4: No collision - effect already empty
 
   return {snake_a, snake_b, effect};
 }
@@ -175,28 +239,48 @@ void GameSession::processMessages() {
 
 void GameSession::onTick(const Tick&) {
   // Start with current state wrapped in StateWithEffect
-  GameStateAndScoreDelta state_and_score_delta = GameStateAndScoreDelta::fromState(state_);
+  GameStateWithEffect state_with_effect = GameStateWithEffect::fromState(state_);
 
   // Step 1: Move all alive snakes
   // Uses traversal to apply moveSnake to each alive snake, accumulating effects
-  state_and_score_delta = over_each_alive_snake_combining_scores(
-      state_and_score_delta,
+  state_with_effect = over_each_alive_snake_combining_scores(
+      state_with_effect,
       [this](const SnakeState& snake) { return moveSnake(snake, state_.board_width, state_.board_height); });
 
   // Step 2: Handle collisions between selected snake pairs
   // For two-player game, check collision between player1 and player2
-  if (state_and_score_delta.state.snakes.size() >= 2) {
-    state_and_score_delta =
-        over_selected_snakes_combining_scores(state_and_score_delta, handleSnakeCollision, "player1", "player2");
+  // Dispatch based on collision mode
+  if (state_with_effect.state.snakes.size() >= 2) {
+    if (collision_mode_ == CollisionMode::BITE_DROP_FOOD) {
+      state_with_effect = over_selected_snakes_combining_scores(state_with_effect, handleSnakeCollisionWithFoodDrop,
+                                                                 "player1", "player2");
+    } else {
+      state_with_effect =
+          over_selected_snakes_combining_scores(state_with_effect, handleSnakeCollision, "player1", "player2");
+    }
   }
 
-  // Step 3: Apply accumulated score effects to the final state
-  for (const auto& [player_id, delta] : state_and_score_delta.effect.deltas) {
-    state_and_score_delta.state.scores[player_id] += delta;
+  // Step 3: Apply accumulated effects to the final state
+
+  // Apply score effects
+  for (const auto& [player_id, delta] : state_with_effect.effect.scores.deltas) {
+    state_with_effect.state.scores[player_id] += delta;
+  }
+
+  // Apply food effects - removals first, then additions
+  for (const Point& food_loc : state_with_effect.effect.food.removals) {
+    auto& items = state_with_effect.state.food_items;
+    auto it = std::find(items.begin(), items.end(), food_loc);
+    if (it != items.end()) {
+      items.erase(it);
+    }
+  }
+  for (const Point& food_loc : state_with_effect.effect.food.additions) {
+    state_with_effect.state.food_items.push_back(food_loc);
   }
 
   // Update internal state and publish
-  state_ = state_and_score_delta.state;
+  state_ = state_with_effect.state;
 
   StateUpdate update;
   update.state = state_;

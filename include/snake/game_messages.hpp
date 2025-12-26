@@ -78,7 +78,7 @@ struct GameState {
   GameId game_id;
   std::map<PlayerId, SnakeState> snakes;  // Map from player ID to snake state
   std::map<PlayerId, int> scores;         // Player scores
-  Point food;
+  std::vector<Point> food_items;          // Food items on the board
   int level{1};
   int board_width{60};
   int board_height{20};

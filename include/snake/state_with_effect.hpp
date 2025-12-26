@@ -3,6 +3,7 @@
 
 #include <map>
 #include <string>
+#include <vector>
 
 #include "snake/game_messages.hpp"
 
@@ -50,6 +51,103 @@ inline ScoreDelta combine(const ScoreDelta& a, const ScoreDelta& b) {
     result.deltas[player_id] += delta;
   }
   return result;
+}
+
+/**
+ * @brief Food effect - tracks food additions and removals
+ *
+ * Used as an "effect" type to accumulate food changes through
+ * the game state update pipeline. Supports adding new food items
+ * (e.g., from random spawn, dropped tails) and removing food items
+ * (e.g., when eaten by snakes).
+ */
+struct FoodEffect {
+  std::vector<Point> additions;  // Food items to add
+  std::vector<Point> removals;   // Food items to remove
+
+  FoodEffect() = default;
+
+  /**
+   * @brief Create effect that adds a single food item
+   */
+  static FoodEffect add(Point location) { return {{location}, {}}; }
+
+  /**
+   * @brief Create effect that adds multiple food items
+   */
+  static FoodEffect add(std::vector<Point> locations) { return {locations, {}}; }
+
+  /**
+   * @brief Create effect that removes a single food item
+   */
+  static FoodEffect remove(Point location) { return {{}, {location}}; }
+
+  /**
+   * @brief Create effect that removes multiple food items
+   */
+  static FoodEffect remove(std::vector<Point> locations) { return {{}, locations}; }
+
+  /**
+   * @brief Create an empty (no-op) food effect
+   */
+  static FoodEffect empty() { return {{}, {}}; }
+};
+
+/**
+ * @brief Combine two food effects by merging additions and removals
+ *
+ * Merges all additions and removals from both effects.
+ *
+ * @param a First food effect
+ * @param b Second food effect
+ * @return Combined food effect
+ */
+inline FoodEffect combine(const FoodEffect& a, const FoodEffect& b) {
+  FoodEffect result;
+  result.additions.insert(result.additions.end(), a.additions.begin(), a.additions.end());
+  result.additions.insert(result.additions.end(), b.additions.begin(), b.additions.end());
+  result.removals.insert(result.removals.end(), a.removals.begin(), a.removals.end());
+  result.removals.insert(result.removals.end(), b.removals.begin(), b.removals.end());
+  return result;
+}
+
+/**
+ * @brief Composite game effect containing all effect types
+ *
+ * Combines multiple orthogonal effect types (scores, food) into a single
+ * composite effect that can be accumulated through the update pipeline.
+ */
+struct GameEffect {
+  ScoreDelta scores;
+  FoodEffect food;
+
+  /**
+   * @brief Create an empty (no-op) composite effect
+   */
+  static GameEffect empty() { return {ScoreDelta::empty(), FoodEffect::empty()}; }
+
+  /**
+   * @brief Create effect with only score delta
+   */
+  static GameEffect withScores(ScoreDelta scores) { return {scores, FoodEffect::empty()}; }
+
+  /**
+   * @brief Create effect with only food changes
+   */
+  static GameEffect withFood(FoodEffect food) { return {ScoreDelta::empty(), food}; }
+};
+
+/**
+ * @brief Combine two composite game effects
+ *
+ * Combines all sub-effects orthogonally.
+ *
+ * @param a First game effect
+ * @param b Second game effect
+ * @return Combined game effect
+ */
+inline GameEffect combine(const GameEffect& a, const GameEffect& b) {
+  return {combine(a.scores, b.scores), combine(a.food, b.food)};
 }
 
 /**
@@ -105,13 +203,16 @@ auto with_combining_effects(StateWithEffect<State, Effect> x, F f) -> StateWithE
 // Common type aliases for this domain
 
 /**
- * @brief Snake state with score effect
+ * @brief Snake state with score effect (for snake-specific operations)
  */
 using SnakeStateWithScoreEffect = StateWithEffect<SnakeState, ScoreDelta>;
 
 /**
- * @brief Game state with score effect
+ * @brief Game state with composite game effect
  */
+using GameStateWithEffect = StateWithEffect<GameState, GameEffect>;
+
+// Legacy alias for backwards compatibility during transition
 using GameStateAndScoreDelta = StateWithEffect<GameState, ScoreDelta>;
 
 }  // namespace snake
