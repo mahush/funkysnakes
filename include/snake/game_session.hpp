@@ -6,6 +6,7 @@
 #include "snake/actor.hpp"
 #include "snake/control_messages.hpp"
 #include "snake/game_messages.hpp"
+#include "snake/state_with_effect.hpp"
 #include "snake/topic.hpp"
 #include "snake/topic_subscription.hpp"
 
@@ -65,6 +66,7 @@ class GameSession : public Actor<GameSession> {
   SubscriptionPtr<DirectionChange> direction_sub_;
 
   GameState state_;
+  GameEffect pending_effects_;  // Accumulate effects between ticks (e.g., direction changes)
   CollisionMode collision_mode_{CollisionMode::BITE_REMOVE_TAIL};
   int tick_count_{0};
 };

@@ -254,6 +254,38 @@ static GameEffect handleSnakeCollisionWithFoodDrop(std::pair<PlayerId, Snake> a,
 // ============================================================================
 
 /**
+ * @brief Pipeline stage 0: Apply accumulated direction change effects
+ *
+ * Applies direction operations accumulated from onDirectionChange calls between ticks.
+ * These are applied BEFORE movement generation so snakes move in the updated direction.
+ *
+ * @param state_with_effect Current game state with accumulated effects
+ * @param pending_direction_effects Direction ops accumulated between ticks
+ * @return Updated state with directions changed
+ */
+static GameStateWithEffect applyPendingDirectionOps(GameStateWithEffect state_with_effect,
+                                                     const SnakeUpdateEffect& pending_direction_effects) {
+  // Apply direction operations from pending effects
+  for (const auto& [player_id, ops] : pending_direction_effects.operations) {
+    if (state_with_effect.state.snakes.find(player_id) == state_with_effect.state.snakes.end()) {
+      continue;  // Player doesn't exist
+    }
+
+    Snake& snake = state_with_effect.state.snakes[player_id];
+
+    // Apply all direction ops for this player (should be 0 or 1 due to overwrite semantics)
+    for (const auto& op : ops) {
+      if (op.op == SnakeOp::LEFT || op.op == SnakeOp::RIGHT || op.op == SnakeOp::UP || op.op == SnakeOp::DOWN) {
+        // Use existing applyOperation logic
+        snake = applyOperation(snake, op, state_with_effect.state.board_width, state_with_effect.state.board_height);
+      }
+    }
+  }
+
+  return state_with_effect;
+}
+
+/**
  * @brief Pipeline stage 1: Generate movement operations for all alive snakes
  *
  * Checks if snake will land on food. If yes, generates GROW (keeps tail).
@@ -487,6 +519,10 @@ void GameSession::onTick(const Tick&) {
   ++tick_count_;
 
   // Create lambdas that capture context from this
+  auto applyPendingDirectionOps = [this](GameStateWithEffect swe) {
+    return snake::applyPendingDirectionOps(swe, pending_effects_.snakes);
+  };
+
   auto generateSnakeMovementOps = [this](GameStateWithEffect swe) {
     return snake::generateSnakeMovementOps(swe, state_.board_width, state_.board_height);
   };
@@ -508,12 +544,17 @@ void GameSession::onTick(const Tick&) {
   };
 
   // Compose pipeline stages using nested function calls
-  // Order: movement -> collision -> food eating -> scores -> food position updates -> apply food effects
-  auto final_state = applyFoodEffects(updateFoodPositions(applyScoreEffects(generateFoodEatingEffects(applySnakeOps(
-      generateSnakeCollisionOps(applySnakeOps(generateSnakeMovementOps(GameStateWithEffect::fromState(state_)))))))));
+  // Order: pending directions -> movement -> collision -> food eating -> scores -> food updates -> apply food
+  auto final_state =
+      applyFoodEffects(updateFoodPositions(applyScoreEffects(generateFoodEatingEffects(applySnakeOps(
+          generateSnakeCollisionOps(applySnakeOps(generateSnakeMovementOps(applyPendingDirectionOps(
+              GameStateWithEffect::fromState(state_))))))))));
 
   // Update internal state and publish
   state_ = final_state.state;
+
+  // Clear pending effects for next tick
+  pending_effects_ = GameEffect::empty();
 
   StateUpdate update;
   update.state = state_;
@@ -527,9 +568,10 @@ void GameSession::onDirectionChange(const DirectionChange& msg) {
     return;  // Player not found
   }
 
-  Snake& snake = it->second;
+  const Snake& snake = it->second;  // const - no direct mutation!
 
   // Prevent 180-degree turns (going back into yourself)
+  // Validate against CURRENT state direction (not pending effects)
   Direction new_dir = msg.new_direction;
   Direction current = snake.current_direction;
 
@@ -539,7 +581,34 @@ void GameSession::onDirectionChange(const DirectionChange& msg) {
                      (current == Direction::RIGHT && new_dir == Direction::LEFT);
 
   if (!is_opposite) {
-    snake.current_direction = msg.new_direction;
+    // Generate direction operation
+    SnakeOperation dir_op;
+    switch (new_dir) {
+      case Direction::LEFT:
+        dir_op = SnakeOperation::left();
+        break;
+      case Direction::RIGHT:
+        dir_op = SnakeOperation::right();
+        break;
+      case Direction::UP:
+        dir_op = SnakeOperation::up();
+        break;
+      case Direction::DOWN:
+        dir_op = SnakeOperation::down();
+        break;
+    }
+
+    // Overwrite semantics: clear previous direction ops for this player
+    auto& ops = pending_effects_.snakes.operations[msg.player_id];
+    ops.erase(std::remove_if(ops.begin(), ops.end(),
+                             [](const SnakeOperation& op) {
+                               return op.op == SnakeOp::LEFT || op.op == SnakeOp::RIGHT || op.op == SnakeOp::UP ||
+                                      op.op == SnakeOp::DOWN;
+                             }),
+              ops.end());
+
+    // Add new direction op (last valid direction wins)
+    pending_effects_.snakes.addOp(msg.player_id, dir_op);
   }
 }
 
