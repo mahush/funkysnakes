@@ -95,55 +95,6 @@ SnakePair applyBiteRule(SnakePair s);
 // Snake Lens Functions - Focus on snakes within game state
 // ============================================================================
 
-/**
- * @brief Apply a function to each snake in the game state
- *
- * This traversal maps an effectful transformation over all snakes,
- * calling the function once per snake and combining all effects.
- * Snake updates are accumulated as effects rather than applied directly.
- *
- * @tparam F Function type: Snake -> SnakeWithScoreEffect
- * @param x Current game state with accumulated effects
- * @param f Function to apply to each snake
- * @return Updated game state with combined effects from all snakes
- */
-template <typename F>
-GameStateWithEffect over_each_snake_combining_scores(GameStateWithEffect x, F f) {
-  for (const auto& [player_id, snake] : x.state.snakes) {
-    auto res = f(snake);
-    // Accumulate snake update effect (don't mutate directly)
-    x.effect = combine(x.effect, GameEffect::withSnakes(SnakeUpdateEffect::updateSnake(player_id, res.state)));
-    // Lift score delta into game effect
-    x.effect = combine(x.effect, GameEffect::withScores(res.effect));
-  }
-  return x;
-}
-
-/**
- * @brief Apply a function to each alive snake
- *
- * This traversal filters to alive snakes before applying the transformation,
- * calling the function once per alive snake and combining all effects.
- * Snake updates are accumulated as effects rather than applied directly.
- *
- * @tparam F Function type: Snake -> SnakeWithScoreEffect
- * @param x Current game state with accumulated effects
- * @param f Function to apply to each alive snake
- * @return Updated game state with combined effects from all alive snakes
- */
-template <typename F>
-GameStateWithEffect over_each_alive_snake_combining_scores(GameStateWithEffect x, F f) {
-  for (const auto& [player_id, snake] : x.state.snakes) {
-    if (snake.alive) {
-      auto res = f(snake);
-      // Accumulate snake update effect (don't mutate directly)
-      x.effect = combine(x.effect, GameEffect::withSnakes(SnakeUpdateEffect::updateSnake(player_id, res.state)));
-      // Lift score delta into game effect
-      x.effect = combine(x.effect, GameEffect::withScores(res.effect));
-    }
-  }
-  return x;
-}
 
 /**
  * @brief Lens to apply a function over explicitly selected snakes

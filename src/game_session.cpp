@@ -58,56 +58,99 @@ static Point wrapPoint(Point p, int board_width, int board_height) {
 }
 
 /**
- * @brief Move a snake forward one step (pure, no effects)
+ * @brief Apply a single operation to a snake
  *
- * This subsystem handles snake movement, wrapping around board edges.
- * Returns the updated snake with empty effects.
+ * Operations are composable transformations on snake state.
  *
  * @param snake Current snake
- * @param board_width Width of game board
- * @param board_height Height of game board
- * @return Snake with empty effect
+ * @param op Operation to apply
+ * @param board_width Width of game board (for wrapping)
+ * @param board_height Height of game board (for wrapping)
+ * @return Snake after applying operation
  */
-static SnakeWithScoreEffect moveSnake(const Snake& snake, int board_width, int board_height) {
-  Snake new_snake = snake;
+static Snake applyOperation(Snake snake, const SnakeOperation& op, int board_width, int board_height) {
+  switch (op.op) {
+    case SnakeOp::MOVE: {
+      if (!snake.alive) return snake;
 
-  if (!new_snake.alive) {
-    return {new_snake, ScoreDelta::empty()};
+      Point new_head = getNextHeadPosition(snake);
+      new_head = wrapPoint(new_head, board_width, board_height);
+
+      // Build new tail: old head + old tail (minus last)
+      std::vector<Point> new_tail;
+      new_tail.reserve(snake.tail.size() + 1);
+      new_tail.push_back(snake.head);
+      new_tail.insert(new_tail.end(), snake.tail.begin(), snake.tail.end());
+      if (!new_tail.empty()) {
+        new_tail.pop_back();
+      }
+
+      snake.head = new_head;
+      snake.tail = new_tail;
+      break;
+    }
+
+    case SnakeOp::GROW: {
+      if (!snake.alive) return snake;
+
+      Point new_head = getNextHeadPosition(snake);
+      new_head = wrapPoint(new_head, board_width, board_height);
+
+      // Build new tail: old head + old tail (keep last)
+      std::vector<Point> new_tail;
+      new_tail.reserve(snake.tail.size() + 1);
+      new_tail.push_back(snake.head);
+      new_tail.insert(new_tail.end(), snake.tail.begin(), snake.tail.end());
+
+      snake.head = new_head;
+      snake.tail = new_tail;
+      break;
+    }
+
+    case SnakeOp::CUT_TAIL_AT: {
+      if (op.point && !(snake.head == *op.point)) {
+        auto it = std::find(snake.tail.begin(), snake.tail.end(), *op.point);
+        if (it != snake.tail.end()) {
+          snake.tail = std::vector<Point>(snake.tail.begin(), it);
+        }
+      }
+      break;
+    }
+
+    case SnakeOp::KILL:
+      snake.alive = false;
+      break;
+
+    case SnakeOp::LEFT:
+      snake.current_direction = Direction::LEFT;
+      break;
+
+    case SnakeOp::RIGHT:
+      snake.current_direction = Direction::RIGHT;
+      break;
+
+    case SnakeOp::UP:
+      snake.current_direction = Direction::UP;
+      break;
+
+    case SnakeOp::DOWN:
+      snake.current_direction = Direction::DOWN;
+      break;
   }
 
-  // Get next head position
-  Point new_head = getNextHeadPosition(new_snake);
-
-  // Wrap around board edges
-  new_head = wrapPoint(new_head, board_width, board_height);
-
-  // Build new tail: old head + old tail (minus last element to keep fixed length)
-  std::vector<Point> new_tail;
-  new_tail.reserve(new_snake.tail.size() + 1);
-  new_tail.push_back(new_snake.head);
-  new_tail.insert(new_tail.end(), new_snake.tail.begin(), new_snake.tail.end());
-
-  // Remove last element to keep fixed length
-  if (!new_tail.empty()) {
-    new_tail.pop_back();
-  }
-
-  // Update snake with new head and tail
-  new_snake.head = new_head;
-  new_snake.tail = new_tail;
-
-  return {new_snake, ScoreDelta::empty()};
+  return snake;
 }
+
 
 /**
  * @brief Handle collision between two snakes - drop tail mode
  *
  * Uses pattern matching on collision cases. Cut tail segments are simply
- * dropped (not transformed to food). Returns all state changes as effects.
+ * dropped (not transformed to food). Returns operations as effects.
  *
  * @param a First player snake pair (player ID + snake)
  * @param b Second player snake pair (player ID + snake)
- * @return Game effects (scores, snake position updates)
+ * @return Game effects (scores, operations)
  */
 static GameEffect handleSnakeCollision(std::pair<PlayerId, Snake> a, std::pair<PlayerId, Snake> b) {
   auto [player_a, snake_a] = a;
@@ -122,34 +165,25 @@ static GameEffect handleSnakeCollision(std::pair<PlayerId, Snake> a, std::pair<P
 
   // Case 1: Both snakes bite each other → both die completely
   if (bothBiteEachOther(snake_a, snake_b)) {
-    snake_a.alive = false;
-    snake_b.alive = false;
-
-    effect.scores = combine(effect.scores, ScoreDelta::forPlayer(player_a, -10));
-    effect.scores = combine(effect.scores, ScoreDelta::forPlayer(player_b, -10));
-    // Update both snakes (now dead)
-    effect.snakes = combine(effect.snakes, SnakeUpdateEffect::updateSnake(player_a, snake_a));
-    effect.snakes = combine(effect.snakes, SnakeUpdateEffect::updateSnake(player_b, snake_b));
+    effect.scores.addForPlayer(player_a, -10);
+    effect.scores.addForPlayer(player_b, -10);
+    // Generate KILL operations
+    effect.snakes.addOp(player_a, SnakeOperation::kill());
+    effect.snakes.addOp(player_b, SnakeOperation::kill());
   }
   // Case 2: Snake A bites Snake B
   else if (firstBitesSecond(snake_a, snake_b)) {
-    auto cut = cutTailAt(snake_b, snake_a.head);
-    snake_b = cut.snake;
-
-    effect.scores = ScoreDelta::forPlayer(player_b, -10);
-    // Update snake B (tail cut)
-    effect.snakes = SnakeUpdateEffect::updateSnake(player_b, snake_b);
-    // cut.cut_segments are ignored (dropped)
+    effect.scores.addForPlayer(player_b, -10);
+    // Generate CUT_TAIL_AT operation
+    effect.snakes.addOp(player_b, SnakeOperation::cutTailAt(snake_a.head));
+    // cut segments are dropped
   }
   // Case 3: Snake B bites Snake A
   else if (firstBitesSecond(snake_b, snake_a)) {
-    auto cut = cutTailAt(snake_a, snake_b.head);
-    snake_a = cut.snake;
-
-    effect.scores = ScoreDelta::forPlayer(player_a, -10);
-    // Update snake A (tail cut)
-    effect.snakes = SnakeUpdateEffect::updateSnake(player_a, snake_a);
-    // cut.cut_segments are ignored (dropped)
+    effect.scores.addForPlayer(player_a, -10);
+    // Generate CUT_TAIL_AT operation
+    effect.snakes.addOp(player_a, SnakeOperation::cutTailAt(snake_b.head));
+    // cut segments are dropped
   }
   // Case 4: No collision - effect already empty
 
@@ -160,11 +194,11 @@ static GameEffect handleSnakeCollision(std::pair<PlayerId, Snake> a, std::pair<P
  * @brief Handle collision between two snakes - food drop mode
  *
  * Uses pattern matching on collision cases. Cut tail segments are
- * transformed into food items. Returns all state changes as effects.
+ * transformed into food items. Returns operations as effects.
  *
  * @param a First player snake pair (player ID + snake)
  * @param b Second player snake pair (player ID + snake)
- * @return Game effects (scores, food, snake position updates)
+ * @return Game effects (scores, food, operations)
  */
 static GameEffect handleSnakeCollisionWithFoodDrop(std::pair<PlayerId, Snake> a, std::pair<PlayerId, Snake> b) {
   auto [player_a, snake_a] = a;
@@ -179,39 +213,34 @@ static GameEffect handleSnakeCollisionWithFoodDrop(std::pair<PlayerId, Snake> a,
 
   // Case 1: Both snakes bite each other → both die completely and turn to food
   if (bothBiteEachOther(snake_a, snake_b)) {
-    snake_a.alive = false;
-    snake_b.alive = false;
-
-    effect.scores = combine(effect.scores, ScoreDelta::forPlayer(player_a, -10));
-    effect.scores = combine(effect.scores, ScoreDelta::forPlayer(player_b, -10));
+    effect.scores.addForPlayer(player_a, -10);
+    effect.scores.addForPlayer(player_b, -10);
     // Transform entire snakes to food
-    effect.food = combine(effect.food, FoodEffect::add(snake_a.toBody()));
-    effect.food = combine(effect.food, FoodEffect::add(snake_b.toBody()));
-    // Update both snakes (now dead)
-    effect.snakes = combine(effect.snakes, SnakeUpdateEffect::updateSnake(player_a, snake_a));
-    effect.snakes = combine(effect.snakes, SnakeUpdateEffect::updateSnake(player_b, snake_b));
+    effect.food.add(snake_a.toBody());
+    effect.food.add(snake_b.toBody());
+    // Generate KILL operations
+    effect.snakes.addOp(player_a, SnakeOperation::kill());
+    effect.snakes.addOp(player_b, SnakeOperation::kill());
   }
   // Case 2: Snake A bites Snake B
   else if (firstBitesSecond(snake_a, snake_b)) {
     auto cut = cutTailAt(snake_b, snake_a.head);
-    snake_b = cut.snake;
 
-    effect.scores = ScoreDelta::forPlayer(player_b, -10);
+    effect.scores.addForPlayer(player_b, -10);
     // Transform cut segments to food
-    effect.food = FoodEffect::add(cut.cut_segments);
-    // Update snake B (tail cut)
-    effect.snakes = SnakeUpdateEffect::updateSnake(player_b, snake_b);
+    effect.food.add(cut.cut_segments);
+    // Generate CUT_TAIL_AT operation
+    effect.snakes.addOp(player_b, SnakeOperation::cutTailAt(snake_a.head));
   }
   // Case 3: Snake B bites Snake A
   else if (firstBitesSecond(snake_b, snake_a)) {
     auto cut = cutTailAt(snake_a, snake_b.head);
-    snake_a = cut.snake;
 
-    effect.scores = ScoreDelta::forPlayer(player_a, -10);
+    effect.scores.addForPlayer(player_a, -10);
     // Transform cut segments to food
-    effect.food = FoodEffect::add(cut.cut_segments);
-    // Update snake A (tail cut)
-    effect.snakes = SnakeUpdateEffect::updateSnake(player_a, snake_a);
+    effect.food.add(cut.cut_segments);
+    // Generate CUT_TAIL_AT operation
+    effect.snakes.addOp(player_a, SnakeOperation::cutTailAt(snake_b.head));
   }
   // Case 4: No collision - effect already empty
 
@@ -253,46 +282,46 @@ void GameSession::onTick(const Tick&) {
   // Start with current state wrapped in StateWithEffect
   GameStateWithEffect state_with_effect = GameStateWithEffect::fromState(state_);
 
-  // Step 1: Move all alive snakes
-  // Uses traversal to apply moveSnake to each alive snake, accumulating effects
-  state_with_effect = over_each_alive_snake_combining_scores(
-      state_with_effect,
-      [this](const Snake& snake) { return moveSnake(snake, state_.board_width, state_.board_height); });
-
-  // Apply movement effects to state before collision detection
-  // (Collision needs to see the moved positions)
-  for (const auto& [player_id, snake] : state_with_effect.effect.snakes.snake_updates) {
-    state_with_effect.state.snakes[player_id] = snake;
-  }
-  // Clear snake effects after applying them
-  state_with_effect.effect.snakes = SnakeUpdateEffect::empty();
-
-  // Step 2: Handle collisions between selected snake pairs
-  // For two-player game, check collision between player1 and player2
-  // Dispatch based on collision mode
-  if (state_with_effect.state.snakes.size() >= 2) {
-    if (collision_mode_ == CollisionMode::BITE_DROP_FOOD) {
-      state_with_effect = over_selected_snakes_combining_scores(state_with_effect, handleSnakeCollisionWithFoodDrop,
-                                                                 "player1", "player2");
-    } else {
-      state_with_effect =
-          over_selected_snakes_combining_scores(state_with_effect, handleSnakeCollision, "player1", "player2");
+  // Step 1: Generate MOVE operations for all alive snakes
+  for (const auto& [player_id, snake] : state_with_effect.state.snakes) {
+    if (snake.alive) {
+      state_with_effect.effect.snakes.addOp(player_id, SnakeOperation::move());
     }
   }
 
-  // Step 3: Apply accumulated effects to the final state
+  // Step 2: Generate collision operations
+  // For two-player game, check collision between player1 and player2
+  // Dispatch based on collision mode
+  if (state_with_effect.state.snakes.size() >= 2) {
+    GameEffect collision_effect;
+    if (collision_mode_ == CollisionMode::BITE_DROP_FOOD) {
+      collision_effect = over_selected_snakes_combining_scores(GameStateWithEffect::fromState(state_with_effect.state),
+                                                                handleSnakeCollisionWithFoodDrop, "player1", "player2")
+                             .effect;
+    } else {
+      collision_effect =
+          over_selected_snakes_combining_scores(GameStateWithEffect::fromState(state_with_effect.state),
+                                                handleSnakeCollision, "player1", "player2")
+              .effect;
+    }
+    state_with_effect.effect = combine(state_with_effect.effect, collision_effect);
+  }
 
-  // Apply snake update effects - update all snakes that have changed
-  for (const auto& [player_id, snake] : state_with_effect.effect.snakes.snake_updates) {
+  // Step 3: Apply all accumulated operations to snakes
+  for (const auto& [player_id, ops] : state_with_effect.effect.snakes.operations) {
+    Snake snake = state_with_effect.state.snakes[player_id];
+    for (const auto& op : ops) {
+      snake = applyOperation(snake, op, state_.board_width, state_.board_height);
+    }
     state_with_effect.state.snakes[player_id] = snake;
   }
 
-  // Apply score effects
+  // Step 4: Apply score effects
   for (const auto& [player_id, delta] : state_with_effect.effect.scores.deltas) {
     state_with_effect.state.scores[player_id] += delta;
   }
 
-  // Apply food effects - removals first, then additions
+  // Step 5: Apply food effects - removals first, then additions
   for (const Point& food_loc : state_with_effect.effect.food.removals) {
     auto& items = state_with_effect.state.food_items;
     auto it = std::find(items.begin(), items.end(), food_loc);

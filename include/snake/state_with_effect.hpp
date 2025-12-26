@@ -2,6 +2,7 @@
 #define SNAKE_STATE_WITH_EFFECT_HPP
 
 #include <map>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -21,13 +22,9 @@ struct ScoreDelta {
   ScoreDelta() = default;
 
   /**
-   * @brief Create a score delta for a single player
+   * @brief Add a score delta for a player (mutating)
    */
-  static ScoreDelta forPlayer(const PlayerId& player_id, int delta) {
-    ScoreDelta result;
-    result.deltas[player_id] = delta;
-    return result;
-  }
+  void addForPlayer(const PlayerId& player_id, int delta) { deltas[player_id] += delta; }
 
   /**
    * @brief Create an empty (no-op) score delta
@@ -68,24 +65,28 @@ struct FoodEffect {
   FoodEffect() = default;
 
   /**
-   * @brief Create effect that adds a single food item
+   * @brief Add a single food item (mutating)
    */
-  static FoodEffect add(Point location) { return {{location}, {}}; }
+  void add(Point location) { additions.push_back(location); }
 
   /**
-   * @brief Create effect that adds multiple food items
+   * @brief Add multiple food items (mutating)
    */
-  static FoodEffect add(std::vector<Point> locations) { return {locations, {}}; }
+  void add(const std::vector<Point>& locations) {
+    additions.insert(additions.end(), locations.begin(), locations.end());
+  }
 
   /**
-   * @brief Create effect that removes a single food item
+   * @brief Remove a single food item (mutating)
    */
-  static FoodEffect remove(Point location) { return {{}, {location}}; }
+  void remove(Point location) { removals.push_back(location); }
 
   /**
-   * @brief Create effect that removes multiple food items
+   * @brief Remove multiple food items (mutating)
    */
-  static FoodEffect remove(std::vector<Point> locations) { return {{}, locations}; }
+  void remove(const std::vector<Point>& locations) {
+    removals.insert(removals.end(), locations.begin(), locations.end());
+  }
 
   /**
    * @brief Create an empty (no-op) food effect
@@ -112,25 +113,56 @@ inline FoodEffect combine(const FoodEffect& a, const FoodEffect& b) {
 }
 
 /**
- * @brief Snake update effect - tracks complete snake state updates per player
+ * @brief Snake operation type
  *
- * Used as an "effect" type to accumulate snake state changes through
- * the game state update pipeline. Each entry represents the final
- * desired state for a snake (position, direction, alive status, etc.).
+ * Operations that can be applied to snakes. Operations compose naturally
+ * and are applied in sequence.
+ */
+enum class SnakeOp {
+  MOVE,         // Move head in current direction, remove last tail segment
+  GROW,         // Move head in current direction, keep last tail segment
+  CUT_TAIL_AT,  // Remove tail from point onwards
+  KILL,         // Set alive = false
+  LEFT,         // Set direction to LEFT
+  RIGHT,        // Set direction to RIGHT
+  UP,           // Set direction to UP
+  DOWN          // Set direction to DOWN
+};
+
+/**
+ * @brief Snake operation with optional parameter
+ */
+struct SnakeOperation {
+  SnakeOp op;
+  std::optional<Point> point;  // For CUT_TAIL_AT
+
+  // Factory methods
+  static SnakeOperation move() { return {SnakeOp::MOVE, std::nullopt}; }
+  static SnakeOperation grow() { return {SnakeOp::GROW, std::nullopt}; }
+  static SnakeOperation cutTailAt(Point p) { return {SnakeOp::CUT_TAIL_AT, p}; }
+  static SnakeOperation kill() { return {SnakeOp::KILL, std::nullopt}; }
+  static SnakeOperation left() { return {SnakeOp::LEFT, std::nullopt}; }
+  static SnakeOperation right() { return {SnakeOp::RIGHT, std::nullopt}; }
+  static SnakeOperation up() { return {SnakeOp::UP, std::nullopt}; }
+  static SnakeOperation down() { return {SnakeOp::DOWN, std::nullopt}; }
+};
+
+/**
+ * @brief Snake update effect - tracks operations to apply to snakes
+ *
+ * Used as an "effect" type to accumulate snake operations through
+ * the game state update pipeline. Operations are applied in sequence
+ * and compose naturally.
  */
 struct SnakeUpdateEffect {
-  std::map<PlayerId, Snake> snake_updates;
+  std::map<PlayerId, std::vector<SnakeOperation>> operations;
 
   SnakeUpdateEffect() = default;
 
   /**
-   * @brief Create effect that updates a single snake
+   * @brief Add an operation for a specific player (mutating)
    */
-  static SnakeUpdateEffect updateSnake(const PlayerId& player_id, Snake snake) {
-    SnakeUpdateEffect result;
-    result.snake_updates[player_id] = snake;
-    return result;
-  }
+  void addOp(const PlayerId& player_id, SnakeOperation op) { operations[player_id].push_back(op); }
 
   /**
    * @brief Create an empty (no-op) update effect
@@ -141,17 +173,17 @@ struct SnakeUpdateEffect {
 /**
  * @brief Combine two snake update effects
  *
- * When multiple effects update the same snake, later updates overwrite
- * earlier ones (last write wins).
+ * Concatenates operation lists for each player. Operations are applied
+ * in the order they were added (FIFO).
  *
  * @param a First update effect
  * @param b Second update effect
- * @return Combined update effect
+ * @return Combined update effect with concatenated operations
  */
 inline SnakeUpdateEffect combine(const SnakeUpdateEffect& a, const SnakeUpdateEffect& b) {
   SnakeUpdateEffect result = a;
-  for (const auto& [player_id, snake] : b.snake_updates) {
-    result.snake_updates[player_id] = snake;  // Last write wins
+  for (const auto& [player_id, ops] : b.operations) {
+    result.operations[player_id].insert(result.operations[player_id].end(), ops.begin(), ops.end());
   }
   return result;
 }
