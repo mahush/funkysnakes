@@ -21,7 +21,7 @@ CutResult cutTailAt(const Snake& snake, const Point& hitPoint) {
   }
 
   // Cut tail at this point (everything before it)
-  Snake truncated{snake.head, std::vector<Point>(snake.tail.begin(), it)};
+  Snake truncated{snake.head, std::vector<Point>(snake.tail.begin(), it), snake.current_direction, snake.alive};
 
   // Segments from hit point onwards are cut off
   std::vector<Point> cut_segments(it, snake.tail.end());

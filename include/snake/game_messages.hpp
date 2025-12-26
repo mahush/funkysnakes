@@ -31,15 +31,22 @@ struct Point {
  * Represents a snake that always has at least a head.
  * The tail can be empty (snake of length 1).
  * This makes illegal states (empty snake) unrepresentable.
+ *
+ * Also includes snake state: direction and alive status.
+ * Note: player_id is NOT stored here - it's the key in GameState.snakes map
  */
 struct Snake {
   Point head;
   std::vector<Point> tail;  // Can be empty
+  Direction current_direction;
+  bool alive{true};
 
   /**
    * @brief Create snake from head and optional tail
    */
-  static Snake create(Point head, std::vector<Point> tail = {}) { return Snake{head, tail}; }
+  static Snake create(Point head, std::vector<Point> tail = {}, Direction dir = Direction::RIGHT, bool is_alive = true) {
+    return Snake{head, tail, dir, is_alive};
+  }
 
   /**
    * @brief Get total length of snake
@@ -61,22 +68,11 @@ struct Snake {
 };
 
 /**
- * @brief Snake state for a single player
- *
- * Note: player_id is NOT stored here - it's the key in GameState.snakes map
- */
-struct SnakeState {
-  Snake snake;
-  Direction current_direction;
-  bool alive{true};
-};
-
-/**
  * @brief Complete game state snapshot
  */
 struct GameState {
   GameId game_id;
-  std::map<PlayerId, SnakeState> snakes;  // Map from player ID to snake state
+  std::map<PlayerId, Snake> snakes;  // Map from player ID to snake
   std::map<PlayerId, int> scores;         // Player scores
   std::vector<Point> food_items;          // Food items on the board
   int level{1};

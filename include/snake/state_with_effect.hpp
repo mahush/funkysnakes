@@ -157,7 +157,7 @@ inline GameEffect combine(const GameEffect& a, const GameEffect& b) {
  * Each subsystem operates on state and produces effects, which are automatically
  * combined through the update pipeline.
  *
- * @tparam State The state type (e.g., SnakeState, GameState)
+ * @tparam State The state type (e.g., Snake, GameState)
  * @tparam Effect The effect type (e.g., ScoreDelta)
  */
 template <typename State, typename Effect>
@@ -203,9 +203,9 @@ auto with_combining_effects(StateWithEffect<State, Effect> x, F f) -> StateWithE
 // Common type aliases for this domain
 
 /**
- * @brief Snake state with score effect (for snake-specific operations)
+ * @brief Snake with score effect (for snake-specific operations)
  */
-using SnakeStateWithScoreEffect = StateWithEffect<SnakeState, ScoreDelta>;
+using SnakeWithScoreEffect = StateWithEffect<Snake, ScoreDelta>;
 
 /**
  * @brief Game state with composite game effect

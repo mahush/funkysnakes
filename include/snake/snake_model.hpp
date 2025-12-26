@@ -101,16 +101,16 @@ SnakePair applyBiteRule(SnakePair s);
  * This traversal maps an effectful transformation over all snakes,
  * calling the function once per snake and combining all effects.
  *
- * @tparam F Function type: SnakeState -> SnakeStateWithScoreEffect
+ * @tparam F Function type: Snake -> SnakeWithScoreEffect
  * @param x Current game state with accumulated effects
  * @param f Function to apply to each snake
  * @return Updated game state with combined effects from all snakes
  */
 template <typename F>
 GameStateWithEffect over_each_snake_combining_scores(GameStateWithEffect x, F f) {
-  for (auto& [player_id, snake_state] : x.state.snakes) {
-    auto res = f(snake_state);
-    snake_state = res.state;
+  for (auto& [player_id, snake] : x.state.snakes) {
+    auto res = f(snake);
+    snake = res.state;
     // Lift score delta into game effect
     x.effect = combine(x.effect, GameEffect::withScores(res.effect));
   }
@@ -123,17 +123,17 @@ GameStateWithEffect over_each_snake_combining_scores(GameStateWithEffect x, F f)
  * This traversal filters to alive snakes before applying the transformation,
  * calling the function once per alive snake and combining all effects.
  *
- * @tparam F Function type: SnakeState -> SnakeStateWithScoreEffect
+ * @tparam F Function type: Snake -> SnakeWithScoreEffect
  * @param x Current game state with accumulated effects
  * @param f Function to apply to each alive snake
  * @return Updated game state with combined effects from all alive snakes
  */
 template <typename F>
 GameStateWithEffect over_each_alive_snake_combining_scores(GameStateWithEffect x, F f) {
-  for (auto& [player_id, snake_state] : x.state.snakes) {
-    if (snake_state.alive) {
-      auto res = f(snake_state);
-      snake_state = res.state;
+  for (auto& [player_id, snake] : x.state.snakes) {
+    if (snake.alive) {
+      auto res = f(snake);
+      snake = res.state;
       // Lift score delta into game effect
       x.effect = combine(x.effect, GameEffect::withScores(res.effect));
     }
@@ -154,7 +154,7 @@ void update_snakes_from_result(GameStateWithEffect& x, const ResultTuple& result
  *
  * This variadic lens focuses on explicitly selected snakes and calls the function
  * ONCE with all selected snakes as parameters. It looks up each player ID,
- * creates std::pair<PlayerId, SnakeState> for each, passes them all to the function
+ * creates std::pair<PlayerId, Snake> for each, passes them all to the function
  * in a single call, and unpacks the results.
  *
  * Use cases:
@@ -163,7 +163,7 @@ void update_snakes_from_result(GameStateWithEffect& x, const ResultTuple& result
  * - Two snakes (collision): over_selected_snakes_combining_scores(x, f, "player1", "player2")
  *   → calls f(pair1, pair2) once
  *
- * @tparam F Function type taking N pairs and returning tuple of (N SnakeStates..., GameEffect)
+ * @tparam F Function type taking N pairs and returning tuple of (N Snakes..., GameEffect)
  * @param x Current game state with accumulated effects
  * @param f Function to apply over the selected snakes (called once with all snakes)
  * @param player_ids Variable number of player IDs to operate on
@@ -172,14 +172,14 @@ void update_snakes_from_result(GameStateWithEffect& x, const ResultTuple& result
 template <typename F, typename... PlayerIds>
 GameStateWithEffect over_selected_snakes_combining_scores(GameStateWithEffect x, F f,
                                                           const PlayerIds&... player_ids) {
-  // Helper to look up snake states and create pairs
-  auto lookup = [&](const PlayerId& pid) -> std::pair<PlayerId, SnakeState> {
+  // Helper to look up snakes and create pairs
+  auto lookup = [&](const PlayerId& pid) -> std::pair<PlayerId, Snake> {
     auto it = x.state.snakes.find(pid);
     if (it != x.state.snakes.end()) {
       return {pid, it->second};
     }
-    // Return empty state if not found (caller should handle)
-    return {pid, SnakeState{}};
+    // Return empty snake if not found (caller should handle)
+    return {pid, Snake{}};
   };
 
   // Check all players exist

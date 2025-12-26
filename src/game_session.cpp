@@ -16,11 +16,11 @@ namespace snake {
 /**
  * @brief Get next head position based on current direction
  */
-static Point getNextHeadPosition(const SnakeState& snake_state) {
-  Point head = snake_state.snake.head;
+static Point getNextHeadPosition(const Snake& snake) {
+  Point head = snake.head;
   Point next = head;
 
-  switch (snake_state.current_direction) {
+  switch (snake.current_direction) {
     case Direction::LEFT:
       next.x = head.x - 1;
       break;
@@ -61,41 +61,42 @@ static Point wrapPoint(Point p, int board_width, int board_height) {
  * @brief Move a snake forward one step (pure, no effects)
  *
  * This subsystem handles snake movement, wrapping around board edges.
- * Returns the updated snake state with empty effects.
+ * Returns the updated snake with empty effects.
  *
- * @param snake_state Current snake state
+ * @param snake Current snake
  * @param board_width Width of game board
  * @param board_height Height of game board
- * @return Snake state with empty effect
+ * @return Snake with empty effect
  */
-static SnakeStateWithScoreEffect moveSnake(const SnakeState& snake_state, int board_width, int board_height) {
-  SnakeState new_state = snake_state;
+static SnakeWithScoreEffect moveSnake(const Snake& snake, int board_width, int board_height) {
+  Snake new_snake = snake;
 
-  if (!new_state.alive) {
-    return {new_state, ScoreDelta::empty()};
+  if (!new_snake.alive) {
+    return {new_snake, ScoreDelta::empty()};
   }
 
   // Get next head position
-  Point new_head = getNextHeadPosition(new_state);
+  Point new_head = getNextHeadPosition(new_snake);
 
   // Wrap around board edges
   new_head = wrapPoint(new_head, board_width, board_height);
 
   // Build new tail: old head + old tail (minus last element to keep fixed length)
   std::vector<Point> new_tail;
-  new_tail.reserve(new_state.snake.tail.size() + 1);
-  new_tail.push_back(new_state.snake.head);
-  new_tail.insert(new_tail.end(), new_state.snake.tail.begin(), new_state.snake.tail.end());
+  new_tail.reserve(new_snake.tail.size() + 1);
+  new_tail.push_back(new_snake.head);
+  new_tail.insert(new_tail.end(), new_snake.tail.begin(), new_snake.tail.end());
 
   // Remove last element to keep fixed length
   if (!new_tail.empty()) {
     new_tail.pop_back();
   }
 
-  // Create new snake with updated head and tail
-  new_state.snake = Snake{new_head, new_tail};
+  // Update snake with new head and tail
+  new_snake.head = new_head;
+  new_snake.tail = new_tail;
 
-  return {new_state, ScoreDelta::empty()};
+  return {new_snake, ScoreDelta::empty()};
 }
 
 /**
@@ -104,12 +105,12 @@ static SnakeStateWithScoreEffect moveSnake(const SnakeState& snake_state, int bo
  * Uses cond to pattern match on collision cases. Cut tail segments are simply
  * dropped (not transformed to food).
  *
- * @param a First player snake pair (player ID + snake state)
- * @param b Second player snake pair (player ID + snake state)
+ * @param a First player snake pair (player ID + snake)
+ * @param b Second player snake pair (player ID + snake)
  * @return Tuple of (updated snake_a, updated snake_b, game effects)
  */
-static std::tuple<SnakeState, SnakeState, GameEffect> handleSnakeCollision(std::pair<PlayerId, SnakeState> a,
-                                                                            std::pair<PlayerId, SnakeState> b) {
+static std::tuple<Snake, Snake, GameEffect> handleSnakeCollision(std::pair<PlayerId, Snake> a,
+                                                                  std::pair<PlayerId, Snake> b) {
   auto [player_a, snake_a] = a;
   auto [player_b, snake_b] = b;
 
@@ -121,7 +122,7 @@ static std::tuple<SnakeState, SnakeState, GameEffect> handleSnakeCollision(std::
   GameEffect effect = GameEffect::empty();
 
   // Case 1: Both snakes bite each other → both die completely
-  if (bothBiteEachOther(snake_a.snake, snake_b.snake)) {
+  if (bothBiteEachOther(snake_a, snake_b)) {
     snake_a.alive = false;
     snake_b.alive = false;
 
@@ -130,17 +131,17 @@ static std::tuple<SnakeState, SnakeState, GameEffect> handleSnakeCollision(std::
     // Snakes are dead, segments are dropped
   }
   // Case 2: Snake A bites Snake B
-  else if (firstBitesSecond(snake_a.snake, snake_b.snake)) {
-    auto cut = cutTailAt(snake_b.snake, snake_a.snake.head);
-    snake_b.snake = cut.snake;
+  else if (firstBitesSecond(snake_a, snake_b)) {
+    auto cut = cutTailAt(snake_b, snake_a.head);
+    snake_b = cut.snake;
 
     effect.scores = ScoreDelta::forPlayer(player_b, -10);
     // cut.cut_segments are ignored (dropped)
   }
   // Case 3: Snake B bites Snake A
-  else if (firstBitesSecond(snake_b.snake, snake_a.snake)) {
-    auto cut = cutTailAt(snake_a.snake, snake_b.snake.head);
-    snake_a.snake = cut.snake;
+  else if (firstBitesSecond(snake_b, snake_a)) {
+    auto cut = cutTailAt(snake_a, snake_b.head);
+    snake_a = cut.snake;
 
     effect.scores = ScoreDelta::forPlayer(player_a, -10);
     // cut.cut_segments are ignored (dropped)
@@ -156,12 +157,12 @@ static std::tuple<SnakeState, SnakeState, GameEffect> handleSnakeCollision(std::
  * Uses cond to pattern match on collision cases. Cut tail segments are
  * transformed into food items.
  *
- * @param a First player snake pair (player ID + snake state)
- * @param b Second player snake pair (player ID + snake state)
+ * @param a First player snake pair (player ID + snake)
+ * @param b Second player snake pair (player ID + snake)
  * @return Tuple of (updated snake_a, updated snake_b, game effects)
  */
-static std::tuple<SnakeState, SnakeState, GameEffect> handleSnakeCollisionWithFoodDrop(
-    std::pair<PlayerId, SnakeState> a, std::pair<PlayerId, SnakeState> b) {
+static std::tuple<Snake, Snake, GameEffect> handleSnakeCollisionWithFoodDrop(std::pair<PlayerId, Snake> a,
+                                                                              std::pair<PlayerId, Snake> b) {
   auto [player_a, snake_a] = a;
   auto [player_b, snake_b] = b;
 
@@ -173,29 +174,29 @@ static std::tuple<SnakeState, SnakeState, GameEffect> handleSnakeCollisionWithFo
   GameEffect effect = GameEffect::empty();
 
   // Case 1: Both snakes bite each other → both die completely and turn to food
-  if (bothBiteEachOther(snake_a.snake, snake_b.snake)) {
+  if (bothBiteEachOther(snake_a, snake_b)) {
     snake_a.alive = false;
     snake_b.alive = false;
 
     effect.scores = combine(effect.scores, ScoreDelta::forPlayer(player_a, -10));
     effect.scores = combine(effect.scores, ScoreDelta::forPlayer(player_b, -10));
     // Transform entire snakes to food
-    effect.food = combine(effect.food, FoodEffect::add(snake_a.snake.toBody()));
-    effect.food = combine(effect.food, FoodEffect::add(snake_b.snake.toBody()));
+    effect.food = combine(effect.food, FoodEffect::add(snake_a.toBody()));
+    effect.food = combine(effect.food, FoodEffect::add(snake_b.toBody()));
   }
   // Case 2: Snake A bites Snake B
-  else if (firstBitesSecond(snake_a.snake, snake_b.snake)) {
-    auto cut = cutTailAt(snake_b.snake, snake_a.snake.head);
-    snake_b.snake = cut.snake;
+  else if (firstBitesSecond(snake_a, snake_b)) {
+    auto cut = cutTailAt(snake_b, snake_a.head);
+    snake_b = cut.snake;
 
     effect.scores = ScoreDelta::forPlayer(player_b, -10);
     // Transform cut segments to food
     effect.food = FoodEffect::add(cut.cut_segments);
   }
   // Case 3: Snake B bites Snake A
-  else if (firstBitesSecond(snake_b.snake, snake_a.snake)) {
-    auto cut = cutTailAt(snake_a.snake, snake_b.snake.head);
-    snake_a.snake = cut.snake;
+  else if (firstBitesSecond(snake_b, snake_a)) {
+    auto cut = cutTailAt(snake_a, snake_b.head);
+    snake_a = cut.snake;
 
     effect.scores = ScoreDelta::forPlayer(player_a, -10);
     // Transform cut segments to food
@@ -245,7 +246,7 @@ void GameSession::onTick(const Tick&) {
   // Uses traversal to apply moveSnake to each alive snake, accumulating effects
   state_with_effect = over_each_alive_snake_combining_scores(
       state_with_effect,
-      [this](const SnakeState& snake) { return moveSnake(snake, state_.board_width, state_.board_height); });
+      [this](const Snake& snake) { return moveSnake(snake, state_.board_width, state_.board_height); });
 
   // Step 2: Handle collisions between selected snake pairs
   // For two-player game, check collision between player1 and player2
@@ -294,11 +295,11 @@ void GameSession::onDirectionChange(const DirectionChange& msg) {
     return;  // Player not found
   }
 
-  SnakeState& snake_state = it->second;
+  Snake& snake = it->second;
 
   // Prevent 180-degree turns (going back into yourself)
   Direction new_dir = msg.new_direction;
-  Direction current = snake_state.current_direction;
+  Direction current = snake.current_direction;
 
   bool is_opposite = (current == Direction::UP && new_dir == Direction::DOWN) ||
                      (current == Direction::DOWN && new_dir == Direction::UP) ||
@@ -306,15 +307,11 @@ void GameSession::onDirectionChange(const DirectionChange& msg) {
                      (current == Direction::RIGHT && new_dir == Direction::LEFT);
 
   if (!is_opposite) {
-    snake_state.current_direction = msg.new_direction;
+    snake.current_direction = msg.new_direction;
   }
 }
 
 void GameSession::initializeSnake(const PlayerId& player_id) {
-  SnakeState snake_state;
-  snake_state.alive = true;
-  snake_state.current_direction = Direction::RIGHT;
-
   // Position snakes at different y-levels
   int y_pos = (player_id == "player1") ? 10 : 15;
   int start_x = 5;
@@ -327,10 +324,10 @@ void GameSession::initializeSnake(const PlayerId& player_id) {
     tail.push_back({start_x - i, y_pos});
   }
 
-  snake_state.snake = Snake{head, tail};
+  Snake snake{head, tail, Direction::RIGHT, true};
 
   // Insert snake into map using player_id as key
-  state_.snakes[player_id] = snake_state;
+  state_.snakes[player_id] = snake;
 
   // Initialize score in GameState
   state_.scores[player_id] = 0;
