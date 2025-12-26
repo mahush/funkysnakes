@@ -112,29 +112,88 @@ inline FoodEffect combine(const FoodEffect& a, const FoodEffect& b) {
 }
 
 /**
+ * @brief Snake update effect - tracks complete snake state updates per player
+ *
+ * Used as an "effect" type to accumulate snake state changes through
+ * the game state update pipeline. Each entry represents the final
+ * desired state for a snake (position, direction, alive status, etc.).
+ */
+struct SnakeUpdateEffect {
+  std::map<PlayerId, Snake> snake_updates;
+
+  SnakeUpdateEffect() = default;
+
+  /**
+   * @brief Create effect that updates a single snake
+   */
+  static SnakeUpdateEffect updateSnake(const PlayerId& player_id, Snake snake) {
+    SnakeUpdateEffect result;
+    result.snake_updates[player_id] = snake;
+    return result;
+  }
+
+  /**
+   * @brief Create an empty (no-op) update effect
+   */
+  static SnakeUpdateEffect empty() { return SnakeUpdateEffect{}; }
+};
+
+/**
+ * @brief Combine two snake update effects
+ *
+ * When multiple effects update the same snake, later updates overwrite
+ * earlier ones (last write wins).
+ *
+ * @param a First update effect
+ * @param b Second update effect
+ * @return Combined update effect
+ */
+inline SnakeUpdateEffect combine(const SnakeUpdateEffect& a, const SnakeUpdateEffect& b) {
+  SnakeUpdateEffect result = a;
+  for (const auto& [player_id, snake] : b.snake_updates) {
+    result.snake_updates[player_id] = snake;  // Last write wins
+  }
+  return result;
+}
+
+/**
  * @brief Composite game effect containing all effect types
  *
- * Combines multiple orthogonal effect types (scores, food) into a single
+ * Combines multiple orthogonal effect types (scores, food, snake updates) into a single
  * composite effect that can be accumulated through the update pipeline.
  */
 struct GameEffect {
   ScoreDelta scores;
   FoodEffect food;
+  SnakeUpdateEffect snakes;
 
   /**
    * @brief Create an empty (no-op) composite effect
    */
-  static GameEffect empty() { return {ScoreDelta::empty(), FoodEffect::empty()}; }
+  static GameEffect empty() {
+    return {ScoreDelta::empty(), FoodEffect::empty(), SnakeUpdateEffect::empty()};
+  }
 
   /**
    * @brief Create effect with only score delta
    */
-  static GameEffect withScores(ScoreDelta scores) { return {scores, FoodEffect::empty()}; }
+  static GameEffect withScores(ScoreDelta scores) {
+    return {scores, FoodEffect::empty(), SnakeUpdateEffect::empty()};
+  }
 
   /**
    * @brief Create effect with only food changes
    */
-  static GameEffect withFood(FoodEffect food) { return {ScoreDelta::empty(), food}; }
+  static GameEffect withFood(FoodEffect food) {
+    return {ScoreDelta::empty(), food, SnakeUpdateEffect::empty()};
+  }
+
+  /**
+   * @brief Create effect with only snake updates
+   */
+  static GameEffect withSnakes(SnakeUpdateEffect snakes) {
+    return {ScoreDelta::empty(), FoodEffect::empty(), snakes};
+  }
 };
 
 /**
@@ -147,7 +206,7 @@ struct GameEffect {
  * @return Combined game effect
  */
 inline GameEffect combine(const GameEffect& a, const GameEffect& b) {
-  return {combine(a.scores, b.scores), combine(a.food, b.food)};
+  return {combine(a.scores, b.scores), combine(a.food, b.food), combine(a.snakes, b.snakes)};
 }
 
 /**
