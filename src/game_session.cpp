@@ -141,7 +141,6 @@ static Snake applyOperation(Snake snake, const SnakeOperation& op, int board_wid
   return snake;
 }
 
-
 /**
  * @brief Handle collision between two snakes - drop tail mode
  *
@@ -248,6 +247,113 @@ static GameEffect handleSnakeCollisionWithFoodDrop(std::pair<PlayerId, Snake> a,
 }
 
 // ============================================================================
+// Pipeline stage functions for onTick
+// ============================================================================
+
+/**
+ * @brief Pipeline stage 1: Generate MOVE operations for all alive snakes
+ *
+ * @param state_with_effect Current game state with accumulated effects
+ * @return Updated state with movement operations added to effect
+ */
+static GameStateWithEffect generateSnakeMovementOps(GameStateWithEffect state_with_effect) {
+  for (const auto& [player_id, snake] : state_with_effect.state.snakes) {
+    if (snake.alive) {
+      state_with_effect.effect.snakes.addOp(player_id, SnakeOperation::move());
+    }
+  }
+  return state_with_effect;
+}
+
+/**
+ * @brief Pipeline stage 2: Generate collision operations based on collision mode
+ *
+ * @param state_with_effect Current game state with accumulated effects
+ * @param collision_mode Collision mode (drop tail or drop as food)
+ * @return Updated state with collision operations added to effect
+ */
+static GameStateWithEffect generateCollisionOps(GameStateWithEffect state_with_effect, CollisionMode collision_mode) {
+  if (state_with_effect.state.snakes.size() >= 2) {
+    GameEffect collision_effect;
+    if (collision_mode == CollisionMode::BITE_DROP_FOOD) {
+      collision_effect = over_selected_snakes_combining_scores(GameStateWithEffect::fromState(state_with_effect.state),
+                                                               handleSnakeCollisionWithFoodDrop, "player1", "player2")
+                             .effect;
+    } else {
+      collision_effect = over_selected_snakes_combining_scores(GameStateWithEffect::fromState(state_with_effect.state),
+                                                               handleSnakeCollision, "player1", "player2")
+                             .effect;
+    }
+    state_with_effect.effect = combine(state_with_effect.effect, collision_effect);
+  }
+  return state_with_effect;
+}
+
+/**
+ * @brief Pipeline stage 3: Apply all accumulated snake operations to snake state
+ *
+ * @param state_with_effect Current game state with accumulated effects
+ * @param board_width Width of game board for wrapping
+ * @param board_height Height of game board for wrapping
+ * @return Updated state with snakes modified and operations consumed
+ */
+static GameStateWithEffect applySnakeOps(GameStateWithEffect state_with_effect, int board_width, int board_height) {
+  for (const auto& [player_id, ops] : state_with_effect.effect.snakes.operations) {
+    Snake snake = state_with_effect.state.snakes[player_id];
+    for (const auto& op : ops) {
+      snake = applyOperation(snake, op, board_width, board_height);
+    }
+    state_with_effect.state.snakes[player_id] = snake;
+  }
+  // Consume the operations after applying them
+  state_with_effect.effect.snakes.operations.clear();
+  return state_with_effect;
+}
+
+/**
+ * @brief Pipeline stage 4: Apply score deltas to player scores
+ *
+ * @param state_with_effect Current game state with accumulated effects
+ * @return Updated state with scores modified and deltas consumed
+ */
+static GameStateWithEffect applyScoreEffects(GameStateWithEffect state_with_effect) {
+  for (const auto& [player_id, delta] : state_with_effect.effect.scores.deltas) {
+    state_with_effect.state.scores[player_id] += delta;
+  }
+  // Consume the deltas after applying them
+  state_with_effect.effect.scores.deltas.clear();
+  return state_with_effect;
+}
+
+/**
+ * @brief Pipeline stage 5: Apply food additions and removals
+ *
+ * @param state_with_effect Current game state with accumulated effects
+ * @return Updated state with food items modified and effects consumed
+ */
+static GameStateWithEffect applyFoodEffects(GameStateWithEffect state_with_effect) {
+  // Apply removals first
+  for (const Point& food_loc : state_with_effect.effect.food.removals) {
+    auto& items = state_with_effect.state.food_items;
+    auto it = std::find(items.begin(), items.end(), food_loc);
+    if (it != items.end()) {
+      items.erase(it);
+    }
+  }
+
+  // Then apply additions
+  for (const Point& food_loc : state_with_effect.effect.food.additions) {
+    state_with_effect.state.food_items.push_back(food_loc);
+  }
+
+  // Consume the food effects after applying them
+  state_with_effect.effect.food.additions.clear();
+  state_with_effect.effect.food.removals.clear();
+
+  return state_with_effect;
+}
+
+// ============================================================================
 // GameSession implementation
 // ============================================================================
 
@@ -279,62 +385,21 @@ void GameSession::processMessages() {
 }
 
 void GameSession::onTick(const Tick&) {
-  // Start with current state wrapped in StateWithEffect
-  GameStateWithEffect state_with_effect = GameStateWithEffect::fromState(state_);
+  // Create lambdas that capture context from this
+  auto generateSnakeCollisionOps = [this](GameStateWithEffect swe) {
+    return snake::generateCollisionOps(swe, collision_mode_);
+  };
 
-  // Step 1: Generate MOVE operations for all alive snakes
-  for (const auto& [player_id, snake] : state_with_effect.state.snakes) {
-    if (snake.alive) {
-      state_with_effect.effect.snakes.addOp(player_id, SnakeOperation::move());
-    }
-  }
+  auto applySnakeOps = [this](GameStateWithEffect swe) {
+    return snake::applySnakeOps(swe, state_.board_width, state_.board_height);
+  };
 
-  // Step 2: Generate collision operations
-  // For two-player game, check collision between player1 and player2
-  // Dispatch based on collision mode
-  if (state_with_effect.state.snakes.size() >= 2) {
-    GameEffect collision_effect;
-    if (collision_mode_ == CollisionMode::BITE_DROP_FOOD) {
-      collision_effect = over_selected_snakes_combining_scores(GameStateWithEffect::fromState(state_with_effect.state),
-                                                                handleSnakeCollisionWithFoodDrop, "player1", "player2")
-                             .effect;
-    } else {
-      collision_effect =
-          over_selected_snakes_combining_scores(GameStateWithEffect::fromState(state_with_effect.state),
-                                                handleSnakeCollision, "player1", "player2")
-              .effect;
-    }
-    state_with_effect.effect = combine(state_with_effect.effect, collision_effect);
-  }
-
-  // Step 3: Apply all accumulated operations to snakes
-  for (const auto& [player_id, ops] : state_with_effect.effect.snakes.operations) {
-    Snake snake = state_with_effect.state.snakes[player_id];
-    for (const auto& op : ops) {
-      snake = applyOperation(snake, op, state_.board_width, state_.board_height);
-    }
-    state_with_effect.state.snakes[player_id] = snake;
-  }
-
-  // Step 4: Apply score effects
-  for (const auto& [player_id, delta] : state_with_effect.effect.scores.deltas) {
-    state_with_effect.state.scores[player_id] += delta;
-  }
-
-  // Step 5: Apply food effects - removals first, then additions
-  for (const Point& food_loc : state_with_effect.effect.food.removals) {
-    auto& items = state_with_effect.state.food_items;
-    auto it = std::find(items.begin(), items.end(), food_loc);
-    if (it != items.end()) {
-      items.erase(it);
-    }
-  }
-  for (const Point& food_loc : state_with_effect.effect.food.additions) {
-    state_with_effect.state.food_items.push_back(food_loc);
-  }
+  // Compose pipeline stages using nested function calls
+  auto final_state = applyFoodEffects(applyScoreEffects(applySnakeOps(
+      generateSnakeCollisionOps(applySnakeOps(generateSnakeMovementOps(GameStateWithEffect::fromState(state_)))))));
 
   // Update internal state and publish
-  state_ = state_with_effect.state;
+  state_ = final_state.state;
 
   StateUpdate update;
   update.state = state_;
