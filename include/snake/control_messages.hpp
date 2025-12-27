@@ -79,4 +79,25 @@ struct ResumeGame {
   GameId game_id;
 };
 
+/**
+ * @brief Game clock state for controlling timer
+ */
+enum class GameClockState {
+  START,   // Start running the clock
+  STOP,    // Stop and reset
+  PAUSE,   // Pause (can resume)
+  RESUME   // Resume from pause
+};
+
+/**
+ * @brief Unified game clock control command
+ *
+ * Replaces StartClock, StopClock, PauseGame, ResumeGame with single message.
+ * Tick interval is controlled separately via TickRateChange message.
+ */
+struct GameClockCommand {
+  GameId game_id;
+  GameClockState state;
+};
+
 }  // namespace snake

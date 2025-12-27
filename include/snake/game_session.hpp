@@ -40,18 +40,31 @@ class GameSession : public Actor<GameSession> {
   /**
    * @brief Construct a new Game Session
    * @param io The io_context for async operations
-   * @param tick_topic Topic to subscribe for game ticks
    * @param direction_topic Topic to subscribe for direction changes
    * @param state_topic Topic to publish state updates
+   * @param clock_topic Topic to subscribe for clock control commands
+   * @param tickrate_topic Topic to subscribe for tick rate changes
+   * @param levelchange_topic Topic to subscribe for level changes
    */
   GameSession(asio::io_context& io,
-              TopicPtr<Tick> tick_topic,
               TopicPtr<DirectionChange> direction_topic,
-              TopicPtr<StateUpdate> state_topic);
+              TopicPtr<StateUpdate> state_topic,
+              TopicPtr<GameClockCommand> clock_topic,
+              TopicPtr<TickRateChange> tickrate_topic,
+              TopicPtr<LevelChange> levelchange_topic);
 
  private:
-  void onTick(const Tick& msg);
+  void onTick();
   void onDirectionChange(const DirectionChange& msg);
+
+  // Control message handlers
+  void onGameClockCommand(const GameClockCommand& msg);
+  void onTickRateChange(const TickRateChange& msg);
+  void onLevelChange(const LevelChange& msg);
+
+  // Timer methods
+  void scheduleTick();
+  void onTimerExpired(const asio::error_code& ec);
 
   // Game initialization helpers
   void initializeSnake(const PlayerId& player_id);
@@ -62,13 +75,21 @@ class GameSession : public Actor<GameSession> {
   PublisherPtr<StateUpdate> state_pub_;
 
   // Subscriptions for pulling messages
-  SubscriptionPtr<Tick> tick_sub_;
   SubscriptionPtr<DirectionChange> direction_sub_;
+  SubscriptionPtr<GameClockCommand> clock_sub_;
+  SubscriptionPtr<TickRateChange> tickrate_sub_;
+  SubscriptionPtr<LevelChange> levelchange_sub_;
 
   GameState state_;
   GameEffect pending_effects_;  // Accumulate effects between ticks (e.g., direction changes)
   CollisionMode collision_mode_{CollisionMode::BITE_REMOVE_TAIL};
   int tick_count_{0};
+
+  // Timer members
+  asio::steady_timer timer_;
+  int interval_ms_{200};  // Default 200ms
+  bool running_{false};
+  bool paused_{false};
 };
 
 }  // namespace snake

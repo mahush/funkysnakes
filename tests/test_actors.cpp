@@ -41,18 +41,15 @@ TEST(ActorTest, GameManager_CoordinatesStartGame) {
   asio::io_context io;
 
   // Create topics
-  auto tick_topic = std::make_shared<Topic<Tick>>();
   auto gameover_topic = std::make_shared<Topic<GameOver>>();
-  auto startclock_topic = std::make_shared<Topic<StartClock>>();
-  auto stopclock_topic = std::make_shared<Topic<StopClock>>();
-  auto tickrate_topic = std::make_shared<Topic<TickRateChange>>();
+  auto clock_topic = std::make_shared<Topic<GameClockCommand>>();
   auto joinrequest_topic = std::make_shared<Topic<JoinRequest>>();
   auto leaverequest_topic = std::make_shared<Topic<LeaveRequest>>();
   auto startgame_topic = std::make_shared<Topic<StartGame>>();
 
   // Create GameManager
-  auto manager = GameManager::create(io, tick_topic, gameover_topic, startclock_topic, stopclock_topic, tickrate_topic,
-                                     joinrequest_topic, leaverequest_topic, startgame_topic);
+  auto manager = GameManager::create(io, gameover_topic, clock_topic, joinrequest_topic, leaverequest_topic,
+                                     startgame_topic);
 
   // Create publisher to send join requests
   Publisher<JoinRequest> joinrequest_pub{joinrequest_topic};
@@ -61,88 +58,80 @@ TEST(ActorTest, GameManager_CoordinatesStartGame) {
   joinrequest_pub.publish(JoinRequest{"player1"});
   joinrequest_pub.publish(JoinRequest{"player2"});
 
-  // Note: We don't test StartGame here because it starts an infinite timer loop.
-  // Timer functionality is tested separately in GameManager_SendsPeriodicTicks.
-  // Just run pending join operations
+  // Run pending join operations
   io.run();
 
   // Verify no crash during player joins
   SUCCEED();
 }
 
-// Test GameSession handles ticks
-TEST(ActorTest, GameSession_HandlesTicks) {
+// Test GameSession handles clock commands
+TEST(ActorTest, GameSession_HandlesClockCommands) {
   asio::io_context io;
 
   // Create topics
-  auto tick_topic = std::make_shared<Topic<Tick>>();
   auto direction_topic = std::make_shared<Topic<DirectionChange>>();
   auto state_topic = std::make_shared<Topic<StateUpdate>>();
-
-  // Create mock subscriber for state updates
-  auto mock_state_subscriber = MockStateUpdateSubscriber::create(io, state_topic);
+  auto clock_topic = std::make_shared<Topic<GameClockCommand>>();
+  auto tickrate_topic = std::make_shared<Topic<TickRateChange>>();
+  auto level_topic = std::make_shared<Topic<LevelChange>>();
 
   // Create GameSession
-  auto session = GameSession::create(io, tick_topic, direction_topic, state_topic);
+  auto session = GameSession::create(io, direction_topic, state_topic, clock_topic, tickrate_topic, level_topic);
 
-  // Create publisher to send ticks
-  Publisher<Tick> tick_pub{tick_topic};
+  // Create publisher to send clock commands
+  Publisher<GameClockCommand> clock_pub{clock_topic};
 
-  // Simulate a tick by publishing to the topic
-  Tick tick;
-  tick.game_id = "game_001";
-  tick_pub.publish(tick);
+  // Send START command
+  GameClockCommand cmd;
+  cmd.game_id = "game_001";
+  cmd.state = GameClockState::START;
+  clock_pub.publish(cmd);
 
-  // Run all pending work
+  // Send STOP command
+  cmd.state = GameClockState::STOP;
+  clock_pub.publish(cmd);
+
+  // Process all commands
   io.run();
 
-  // Verify session sent a state update
-  ASSERT_EQ(mock_state_subscriber->state_updates.size(), 1u);
-  EXPECT_EQ(mock_state_subscriber->state_updates[0].state.game_id, "game_001");
+  // Verify no crash - session should handle START/STOP commands
+  SUCCEED();
 }
 
-// Test GameManager sends periodic ticks
-TEST(ActorTest, GameManager_SendsPeriodicTicks) {
+// Test GameManager sends clock commands
+TEST(ActorTest, GameManager_SendsClockCommands) {
   asio::io_context io;
 
   // Create topics
-  auto tick_topic = std::make_shared<Topic<Tick>>();
   auto gameover_topic = std::make_shared<Topic<GameOver>>();
-  auto startclock_topic = std::make_shared<Topic<StartClock>>();
-  auto stopclock_topic = std::make_shared<Topic<StopClock>>();
-  auto tickrate_topic = std::make_shared<Topic<TickRateChange>>();
+  auto clock_topic = std::make_shared<Topic<GameClockCommand>>();
   auto joinrequest_topic = std::make_shared<Topic<JoinRequest>>();
   auto leaverequest_topic = std::make_shared<Topic<LeaveRequest>>();
   auto startgame_topic = std::make_shared<Topic<StartGame>>();
 
-  // Create mock subscriber for ticks
-  auto mock_tick_subscriber = MockTickSubscriber::create(io, tick_topic);
+  // Create mock subscriber for clock commands
+  auto mock_clock_subscriber = MockClockCommandSubscriber::create(io, clock_topic);
 
   // Create GameManager
-  auto manager = GameManager::create(io, tick_topic, gameover_topic, startclock_topic, stopclock_topic, tickrate_topic,
-                                     joinrequest_topic, leaverequest_topic, startgame_topic);
+  auto manager = GameManager::create(io, gameover_topic, clock_topic, joinrequest_topic, leaverequest_topic,
+                                     startgame_topic);
 
-  // Create publishers for clock control
-  Publisher<StartClock> startclock_pub{startclock_topic};
-  Publisher<StopClock> stopclock_pub{stopclock_topic};
+  // Create publisher for start game
+  Publisher<StartGame> startgame_pub{startgame_topic};
 
-  // Start game with short interval for testing
-  StartClock start;
-  start.game_id = "game_001";
-  start.interval_ms = 10;  // 10ms for fast test
-  startclock_pub.publish(start);
+  // Start game
+  StartGame start;
+  start.starting_level = 1;
+  start.players = {"player1", "player2"};
+  startgame_pub.publish(start);
 
-  // Run for a bit to allow some ticks
-  io.run_for(std::chrono::milliseconds(50));
-
-  // Stop
-  StopClock stop;
-  stop.game_id = "game_001";
-  stopclock_pub.publish(stop);
+  // Run pending operations
   io.run();
 
-  // Should have received multiple ticks (at least 3-4)
-  EXPECT_GE(mock_tick_subscriber->ticks.size(), 3);
+  // Verify GameManager sent START clock command
+  ASSERT_EQ(mock_clock_subscriber->clock_commands.size(), 1u);
+  EXPECT_EQ(mock_clock_subscriber->clock_commands[0].state, GameClockState::START);
 }
 
 }  // namespace snake

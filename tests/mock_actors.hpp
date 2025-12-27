@@ -143,4 +143,26 @@ class MockStopClockSubscriber : public Actor<MockStopClockSubscriber> {
   SubscriptionPtr<StopClock> stopclock_sub_;
 };
 
+/**
+ * @brief Mock subscriber for GameClockCommand messages
+ */
+class MockClockCommandSubscriber : public Actor<MockClockCommandSubscriber> {
+ public:
+  void processMessages() override {
+    while (auto msg = clock_sub_->tryReceive()) {
+      clock_commands.push_back(*msg);
+    }
+  }
+
+  std::vector<GameClockCommand> clock_commands;
+
+ protected:
+  friend class Actor<MockClockCommandSubscriber>;
+  MockClockCommandSubscriber(asio::io_context& io, TopicPtr<GameClockCommand> topic)
+      : Actor(io), clock_sub_(create_sub(topic)) {}
+
+ private:
+  SubscriptionPtr<GameClockCommand> clock_sub_;
+};
+
 }  // namespace snake

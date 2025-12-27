@@ -5,41 +5,21 @@
 namespace snake {
 
 GameManager::GameManager(asio::io_context& io,
-                         TopicPtr<Tick> tick_topic,
                          TopicPtr<GameOver> gameover_topic,
-                         TopicPtr<StartClock> startclock_topic,
-                         TopicPtr<StopClock> stopclock_topic,
-                         TopicPtr<TickRateChange> tickrate_topic,
+                         TopicPtr<GameClockCommand> clock_topic,
                          TopicPtr<JoinRequest> joinrequest_topic,
                          TopicPtr<LeaveRequest> leaverequest_topic,
                          TopicPtr<StartGame> startgame_topic)
     : Actor(io),
-      tick_pub_(create_pub(tick_topic)),
-      startclock_pub_(create_pub(startclock_topic)),
+      clock_pub_(create_pub(clock_topic)),
       gameover_sub_(create_sub(gameover_topic)),
-      startclock_sub_(create_sub(startclock_topic)),
-      stopclock_sub_(create_sub(stopclock_topic)),
-      tickrate_sub_(create_sub(tickrate_topic)),
       joinrequest_sub_(create_sub(joinrequest_topic)),
       leaverequest_sub_(create_sub(leaverequest_topic)),
-      startgame_sub_(create_sub(startgame_topic)),
-      timer_(io) {
+      startgame_sub_(create_sub(startgame_topic)) {
 }
 
 void GameManager::processMessages() {
-  // Process messages in priority order
-  // High priority: Clock control
-  while (auto msg = startclock_sub_->tryReceive()) {
-    onStartClock(*msg);
-  }
-  while (auto msg = stopclock_sub_->tryReceive()) {
-    onStopClock(*msg);
-  }
-  while (auto msg = tickrate_sub_->tryReceive()) {
-    onTickRateChange(*msg);
-  }
-
-  // Medium priority: Game lifecycle
+  // Game lifecycle
   while (auto msg = startgame_sub_->tryReceive()) {
     onStartGame(*msg);
   }
@@ -47,7 +27,7 @@ void GameManager::processMessages() {
     onGameOver(*msg);
   }
 
-  // Low priority: Player management
+  // Player management
   while (auto msg = joinrequest_sub_->tryReceive()) {
     onJoinRequest(*msg);
   }
@@ -75,17 +55,12 @@ void GameManager::onStartGame(const StartGame& msg) {
             << " players\n";
 
   current_game_id_ = "game_001";
-  interval_ms_ = 200;  // 200ms per tick for responsive gameplay
 
-  // Send StartClock to GameSession to begin the game
-  StartClock start_clock;
-  start_clock.game_id = current_game_id_;
-  start_clock.interval_ms = interval_ms_;
-  startclock_pub_->publish(start_clock);
-
-  // Start the timer for ticks
-  running_ = true;
-  scheduleTick();
+  // Send START command to GameSession (will use default 200ms interval)
+  GameClockCommand cmd;
+  cmd.game_id = current_game_id_;
+  cmd.state = GameClockState::START;
+  clock_pub_->publish(cmd);
 }
 
 void GameManager::onGameOver(const GameOver& msg) {
@@ -95,62 +70,11 @@ void GameManager::onGameOver(const GameOver& msg) {
     std::cout << "[GameManager]   " << player_id << ": " << score << "\n";
   }
 
-  // Stop the timer
-  running_ = false;
-  timer_.cancel();
-}
-
-void GameManager::onStartClock(const StartClock& msg) {
-  std::cout << "[GameManager] Starting game timer with interval " << msg.interval_ms << "ms\n";
-  current_game_id_ = msg.game_id;
-  interval_ms_ = msg.interval_ms;
-  running_ = true;
-  scheduleTick();
-}
-
-void GameManager::onStopClock(const StopClock& msg) {
-  std::cout << "[GameManager] Stopping game timer for '" << msg.game_id << "'\n";
-  running_ = false;
-  timer_.cancel();
-}
-
-void GameManager::onTickRateChange(const TickRateChange& msg) {
-  std::cout << "[GameManager] Changing tick rate to " << msg.interval_ms << "ms\n";
-  interval_ms_ = msg.interval_ms;
-  // New interval will take effect on next tick
-}
-
-void GameManager::scheduleTick() {
-  if (!running_) {
-    return;
-  }
-
-  timer_.expires_after(std::chrono::milliseconds(interval_ms_));
-  timer_.async_wait(asio::bind_executor(strand_, [weak_self = weak_from_this()](const asio::error_code& ec) {
-    if (auto self = weak_self.lock()) {
-      self->onTimerExpired(ec);
-    }
-  }));
-}
-
-void GameManager::onTimerExpired(const asio::error_code& ec) {
-  if (ec == asio::error::operation_aborted) {
-    // Timer was stopped
-    return;
-  }
-
-  if (ec) {
-    std::cerr << "[GameManager] Timer error: " << ec.message() << "\n";
-    return;
-  }
-
-  // Publish tick to topic
-  Tick tick;
-  tick.game_id = current_game_id_;
-  tick_pub_->publish(tick);
-
-  // Schedule next tick
-  scheduleTick();
+  // Send STOP command to GameSession
+  GameClockCommand cmd;
+  cmd.game_id = msg.summary.game_id;
+  cmd.state = GameClockState::STOP;
+  clock_pub_->publish(cmd);
 }
 
 }  // namespace snake

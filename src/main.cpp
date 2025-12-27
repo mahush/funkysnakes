@@ -16,13 +16,11 @@ int main() {
   auto work_guard = asio::make_work_guard(io);  // Keep io_context alive
 
   // Create all topics first
-  auto tick_topic = std::make_shared<snake::Topic<snake::Tick>>();
   auto direction_topic = std::make_shared<snake::Topic<snake::DirectionChange>>();
   auto state_topic = std::make_shared<snake::Topic<snake::StateUpdate>>();
   auto gameover_topic = std::make_shared<snake::Topic<snake::GameOver>>();
   auto level_topic = std::make_shared<snake::Topic<snake::LevelChange>>();
-  auto startclock_topic = std::make_shared<snake::Topic<snake::StartClock>>();
-  auto stopclock_topic = std::make_shared<snake::Topic<snake::StopClock>>();
+  auto clock_topic = std::make_shared<snake::Topic<snake::GameClockCommand>>();
   auto tickrate_topic = std::make_shared<snake::Topic<snake::TickRateChange>>();
   auto joinrequest_topic = std::make_shared<snake::Topic<snake::JoinRequest>>();
   auto leaverequest_topic = std::make_shared<snake::Topic<snake::LeaveRequest>>();
@@ -31,10 +29,10 @@ int main() {
   // Create actors using factory methods - clean single-stage construction!
   auto renderer = snake::Renderer::create(io, state_topic, gameover_topic, level_topic);
 
-  auto session = snake::GameSession::create(io, tick_topic, direction_topic, state_topic);
+  auto session = snake::GameSession::create(io, direction_topic, state_topic, clock_topic, tickrate_topic, level_topic);
 
-  auto manager = snake::GameManager::create(io, tick_topic, gameover_topic, startclock_topic, stopclock_topic,
-                                            tickrate_topic, joinrequest_topic, leaverequest_topic, startgame_topic);
+  auto manager = snake::GameManager::create(io, gameover_topic, clock_topic, joinrequest_topic, leaverequest_topic,
+                                            startgame_topic);
 
   auto input_actor = snake::InputActor::create(io, direction_topic, "game_001");
 
