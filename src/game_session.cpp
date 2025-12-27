@@ -9,6 +9,7 @@
 #include "snake/game_state_lenses.hpp"
 #include "snake/snake_model.hpp"
 #include "snake/state_with_effect.hpp"
+#include "snake/timer/timer_factory.hpp"
 
 namespace snake {
 
@@ -264,7 +265,7 @@ static GameEffect handleSnakeCollisionWithFoodDrop(std::pair<PlayerId, Snake> a,
  * @return Updated state with directions changed
  */
 static GameStateWithEffect applyPendingDirectionOps(GameStateWithEffect state_with_effect,
-                                                     const SnakeUpdateEffect& pending_direction_effects) {
+                                                    const SnakeUpdateEffect& pending_direction_effects) {
   // Apply direction operations from pending effects
   for (const auto& [player_id, ops] : pending_direction_effects.operations) {
     if (state_with_effect.state.snakes.find(player_id) == state_with_effect.state.snakes.end()) {
@@ -486,14 +487,15 @@ static GameStateWithEffect updateFoodPositions(GameStateWithEffect state_with_ef
 
 GameSession::GameSession(asio::io_context& io, TopicPtr<DirectionChange> direction_topic,
                          TopicPtr<StateUpdate> state_topic, TopicPtr<GameClockCommand> clock_topic,
-                         TopicPtr<TickRateChange> tickrate_topic, TopicPtr<LevelChange> levelchange_topic)
+                         TopicPtr<TickRateChange> tickrate_topic, TopicPtr<LevelChange> levelchange_topic,
+                         TimerFactoryPtr timer_factory)
     : Actor(io),
       state_pub_(create_pub(state_topic)),
       direction_sub_(create_sub(direction_topic)),
       clock_sub_(create_sub(clock_topic)),
       tickrate_sub_(create_sub(tickrate_topic)),
       levelchange_sub_(create_sub(levelchange_topic)),
-      timer_(io) {
+      timer_(create_timer<GameTimer>(timer_factory)) {
   state_.game_id = "game_001";
   state_.board_width = 60;
   state_.board_height = 20;
@@ -507,20 +509,26 @@ GameSession::GameSession(asio::io_context& io, TopicPtr<DirectionChange> directi
 }
 
 void GameSession::processMessages() {
-  // Process control messages (high priority)
+  while (auto dir = direction_sub_->tryReceive()) {
+    onDirectionChange(*dir);
+  }
+
+  auto timer_events = timer_->take_all_elapsed_events();
+  for (const auto& event : timer_events) {
+    (void)event;  // Unused for now
+    onTick();
+  }
+
   while (auto msg = clock_sub_->tryReceive()) {
     onGameClockCommand(*msg);
   }
+
   while (auto msg = tickrate_sub_->tryReceive()) {
     onTickRateChange(*msg);
   }
+
   while (auto msg = levelchange_sub_->tryReceive()) {
     onLevelChange(*msg);
-  }
-
-  // Process direction changes (low priority)
-  while (auto dir = direction_sub_->tryReceive()) {
-    onDirectionChange(*dir);
   }
 }
 
@@ -555,10 +563,9 @@ void GameSession::onTick() {
 
   // Compose pipeline stages using nested function calls
   // Order: pending directions -> movement -> collision -> food eating -> scores -> food updates -> apply food
-  auto final_state =
-      applyFoodEffects(updateFoodPositions(applyScoreEffects(generateFoodEatingEffects(applySnakeOps(
-          generateSnakeCollisionOps(applySnakeOps(generateSnakeMovementOps(applyPendingDirectionOps(
-              GameStateWithEffect::fromState(state_))))))))));
+  auto final_state = applyFoodEffects(updateFoodPositions(
+      applyScoreEffects(generateFoodEatingEffects(applySnakeOps(generateSnakeCollisionOps(applySnakeOps(
+          generateSnakeMovementOps(applyPendingDirectionOps(GameStateWithEffect::fromState(state_))))))))));
 
   // Update internal state and publish
   state_ = final_state.state;
@@ -575,30 +582,22 @@ void GameSession::onGameClockCommand(const GameClockCommand& msg) {
   switch (msg.state) {
     case GameClockState::START:
       std::cout << "[GameSession] Starting internal timer\n";
-      running_ = true;
-      paused_ = false;
-      scheduleTick();
+      timer_->execute_command(make_periodic_command<GameTimerTag>(std::chrono::milliseconds(interval_ms_)));
       break;
 
     case GameClockState::STOP:
       std::cout << "[GameSession] Stopping internal timer\n";
-      running_ = false;
-      paused_ = false;
-      timer_.cancel();
+      timer_->execute_command(make_cancel_command<GameTimerTag>());
       break;
 
     case GameClockState::PAUSE:
       std::cout << "[GameSession] Pausing game\n";
-      paused_ = true;
-      timer_.cancel();
+      timer_->execute_command(make_cancel_command<GameTimerTag>());
       break;
 
     case GameClockState::RESUME:
       std::cout << "[GameSession] Resuming game\n";
-      if (running_ && paused_) {
-        paused_ = false;
-        scheduleTick();
-      }
+      timer_->execute_command(make_periodic_command<GameTimerTag>(std::chrono::milliseconds(interval_ms_)));
       break;
   }
 }
@@ -606,45 +605,16 @@ void GameSession::onGameClockCommand(const GameClockCommand& msg) {
 void GameSession::onTickRateChange(const TickRateChange& msg) {
   std::cout << "[GameSession] Changing tick rate to " << msg.interval_ms << "ms\n";
   interval_ms_ = msg.interval_ms;
-  // New rate takes effect on next tick
+
+  // If timer is currently running, restart it with new interval
+  if (timer_->is_scheduled()) {
+    timer_->execute_command(make_periodic_command<GameTimerTag>(std::chrono::milliseconds(interval_ms_)));
+  }
 }
 
 void GameSession::onLevelChange(const LevelChange& msg) {
   std::cout << "[GameSession] Level changed to " << msg.new_level << "\n";
   state_.level = msg.new_level;
-}
-
-void GameSession::scheduleTick() {
-  if (!running_ || paused_) {
-    return;
-  }
-
-  timer_.expires_after(std::chrono::milliseconds(interval_ms_));
-  timer_.async_wait(asio::bind_executor(
-      strand_,
-      [weak_self = weak_from_this()](const asio::error_code& ec) {
-        if (auto self = weak_self.lock()) {
-          self->onTimerExpired(ec);
-        }
-      }));
-}
-
-void GameSession::onTimerExpired(const asio::error_code& ec) {
-  if (ec == asio::error::operation_aborted) {
-    // Timer was cancelled (pause or stop)
-    return;
-  }
-
-  if (ec) {
-    std::cerr << "[GameSession] Timer error: " << ec.message() << "\n";
-    return;
-  }
-
-  // Directly call onTick (no Tick message!)
-  onTick();
-
-  // Schedule next tick
-  scheduleTick();
 }
 
 void GameSession::onDirectionChange(const DirectionChange& msg) {

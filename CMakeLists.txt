@@ -43,6 +43,7 @@ add_executable(snake_actors
   src/input_actor.cpp
   src/renderer.cpp
   src/snake_model.cpp
+  src/timer/asio_timer_core.cpp
 )
 
 target_include_directories(snake_actors PRIVATE
@@ -83,6 +84,7 @@ if(SNAKE_BUILD_TESTS)
     src/input_actor.cpp
     src/renderer.cpp
     src/snake_model.cpp
+    src/timer/asio_timer_core.cpp
   )
 
   target_link_libraries(test_snake PRIVATE gtest_main gmock_main asio)

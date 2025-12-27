@@ -7,7 +7,7 @@
 #include <vector>
 
 #include "asio.hpp"
-#include "snake/message_processor_interface.hpp"
+#include "snake/processor_interface.hpp"
 #include "snake/topic_subscription.hpp"
 
 namespace snake {
@@ -39,7 +39,7 @@ class Topic {
   // processor: Actor that will be notified when messages arrive (via weak_ptr)
   // subscription: Actor's subscription queue (raw pointer - actor owns it)
   // strand: Strand to post notifications on
-  void subscribe(std::weak_ptr<MessageProcessorInterface> processor, Subscription<Msg>* subscription,
+  void subscribe(std::weak_ptr<ProcessorInterface> processor, Subscription<Msg>* subscription,
                  asio::strand<asio::io_context::executor_type> strand) {
     std::lock_guard<std::mutex> lock(mutex_);
     subscriptions_.push_back({processor, subscription, strand});
@@ -86,7 +86,7 @@ class Topic {
   }
 
   struct SubscriptionEntry {
-    std::weak_ptr<MessageProcessorInterface> processor;
+    std::weak_ptr<ProcessorInterface> processor;
     Subscription<Msg>* subscription;  // Raw pointer - owned by actor
     asio::strand<asio::io_context::executor_type> strand;
   };

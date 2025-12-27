@@ -5,6 +5,7 @@
 #include "snake/game_session.hpp"
 #include "snake/input_actor.hpp"
 #include "snake/renderer.hpp"
+#include "snake/timer/timer_factory.hpp"
 #include "snake/topic.hpp"
 #include "snake/topic_publisher.hpp"
 
@@ -69,6 +70,9 @@ TEST(ActorTest, GameManager_CoordinatesStartGame) {
 TEST(ActorTest, GameSession_HandlesClockCommands) {
   asio::io_context io;
 
+  // Create timer factory
+  auto timer_factory = std::make_shared<TimerFactory>(io);
+
   // Create topics
   auto direction_topic = std::make_shared<Topic<DirectionChange>>();
   auto state_topic = std::make_shared<Topic<StateUpdate>>();
@@ -77,7 +81,7 @@ TEST(ActorTest, GameSession_HandlesClockCommands) {
   auto level_topic = std::make_shared<Topic<LevelChange>>();
 
   // Create GameSession
-  auto session = GameSession::create(io, direction_topic, state_topic, clock_topic, tickrate_topic, level_topic);
+  auto session = GameSession::create(io, direction_topic, state_topic, clock_topic, tickrate_topic, level_topic, timer_factory);
 
   // Create publisher to send clock commands
   Publisher<GameClockCommand> clock_pub{clock_topic};

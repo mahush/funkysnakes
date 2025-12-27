@@ -7,10 +7,18 @@
 #include "snake/control_messages.hpp"
 #include "snake/game_messages.hpp"
 #include "snake/state_with_effect.hpp"
+#include "snake/timer/timer.hpp"
 #include "snake/topic.hpp"
 #include "snake/topic_subscription.hpp"
 
 namespace snake {
+
+// Timer type definitions for GameSession
+struct GameTimerTag {};
+using GameTimerElapsedEvent = TimerElapsedEvent<GameTimerTag>;
+using GameTimerCommand = TimerCommand<GameTimerTag>;
+using GameTimer = Timer<GameTimerElapsedEvent, GameTimerCommand>;
+using GameTimerPtr = std::shared_ptr<GameTimer>;
 
 /**
  * @brief Collision handling mode
@@ -45,13 +53,15 @@ class GameSession : public Actor<GameSession> {
    * @param clock_topic Topic to subscribe for clock control commands
    * @param tickrate_topic Topic to subscribe for tick rate changes
    * @param levelchange_topic Topic to subscribe for level changes
+   * @param timer_factory Factory for creating timers
    */
   GameSession(asio::io_context& io,
               TopicPtr<DirectionChange> direction_topic,
               TopicPtr<StateUpdate> state_topic,
               TopicPtr<GameClockCommand> clock_topic,
               TopicPtr<TickRateChange> tickrate_topic,
-              TopicPtr<LevelChange> levelchange_topic);
+              TopicPtr<LevelChange> levelchange_topic,
+              TimerFactoryPtr timer_factory);
 
  private:
   void onTick();
@@ -61,10 +71,6 @@ class GameSession : public Actor<GameSession> {
   void onGameClockCommand(const GameClockCommand& msg);
   void onTickRateChange(const TickRateChange& msg);
   void onLevelChange(const LevelChange& msg);
-
-  // Timer methods
-  void scheduleTick();
-  void onTimerExpired(const asio::error_code& ec);
 
   // Game initialization helpers
   void initializeSnake(const PlayerId& player_id);
@@ -85,11 +91,9 @@ class GameSession : public Actor<GameSession> {
   CollisionMode collision_mode_{CollisionMode::BITE_REMOVE_TAIL};
   int tick_count_{0};
 
-  // Timer members
-  asio::steady_timer timer_;
-  int interval_ms_{200};  // Default 200ms
-  bool running_{false};
-  bool paused_{false};
+  // Timer
+  GameTimerPtr timer_;
+  int interval_ms_{200};  // Default 200ms, used for tick rate changes
 };
 
 }  // namespace snake

@@ -6,6 +6,7 @@
 #include "snake/game_session.hpp"
 #include "snake/input_actor.hpp"
 #include "snake/renderer.hpp"
+#include "snake/timer/timer_factory.hpp"
 #include "snake/topic.hpp"
 #include "snake/topic_publisher.hpp"
 
@@ -14,6 +15,9 @@ int main() {
 
   asio::io_context io;
   auto work_guard = asio::make_work_guard(io);  // Keep io_context alive
+
+  // Create timer factory
+  auto timer_factory = std::make_shared<snake::TimerFactory>(io);
 
   // Create all topics first
   auto direction_topic = std::make_shared<snake::Topic<snake::DirectionChange>>();
@@ -29,7 +33,8 @@ int main() {
   // Create actors using factory methods - clean single-stage construction!
   auto renderer = snake::Renderer::create(io, state_topic, gameover_topic, level_topic);
 
-  auto session = snake::GameSession::create(io, direction_topic, state_topic, clock_topic, tickrate_topic, level_topic);
+  auto session =
+      snake::GameSession::create(io, direction_topic, state_topic, clock_topic, tickrate_topic, level_topic, timer_factory);
 
   auto manager = snake::GameManager::create(io, gameover_topic, clock_topic, joinrequest_topic, leaverequest_topic,
                                             startgame_topic);

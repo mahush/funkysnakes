@@ -1,10 +1,11 @@
 #ifndef SNAKE_ACTOR_HPP
 #define SNAKE_ACTOR_HPP
 
-#include "snake/message_processor_interface.hpp"
+#include "snake/processor_interface.hpp"
 #include "snake/topic.hpp"
 #include "snake/topic_publisher.hpp"
 #include "snake/topic_subscription.hpp"
+#include "snake/timer/timer_factory.hpp"
 
 #include <functional>
 #include <memory>
@@ -18,7 +19,7 @@ namespace snake {
 // CRTP base class for all actors
 // Provides factory pattern, strand management, and subscription lifecycle
 template<typename Derived>
-class Actor : public MessageProcessorInterface,
+class Actor : public ProcessorInterface,
               public std::enable_shared_from_this<Derived> {
  public:
   // Factory method - creates actor and finalizes subscriptions
@@ -59,6 +60,21 @@ class Actor : public MessageProcessorInterface,
   template<typename Msg>
   PublisherPtr<Msg> create_pub(TopicPtr<Msg> topic) {
     return std::make_shared<Publisher<Msg>>(topic);
+  }
+
+  // Helper for derived classes to create timers
+  // Creates timer immediately but defers subscription until finalize()
+  template<typename TTimer>
+  std::shared_ptr<TTimer> create_timer(TimerFactoryPtr factory) {
+    auto timer = factory->create<TTimer>(strand_);
+
+    // Defer subscription - will be completed in finalize()
+    deferred_.push_back([this, timer]() {
+      // Subscribe this actor to timer events (now shared_from_this() works)
+      timer->subscribe(this->shared_from_this());
+    });
+
+    return timer;
   }
 
   // Helper for async callbacks - use weak_ptr to avoid keeping actor alive
