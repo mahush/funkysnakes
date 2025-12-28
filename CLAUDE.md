@@ -93,29 +93,42 @@ This project implements a **typed actor model** using standalone Asio for thread
 
 ### Lens & Traversal Naming
 
-**Goal:** Consistent, self‑descriptive helpers for updating parts of complex state.
+**Goal:** Consistent, self‑descriptive helpers for accessing and updating parts of complex state.
 
-| Prefix | Meaning | Type |
-|---------|----------|------|
-| `over_` | Apply a transformation to one sub‑part of a structure | Lens |
-| `over_each_` | Apply a transformation to every element of a contained list | Traversal |
+| Prefix | Meaning | Type | Returns |
+|---------|----------|------|---------|
+| `over_` | Apply a transformation to one sub‑part of a structure (modify) | Lens (setter) | Updated structure |
+| `over_each_` | Apply a transformation to every element of a contained list (modify) | Traversal (setter) | Updated structure |
+| `with_` | Extract sub‑parts from a structure (read-only) | View (getter) | Extracted value(s) |
+
+**Lens vs View Distinction**
+- **Lenses (`over_*`)**: Focus on a part of state, apply a transformation, return updated state. These are the *setter* side of lenses.
+- **Views (`with_*`)**: Focus on parts of state for read-only access, extract values without modification. These are *getters*.
 
 **Rules**
 - Always use lowercase snake_case.
-- Name the focused part explicitly (e.g. `over_snake`, `over_each_food`).
+- Name the focused part explicitly (e.g. `over_snake`, `with_board_and_snakes`).
 - Add `_combining_scores` suffix when the helper accumulates score effects.
+- Use `over_` when the function modifies and returns updated state.
+- Use `with_` when the function only extracts data for reading.
 
 **Examples**
 ```cpp
-// Traversal: calls function multiple times (once per alive snake)
-over_each_alive_snake_combining_scores(state, move_snake);
+// Lens (modifier): updates direction_command state
+GameState new_state = over_direction_command_and_snakes(state, filter_op, direction_cmd);
 
-// Lens: calls function once with all selected snakes as parameters
-over_selected_snakes_combining_scores(state, handle_collision, "player1", "player2");
+// Traversal (modifier): calls function multiple times (once per alive snake)
+GameState new_state = over_each_alive_snake_combining_scores(state, move_snake);
+
+// Lens (modifier): calls function once with all selected snakes as parameters
+GameState new_state = over_selected_snakes_combining_scores(state, handle_collision, "player1", "player2");
+
+// View (getter): extracts board and snakes for read-only access
+Point pos = with_board_and_snakes(state, generateRandomPosition);
 ```
 
 **Rationale:**
-Functions starting with `over_` clearly signal "apply to part of state"; `over_each_` signals iteration. This keeps transformations declarative, composable, and easily searchable.
+Functions starting with `over_` clearly signal "focus and modify part of state"; `over_each_` signals iteration with modification; `with_` signals read-only extraction. This keeps transformations declarative, composable, and easily searchable.
 
 ## Important Implementation Notes
 
