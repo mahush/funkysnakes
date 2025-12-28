@@ -53,8 +53,5 @@ jobs:
     - name: Build
       run: cmake --build build
 
-    - name: Run Application
-      run: ./build/snake_actors
-
     - name: Run Tests
       run: ./build/test_snake
