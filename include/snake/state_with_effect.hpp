@@ -202,30 +202,22 @@ struct GameEffect {
   /**
    * @brief Create an empty (no-op) composite effect
    */
-  static GameEffect empty() {
-    return {ScoreDelta::empty(), FoodEffect::empty(), SnakeUpdateEffect::empty()};
-  }
+  static GameEffect empty() { return {ScoreDelta::empty(), FoodEffect::empty(), SnakeUpdateEffect::empty()}; }
 
   /**
    * @brief Create effect with only score delta
    */
-  static GameEffect withScores(ScoreDelta scores) {
-    return {scores, FoodEffect::empty(), SnakeUpdateEffect::empty()};
-  }
+  static GameEffect withScores(ScoreDelta scores) { return {scores, FoodEffect::empty(), SnakeUpdateEffect::empty()}; }
 
   /**
    * @brief Create effect with only food changes
    */
-  static GameEffect withFood(FoodEffect food) {
-    return {ScoreDelta::empty(), food, SnakeUpdateEffect::empty()};
-  }
+  static GameEffect withFood(FoodEffect food) { return {ScoreDelta::empty(), food, SnakeUpdateEffect::empty()}; }
 
   /**
    * @brief Create effect with only snake updates
    */
-  static GameEffect withSnakes(SnakeUpdateEffect snakes) {
-    return {ScoreDelta::empty(), FoodEffect::empty(), snakes};
-  }
+  static GameEffect withSnakes(SnakeUpdateEffect snakes) { return {ScoreDelta::empty(), FoodEffect::empty(), snakes}; }
 };
 
 /**
@@ -253,7 +245,7 @@ inline GameEffect combine(const GameEffect& a, const GameEffect& b) {
  */
 template <typename State, typename Effect>
 struct StateWithEffect {
-  State state;
+  const State state;
   Effect effect;
 
   /**

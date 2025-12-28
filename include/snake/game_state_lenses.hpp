@@ -75,6 +75,27 @@ std::pair<GameState, std::map<PlayerId, Direction>> over_direction_command_consu
   return {state, result.consumed_directions};
 }
 
+/**
+ * @brief Lens to extract board and snakes from GameState and pass to operation
+ *
+ * Extracts board and snakes from GameState and passes them to the operation
+ * along with any additional arguments.
+ *
+ * Example usage:
+ *   Point pos = with_board_and_snakes(state, generateRandomFoodPosition);
+ *
+ * @tparam Op Function type: (Board, snakes, args...) -> Result
+ * @tparam Args Additional argument types to forward
+ * @param state Current game state
+ * @param op Operation to apply
+ * @param args Additional arguments to forward to op
+ * @return Result of calling op with board, snakes, and additional args
+ */
+template <typename Op, typename... Args>
+auto with_board_and_snakes(const GameState& state, Op op, Args&&... args) {
+  return op(state.board, state.snakes, std::forward<Args>(args)...);
+}
+
 }  // namespace snake
 
 #endif  // SNAKE_GAME_STATE_LENSES_HPP

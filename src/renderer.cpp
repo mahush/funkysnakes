@@ -42,11 +42,11 @@ void Renderer::onStateUpdate(const StateUpdate& msg) {
   std::cout << "Game: " << state.game_id << " | Level: " << state.level << "\n";
 
   // Create board
-  std::vector<std::vector<char>> board(state.board_height, std::vector<char>(state.board_width, '.'));
+  std::vector<std::vector<char>> board(state.board.height, std::vector<char>(state.board.width, '.'));
 
   // Draw food items
   for (const Point& food : state.food_items) {
-    if (food.y >= 0 && food.y < state.board_height && food.x >= 0 && food.x < state.board_width) {
+    if (food.y >= 0 && food.y < state.board.height && food.x >= 0 && food.x < state.board.width) {
       board[food.y][food.x] = '*';
     }
   }
@@ -56,13 +56,13 @@ void Renderer::onStateUpdate(const StateUpdate& msg) {
     if (snake.alive) {
       // Draw head
       Point head = snake.head;
-      if (head.y >= 0 && head.y < state.board_height && head.x >= 0 && head.x < state.board_width) {
+      if (head.y >= 0 && head.y < state.board.height && head.x >= 0 && head.x < state.board.width) {
         board[head.y][head.x] = (player_id == "player1") ? 'A' : 'B';
       }
 
       // Draw tail
       for (const Point& segment : snake.tail) {
-        if (segment.y >= 0 && segment.y < state.board_height && segment.x >= 0 && segment.x < state.board_width) {
+        if (segment.y >= 0 && segment.y < state.board.height && segment.x >= 0 && segment.x < state.board.width) {
           board[segment.y][segment.x] = (player_id == "player1") ? 'a' : 'b';
         }
       }
@@ -70,8 +70,8 @@ void Renderer::onStateUpdate(const StateUpdate& msg) {
   }
 
   // Print board
-  for (int y = 0; y < state.board_height; ++y) {
-    for (int x = 0; x < state.board_width; ++x) {
+  for (int y = 0; y < state.board.height; ++y) {
+    for (int x = 0; x < state.board.width; ++x) {
       std::cout << board[y][x];
     }
     std::cout << "\n";

@@ -81,6 +81,24 @@ struct DirectionCommandFilterState {
 };
 
 /**
+ * @brief Game board dimensions
+ */
+struct Board {
+  int width{60};
+  int height{20};
+};
+
+/**
+ * @brief Collision handling mode
+ *
+ * Determines what happens when snakes collide.
+ */
+enum class CollisionMode {
+  BITE_REMOVE_TAIL,  // Cut tail is simply removed
+  BITE_DROP_FOOD     // Cut tail segments become food items
+};
+
+/**
  * @brief Complete game state snapshot
  */
 struct GameState {
@@ -89,9 +107,9 @@ struct GameState {
   std::map<PlayerId, int> scores;                                     // Player scores
   std::vector<Point> food_items;                                      // Food items on the board
   std::map<PlayerId, DirectionCommandFilterState> direction_command;  // Direction input buffers
+  Board board;                                                         // Board dimensions
+  CollisionMode collision_mode{CollisionMode::BITE_REMOVE_TAIL};      // Collision handling mode
   int level{1};
-  int board_width{60};
-  int board_height{20};
 };
 
 /**

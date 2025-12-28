@@ -21,16 +21,6 @@ using GameTimer = Timer<GameTimerElapsedEvent, GameTimerCommand>;
 using GameTimerPtr = std::shared_ptr<GameTimer>;
 
 /**
- * @brief Collision handling mode
- *
- * Determines what happens when snakes collide.
- */
-enum class CollisionMode {
-  BITE_REMOVE_TAIL,  // Cut tail is simply removed
-  BITE_DROP_FOOD     // Cut tail segments become food items
-};
-
-/**
  * @brief Core game engine - manages game state and logic
  *
  * GameSession holds all game state: board, snakes, food, scores, level.
@@ -74,7 +64,6 @@ class GameSession : public Actor<GameSession> {
   // Game initialization helpers
   void initializeSnake(const PlayerId& player_id);
   void initializeFood();
-  Point generateRandomFoodPosition() const;
 
   // Publishers for sending messages
   PublisherPtr<StateUpdate> state_pub_;
@@ -86,8 +75,6 @@ class GameSession : public Actor<GameSession> {
   SubscriptionPtr<LevelChange> levelchange_sub_;
 
   GameState state_;
-  GameEffect pending_effects_;  // Accumulate effects between ticks (e.g., direction changes)
-  CollisionMode collision_mode_{CollisionMode::BITE_REMOVE_TAIL};
   int tick_count_{0};
 
   // Timer
