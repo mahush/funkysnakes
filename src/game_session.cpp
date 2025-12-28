@@ -545,7 +545,7 @@ GameSession::GameSession(asio::io_context& io, TopicPtr<DirectionChange> directi
 void GameSession::processMessages() {
   // Drain direction commands into filtered queues
   while (auto dir = direction_sub_->tryReceive()) {
-    state_ = over_direction_filters_with_snakes(state_, direction_command_filter::try_add, *dir);
+    state_ = over_direction_command_and_snakes(state_, direction_command_filter::try_add, *dir);
   }
 
   auto timer_events = timer_->take_all_elapsed_events();
@@ -572,11 +572,12 @@ void GameSession::onTick() {
   ++tick_count_;
 
   // Consume next direction from each player's filter queue
-  const auto consume_result = direction_command_filter::try_consume_next(state_.direction_command_state);
-  state_.direction_command_state = consume_result.filters;
+  auto [new_state, consumed_directions] =
+      over_direction_command_consuming(state_, direction_command_filter::try_consume_next);
+  state_ = new_state;
 
   // Apply consumed directions to pending_effects_
-  GameEffect direction_effect = createDirectionChangeEffect(consume_result.consumed_directions);
+  GameEffect direction_effect = createDirectionChangeEffect(consumed_directions);
   pending_effects_ = combine(pending_effects_, direction_effect);
 
   // Create lambdas that capture context from this
@@ -682,7 +683,7 @@ void GameSession::initializeSnake(const PlayerId& player_id) {
   state_.scores[player_id] = 0;
 
   // Initialize direction command filter for this player
-  state_.direction_command_state[player_id] = DirectionCommandFilterState{};
+  state_.direction_command[player_id] = DirectionCommandFilterState{};
 
   std::cout << "[GameSession] Initialized snake for '" << player_id << "' at y=" << y_pos << "\n";
 }

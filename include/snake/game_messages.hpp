@@ -85,10 +85,10 @@ struct DirectionCommandFilterState {
  */
 struct GameState {
   GameId game_id;
-  std::map<PlayerId, Snake> snakes;                                         // Map from player ID to snake
-  std::map<PlayerId, int> scores;                                           // Player scores
-  std::vector<Point> food_items;                                            // Food items on the board
-  std::map<PlayerId, DirectionCommandFilterState> direction_command_state;  // Direction input buffers
+  std::map<PlayerId, Snake> snakes;                                   // Map from player ID to snake
+  std::map<PlayerId, int> scores;                                     // Player scores
+  std::vector<Point> food_items;                                      // Food items on the board
+  std::map<PlayerId, DirectionCommandFilterState> direction_command;  // Direction input buffers
   int level{1};
   int board_width{60};
   int board_height{20};
