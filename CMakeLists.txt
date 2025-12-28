@@ -38,6 +38,7 @@ endif()
 # Main executable
 add_executable(snake_actors
   src/main.cpp
+  src/direction_command_filter.cpp
   src/game_manager.cpp
   src/game_session.cpp
   src/input_actor.cpp
@@ -79,6 +80,7 @@ if(SNAKE_BUILD_TESTS)
   enable_testing()
   add_executable(test_snake
     tests/test_actors.cpp
+    src/direction_command_filter.cpp
     src/game_manager.cpp
     src/game_session.cpp
     src/input_actor.cpp

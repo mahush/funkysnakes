@@ -5,6 +5,7 @@
 #include <iostream>
 #include <random>
 
+#include "snake/direction_command_filter.hpp"
 #include "snake/functional_utils.hpp"
 #include "snake/game_state_lenses.hpp"
 #include "snake/snake_model.hpp"
@@ -16,6 +17,39 @@ namespace snake {
 // ============================================================================
 // Pure subsystem functions - operate on sub-states and return StateWithEffect
 // ============================================================================
+
+/**
+ * @brief Create direction change effect from consumed directions
+ *
+ * Converts Direction values to SnakeOperation effects for each player.
+ *
+ * @param consumed_directions Map of player IDs to consumed directions
+ * @return GameEffect with direction operations for each player
+ */
+static GameEffect createDirectionChangeEffect(const std::map<PlayerId, Direction>& consumed_directions) {
+  GameEffect effect = GameEffect::empty();
+
+  for (const auto& [player_id, direction] : consumed_directions) {
+    SnakeOperation op;
+    switch (direction) {
+      case Direction::LEFT:
+        op = SnakeOperation::left();
+        break;
+      case Direction::RIGHT:
+        op = SnakeOperation::right();
+        break;
+      case Direction::UP:
+        op = SnakeOperation::up();
+        break;
+      case Direction::DOWN:
+        op = SnakeOperation::down();
+        break;
+    }
+    effect.snakes.addOp(player_id, op);
+  }
+
+  return effect;
+}
 
 /**
  * @brief Get next head position based on current direction
@@ -509,8 +543,9 @@ GameSession::GameSession(asio::io_context& io, TopicPtr<DirectionChange> directi
 }
 
 void GameSession::processMessages() {
+  // Drain direction commands into filtered queues
   while (auto dir = direction_sub_->tryReceive()) {
-    onDirectionChange(*dir);
+    state_ = over_direction_filters_with_snakes(state_, direction_command_filter::try_add, *dir);
   }
 
   auto timer_events = timer_->take_all_elapsed_events();
@@ -535,6 +570,14 @@ void GameSession::processMessages() {
 void GameSession::onTick() {
   // Increment tick counter
   ++tick_count_;
+
+  // Consume next direction from each player's filter queue
+  const auto consume_result = direction_command_filter::try_consume_next(state_.direction_command_state);
+  state_.direction_command_state = consume_result.filters;
+
+  // Apply consumed directions to pending_effects_
+  GameEffect direction_effect = createDirectionChangeEffect(consume_result.consumed_directions);
+  pending_effects_ = combine(pending_effects_, direction_effect);
 
   // Create lambdas that capture context from this
   auto applyPendingDirectionOps = [this](GameStateWithEffect swe) {
@@ -617,57 +660,6 @@ void GameSession::onLevelChange(const LevelChange& msg) {
   state_.level = msg.new_level;
 }
 
-void GameSession::onDirectionChange(const DirectionChange& msg) {
-  // Find the snake for this player
-  auto it = state_.snakes.find(msg.player_id);
-  if (it == state_.snakes.end()) {
-    return;  // Player not found
-  }
-
-  const Snake& snake = it->second;  // const - no direct mutation!
-
-  // Prevent 180-degree turns (going back into yourself)
-  // Validate against CURRENT state direction (not pending effects)
-  Direction new_dir = msg.new_direction;
-  Direction current = snake.current_direction;
-
-  bool is_opposite = (current == Direction::UP && new_dir == Direction::DOWN) ||
-                     (current == Direction::DOWN && new_dir == Direction::UP) ||
-                     (current == Direction::LEFT && new_dir == Direction::RIGHT) ||
-                     (current == Direction::RIGHT && new_dir == Direction::LEFT);
-
-  if (!is_opposite) {
-    // Generate direction operation
-    SnakeOperation dir_op;
-    switch (new_dir) {
-      case Direction::LEFT:
-        dir_op = SnakeOperation::left();
-        break;
-      case Direction::RIGHT:
-        dir_op = SnakeOperation::right();
-        break;
-      case Direction::UP:
-        dir_op = SnakeOperation::up();
-        break;
-      case Direction::DOWN:
-        dir_op = SnakeOperation::down();
-        break;
-    }
-
-    // Overwrite semantics: clear previous direction ops for this player
-    auto& ops = pending_effects_.snakes.operations[msg.player_id];
-    ops.erase(std::remove_if(ops.begin(), ops.end(),
-                             [](const SnakeOperation& op) {
-                               return op.op == SnakeOp::LEFT || op.op == SnakeOp::RIGHT || op.op == SnakeOp::UP ||
-                                      op.op == SnakeOp::DOWN;
-                             }),
-              ops.end());
-
-    // Add new direction op (last valid direction wins)
-    pending_effects_.snakes.addOp(msg.player_id, dir_op);
-  }
-}
-
 void GameSession::initializeSnake(const PlayerId& player_id) {
   // Position snakes at different y-levels
   int y_pos = (player_id == "player1") ? 10 : 15;
@@ -688,6 +680,9 @@ void GameSession::initializeSnake(const PlayerId& player_id) {
 
   // Initialize score in GameState
   state_.scores[player_id] = 0;
+
+  // Initialize direction command filter for this player
+  state_.direction_command_state[player_id] = DirectionCommandFilterState{};
 
   std::cout << "[GameSession] Initialized snake for '" << player_id << "' at y=" << y_pos << "\n";
 }

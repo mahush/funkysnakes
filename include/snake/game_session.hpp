@@ -65,7 +65,6 @@ class GameSession : public Actor<GameSession> {
 
  private:
   void onTick();
-  void onDirectionChange(const DirectionChange& msg);
 
   // Control message handlers
   void onGameClockCommand(const GameClockCommand& msg);

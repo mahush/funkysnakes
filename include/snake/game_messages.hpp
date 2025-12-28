@@ -1,5 +1,6 @@
 #pragma once
 
+#include <deque>
 #include <map>
 #include <string>
 #include <vector>
@@ -44,7 +45,8 @@ struct Snake {
   /**
    * @brief Create snake from head and optional tail
    */
-  static Snake create(Point head, std::vector<Point> tail = {}, Direction dir = Direction::RIGHT, bool is_alive = true) {
+  static Snake create(Point head, std::vector<Point> tail = {}, Direction dir = Direction::RIGHT,
+                      bool is_alive = true) {
     return Snake{head, tail, dir, is_alive};
   }
 
@@ -68,13 +70,25 @@ struct Snake {
 };
 
 /**
+ * @brief State for one player's direction command queue
+ *
+ * Buffers incoming direction commands and filters out invalid moves.
+ * Queue size is limited to prevent unbounded growth from held keys.
+ */
+struct DirectionCommandFilterState {
+  std::deque<Direction> queue;
+  static constexpr size_t MAX_QUEUE_SIZE = 2;
+};
+
+/**
  * @brief Complete game state snapshot
  */
 struct GameState {
   GameId game_id;
-  std::map<PlayerId, Snake> snakes;  // Map from player ID to snake
-  std::map<PlayerId, int> scores;         // Player scores
-  std::vector<Point> food_items;          // Food items on the board
+  std::map<PlayerId, Snake> snakes;                                         // Map from player ID to snake
+  std::map<PlayerId, int> scores;                                           // Player scores
+  std::vector<Point> food_items;                                            // Food items on the board
+  std::map<PlayerId, DirectionCommandFilterState> direction_command_state;  // Direction input buffers
   int level{1};
   int board_width{60};
   int board_height{20};
