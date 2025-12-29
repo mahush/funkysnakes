@@ -19,25 +19,21 @@ namespace snake {
 // ============================================================================
 
 /**
- * @brief Pipeline stage: Consume and provide direction change operations
+ * @brief Convert consumed direction commands to snake operations (pure game logic)
  *
- * Consumes direction commands from the filter queues, converts them to SnakeOperation
- * effects, and adds them to the accumulated effects. This is the first stage in the tick pipeline.
+ * Takes preprocessed direction inputs and converts them to snake operations.
+ * This function is pure: it only reads consumed directions and produces effects,
+ * without modifying any state. Input preprocessing (queue consumption) happens
+ * outside the game logic pipeline.
  *
- * @param state_with_effect Current game state with accumulated effects
- * @return Updated state with direction operations added to effects and filter queues consumed
+ * @param consumed_directions Map of player ID to consumed direction
+ * @return Game effect with snake direction operations
  */
-static GameStateWithEffect provideDirectionChangeOps(GameStateWithEffect state_with_effect) {
-  // Consume next direction from each player's filter queue
-  auto consume_result = direction_command_filter::try_consume_next(state_with_effect.state.direction_command);
-
-  // Create new state with updated direction command filters
-  GameState new_state = state_with_effect.state;
-  new_state.direction_command = consume_result.filters;
+static GameEffect provideDirectionChangeOps(const std::map<PlayerId, Direction>& consumed_directions) {
+  GameEffect effect = GameEffect::empty();
 
   // Convert consumed directions to snake operations
-  GameEffect new_effect = state_with_effect.effect;
-  for (const auto& [player_id, direction] : consume_result.consumed_directions) {
+  for (const auto& [player_id, direction] : consumed_directions) {
     SnakeOperation op;
     switch (direction) {
       case Direction::LEFT:
@@ -53,10 +49,10 @@ static GameStateWithEffect provideDirectionChangeOps(GameStateWithEffect state_w
         op = SnakeOperation::down();
         break;
     }
-    new_effect.snakes.addOp(player_id, op);
+    effect.snakes.addOp(player_id, op);
   }
 
-  return {new_state, new_effect};
+  return effect;
 }
 
 /**
@@ -599,17 +595,34 @@ void GameSession::onTick() {
   // Increment tick counter
   ++tick_count_;
 
+  // ============================================================================
+  // INPUT PREPROCESSING LAYER
+  // ============================================================================
+  // Process buffered player inputs before game logic runs.
+  // This modifies direction_command filter state (consumes queue entries).
+  auto consume_result = direction_command_filter::try_consume_next(state_.direction_command);
+  state_.direction_command = consume_result.filters;  // Update filter queues (consumed entries removed)
+
+  // ============================================================================
+  // GAME LOGIC PIPELINE
+  // ============================================================================
+  // All stages below are pure game logic: read state → produce effects.
+  // No direct state mutation happens here.
+
+  // Wrap direction ops generator to capture consumed inputs from preprocessing layer
+  auto provideDirectionOps = [&consumed = consume_result.consumed_directions](GameStateWithEffect swe) {
+    return GameStateWithEffect{swe.state, combine(swe.effect, provideDirectionChangeOps(consumed))};
+  };
+
   // Create lambdas that extract state from pipeline
   auto generateFoodEatingOps = [](GameStateWithEffect swe) {
-    return snake::generateFoodEatingOps(swe, [&swe]() {
-      return with_board_and_snakes(swe.state, generateRandomFoodPosition);
-    });
+    return snake::generateFoodEatingOps(
+        swe, [&swe]() { return with_board_and_snakes(swe.state, generateRandomFoodPosition); });
   };
 
   auto generateFoodUpdateOps = [tick_count = tick_count_](GameStateWithEffect swe) {
-    return snake::generateFoodUpdateOps(swe, tick_count, [&swe]() {
-      return with_board_and_snakes(swe.state, generateRandomFoodPosition);
-    });
+    return snake::generateFoodUpdateOps(
+        swe, tick_count, [&swe]() { return with_board_and_snakes(swe.state, generateRandomFoodPosition); });
   };
 
   // Compose pipeline stages using nested function calls
@@ -617,7 +630,7 @@ void GameSession::onTick() {
   // -> food updates -> apply food
   auto final_state = applyFoodEffects(generateFoodUpdateOps(
       applyScoreEffects(generateFoodEatingOps(applySnakeOps(generateCollisionOps(applySnakeOps(generateSnakeMovementOps(
-          applySnakeOps(provideDirectionChangeOps(GameStateWithEffect::fromState(state_)))))))))));
+          applySnakeOps(provideDirectionOps(GameStateWithEffect::fromState(state_)))))))))));
 
   // Update internal state and publish
   state_ = final_state.state;
