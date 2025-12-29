@@ -9,51 +9,9 @@
 #include "snake/functional_utils.hpp"
 #include "snake/game_state_lenses.hpp"
 #include "snake/snake_model.hpp"
-#include "snake/state_with_effect.hpp"
 #include "snake/timer/timer_factory.hpp"
 
 namespace snake {
-
-// ============================================================================
-// Pure subsystem functions - operate on sub-states and return StateWithEffect
-// ============================================================================
-
-/**
- * @brief Convert consumed direction commands to snake operations (pure game logic)
- *
- * Takes preprocessed direction inputs and converts them to snake operations.
- * This function is pure: it only reads consumed directions and produces effects,
- * without modifying any state. Input preprocessing (queue consumption) happens
- * outside the game logic pipeline.
- *
- * @param consumed_directions Map of player ID to consumed direction
- * @return Game effect with snake direction operations
- */
-static GameEffect provideDirectionChangeOps(const std::map<PlayerId, Direction>& consumed_directions) {
-  GameEffect effect = GameEffect::empty();
-
-  // Convert consumed directions to snake operations
-  for (const auto& [player_id, direction] : consumed_directions) {
-    SnakeOperation op;
-    switch (direction) {
-      case Direction::LEFT:
-        op = SnakeOperation::left();
-        break;
-      case Direction::RIGHT:
-        op = SnakeOperation::right();
-        break;
-      case Direction::UP:
-        op = SnakeOperation::up();
-        break;
-      case Direction::DOWN:
-        op = SnakeOperation::down();
-        break;
-    }
-    effect.snakes.addOp(player_id, op);
-  }
-
-  return effect;
-}
 
 /**
  * @brief Get next head position based on current direction
@@ -99,366 +57,86 @@ static Point wrapPoint(Point p, const Board& board) {
   return p;
 }
 
+// ============================================================================
+// Snake Helper Functions
+// ============================================================================
+
 /**
- * @brief Apply a single operation to a snake
+ * @brief Move snake one step in current direction (shortens tail)
  *
- * Operations are composable transformations on snake state.
+ * Calculates new head position, wraps it around board boundaries,
+ * and removes the last tail segment.
  *
- * @param snake Current snake
- * @param op Operation to apply
- * @param board Board dimensions (for wrapping)
- * @return Snake after applying operation
+ * @param snake Snake to move
+ * @param board Board dimensions for wrapping
+ * @return Snake after moving
  */
-static Snake applyOperation(Snake snake, const SnakeOperation& op, const Board& board) {
-  switch (op.op) {
-    case SnakeOp::MOVE: {
-      if (!snake.alive) return snake;
+static Snake moveSnake(Snake snake, const Board& board) {
+  if (!snake.alive) return snake;
 
-      Point new_head = getNextHeadPosition(snake);
-      new_head = wrapPoint(new_head, board);
+  Point new_head = getNextHeadPosition(snake);
+  new_head = wrapPoint(new_head, board);
 
-      // Build new tail: old head + old tail (minus last)
-      std::vector<Point> new_tail;
-      new_tail.reserve(snake.tail.size() + 1);
-      new_tail.push_back(snake.head);
-      new_tail.insert(new_tail.end(), snake.tail.begin(), snake.tail.end());
-      if (!new_tail.empty()) {
-        new_tail.pop_back();
-      }
-
-      snake.head = new_head;
-      snake.tail = new_tail;
-      break;
-    }
-
-    case SnakeOp::GROW: {
-      if (!snake.alive) return snake;
-
-      Point new_head = getNextHeadPosition(snake);
-      new_head = wrapPoint(new_head, board);
-
-      // Build new tail: old head + old tail (keep last)
-      std::vector<Point> new_tail;
-      new_tail.reserve(snake.tail.size() + 1);
-      new_tail.push_back(snake.head);
-      new_tail.insert(new_tail.end(), snake.tail.begin(), snake.tail.end());
-
-      snake.head = new_head;
-      snake.tail = new_tail;
-      break;
-    }
-
-    case SnakeOp::CUT_TAIL_AT: {
-      if (op.point && !(snake.head == *op.point)) {
-        auto it = std::find(snake.tail.begin(), snake.tail.end(), *op.point);
-        if (it != snake.tail.end()) {
-          snake.tail = std::vector<Point>(snake.tail.begin(), it);
-        }
-      }
-      break;
-    }
-
-    case SnakeOp::KILL:
-      snake.alive = false;
-      break;
-
-    case SnakeOp::LEFT:
-      snake.current_direction = Direction::LEFT;
-      break;
-
-    case SnakeOp::RIGHT:
-      snake.current_direction = Direction::RIGHT;
-      break;
-
-    case SnakeOp::UP:
-      snake.current_direction = Direction::UP;
-      break;
-
-    case SnakeOp::DOWN:
-      snake.current_direction = Direction::DOWN;
-      break;
+  // Build new tail: old head + old tail (minus last)
+  std::vector<Point> new_tail;
+  new_tail.reserve(snake.tail.size() + 1);
+  new_tail.push_back(snake.head);
+  new_tail.insert(new_tail.end(), snake.tail.begin(), snake.tail.end());
+  if (!new_tail.empty()) {
+    new_tail.pop_back();
   }
 
+  snake.head = new_head;
+  snake.tail = std::move(new_tail);
   return snake;
 }
 
 /**
- * @brief Handle collision between two snakes - drop tail mode
+ * @brief Grow snake one step in current direction (keeps tail)
  *
- * Uses pattern matching on collision cases. Cut tail segments are simply
- * dropped (not transformed to food). Returns operations as effects.
+ * Calculates new head position, wraps it around board boundaries,
+ * and keeps all tail segments (snake grows by one).
  *
- * @param a First player snake pair (player ID + snake)
- * @param b Second player snake pair (player ID + snake)
- * @return Game effects (scores, operations)
+ * @param snake Snake to grow
+ * @param board Board dimensions for wrapping
+ * @return Snake after growing
  */
-static GameEffect handleSnakeCollision(std::pair<PlayerId, Snake> a, std::pair<PlayerId, Snake> b) {
-  auto [player_a, snake_a] = a;
-  auto [player_b, snake_b] = b;
+static Snake growSnake(Snake snake, const Board& board) {
+  if (!snake.alive) return snake;
 
-  // Only check collisions if both snakes are alive
-  if (!snake_a.alive || !snake_b.alive) {
-    return GameEffect::empty();
-  }
+  Point new_head = getNextHeadPosition(snake);
+  new_head = wrapPoint(new_head, board);
 
-  GameEffect effect = GameEffect::empty();
+  // Build new tail: old head + old tail (keep all)
+  std::vector<Point> new_tail;
+  new_tail.reserve(snake.tail.size() + 1);
+  new_tail.push_back(snake.head);
+  new_tail.insert(new_tail.end(), snake.tail.begin(), snake.tail.end());
 
-  // Case 1: Both snakes bite each other → both die completely
-  if (bothBiteEachOther(snake_a, snake_b)) {
-    effect.scores.addForPlayer(player_a, -10);
-    effect.scores.addForPlayer(player_b, -10);
-    // Generate KILL operations
-    effect.snakes.addOp(player_a, SnakeOperation::kill());
-    effect.snakes.addOp(player_b, SnakeOperation::kill());
-  }
-  // Case 2: Snake A bites Snake B
-  else if (firstBitesSecond(snake_a, snake_b)) {
-    effect.scores.addForPlayer(player_b, -10);
-    // Generate CUT_TAIL_AT operation
-    effect.snakes.addOp(player_b, SnakeOperation::cutTailAt(snake_a.head));
-    // cut segments are dropped
-  }
-  // Case 3: Snake B bites Snake A
-  else if (firstBitesSecond(snake_b, snake_a)) {
-    effect.scores.addForPlayer(player_a, -10);
-    // Generate CUT_TAIL_AT operation
-    effect.snakes.addOp(player_a, SnakeOperation::cutTailAt(snake_b.head));
-    // cut segments are dropped
-  }
-  // Case 4: No collision - effect already empty
-
-  return effect;
+  snake.head = new_head;
+  snake.tail = std::move(new_tail);
+  return snake;
 }
 
 /**
- * @brief Handle collision between two snakes - food drop mode
+ * @brief Cut snake tail at specified point
  *
- * Uses pattern matching on collision cases. Cut tail segments are
- * transformed into food items. Returns operations as effects.
+ * Removes all tail segments from the cut point onwards.
+ * If cut point is the head or not in tail, snake is unchanged.
  *
- * @param a First player snake pair (player ID + snake)
- * @param b Second player snake pair (player ID + snake)
- * @return Game effects (scores, food, operations)
+ * @param snake Snake to cut
+ * @param cut_point Point where to cut the tail
+ * @return Snake with tail cut
  */
-static GameEffect handleSnakeCollisionWithFoodDrop(std::pair<PlayerId, Snake> a, std::pair<PlayerId, Snake> b) {
-  auto [player_a, snake_a] = a;
-  auto [player_b, snake_b] = b;
+static Snake cutSnakeTailAt(Snake snake, Point cut_point) {
+  if (snake.head == cut_point) return snake;
 
-  // Only check collisions if both snakes are alive
-  if (!snake_a.alive || !snake_b.alive) {
-    return GameEffect::empty();
+  auto it = std::find(snake.tail.begin(), snake.tail.end(), cut_point);
+  if (it != snake.tail.end()) {
+    snake.tail = std::vector<Point>(snake.tail.begin(), it);
   }
 
-  GameEffect effect = GameEffect::empty();
-
-  // Case 1: Both snakes bite each other → both die completely and turn to food
-  if (bothBiteEachOther(snake_a, snake_b)) {
-    effect.scores.addForPlayer(player_a, -10);
-    effect.scores.addForPlayer(player_b, -10);
-    // Transform entire snakes to food
-    effect.food.add(snake_a.toBody());
-    effect.food.add(snake_b.toBody());
-    // Generate KILL operations
-    effect.snakes.addOp(player_a, SnakeOperation::kill());
-    effect.snakes.addOp(player_b, SnakeOperation::kill());
-  }
-  // Case 2: Snake A bites Snake B
-  else if (firstBitesSecond(snake_a, snake_b)) {
-    auto cut = cutTailAt(snake_b, snake_a.head);
-
-    effect.scores.addForPlayer(player_b, -10);
-    // Transform cut segments to food
-    effect.food.add(cut.cut_segments);
-    // Generate CUT_TAIL_AT operation
-    effect.snakes.addOp(player_b, SnakeOperation::cutTailAt(snake_a.head));
-  }
-  // Case 3: Snake B bites Snake A
-  else if (firstBitesSecond(snake_b, snake_a)) {
-    auto cut = cutTailAt(snake_a, snake_b.head);
-
-    effect.scores.addForPlayer(player_a, -10);
-    // Transform cut segments to food
-    effect.food.add(cut.cut_segments);
-    // Generate CUT_TAIL_AT operation
-    effect.snakes.addOp(player_a, SnakeOperation::cutTailAt(snake_b.head));
-  }
-  // Case 4: No collision - effect already empty
-
-  return effect;
-}
-
-// ============================================================================
-// Pipeline stage functions for onTick
-// ============================================================================
-
-/**
- * @brief Pipeline stage 1: Generate movement operations for all alive snakes
- *
- * Checks if snake will land on food. If yes, generates GROW (keeps tail).
- * If no, generates MOVE (shortens tail).
- *
- * @param state_with_effect Current game state with accumulated effects
- * @return Updated state with movement operations added to effect
- */
-static GameStateWithEffect generateSnakeMovementOps(GameStateWithEffect state_with_effect) {
-  for (const auto& [player_id, snake] : state_with_effect.state.snakes) {
-    if (!snake.alive) continue;
-
-    // Calculate where snake will land
-    Point next_head = getNextHeadPosition(snake);
-    next_head = wrapPoint(next_head, state_with_effect.state.board);
-
-    // Check if landing on food
-    bool will_eat_food = std::find(state_with_effect.state.food_items.begin(), state_with_effect.state.food_items.end(),
-                                   next_head) != state_with_effect.state.food_items.end();
-
-    // Generate GROW if landing on food, MOVE otherwise
-    if (will_eat_food) {
-      state_with_effect.effect.snakes.addOp(player_id, SnakeOperation::grow());
-    } else {
-      state_with_effect.effect.snakes.addOp(player_id, SnakeOperation::move());
-    }
-  }
-  return state_with_effect;
-}
-
-/**
- * @brief Pipeline stage 2: Generate collision operations based on collision mode
- *
- * @param state_with_effect Current game state with accumulated effects
- * @return Updated state with collision operations added to effect
- */
-static GameStateWithEffect generateCollisionOps(GameStateWithEffect state_with_effect) {
-  if (state_with_effect.state.snakes.size() >= 2) {
-    GameEffect collision_effect;
-    if (state_with_effect.state.collision_mode == CollisionMode::BITE_DROP_FOOD) {
-      collision_effect = over_selected_snakes_combining_scores(GameStateWithEffect::fromState(state_with_effect.state),
-                                                               handleSnakeCollisionWithFoodDrop, "player1", "player2")
-                             .effect;
-    } else {
-      collision_effect = over_selected_snakes_combining_scores(GameStateWithEffect::fromState(state_with_effect.state),
-                                                               handleSnakeCollision, "player1", "player2")
-                             .effect;
-    }
-    state_with_effect.effect = combine(state_with_effect.effect, collision_effect);
-  }
-  return state_with_effect;
-}
-
-/**
- * @brief Pipeline stage 3: Apply all accumulated snake operations to snake state
- *
- * @param state_with_effect Current game state with accumulated effects
- * @return Updated state with snakes modified and operations consumed
- */
-static GameStateWithEffect applySnakeOps(GameStateWithEffect state_with_effect) {
-  // Create new state with modified snakes
-  GameState new_state = state_with_effect.state;
-
-  for (const auto& [player_id, ops] : state_with_effect.effect.snakes.operations) {
-    Snake snake = new_state.snakes.at(player_id);
-    for (const auto& op : ops) {
-      snake = applyOperation(snake, op, new_state.board);
-    }
-    new_state.snakes[player_id] = snake;
-  }
-
-  // Consume the operations after applying them
-  GameEffect new_effect = state_with_effect.effect;
-  new_effect.snakes.operations.clear();
-
-  return {new_state, new_effect};
-}
-
-/**
- * @brief Pipeline stage 4: Apply score deltas to player scores
- *
- * @param state_with_effect Current game state with accumulated effects
- * @return Updated state with scores modified and deltas consumed
- */
-static GameStateWithEffect applyScoreEffects(GameStateWithEffect state_with_effect) {
-  // Create new state with modified scores
-  GameState new_state = state_with_effect.state;
-
-  for (const auto& [player_id, delta] : state_with_effect.effect.scores.deltas) {
-    new_state.scores[player_id] += delta;
-  }
-
-  // Consume the deltas after applying them
-  GameEffect new_effect = state_with_effect.effect;
-  new_effect.scores.deltas.clear();
-
-  return {new_state, new_effect};
-}
-
-/**
- * @brief Pipeline stage 5: Apply food additions and removals
- *
- * @param state_with_effect Current game state with accumulated effects
- * @return Updated state with food items modified and effects consumed
- */
-static GameStateWithEffect applyFoodEffects(GameStateWithEffect state_with_effect) {
-  // Create new state with modified food items
-  GameState new_state = state_with_effect.state;
-
-  // Apply removals first
-  for (const Point& food_loc : state_with_effect.effect.food.removals) {
-    auto it = std::find(new_state.food_items.begin(), new_state.food_items.end(), food_loc);
-    if (it != new_state.food_items.end()) {
-      new_state.food_items.erase(it);
-    }
-  }
-
-  // Then apply additions
-  for (const Point& food_loc : state_with_effect.effect.food.additions) {
-    new_state.food_items.push_back(food_loc);
-  }
-
-  // Consume the food effects after applying them
-  GameEffect new_effect = state_with_effect.effect;
-  new_effect.food.additions.clear();
-  new_effect.food.removals.clear();
-
-  return {new_state, new_effect};
-}
-
-/**
- * @brief Pipeline stage 6: Generate food eating effects
- *
- * Checks if any snake head is on a food position. If yes:
- * - Generates score effect (+10 points)
- * - Generates food removal effect for eaten food
- * - Generates food addition effect for replacement food (keeps count constant)
- *
- * Note: Snake growth is handled by GROW operation in generateSnakeMovementOps.
- *
- * @param state_with_effect Current game state with accumulated effects
- * @param generate_position Function to generate random food position for replacement
- * @return Updated state with food eating effects added
- */
-static GameStateWithEffect generateFoodEatingOps(GameStateWithEffect state_with_effect,
-                                                 std::function<Point()> generate_position) {
-  // Check each snake for food consumption
-  for (const auto& [player_id, snake] : state_with_effect.state.snakes) {
-    if (!snake.alive) continue;
-
-    // Check if snake head is on food
-    auto it =
-        std::find(state_with_effect.state.food_items.begin(), state_with_effect.state.food_items.end(), snake.head);
-
-    if (it != state_with_effect.state.food_items.end()) {
-      // Snake ate food!
-      // Generate replacement food position
-      Point new_food_pos = generate_position();
-
-      // Generate effects: remove eaten food, add replacement, award points
-      state_with_effect.effect.food.remove(snake.head);
-      state_with_effect.effect.food.add(new_food_pos);
-      state_with_effect.effect.scores.addForPlayer(player_id, 10);
-    }
-  }
-
-  return state_with_effect;
+  return snake;
 }
 
 /**
@@ -466,19 +144,15 @@ static GameStateWithEffect generateFoodEatingOps(GameStateWithEffect state_with_
  *
  * @param board Board dimensions
  * @param snakes Map of player snakes to check for collisions
+ * @param random_int Function that generates random int in range [min, max]
  * @return Random unoccupied position (or random position if all attempts fail)
  */
-static Point generateRandomFoodPosition(const Board& board, const std::map<PlayerId, Snake>& snakes) {
-  static std::random_device rd;
-  static std::mt19937 gen(rd());
-
-  std::uniform_int_distribution<> dist_x(0, board.width - 1);
-  std::uniform_int_distribution<> dist_y(0, board.height - 1);
-
+static Point generateRandomFoodPosition(const Board& board, const std::map<PlayerId, Snake>& snakes,
+                                        std::function<int(int, int)> random_int) {
   // Try to find a position not occupied by snakes
   // Max 100 attempts to avoid infinite loop
   for (int attempt = 0; attempt < 100; ++attempt) {
-    Point candidate{dist_x(gen), dist_y(gen)};
+    Point candidate{random_int(0, board.width - 1), random_int(0, board.height - 1)};
 
     // Check if position is occupied by any snake
     bool occupied = false;
@@ -502,41 +176,222 @@ static Point generateRandomFoodPosition(const Board& board, const std::map<Playe
   }
 
   // If all attempts failed, just return a random position
-  return {dist_x(gen), dist_y(gen)};
+  return {random_int(0, board.width - 1), random_int(0, board.height - 1)};
+}
+
+// ============================================================================
+// Game Logic Functions - Pure sub-state transformations
+// ============================================================================
+// Each function operates only on its required sub-state, accessed via lenses.
+// Function signatures reveal exact dependencies.
+// All functions are pure: input (by value) → output.
+// Pass by value enables move semantics and RVO for efficiency.
+
+/**
+ * @brief Apply direction changes to snakes
+ *
+ * @param snakes Snake map (passed by value)
+ * @param consumed_directions Directions consumed from input queues
+ * @return Updated snakes with new directions
+ */
+static std::map<PlayerId, Snake> applyDirectionChanges(std::map<PlayerId, Snake> snakes,
+                                                       const std::map<PlayerId, Direction>& consumed_directions) {
+  for (const auto& [player_id, direction] : consumed_directions) {
+    auto it = snakes.find(player_id);
+    if (it != snakes.end()) {
+      it->second.current_direction = direction;
+    }
+  }
+  return snakes;
 }
 
 /**
- * @brief Pipeline stage 7: Generate food position update effects periodically
+ * @brief Move all alive snakes one step
  *
- * Every 10 ticks, generate effects to move one random food item to a new random position.
- * This stage generates effects (removal + addition) that will be applied by applyFoodEffects.
+ * If snake head will land on food, grow (keep tail).
+ * Otherwise, move (shorten tail).
  *
- * @param state_with_effect Current game state with accumulated effects
- * @param tick_count Current tick counter
- * @param generate_position Function to generate random food position
- * @return Updated state with food repositioning effects added
+ * @param snakes Snakes to move (by value)
+ * @param board Board dimensions (for wrapping)
+ * @param food_items Food positions (to check if eating)
+ * @return Updated snakes after movement
  */
-static GameStateWithEffect generateFoodUpdateOps(GameStateWithEffect state_with_effect, int tick_count,
-                                                 std::function<Point()> generate_position) {
-  // Move one food every 10 ticks
-  if (tick_count % 15 == 0 && !state_with_effect.state.food_items.empty()) {
-    static std::random_device rd;
-    static std::mt19937 gen(rd());
+static std::map<PlayerId, Snake> moveSnakes(std::map<PlayerId, Snake> snakes, const Board& board,
+                                            const std::vector<Point>& food_items) {
+  for (auto& [player_id, snake] : snakes) {
+    if (!snake.alive) continue;
 
-    // Pick a random food item to move
-    std::uniform_int_distribution<> dist(0, state_with_effect.state.food_items.size() - 1);
-    int food_index = dist(gen);
+    // Calculate next head position to check if landing on food
+    Point next_head = getNextHeadPosition(snake);
+    next_head = wrapPoint(next_head, board);
 
-    // Get old position and generate new position
-    Point old_pos = state_with_effect.state.food_items[food_index];
-    Point new_pos = generate_position();
+    // Check if landing on food
+    bool will_eat = std::find(food_items.begin(), food_items.end(), next_head) != food_items.end();
 
-    // Generate effects: remove old position, add new position
-    state_with_effect.effect.food.remove(old_pos);
-    state_with_effect.effect.food.add(new_pos);
+    // Grow if eating, move otherwise
+    snake = will_eat ? growSnake(snake, board) : moveSnake(snake, board);
   }
 
-  return state_with_effect;
+  return snakes;
+}
+
+/**
+ * @brief Handle snake-to-snake collisions
+ *
+ * Updates snakes (kill/cut) and scores based on collision detection.
+ *
+ * @param snakes Snakes (by value)
+ * @param scores Scores (by value)
+ * @param board Board dimensions
+ * @param collision_mode How to handle tail cuts (drop or convert to food)
+ * @return Tuple of (updated snakes, updated scores)
+ */
+static std::tuple<std::map<PlayerId, Snake>, std::map<PlayerId, int>> handleCollisions(
+    std::map<PlayerId, Snake> snakes, std::map<PlayerId, int> scores, const Board& board,
+    CollisionMode collision_mode) {
+  (void)board;            // Unused but required for lens signature
+  (void)collision_mode;   // Unused but required for lens signature
+
+  if (snakes.size() < 2) {
+    return {std::move(snakes), std::move(scores)};
+  }
+
+  // Get both snakes (hardcoded for 2-player)
+  auto it1 = snakes.find("player1");
+  auto it2 = snakes.find("player2");
+
+  if (it1 == snakes.end() || it2 == snakes.end()) {
+    return {std::move(snakes), std::move(scores)};
+  }
+
+  Snake& snake_a = it1->second;
+  Snake& snake_b = it2->second;
+
+  if (!snake_a.alive || !snake_b.alive) {
+    return {std::move(snakes), std::move(scores)};
+  }
+
+  // Check collision cases
+  if (bothBiteEachOther(snake_a, snake_b)) {
+    // Both die
+    snake_a.alive = false;
+    snake_b.alive = false;
+    scores["player1"] -= 10;
+    scores["player2"] -= 10;
+  } else if (firstBitesSecond(snake_a, snake_b)) {
+    // Snake A bites B - cut B's tail
+    scores["player2"] -= 10;
+    snake_b = cutSnakeTailAt(snake_b, snake_a.head);
+  } else if (firstBitesSecond(snake_b, snake_a)) {
+    // Snake B bites A - cut A's tail
+    scores["player1"] -= 10;
+    snake_a = cutSnakeTailAt(snake_a, snake_b.head);
+  }
+
+  return {std::move(snakes), std::move(scores)};
+}
+
+/**
+ * @brief Add dead snake bodies to food (for BITE_DROP_FOOD mode)
+ *
+ * Checks for dead snakes and adds their body segments as food.
+ * Separate from collision detection to maintain sub-state separation.
+ *
+ * @param food_items Food (by value)
+ * @param snakes Snakes (to check for dead ones)
+ * @return Updated food with dead snake bodies added
+ */
+static std::vector<Point> dropDeadSnakesAsFood(std::vector<Point> food_items,
+                                               const std::map<PlayerId, Snake>& snakes) {
+  for (const auto& [player_id, snake] : snakes) {
+    if (!snake.alive) {
+      // Add entire snake body as food
+      auto body = snake.toBody();
+      food_items.insert(food_items.end(), body.begin(), body.end());
+    }
+  }
+
+  return food_items;
+}
+
+/**
+ * @brief Handle snakes eating food
+ *
+ * If snake head is on food:
+ * - Remove eaten food and add replacement
+ * - Award points (+10)
+ *
+ * @param food_items Food (by value)
+ * @param scores Scores (by value)
+ * @param snakes Snakes (to check head positions)
+ * @param board Board dimensions (for generating replacement food)
+ * @return Tuple of (updated food, updated scores)
+ */
+static std::tuple<std::vector<Point>, std::map<PlayerId, int>> handleFoodEating(std::vector<Point> food_items,
+                                                                                 std::map<PlayerId, int> scores,
+                                                                                 const std::map<PlayerId, Snake>& snakes,
+                                                                                 const Board& board) {
+  for (const auto& [player_id, snake] : snakes) {
+    if (!snake.alive) continue;
+
+    // Check if snake head is on food
+    auto it = std::find(food_items.begin(), food_items.end(), snake.head);
+
+    if (it != food_items.end()) {
+      // Remove eaten food
+      food_items.erase(it);
+
+      // Add replacement food
+      static std::random_device rd;
+      static std::mt19937 gen(rd());
+      auto random_int = [&gen](int min, int max) {
+        std::uniform_int_distribution<> dist(min, max);
+        return dist(gen);
+      };
+      Point new_food_pos = generateRandomFoodPosition(board, snakes, random_int);
+      food_items.push_back(new_food_pos);
+
+      // Award points
+      scores[player_id] += 10;
+    }
+  }
+
+  return {std::move(food_items), std::move(scores)};
+}
+
+/**
+ * @brief Update food positions periodically
+ *
+ * Every 15 ticks, move one random food item to a new position.
+ *
+ * @param food_items Food (by value)
+ * @param board Board dimensions
+ * @param snakes Snakes (for position generation)
+ * @param tick_count Current tick number
+ * @return Updated food with repositioned item
+ */
+static std::vector<Point> updateFoodPositions(std::vector<Point> food_items, const Board& board,
+                                              const std::map<PlayerId, Snake>& snakes, int tick_count) {
+  // Only update every 15 ticks
+  if (tick_count % 15 != 0 || food_items.empty()) {
+    return food_items;
+  }
+
+  static std::random_device rd;
+  static std::mt19937 gen(rd());
+
+  // Pick random food to move
+  std::uniform_int_distribution<> dist(0, food_items.size() - 1);
+  int food_index = dist(gen);
+
+  // Replace with new position
+  auto random_int = [&gen](int min, int max) {
+    std::uniform_int_distribution<> dist(min, max);
+    return dist(gen);
+  };
+  food_items[food_index] = generateRandomFoodPosition(board, snakes, random_int);
+
+  return food_items;
 }
 
 // ============================================================================
@@ -592,52 +447,44 @@ void GameSession::processMessages() {
 }
 
 void GameSession::onTick() {
-  // Increment tick counter
   ++tick_count_;
-
-  // ============================================================================
-  // INPUT PREPROCESSING LAYER
-  // ============================================================================
-  // Process buffered player inputs before game logic runs.
-  // This modifies direction_command filter state (consumes queue entries).
-  auto consume_result = direction_command_filter::try_consume_next(state_.direction_command);
-  state_.direction_command = consume_result.filters;  // Update filter queues (consumed entries removed)
 
   // ============================================================================
   // GAME LOGIC PIPELINE
   // ============================================================================
-  // All stages below are pure game logic: read state → produce effects.
-  // No direct state mutation happens here.
+  // Lens-based composition: each function only knows about its sub-state
+  // Pass by value enables move semantics
 
-  // Wrap direction ops generator to capture consumed inputs from preprocessing layer
-  auto provideDirectionOps = [&consumed = consume_result.consumed_directions](GameStateWithEffect swe) {
-    return GameStateWithEffect{swe.state, combine(swe.effect, provideDirectionChangeOps(consumed))};
-  };
+  GameState state = state_;
 
-  // Create lambdas that extract state from pipeline
-  auto generateFoodEatingOps = [](GameStateWithEffect swe) {
-    return snake::generateFoodEatingOps(
-        swe, [&swe]() { return with_board_and_snakes(swe.state, generateRandomFoodPosition); });
-  };
+  // Consume direction commands (input preprocessing)
+  std::map<PlayerId, Direction> consumed_directions;
+  std::tie(state, consumed_directions) = over_direction_command_consuming(state, direction_command_filter::try_consume_next);
 
-  auto generateFoodUpdateOps = [tick_count = tick_count_](GameStateWithEffect swe) {
-    return snake::generateFoodUpdateOps(
-        swe, tick_count, [&swe]() { return with_board_and_snakes(swe.state, generateRandomFoodPosition); });
-  };
+  // Apply direction changes (snakes only)
+  state = over_snakes(state, [&](auto snakes) {
+    return applyDirectionChanges(std::move(snakes), consumed_directions);
+  });
 
-  // Compose pipeline stages using nested function calls
-  // Order: provide directions -> apply ops -> movement -> apply ops -> collision -> apply ops -> food eating -> scores
-  // -> food updates -> apply food
-  auto final_state = applyFoodEffects(generateFoodUpdateOps(
-      applyScoreEffects(generateFoodEatingOps(applySnakeOps(generateCollisionOps(applySnakeOps(generateSnakeMovementOps(
-          applySnakeOps(provideDirectionOps(GameStateWithEffect::fromState(state_)))))))))));
+  // Move snakes (reads board and food for growth decision)
+  state = over_snakes_with_board_and_food(state, moveSnakes);
 
-  // Update internal state and publish
-  state_ = final_state.state;
+  // Handle collisions (updates snakes and scores)
+  state = over_snakes_and_scores(state, handleCollisions);
 
-  StateUpdate update;
-  update.state = state_;
-  state_pub_->publish(update);
+  // Drop dead snakes as food if in food drop mode
+  if (state.collision_mode == CollisionMode::BITE_DROP_FOOD) {
+    state = over_food_with_snakes(state, dropDeadSnakesAsFood);
+  }
+
+  // Handle food eating (updates food and scores)
+  state = over_food_and_scores_with_snakes(state, handleFoodEating);
+
+  // Update food positions periodically
+  state = over_food_with_board_and_snakes(state, updateFoodPositions, tick_count_);
+
+  state_ = std::move(state);
+  state_pub_->publish(StateUpdate{state_});
 }
 
 void GameSession::onGameClockCommand(const GameClockCommand& msg) {
@@ -707,9 +554,16 @@ void GameSession::initializeSnake(const PlayerId& player_id) {
 }
 
 void GameSession::initializeFood() {
+  static std::random_device rd;
+  static std::mt19937 gen(rd());
+  auto random_int = [&gen](int min, int max) {
+    std::uniform_int_distribution<> dist(min, max);
+    return dist(gen);
+  };
+
   // Generate 5 random food items
   for (int i = 0; i < 5; ++i) {
-    state_.food_items.push_back(with_board_and_snakes(state_, generateRandomFoodPosition));
+    state_.food_items.push_back(with_board_and_snakes(state_, generateRandomFoodPosition, random_int));
   }
   std::cout << "[GameSession] Initialized " << state_.food_items.size() << " food items\n";
 }

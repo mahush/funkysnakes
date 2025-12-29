@@ -4,26 +4,12 @@
 #include <functional>
 #include <utility>
 
-#include "snake/state_with_effect.hpp"
+#include "snake/game_messages.hpp"
 
 namespace snake {
 
-/**
- * @brief Lift a pure state transformation into the effectful context
- *
- * Helper to convert functions that only modify state (no effects)
- * into the StateWithEffect format with empty effects.
- *
- * @tparam State The state type
- * @tparam Effect The effect type
- * @tparam F Function type: State -> State
- * @param f Pure state transformation
- * @return Effectful transformation that produces empty effects
- */
-template <typename State, typename Effect, typename F>
-auto with_empty_effect(F f) {
-  return [f](State s) -> StateWithEffect<State, Effect> { return {f(s), Effect::empty()}; };
-}
+// Forward declarations
+struct GameState;
 
 /**
  * @brief Lens to operate on direction command state with access to snakes
@@ -94,6 +80,118 @@ std::pair<GameState, std::map<PlayerId, Direction>> over_direction_command_consu
 template <typename Op, typename... Args>
 auto with_board_and_snakes(const GameState& state, Op op, Args&&... args) {
   return op(state.board, state.snakes, std::forward<Args>(args)...);
+}
+
+// ============================================================================
+// Lenses for sub-state transformations (pass by value with move semantics)
+// ============================================================================
+
+/**
+ * @brief Lens: Update snakes only
+ *
+ * Extracts snakes, applies operation, updates state with result.
+ * Uses move semantics for efficiency.
+ *
+ * @tparam Op Function type: (snakes) -> snakes
+ * @param state Current game state
+ * @param op Operation to apply
+ * @return Updated game state
+ */
+template <typename Op>
+GameState over_snakes(GameState state, Op op) {
+  state.snakes = op(std::move(state.snakes));
+  return state;
+}
+
+/**
+ * @brief Lens: Update snakes with access to board and food for read-only context
+ *
+ * Extracts snakes, passes board and food as read-only context.
+ * Uses move semantics for snakes.
+ *
+ * @tparam Op Function type: (snakes, board, food_items) -> snakes
+ * @param state Current game state
+ * @param op Operation to apply
+ * @return Updated game state
+ */
+template <typename Op>
+GameState over_snakes_with_board_and_food(GameState state, Op op) {
+  state.snakes = op(std::move(state.snakes), state.board, state.food_items);
+  return state;
+}
+
+/**
+ * @brief Lens: Update both snakes and scores together
+ *
+ * For operations that need to modify both snakes and scores atomically.
+ * Operation returns tuple of (new_snakes, new_scores).
+ *
+ * @tparam Op Function type: (snakes, scores, board, mode) -> (snakes, scores)
+ * @param state Current game state
+ * @param op Operation to apply
+ * @return Updated game state
+ */
+template <typename Op>
+GameState over_snakes_and_scores(GameState state, Op op) {
+  auto [new_snakes, new_scores] = op(std::move(state.snakes), std::move(state.scores), state.board,
+                                      state.collision_mode);
+  state.snakes = std::move(new_snakes);
+  state.scores = std::move(new_scores);
+  return state;
+}
+
+/**
+ * @brief Lens: Update both food and scores with access to snakes
+ *
+ * For operations that modify food and scores while reading snake positions.
+ * Operation returns tuple of (new_food, new_scores).
+ *
+ * @tparam Op Function type: (food, scores, snakes, board) -> (food, scores)
+ * @param state Current game state
+ * @param op Operation to apply
+ * @return Updated game state
+ */
+template <typename Op>
+GameState over_food_and_scores_with_snakes(GameState state, Op op) {
+  auto [new_food, new_scores] = op(std::move(state.food_items), std::move(state.scores), state.snakes, state.board);
+  state.food_items = std::move(new_food);
+  state.scores = std::move(new_scores);
+  return state;
+}
+
+/**
+ * @brief Lens: Update food with access to snakes
+ *
+ * For operations that modify food while reading snake positions.
+ *
+ * @tparam Op Function type: (food, snakes) -> food
+ * @param state Current game state
+ * @param op Operation to apply
+ * @return Updated game state
+ */
+template <typename Op>
+GameState over_food_with_snakes(GameState state, Op op) {
+  state.food_items = op(std::move(state.food_items), state.snakes);
+  return state;
+}
+
+/**
+ * @brief Lens: Update food with access to board and snakes for positioning
+ *
+ * For operations that modify food while reading board/snakes for position generation.
+ * Supports additional forwarded arguments (e.g., tick_count).
+ *
+ * @tparam Op Function type: (food, board, snakes, args...) -> food
+ * @tparam Args Additional argument types to forward
+ * @param state Current game state
+ * @param op Operation to apply
+ * @param args Additional arguments to forward to op
+ * @return Updated game state
+ */
+template <typename Op, typename... Args>
+GameState over_food_with_board_and_snakes(GameState state, Op op, Args&&... args) {
+  state.food_items = op(std::move(state.food_items), state.board, state.snakes, std::forward<Args>(args)...);
+  return state;
 }
 
 }  // namespace snake

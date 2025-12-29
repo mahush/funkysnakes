@@ -7,7 +7,6 @@
 #include <vector>
 
 #include "snake/game_messages.hpp"
-#include "snake/state_with_effect.hpp"
 
 namespace snake {
 
@@ -90,57 +89,6 @@ bool bothBiteEachOther(const Snake& a, const Snake& b);
  * @return New pair of snakes with bite rule applied
  */
 SnakePair applyBiteRule(SnakePair s);
-
-// ============================================================================
-// Snake Lens Functions - Focus on snakes within game state
-// ============================================================================
-
-
-/**
- * @brief Lens to apply a function over explicitly selected snakes
- *
- * This variadic lens focuses on explicitly selected snakes and calls the function
- * ONCE with all selected snakes as parameters. It looks up each player ID,
- * creates std::pair<PlayerId, Snake> for each, passes them all to the function
- * in a single call, and combines the returned effects.
- *
- * Use cases:
- * - Single snake (self-collision): over_selected_snakes_combining_scores(x, f, "player1")
- *   → calls f(pair1) once
- * - Two snakes (collision): over_selected_snakes_combining_scores(x, f, "player1", "player2")
- *   → calls f(pair1, pair2) once
- *
- * @tparam F Function type taking N pairs and returning GameEffect
- * @param x Current game state with accumulated effects
- * @param f Function to apply over the selected snakes (called once with all snakes)
- * @param player_ids Variable number of player IDs to operate on
- * @return Updated game state with combined effects
- */
-template <typename F, typename... PlayerIds>
-GameStateWithEffect over_selected_snakes_combining_scores(GameStateWithEffect x, F f,
-                                                          const PlayerIds&... player_ids) {
-  // Helper to look up snakes and create pairs
-  auto lookup = [&](const PlayerId& pid) -> std::pair<PlayerId, Snake> {
-    auto it = x.state.snakes.find(pid);
-    if (it != x.state.snakes.end()) {
-      return {pid, it->second};
-    }
-    // Return empty snake if not found (caller should handle)
-    return {pid, Snake{}};
-  };
-
-  // Check all players exist
-  auto check_exists = [&](const PlayerId& pid) { return x.state.snakes.find(pid) != x.state.snakes.end(); };
-  if (!(check_exists(player_ids) && ...)) {
-    return x;  // At least one player not found
-  }
-
-  // Call function with pairs and combine the returned effect
-  GameEffect effect = f(lookup(player_ids)...);
-  x.effect = combine(x.effect, effect);
-
-  return x;
-}
 
 }  // namespace snake
 

@@ -6,7 +6,6 @@
 #include "snake/actor.hpp"
 #include "snake/control_messages.hpp"
 #include "snake/game_messages.hpp"
-#include "snake/state_with_effect.hpp"
 #include "snake/timer/timer.hpp"
 #include "snake/topic.hpp"
 #include "snake/topic_subscription.hpp"
