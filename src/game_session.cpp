@@ -13,6 +13,33 @@
 
 namespace snake {
 
+// ============================================================================
+// Functional Composition Helper
+// ============================================================================
+
+/**
+ * @brief Compose functions in a pipeline: pipe(state, f, g, h)
+ *
+ * Applies each function in sequence, threading the state through.
+ * Base case: no more functions, return the value.
+ */
+template <typename T>
+T pipe(T&& value) {
+  return std::forward<T>(value);
+}
+
+/**
+ * @brief Recursive case: apply first function, then pipe through rest
+ */
+template <typename T, typename F, typename... Fs>
+auto pipe(T&& value, F&& f, Fs&&... fs) {
+  return pipe(f(std::forward<T>(value)), std::forward<Fs>(fs)...);
+}
+
+// ============================================================================
+// Basic Game Functions
+// ============================================================================
+
 /**
  * @brief Get next head position based on current direction
  */
@@ -450,40 +477,41 @@ void GameSession::onTick() {
   ++tick_count_;
 
   // ============================================================================
-  // GAME LOGIC PIPELINE
+  // GAME LOGIC PIPELINE - Functional Composition
   // ============================================================================
   // Lens-based composition: each function only knows about its sub-state
   // Pass by value enables move semantics
+  // Pipe function chains transformations: pipe(state, f, g, h)
 
-  GameState state = state_;
+  auto [state, consumed_directions] =
+      over_direction_command_consuming(state_, direction_command_filter::try_consume_next);
 
-  // Consume direction commands (input preprocessing)
-  std::map<PlayerId, Direction> consumed_directions;
-  std::tie(state, consumed_directions) = over_direction_command_consuming(state, direction_command_filter::try_consume_next);
+  state_ = pipe(
+      state,
+      // Apply direction changes
+      [&](auto s) {
+        return over_snakes(std::move(s), [&](auto snakes) {
+          return applyDirectionChanges(std::move(snakes), consumed_directions);
+        });
+      },
+      // Move snakes (grow if eating, move otherwise)
+      [](auto s) { return over_snakes_with_board_and_food(std::move(s), moveSnakes); },
+      // Handle snake-to-snake collisions
+      [](auto s) { return over_snakes_and_scores(std::move(s), handleCollisions); },
+      // Drop dead snakes as food (conditional)
+      [](auto s) {
+        if (s.collision_mode == CollisionMode::BITE_DROP_FOOD) {
+          return over_food_with_snakes(std::move(s), dropDeadSnakesAsFood);
+        }
+        return s;
+      },
+      // Handle food eating and scoring
+      [](auto s) { return over_food_and_scores_with_snakes(std::move(s), handleFoodEating); },
+      // Update food positions periodically
+      [tick = tick_count_](auto s) {
+        return over_food_with_board_and_snakes(std::move(s), updateFoodPositions, tick);
+      });
 
-  // Apply direction changes (snakes only)
-  state = over_snakes(state, [&](auto snakes) {
-    return applyDirectionChanges(std::move(snakes), consumed_directions);
-  });
-
-  // Move snakes (reads board and food for growth decision)
-  state = over_snakes_with_board_and_food(state, moveSnakes);
-
-  // Handle collisions (updates snakes and scores)
-  state = over_snakes_and_scores(state, handleCollisions);
-
-  // Drop dead snakes as food if in food drop mode
-  if (state.collision_mode == CollisionMode::BITE_DROP_FOOD) {
-    state = over_food_with_snakes(state, dropDeadSnakesAsFood);
-  }
-
-  // Handle food eating (updates food and scores)
-  state = over_food_and_scores_with_snakes(state, handleFoodEating);
-
-  // Update food positions periodically
-  state = over_food_with_board_and_snakes(state, updateFoodPositions, tick_count_);
-
-  state_ = std::move(state);
   state_pub_->publish(StateUpdate{state_});
 }
 
