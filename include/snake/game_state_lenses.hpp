@@ -124,18 +124,35 @@ auto over_snakes_with_board_and_food(Op op) {
 /**
  * @brief Lens decorator: Update both snakes and scores together
  *
- * @tparam Op Function type: (snakes, scores, board, mode) -> (snakes, scores)
+ * Handles both simple and extended operations:
+ * - Op returns (snakes, scores) → returns GameState
+ * - Op returns (snakes, scores, additional_result) → returns (GameState, additional_result)
+ *
+ * The additional result (if any) is threaded through the pipeline automatically.
+ *
+ * @tparam Op Function type: (snakes, scores, board, mode) -> (snakes, scores[, additional_result])
  * @param op Operation to apply
- * @return State transformer: GameState -> GameState
+ * @return State transformer: GameState -> GameState or (GameState, additional_result)
  */
 template <typename Op>
 auto over_snakes_and_scores(Op op) {
   return [op = std::move(op)](GameState state) {
-    auto [new_snakes, new_scores] = op(std::move(state.snakes), std::move(state.scores),
-                                        state.board, state.collision_mode);
-    state.snakes = std::move(new_snakes);
-    state.scores = std::move(new_scores);
-    return state;
+    auto result = op(std::move(state.snakes), std::move(state.scores), state.board, state.collision_mode);
+
+    // Check tuple size to handle both cases
+    if constexpr (std::tuple_size_v<decltype(result)> == 2) {
+      // Simple case: (snakes, scores) → GameState
+      auto& [new_snakes, new_scores] = result;
+      state.snakes = std::move(new_snakes);
+      state.scores = std::move(new_scores);
+      return state;
+    } else {
+      // Extended case: (snakes, scores, additional_result) → (GameState, additional_result)
+      auto& [new_snakes, new_scores, additional_result] = result;
+      state.snakes = std::move(new_snakes);
+      state.scores = std::move(new_scores);
+      return std::make_tuple(std::move(state), std::move(additional_result));
+    }
   };
 }
 
@@ -158,6 +175,24 @@ auto over_food_and_scores_with_snakes(Op op) {
 }
 
 /**
+ * @brief Lens decorator: Update food
+ *
+ * The operation can accept food and any number of additional parameters.
+ * Use this when the additional parameters come from the pipeline (e.g., cut tails).
+ *
+ * @tparam Op Function type: (food, args...) -> food
+ * @param op Operation to apply
+ * @return State transformer: (GameState, args...) -> GameState
+ */
+template <typename Op>
+auto over_food(Op op) {
+  return [op = std::move(op)](GameState state, auto&&... args) {
+    state.food_items = op(std::move(state.food_items), std::forward<decltype(args)>(args)...);
+    return state;
+  };
+}
+
+/**
  * @brief Lens decorator: Update food with access to snakes
  *
  * @tparam Op Function type: (food, snakes) -> food
@@ -175,16 +210,14 @@ auto over_food_with_snakes(Op op) {
 /**
  * @brief Lens decorator: Update food with access to board and snakes
  *
- * @tparam Op Function type: (food, board, snakes, args...) -> food
- * @tparam Args Additional argument types to capture
+ * @tparam Op Function type: (food, board, snakes) -> food
  * @param op Operation to apply
- * @param args Additional arguments to forward to op
  * @return State transformer: GameState -> GameState
  */
-template <typename Op, typename... Args>
-auto over_food_with_board_and_snakes(Op op, Args&&... args) {
-  return [op = std::move(op), ... args = std::forward<Args>(args)](GameState state) mutable {
-    state.food_items = op(std::move(state.food_items), state.board, state.snakes, std::move(args)...);
+template <typename Op>
+auto over_food_with_board_and_snakes(Op op) {
+  return [op = std::move(op)](GameState state) mutable {
+    state.food_items = op(std::move(state.food_items), state.board, state.snakes);
     return state;
   };
 }

@@ -138,22 +138,29 @@ static Snake growSnake(Snake snake, const Board& board) {
 /**
  * @brief Cut snake tail at specified point
  *
- * Removes all tail segments from the cut point onwards.
- * If cut point is the head or not in tail, snake is unchanged.
+ * Removes all tail segments from the cut point onwards and returns them separately.
+ * If cut point is the head or not in tail, snake is unchanged and cut is empty.
  *
  * @param snake Snake to cut
  * @param cut_point Point where to cut the tail
- * @return Snake with tail cut
+ * @return Tuple of (snake with tail cut, cut tail segments)
  */
-static Snake cutSnakeTailAt(Snake snake, Point cut_point) {
-  if (snake.head == cut_point) return snake;
+static std::tuple<Snake, std::vector<Point>> cutSnakeTailAt(Snake snake, Point cut_point) {
+  std::vector<Point> cut_segments;
+
+  if (snake.head == cut_point) {
+    return {snake, cut_segments};
+  }
 
   auto it = std::find(snake.tail.begin(), snake.tail.end(), cut_point);
   if (it != snake.tail.end()) {
+    // Extract cut segments
+    cut_segments = std::vector<Point>(it, snake.tail.end());
+    // Keep only the part before cut point
     snake.tail = std::vector<Point>(snake.tail.begin(), it);
   }
 
-  return snake;
+  return {snake, cut_segments};
 }
 
 /**
@@ -256,22 +263,24 @@ static std::map<PlayerId, Snake> moveSnakes(std::map<PlayerId, Snake> snakes, co
  * @brief Handle snake-to-snake collisions
  *
  * Updates snakes (kill/cut) and scores based on collision detection.
+ * Returns cut tail segments for potential food conversion.
  *
  * @param snakes Snakes (by value)
  * @param scores Scores (by value)
  * @param board Board dimensions
  * @param collision_mode How to handle tail cuts (drop or convert to food)
- * @return Tuple of (updated snakes, updated scores)
+ * @return Tuple of (updated snakes, updated scores, cut tail segments)
  */
-static std::tuple<std::map<PlayerId, Snake>, std::map<PlayerId, int>> handleCollisions(std::map<PlayerId, Snake> snakes,
-                                                                                       std::map<PlayerId, int> scores,
-                                                                                       const Board& board,
-                                                                                       CollisionMode collision_mode) {
+static std::tuple<std::map<PlayerId, Snake>, std::map<PlayerId, int>, std::vector<Point>> handleCollisions(
+    std::map<PlayerId, Snake> snakes, std::map<PlayerId, int> scores, const Board& board,
+    CollisionMode collision_mode) {
   (void)board;           // Unused but required for lens signature
   (void)collision_mode;  // Unused but required for lens signature
 
+  std::vector<Point> cut_tails;  // Collect cut tail segments
+
   if (snakes.size() < 2) {
-    return {std::move(snakes), std::move(scores)};
+    return {snakes, scores, cut_tails};
   }
 
   // Get both snakes (hardcoded for 2-player)
@@ -279,14 +288,14 @@ static std::tuple<std::map<PlayerId, Snake>, std::map<PlayerId, int>> handleColl
   auto it2 = snakes.find("player2");
 
   if (it1 == snakes.end() || it2 == snakes.end()) {
-    return {std::move(snakes), std::move(scores)};
+    return {snakes, scores, cut_tails};
   }
 
   Snake& snake_a = it1->second;
   Snake& snake_b = it2->second;
 
   if (!snake_a.alive || !snake_b.alive) {
-    return {std::move(snakes), std::move(scores)};
+    return {snakes, scores, cut_tails};
   }
 
   // Check collision cases
@@ -299,14 +308,33 @@ static std::tuple<std::map<PlayerId, Snake>, std::map<PlayerId, int>> handleColl
   } else if (firstBitesSecond(snake_a, snake_b)) {
     // Snake A bites B - cut B's tail
     scores["player2"] -= 10;
-    snake_b = cutSnakeTailAt(snake_b, snake_a.head);
+    auto [new_snake, cut] = cutSnakeTailAt(snake_b, snake_a.head);
+    snake_b = new_snake;
+    cut_tails.insert(cut_tails.end(), cut.begin(), cut.end());
   } else if (firstBitesSecond(snake_b, snake_a)) {
     // Snake B bites A - cut A's tail
     scores["player1"] -= 10;
-    snake_a = cutSnakeTailAt(snake_a, snake_b.head);
+    auto [new_snake, cut] = cutSnakeTailAt(snake_a, snake_b.head);
+    snake_a = new_snake;
+    cut_tails.insert(cut_tails.end(), cut.begin(), cut.end());
   }
 
-  return {std::move(snakes), std::move(scores)};
+  return {snakes, scores, cut_tails};
+}
+
+/**
+ * @brief Add cut tail segments as food
+ *
+ * Takes cut tail segments and adds them as food items.
+ * Separate stage for modular composition.
+ *
+ * @param food_items Food (by value)
+ * @param cut_tails Cut tail segments to add
+ * @return Updated food with cut tails added
+ */
+static std::vector<Point> dropCutTailsAsFood(std::vector<Point> food_items, const std::vector<Point>& cut_tails) {
+  food_items.insert(food_items.end(), cut_tails.begin(), cut_tails.end());
+  return food_items;
 }
 
 /**
@@ -473,12 +501,17 @@ void GameSession::onTick() {
   // When a function returns tuple<A, B>, the next function receives (A, B) as separate args
   // Lenses are decorators that return state transformers
 
-  auto tick_pipeline = makePipe(over_direction_command_consuming(direction_command_filter::try_consume_next),
-                                over_snakes(applyDirectionChanges), over_snakes_with_board_and_food(moveSnakes),
-                                over_snakes_and_scores(handleCollisions),
-                                when(isBiteDropFoodMode, over_food_with_snakes(dropDeadSnakesAsFood)),
-                                over_food_and_scores_with_snakes(handleFoodEating),
-                                over_food_with_board_and_snakes(bindFront(updateFoodPositions, tick_count_)));
+  // clang-format off
+  auto tick_pipeline = makePipe(
+      over_direction_command_consuming(direction_command_filter::try_consume_next),  // → (state, consumed_directions)
+      over_snakes(applyDirectionChanges),                                            // → state
+      over_snakes_with_board_and_food(moveSnakes),                                   // → state
+      over_snakes_and_scores(handleCollisions),                                      // → (state, cut_tails)
+      when<0>(isBiteDropFoodMode, over_food(dropCutTailsAsFood)),                    // → state
+      when(isBiteDropFoodMode, over_food_with_snakes(dropDeadSnakesAsFood)),         // → state
+      over_food_and_scores_with_snakes(handleFoodEating),                            // → state
+      over_food_with_board_and_snakes(bindFront(updateFoodPositions, tick_count_))); // → state
+  // clang-format on
 
   state_ = tick_pipeline(state_);
   state_pub_->publish(StateUpdate{state_});
