@@ -7,6 +7,37 @@
 namespace snake {
 
 /**
+ * @brief Conditional function application helper
+ *
+ * Applies a function only if a predicate is satisfied, otherwise returns the value unchanged.
+ * Inspired by ramda's `when` function (see funkypipes roadmap #5).
+ *
+ * Type signature: (a -> Bool) -> (a -> a) -> a -> a
+ *
+ * @tparam Predicate Function type: (a) -> bool
+ * @tparam Fn Function type: (a) -> a
+ * @param pred Predicate to test the value
+ * @param fn Function to apply if predicate is true
+ * @return Function that conditionally applies fn
+ *
+ * Example:
+ *   auto isEven = [](int x) { return x % 2 == 0; };
+ *   auto doubleIt = [](int x) { return x * 2; };
+ *   auto doubleIfEven = when(isEven, doubleIt);
+ *   doubleIfEven(3);  // returns 3
+ *   doubleIfEven(4);  // returns 8
+ */
+template <typename Predicate, typename Fn>
+auto when(Predicate pred, Fn fn) {
+  return [pred = std::move(pred), fn = std::move(fn)](auto&& value) {
+    if (pred(value)) {
+      return fn(std::forward<decltype(value)>(value));
+    }
+    return std::forward<decltype(value)>(value);
+  };
+}
+
+/**
  * @brief Binary composition producing f(a, g(a,b))
  *
  * Composes two functions where the second function takes two arguments

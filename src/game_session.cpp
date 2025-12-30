@@ -5,6 +5,8 @@
 #include <iostream>
 #include <random>
 
+#include "funkypipes/bind_front.hpp"
+#include "funkypipes/make_pipe.hpp"
 #include "snake/direction_command_filter.hpp"
 #include "snake/functional_utils.hpp"
 #include "snake/game_state_lenses.hpp"
@@ -13,59 +15,20 @@
 
 namespace snake {
 
-// ============================================================================
-// Functional Composition Helper
-// ============================================================================
-
-/**
- * @brief Compose functions into a pipeline: auto f = pipe(f1, f2, f3);
- *
- * Returns a callable that applies each function in sequence.
- * Enables: auto pipeline = pipe(stage1, stage2, ...); result = pipeline(input);
- */
-template <typename F>
-auto pipe(F&& f) {
-  return std::forward<F>(f);
-}
-
-template <typename F, typename... Fs>
-auto pipe(F&& f, Fs&&... fs) {
-  return [f = std::forward<F>(f), ... fs = std::forward<Fs>(fs)](auto&& input) mutable {
-    return pipe(fs...)(f(std::forward<decltype(input)>(input)));
-  };
-}
-
-/**
- * @brief Helper: Consume directions and thread them through to next stage
- *
- * Returns a function that takes GameState, consumes directions, and returns
- * a tuple (state, consumed_directions) for the next stage to use.
- */
-template <typename ConsumeOp>
-auto consume_directions(ConsumeOp consume_op) {
-  return [consume_op](GameState state) {
-    auto [new_state, consumed] = over_direction_command_consuming(state, consume_op);
-    return std::make_pair(std::move(new_state), std::move(consumed));
-  };
-}
-
-/**
- * @brief Helper: Apply operation using consumed directions, then continue with state only
- *
- * Takes a tuple (state, consumed_directions), applies operation, returns plain state.
- * This "unwraps" the tuple so subsequent stages work with just GameState.
- */
-template <typename Op>
-auto with_consumed_directions(Op op) {
-  return [op](auto pair) {
-    auto& [state, consumed] = pair;
-    return op(std::move(state), consumed);
-  };
-}
+using funkypipes::bindFront;
+using funkypipes::makePipe;
 
 // ============================================================================
 // Basic Game Functions
 // ============================================================================
+
+/**
+ * @brief Check if game is in bite-drop-food collision mode
+ *
+ * @param state Current game state
+ * @return true if collision mode is BITE_DROP_FOOD
+ */
+static bool isBiteDropFoodMode(const GameState& state) { return state.collision_mode == CollisionMode::BITE_DROP_FOOD; }
 
 /**
  * @brief Get next head position based on current direction
@@ -300,11 +263,12 @@ static std::map<PlayerId, Snake> moveSnakes(std::map<PlayerId, Snake> snakes, co
  * @param collision_mode How to handle tail cuts (drop or convert to food)
  * @return Tuple of (updated snakes, updated scores)
  */
-static std::tuple<std::map<PlayerId, Snake>, std::map<PlayerId, int>> handleCollisions(
-    std::map<PlayerId, Snake> snakes, std::map<PlayerId, int> scores, const Board& board,
-    CollisionMode collision_mode) {
-  (void)board;            // Unused but required for lens signature
-  (void)collision_mode;   // Unused but required for lens signature
+static std::tuple<std::map<PlayerId, Snake>, std::map<PlayerId, int>> handleCollisions(std::map<PlayerId, Snake> snakes,
+                                                                                       std::map<PlayerId, int> scores,
+                                                                                       const Board& board,
+                                                                                       CollisionMode collision_mode) {
+  (void)board;           // Unused but required for lens signature
+  (void)collision_mode;  // Unused but required for lens signature
 
   if (snakes.size() < 2) {
     return {std::move(snakes), std::move(scores)};
@@ -355,8 +319,7 @@ static std::tuple<std::map<PlayerId, Snake>, std::map<PlayerId, int>> handleColl
  * @param snakes Snakes (to check for dead ones)
  * @return Updated food with dead snake bodies added
  */
-static std::vector<Point> dropDeadSnakesAsFood(std::vector<Point> food_items,
-                                               const std::map<PlayerId, Snake>& snakes) {
+static std::vector<Point> dropDeadSnakesAsFood(std::vector<Point> food_items, const std::map<PlayerId, Snake>& snakes) {
   for (const auto& [player_id, snake] : snakes) {
     if (!snake.alive) {
       // Add entire snake body as food
@@ -382,9 +345,9 @@ static std::vector<Point> dropDeadSnakesAsFood(std::vector<Point> food_items,
  * @return Tuple of (updated food, updated scores)
  */
 static std::tuple<std::vector<Point>, std::map<PlayerId, int>> handleFoodEating(std::vector<Point> food_items,
-                                                                                 std::map<PlayerId, int> scores,
-                                                                                 const std::map<PlayerId, Snake>& snakes,
-                                                                                 const Board& board) {
+                                                                                std::map<PlayerId, int> scores,
+                                                                                const std::map<PlayerId, Snake>& snakes,
+                                                                                const Board& board) {
   for (const auto& [player_id, snake] : snakes) {
     if (!snake.alive) continue;
 
@@ -424,8 +387,8 @@ static std::tuple<std::vector<Point>, std::map<PlayerId, int>> handleFoodEating(
  * @param tick_count Current tick number
  * @return Updated food with repositioned item
  */
-static std::vector<Point> updateFoodPositions(std::vector<Point> food_items, const Board& board,
-                                              const std::map<PlayerId, Snake>& snakes, int tick_count) {
+static std::vector<Point> updateFoodPositions(int tick_count, std::vector<Point> food_items, const Board& board,
+                                              const std::map<PlayerId, Snake>& snakes) {
   // Only update every 15 ticks
   if (tick_count % 15 != 0 || food_items.empty()) {
     return food_items;
@@ -504,35 +467,20 @@ void GameSession::onTick() {
   ++tick_count_;
 
   // ============================================================================
-  // GAME LOGIC PIPELINE - Functional Composition
+  // GAME LOGIC PIPELINE - Functional Composition with funkypipes
   // ============================================================================
+  // makePipe automatically unpacks tuples between stages
+  // When a function returns tuple<A, B>, the next function receives (A, B) as separate args
   // Lenses are decorators that return state transformers
-  // Pipe composes functions: auto f = pipe(f1, f2, f3); result = f(input);
-  // consumed_directions is threaded through the pipeline automatically
 
-  state_ = pipe(
-      // Consume direction commands from input queues
-      consume_directions(direction_command_filter::try_consume_next),
-      // Apply consumed directions to snakes (unwraps tuple, returns state)
-      with_consumed_directions([](GameState state, const auto& consumed_directions) {
-        return over_snakes(applyDirectionChanges, consumed_directions)(std::move(state));
-      }),
-      // Move snakes (grow if eating, move otherwise)
-      over_snakes_with_board_and_food(moveSnakes),
-      // Handle snake-to-snake collisions
-      over_snakes_and_scores(handleCollisions),
-      // Drop dead snakes as food (conditional)
-      [](auto s) {
-        if (s.collision_mode == CollisionMode::BITE_DROP_FOOD) {
-          return over_food_with_snakes(dropDeadSnakesAsFood)(std::move(s));
-        }
-        return s;
-      },
-      // Handle food eating and scoring
-      over_food_and_scores_with_snakes(handleFoodEating),
-      // Update food positions periodically
-      over_food_with_board_and_snakes(updateFoodPositions, tick_count_))(state_);
+  auto tick_pipeline = makePipe(over_direction_command_consuming(direction_command_filter::try_consume_next),
+                                over_snakes(applyDirectionChanges), over_snakes_with_board_and_food(moveSnakes),
+                                over_snakes_and_scores(handleCollisions),
+                                when(isBiteDropFoodMode, over_food_with_snakes(dropDeadSnakesAsFood)),
+                                over_food_and_scores_with_snakes(handleFoodEating),
+                                over_food_with_board_and_snakes(bindFront(updateFoodPositions, tick_count_)));
 
+  state_ = tick_pipeline(state_);
   state_pub_->publish(StateUpdate{state_});
 }
 

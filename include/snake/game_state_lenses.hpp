@@ -38,27 +38,26 @@ GameState over_direction_command_and_snakes(GameState state, Op op, Args&&... ar
 }
 
 /**
- * @brief Lens for consuming directions from command queues
+ * @brief Lens decorator: Consume directions from command queues
  *
- * Applies a consume operation to direction command state and returns both the updated
- * state and the consumed directions.
+ * Returns a state transformer that applies a consume operation to direction command state
+ * and returns both the updated state and the consumed directions as a tuple.
  *
  * Example usage:
- *   auto [new_state, consumed] = over_direction_command_consuming(
- *       state,
- *       direction_command_filter::try_consume_next
- *   );
+ *   auto transformer = over_direction_command_consuming(direction_command_filter::try_consume_next);
+ *   auto [new_state, consumed] = transformer(state);
  *
  * @tparam Op Function type: (command_state) -> ConsumeResult
- * @param state Current game state
  * @param op Consume operation to apply
- * @return Pair of (updated state, consumed directions map)
+ * @return State transformer: GameState -> tuple<GameState, ConsumedDirections>
  */
 template <typename Op>
-std::pair<GameState, std::map<PlayerId, Direction>> over_direction_command_consuming(GameState state, Op op) {
-  auto result = op(state.direction_command);
-  state.direction_command = result.filters;
-  return {state, result.consumed_directions};
+auto over_direction_command_consuming(Op op) {
+  return [op = std::move(op)](GameState state) {
+    auto result = op(state.direction_command);
+    state.direction_command = result.filters;
+    return std::make_tuple(std::move(state), std::move(result.consumed_directions));
+  };
 }
 
 /**
@@ -92,16 +91,17 @@ auto with_board_and_snakes(const GameState& state, Op op, Args&&... args) {
 /**
  * @brief Lens decorator: Update snakes only
  *
+ * Returns a decorator that accepts GameState and additional arguments,
+ * forwards them to the operation, and returns updated state.
+ *
  * @tparam Op Function type: (snakes, args...) -> snakes
- * @tparam Args Additional argument types to forward to operation
  * @param op Operation to apply to snakes
- * @param args Additional arguments to forward to operation
- * @return State transformer: GameState -> GameState
+ * @return State transformer: (GameState, args...) -> GameState
  */
-template <typename Op, typename... Args>
-auto over_snakes(Op op, Args&&... args) {
-  return [op = std::move(op), ... args = std::forward<Args>(args)](GameState state) mutable {
-    state.snakes = op(std::move(state.snakes), std::move(args)...);
+template <typename Op>
+auto over_snakes(Op op) {
+  return [op = std::move(op)](GameState state, auto&&... args) {
+    state.snakes = op(std::move(state.snakes), std::forward<decltype(args)>(args)...);
     return state;
   };
 }

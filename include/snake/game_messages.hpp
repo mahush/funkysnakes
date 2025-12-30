@@ -108,7 +108,7 @@ struct GameState {
   std::vector<Point> food_items;                                      // Food items on the board
   std::map<PlayerId, DirectionCommandFilterState> direction_command;  // Direction input buffers
   Board board;                                                         // Board dimensions
-  CollisionMode collision_mode{CollisionMode::BITE_REMOVE_TAIL};      // Collision handling mode
+  CollisionMode collision_mode{CollisionMode::BITE_DROP_FOOD};        // Collision handling mode
   int level{1};
 };
 

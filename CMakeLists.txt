@@ -35,6 +35,19 @@ if(UNIX)
   target_link_libraries(asio INTERFACE Threads::Threads)
 endif()
 
+# Fetch funkypipes via FetchContent
+message(STATUS "Downloading funkypipes via FetchContent")
+FetchContent_Declare(
+  funkypipes
+  GIT_REPOSITORY https://github.com/mahush/funkypipes.git
+  GIT_TAG main
+)
+FetchContent_MakeAvailable(funkypipes)
+
+# Create an interface library for funkypipes
+add_library(funkypipes INTERFACE)
+target_include_directories(funkypipes INTERFACE ${funkypipes_SOURCE_DIR}/include)
+
 # Main executable
 add_executable(snake_actors
   src/main.cpp
@@ -51,7 +64,7 @@ target_include_directories(snake_actors PRIVATE
   ${PROJECT_SOURCE_DIR}/include
 )
 
-target_link_libraries(snake_actors PRIVATE asio)
+target_link_libraries(snake_actors PRIVATE asio funkypipes)
 
 target_compile_options(snake_actors PRIVATE
   -Wall -Wextra -Wpedantic
@@ -89,7 +102,7 @@ if(SNAKE_BUILD_TESTS)
     src/timer/asio_timer_core.cpp
   )
 
-  target_link_libraries(test_snake PRIVATE gtest_main gmock_main asio)
+  target_link_libraries(test_snake PRIVATE gtest_main gmock_main asio funkypipes)
   target_include_directories(test_snake PRIVATE
     ${PROJECT_SOURCE_DIR}/include
     ${PROJECT_SOURCE_DIR}/tests
