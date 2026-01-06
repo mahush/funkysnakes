@@ -13,54 +13,49 @@ namespace snake {
 struct GameState;
 
 /**
- * @brief Lens to operate on direction command state with access to snakes
+ * @brief Lens to operate on pending direction queues with access to snakes
  *
  * NOTE: This is a non-decorator style for backwards compatibility.
  * Prefer using the generic lens directly in new code.
  *
  * Example usage:
- *   state = over_direction_command_and_snakes(
+ *   state = over_pending_directions_and_snakes(
  *       state,
  *       direction_command_filter::try_add,
  *       direction_cmd
  *   );
  *
- * @tparam Op Function type: (command_state, snakes, args...) -> updated_command_state
+ * @tparam Op Function type: (pending_directions, snakes, args...) -> updated_pending_directions
  * @tparam Args Additional argument types to forward
  * @param state Current game state
  * @param op Operation to apply
  * @param args Additional arguments to forward to op
- * @return Updated game state with modified command state
+ * @return Updated game state with modified pending directions
  */
 template <typename Op, typename... Args>
-GameState over_direction_command_and_snakes(GameState state, Op op, Args&&... args) {
-  auto transform = lens(mutate<&GameState::direction_command>,
+GameState over_pending_directions_and_snakes(GameState state, Op op, Args&&... args) {
+  auto transform = lens(mutate<&GameState::pending_directions>,
                        read<&GameState::snakes>,
                        std::move(op));
   return transform(std::move(state), std::forward<Args>(args)...);
 }
 
 /**
- * @brief Lens decorator: Consume directions from command queues
+ * @brief Lens decorator: Update pending direction queues
  *
- * Returns a state transformer that applies a consume operation to direction command state
- * and returns both the updated state and the consumed directions as a tuple.
+ * Returns a state transformer that applies an operation to pending direction queues.
  *
  * Example usage:
- *   auto transformer = over_direction_command_consuming(direction_command_filter::try_consume_next);
- *   auto [new_state, consumed] = transformer(state);
+ *   auto transformer = over_pending_directions(direction_command_filter::try_consume_next);
+ *   auto [new_state, next_dirs] = transformer(state);
  *
- * @tparam Op Function type: (command_state) -> ConsumeResult
- * @param op Consume operation to apply
- * @return State transformer: GameState -> tuple<GameState, ConsumedDirections>
+ * @tparam Op Function type: (pending_directions) -> pending_directions or tuple<pending_directions, ...>
+ * @param op Operation to apply
+ * @return State transformer: GameState -> GameState or tuple<GameState, ...>
  */
 template <typename Op>
-auto over_direction_command_consuming(Op op) {
-  return [op = std::move(op)](GameState state) {
-    auto result = op(state.direction_command);
-    state.direction_command = result.filters;
-    return std::make_tuple(std::move(state), std::move(result.consumed_directions));
-  };
+auto over_pending_directions(Op op) {
+  return lens(mutate<&GameState::pending_directions>, read<>, std::move(op));
 }
 
 /**

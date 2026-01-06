@@ -70,17 +70,6 @@ struct Snake {
 };
 
 /**
- * @brief State for one player's direction command queue
- *
- * Buffers incoming direction commands and filters out invalid moves.
- * Queue size is limited to prevent unbounded growth from held keys.
- */
-struct DirectionCommandFilterState {
-  std::deque<Direction> queue;
-  static constexpr size_t MAX_QUEUE_SIZE = 2;
-};
-
-/**
  * @brief Game board dimensions
  */
 struct Board {
@@ -98,17 +87,23 @@ enum class CollisionMode {
   BITE_DROP_FOOD     // Cut tail segments become food items
 };
 
+// Type aliases for per-player game data
+using PerPlayerSnakes = std::map<PlayerId, Snake>;
+using PerPlayerScores = std::map<PlayerId, int>;
+using PerPlayerDirectionQueue = std::map<PlayerId, std::deque<Direction>>;
+using PerPlayerDirection = std::map<PlayerId, Direction>;
+
 /**
  * @brief Complete game state snapshot
  */
 struct GameState {
   GameId game_id;
-  std::map<PlayerId, Snake> snakes;                                   // Map from player ID to snake
-  std::map<PlayerId, int> scores;                                     // Player scores
-  std::vector<Point> food_items;                                      // Food items on the board
-  std::map<PlayerId, DirectionCommandFilterState> direction_command;  // Direction input buffers
-  Board board;                                                         // Board dimensions
-  CollisionMode collision_mode{CollisionMode::BITE_DROP_FOOD};        // Collision handling mode
+  PerPlayerSnakes snakes;                              // Snakes for each player
+  PerPlayerScores scores;                              // Scores for each player
+  std::vector<Point> food_items;                       // Food items on the board
+  PerPlayerDirectionQueue pending_directions;          // Pending direction commands per player
+  Board board;                                         // Board dimensions
+  CollisionMode collision_mode{CollisionMode::BITE_DROP_FOOD};  // Collision handling mode
   int level{1};
 };
 

@@ -11,15 +11,10 @@ namespace snake {
 // Type alias for semantic clarity - DirectionChange represents a command
 using DirectionCommand = DirectionChange;
 
-/**
- * @brief Result of consuming next direction from all players
- */
-struct ConsumeResult {
-  std::map<PlayerId, DirectionCommandFilterState> filters;
-  std::map<PlayerId, Direction> consumed_directions;
-};
-
 namespace direction_command_filter {
+
+// Maximum number of pending directions per player
+constexpr size_t MAX_QUEUE_SIZE = 2;
 
 /**
  * @brief Check if two directions are opposite (180° turn)
@@ -36,22 +31,23 @@ bool is_opposite(Direction a, Direction b);
  * 4. If queue full → reject
  * 5. Otherwise → accept and add to queue
  *
- * @param filters Map of player filter states
- * @param snakes Map of player snakes (for current direction lookup)
+ * @param pending_directions Pending direction queues per player
+ * @param snakes Snakes per player (for current direction lookup)
  * @param cmd Direction command from player
- * @return Updated filters map
+ * @return Updated pending directions
  */
-std::map<PlayerId, DirectionCommandFilterState> try_add(std::map<PlayerId, DirectionCommandFilterState> filters,
-                                                         const std::map<PlayerId, Snake>& snakes,
-                                                         const DirectionCommand& cmd);
+PerPlayerDirectionQueue try_add(PerPlayerDirectionQueue pending_directions,
+                                const PerPlayerSnakes& snakes,
+                                const DirectionCommand& cmd);
 
 /**
  * @brief Consume next direction from each player's queue (one per player)
  *
- * @param filters Map of player filter states
- * @return Updated filters and map of consumed directions per player
+ * @param pending_directions Pending direction queues per player
+ * @return Tuple of (updated pending directions, consumed directions per player)
  */
-ConsumeResult try_consume_next(std::map<PlayerId, DirectionCommandFilterState> filters);
+std::tuple<PerPlayerDirectionQueue, PerPlayerDirection>
+try_consume_next(PerPlayerDirectionQueue pending_directions);
 
 }  // namespace direction_command_filter
 
