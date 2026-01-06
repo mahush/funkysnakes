@@ -3,6 +3,7 @@
 #include "funkypipes/bind_front.hpp"
 #include "snake/game_messages.hpp"
 #include "snake/generic_lens.hpp"
+#include "snake/generic_view.hpp"
 
 namespace snake {
 
@@ -192,6 +193,62 @@ TEST(GenericLensTest, WithBindFrontMutableLambda) {
 
   EXPECT_EQ(state.food_items[0].x, 10);
   EXPECT_EQ(state.food_items[0].y, 5);
+}
+
+// ============================================================================
+// Generic View Tests
+// ============================================================================
+
+TEST(GenericViewTest, SingleReadonlyField) {
+  auto get_board_width = view(read<&GameState::board>, [](const Board& board) { return board.width; });
+
+  GameState state;
+  state.board.width = 42;
+
+  int width = get_board_width(state);
+
+  EXPECT_EQ(width, 42);
+}
+
+TEST(GenericViewTest, MultipleReadonlyFields) {
+  auto compute_total = view(read<&GameState::board, &GameState::level>,
+                            [](const Board& board, int level) { return board.width * board.height * level; });
+
+  GameState state;
+  state.board.width = 10;
+  state.board.height = 5;
+  state.level = 3;
+
+  int total = compute_total(state);
+
+  EXPECT_EQ(total, 150);  // 10 * 5 * 3
+}
+
+TEST(GenericViewTest, WithAdditionalArguments) {
+  auto multiply_width = view(read<&GameState::board>, [](const Board& board, int multiplier) {
+    return board.width * multiplier;
+  });
+
+  GameState state;
+  state.board.width = 20;
+
+  int result = multiply_width(state, 3);
+
+  EXPECT_EQ(result, 60);
+}
+
+TEST(GenericViewTest, ReturningComplexType) {
+  auto extract_board_copy =
+      view(read<&GameState::board>, [](const Board& board) { return Board{board.width, board.height}; });
+
+  GameState state;
+  state.board.width = 30;
+  state.board.height = 15;
+
+  Board result = extract_board_copy(state);
+
+  EXPECT_EQ(result.width, 30);
+  EXPECT_EQ(result.height, 15);
 }
 
 }  // namespace snake

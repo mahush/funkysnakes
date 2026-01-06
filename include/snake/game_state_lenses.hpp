@@ -12,19 +12,20 @@ namespace snake {
 // Forward declarations
 struct GameState;
 
-/**
- * @brief Lens decorator: Update pending directions with access to snakes
- *
- * @tparam Op Function type: (pending_directions, snakes, args...) -> pending_directions
- * @param op Operation to apply
- * @return State transformer: (GameState, args...) -> GameState
- */
-template <typename Op>
-auto over_pending_directions_with_snakes(Op op) {
-  return lens(mutate<&GameState::pending_directions>,
-              read<&GameState::snakes>,
-              std::move(op));
-}
+// ============================================================================
+// Lens Decorators - Built on generic lens for consistent behavior
+// ============================================================================
+// Lenses are state transformers that follow the `over_*` naming pattern.
+// Each lens is a thin wrapper around the generic lens implementation.
+// This provides:
+// - Consistent handling of mutable/readonly fields
+// - Automatic pipeline argument forwarding
+// - Automatic threading of additional outputs
+// - Reduced code duplication
+//
+// Usage pattern:
+//   auto transformer = over_snakes(moveSnakes);  // Create transformer
+//   new_state = transformer(state);              // Apply to state
 
 /**
  * @brief Lens decorator: Update pending direction queues
@@ -45,35 +46,18 @@ auto over_pending_directions(Op op) {
 }
 
 /**
- * @brief Lens to extract board and snakes from GameState and pass to operation
+ * @brief Lens decorator: Update pending directions with access to snakes
  *
- * Extracts board and snakes from GameState and passes them to the operation
- * along with any additional arguments.
- *
- * Example usage:
- *   Point pos = with_board_and_snakes(state, generateRandomFoodPosition);
- *
- * @tparam Op Function type: (Board, snakes, args...) -> Result
- * @tparam Args Additional argument types to forward
- * @param state Current game state
+ * @tparam Op Function type: (pending_directions, snakes, args...) -> pending_directions
  * @param op Operation to apply
- * @param args Additional arguments to forward to op
- * @return Result of calling op with board, snakes, and additional args
+ * @return State transformer: (GameState, args...) -> GameState
  */
-template <typename Op, typename... Args>
-auto with_board_and_snakes(const GameState& state, Op op, Args&&... args) {
-  return op(state.board, state.snakes, std::forward<Args>(args)...);
+template <typename Op>
+auto over_pending_directions_with_snakes(Op op) {
+  return lens(mutate<&GameState::pending_directions>,
+              read<&GameState::snakes>,
+              std::move(op));
 }
-
-// ============================================================================
-// Lens Decorators - Built on generic lens for consistent behavior
-// ============================================================================
-// Each lens is now a thin wrapper around the generic lens implementation.
-// This provides:
-// - Consistent handling of mutable/readonly fields
-// - Automatic pipeline argument forwarding
-// - Automatic threading of additional outputs
-// - Reduced code duplication
 
 /**
  * @brief Lens decorator: Update snakes only

@@ -10,6 +10,7 @@
 #include "snake/direction_command_filter.hpp"
 #include "snake/functional_utils.hpp"
 #include "snake/game_state_lenses.hpp"
+#include "snake/game_state_views.hpp"
 #include "snake/snake_model.hpp"
 #include "snake/timer/timer_factory.hpp"
 
@@ -587,8 +588,9 @@ void GameSession::initializeFood() {
   };
 
   // Generate 5 random food items
+  auto generate_food = with_board_and_snakes(generateRandomFoodPosition);
   for (int i = 0; i < 5; ++i) {
-    state_.food_items.push_back(with_board_and_snakes(state_, generateRandomFoodPosition, random_int));
+    state_.food_items.push_back(generate_food(state_, random_int));
   }
   std::cout << "[GameSession] Initialized " << state_.food_items.size() << " food items\n";
 }
