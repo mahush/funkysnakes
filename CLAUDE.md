@@ -32,6 +32,8 @@ cmake --build build
 ./build/test_snake --gtest_filter=TestName.*
 ```
 
+**IMPORTANT:** Always use GoogleTest (gtest) for writing tests. Add new tests to `test/test_actors.cpp` or create new test files in the `test/` directory following the existing patterns.
+
 ### Code Quality
 ```bash
 # Generate compile_commands.json (automatic with current CMakeLists.txt)
