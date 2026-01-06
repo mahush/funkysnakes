@@ -462,8 +462,9 @@ GameSession::GameSession(asio::io_context& io, TopicPtr<DirectionChange> directi
 
 void GameSession::processMessages() {
   // Drain direction commands into filtered queues
+  auto add_direction = over_pending_directions_with_snakes(direction_command_filter::try_add);
   while (auto dir = direction_sub_->tryReceive()) {
-    state_ = over_pending_directions_and_snakes(state_, direction_command_filter::try_add, *dir);
+    state_ = add_direction(state_, *dir);
   }
 
   auto timer_events = timer_->take_all_elapsed_events();

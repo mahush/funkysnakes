@@ -13,31 +13,17 @@ namespace snake {
 struct GameState;
 
 /**
- * @brief Lens to operate on pending direction queues with access to snakes
+ * @brief Lens decorator: Update pending directions with access to snakes
  *
- * NOTE: This is a non-decorator style for backwards compatibility.
- * Prefer using the generic lens directly in new code.
- *
- * Example usage:
- *   state = over_pending_directions_and_snakes(
- *       state,
- *       direction_command_filter::try_add,
- *       direction_cmd
- *   );
- *
- * @tparam Op Function type: (pending_directions, snakes, args...) -> updated_pending_directions
- * @tparam Args Additional argument types to forward
- * @param state Current game state
+ * @tparam Op Function type: (pending_directions, snakes, args...) -> pending_directions
  * @param op Operation to apply
- * @param args Additional arguments to forward to op
- * @return Updated game state with modified pending directions
+ * @return State transformer: (GameState, args...) -> GameState
  */
-template <typename Op, typename... Args>
-GameState over_pending_directions_and_snakes(GameState state, Op op, Args&&... args) {
-  auto transform = lens(mutate<&GameState::pending_directions>,
-                       read<&GameState::snakes>,
-                       std::move(op));
-  return transform(std::move(state), std::forward<Args>(args)...);
+template <typename Op>
+auto over_pending_directions_with_snakes(Op op) {
+  return lens(mutate<&GameState::pending_directions>,
+              read<&GameState::snakes>,
+              std::move(op));
 }
 
 /**
