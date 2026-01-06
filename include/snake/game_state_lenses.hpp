@@ -130,14 +130,14 @@ auto over_snakes_with_board_and_food(Op op) {
  *
  * The additional result (if any) is threaded through the pipeline automatically.
  *
- * @tparam Op Function type: (snakes, scores, board, mode) -> (snakes, scores[, additional_result])
+ * @tparam Op Function type: (snakes, scores) -> (snakes, scores[, additional_result])
  * @param op Operation to apply
  * @return State transformer: GameState -> GameState or (GameState, additional_result)
  */
 template <typename Op>
 auto over_snakes_and_scores(Op op) {
   return [op = std::move(op)](GameState state) {
-    auto result = op(std::move(state.snakes), std::move(state.scores), state.board, state.collision_mode);
+    auto result = op(std::move(state.snakes), std::move(state.scores));
 
     // Check tuple size to handle both cases
     if constexpr (std::tuple_size_v<decltype(result)> == 2) {

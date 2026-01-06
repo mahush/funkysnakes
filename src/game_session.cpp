@@ -267,16 +267,10 @@ static std::map<PlayerId, Snake> moveSnakes(std::map<PlayerId, Snake> snakes, co
  *
  * @param snakes Snakes (by value)
  * @param scores Scores (by value)
- * @param board Board dimensions
- * @param collision_mode How to handle tail cuts (drop or convert to food)
  * @return Tuple of (updated snakes, updated scores, cut tail segments)
  */
 static std::tuple<std::map<PlayerId, Snake>, std::map<PlayerId, int>, std::vector<Point>> handleCollisions(
-    std::map<PlayerId, Snake> snakes, std::map<PlayerId, int> scores, const Board& board,
-    CollisionMode collision_mode) {
-  (void)board;           // Unused but required for lens signature
-  (void)collision_mode;  // Unused but required for lens signature
-
+    std::map<PlayerId, Snake> snakes, std::map<PlayerId, int> scores) {
   std::vector<Point> cut_tails;  // Collect cut tail segments
 
   if (snakes.size() < 2) {
