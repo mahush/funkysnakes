@@ -93,6 +93,7 @@ if(SNAKE_BUILD_TESTS)
   enable_testing()
   add_executable(test_snake
     tests/test_actors.cpp
+    tests/test_generic_lens.cpp
     src/direction_command_filter.cpp
     src/game_manager.cpp
     src/game_session.cpp

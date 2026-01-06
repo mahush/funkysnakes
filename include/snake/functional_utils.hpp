@@ -55,7 +55,7 @@ struct GetArgAt {
  */
 template <std::size_t ArgIndex = std::size_t(-1), typename Predicate, typename Fn>
 auto when(Predicate pred, Fn fn) {
-  return [pred = std::move(pred), fn = std::move(fn)](auto&&... args) {
+  return [pred = std::move(pred), fn = std::move(fn)](auto&&... args) mutable {
     // Get first argument for return value when predicate is false
     auto getFirst = [](auto&& first, auto&&...) -> decltype(auto) {
       return std::forward<decltype(first)>(first);

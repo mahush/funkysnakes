@@ -5,6 +5,7 @@
 #include <utility>
 
 #include "snake/game_messages.hpp"
+#include "snake/generic_lens.hpp"
 
 namespace snake {
 
@@ -14,8 +15,8 @@ struct GameState;
 /**
  * @brief Lens to operate on direction command state with access to snakes
  *
- * Extracts direction_command_state and snakes from GameState, passes them to
- * an operation function along with forwarded arguments, then updates the command state.
+ * NOTE: This is a non-decorator style for backwards compatibility.
+ * Prefer using the generic lens directly in new code.
  *
  * Example usage:
  *   state = over_direction_command_and_snakes(
@@ -33,8 +34,10 @@ struct GameState;
  */
 template <typename Op, typename... Args>
 GameState over_direction_command_and_snakes(GameState state, Op op, Args&&... args) {
-  state.direction_command = op(state.direction_command, state.snakes, std::forward<Args>(args)...);
-  return state;
+  auto transform = lens(mutate<&GameState::direction_command>,
+                       read<&GameState::snakes>,
+                       std::move(op));
+  return transform(std::move(state), std::forward<Args>(args)...);
 }
 
 /**
@@ -82,11 +85,14 @@ auto with_board_and_snakes(const GameState& state, Op op, Args&&... args) {
 }
 
 // ============================================================================
-// Lens Decorators - Return state transformers for functional composition
+// Lens Decorators - Built on generic lens for consistent behavior
 // ============================================================================
-// Each lens takes an operation (and optional args) and returns a function
-// that transforms GameState. This enables clean pipeline composition without
-// wrapping lambdas: pipe(state, over_snakes(op1), over_food(op2), ...)
+// Each lens is now a thin wrapper around the generic lens implementation.
+// This provides:
+// - Consistent handling of mutable/readonly fields
+// - Automatic pipeline argument forwarding
+// - Automatic threading of additional outputs
+// - Reduced code duplication
 
 /**
  * @brief Lens decorator: Update snakes only
@@ -100,10 +106,7 @@ auto with_board_and_snakes(const GameState& state, Op op, Args&&... args) {
  */
 template <typename Op>
 auto over_snakes(Op op) {
-  return [op = std::move(op)](GameState state, auto&&... args) {
-    state.snakes = op(std::move(state.snakes), std::forward<decltype(args)>(args)...);
-    return state;
-  };
+  return lens(mutate<&GameState::snakes>, read<>, std::move(op));
 }
 
 /**
@@ -115,10 +118,9 @@ auto over_snakes(Op op) {
  */
 template <typename Op>
 auto over_snakes_with_board_and_food(Op op) {
-  return [op = std::move(op)](GameState state) {
-    state.snakes = op(std::move(state.snakes), state.board, state.food_items);
-    return state;
-  };
+  return lens(mutate<&GameState::snakes>,
+              read<&GameState::board, &GameState::food_items>,
+              std::move(op));
 }
 
 /**
@@ -136,24 +138,9 @@ auto over_snakes_with_board_and_food(Op op) {
  */
 template <typename Op>
 auto over_snakes_and_scores(Op op) {
-  return [op = std::move(op)](GameState state) {
-    auto result = op(std::move(state.snakes), std::move(state.scores));
-
-    // Check tuple size to handle both cases
-    if constexpr (std::tuple_size_v<decltype(result)> == 2) {
-      // Simple case: (snakes, scores) → GameState
-      auto& [new_snakes, new_scores] = result;
-      state.snakes = std::move(new_snakes);
-      state.scores = std::move(new_scores);
-      return state;
-    } else {
-      // Extended case: (snakes, scores, additional_result) → (GameState, additional_result)
-      auto& [new_snakes, new_scores, additional_result] = result;
-      state.snakes = std::move(new_snakes);
-      state.scores = std::move(new_scores);
-      return std::make_tuple(std::move(state), std::move(additional_result));
-    }
-  };
+  return lens(mutate<&GameState::snakes, &GameState::scores>,
+              read<>,
+              std::move(op));
 }
 
 /**
@@ -165,13 +152,9 @@ auto over_snakes_and_scores(Op op) {
  */
 template <typename Op>
 auto over_food_and_scores_with_snakes(Op op) {
-  return [op = std::move(op)](GameState state) {
-    auto [new_food, new_scores] = op(std::move(state.food_items), std::move(state.scores),
-                                      state.snakes, state.board);
-    state.food_items = std::move(new_food);
-    state.scores = std::move(new_scores);
-    return state;
-  };
+  return lens(mutate<&GameState::food_items, &GameState::scores>,
+              read<&GameState::snakes, &GameState::board>,
+              std::move(op));
 }
 
 /**
@@ -186,10 +169,7 @@ auto over_food_and_scores_with_snakes(Op op) {
  */
 template <typename Op>
 auto over_food(Op op) {
-  return [op = std::move(op)](GameState state, auto&&... args) {
-    state.food_items = op(std::move(state.food_items), std::forward<decltype(args)>(args)...);
-    return state;
-  };
+  return lens(mutate<&GameState::food_items>, read<>, std::move(op));
 }
 
 /**
@@ -201,10 +181,9 @@ auto over_food(Op op) {
  */
 template <typename Op>
 auto over_food_with_snakes(Op op) {
-  return [op = std::move(op)](GameState state) {
-    state.food_items = op(std::move(state.food_items), state.snakes);
-    return state;
-  };
+  return lens(mutate<&GameState::food_items>,
+              read<&GameState::snakes>,
+              std::move(op));
 }
 
 /**
@@ -216,10 +195,9 @@ auto over_food_with_snakes(Op op) {
  */
 template <typename Op>
 auto over_food_with_board_and_snakes(Op op) {
-  return [op = std::move(op)](GameState state) mutable {
-    state.food_items = op(std::move(state.food_items), state.board, state.snakes);
-    return state;
-  };
+  return lens(mutate<&GameState::food_items>,
+              read<&GameState::board, &GameState::snakes>,
+              std::move(op));
 }
 
 }  // namespace snake
