@@ -359,19 +359,17 @@ static std::vector<Point> dropDeadSnakesAsFood(std::vector<Point> food_items, co
  * @brief Handle snakes eating food
  *
  * If snake head is on food:
- * - Remove eaten food and add replacement
+ * - Remove eaten food
  * - Award points (+10)
  *
  * @param food_items Food (by value)
  * @param scores Scores (by value)
  * @param snakes Snakes (to check head positions)
- * @param board Board dimensions (for generating replacement food)
  * @return Tuple of (updated food, updated scores)
  */
 static std::tuple<std::vector<Point>, std::map<PlayerId, int>> handleFoodEating(std::vector<Point> food_items,
                                                                                 std::map<PlayerId, int> scores,
-                                                                                const std::map<PlayerId, Snake>& snakes,
-                                                                                const Board& board) {
+                                                                                const std::map<PlayerId, Snake>& snakes) {
   for (const auto& [player_id, snake] : snakes) {
     if (!snake.alive) continue;
 
@@ -382,22 +380,45 @@ static std::tuple<std::vector<Point>, std::map<PlayerId, int>> handleFoodEating(
       // Remove eaten food
       food_items.erase(it);
 
-      // Add replacement food
-      static std::random_device rd;
-      static std::mt19937 gen(rd());
-      auto random_int = [&gen](int min, int max) {
-        std::uniform_int_distribution<> dist(min, max);
-        return dist(gen);
-      };
-      Point new_food_pos = generateRandomFoodPosition(board, snakes, random_int);
-      food_items.push_back(new_food_pos);
-
       // Award points
       scores[player_id] += 10;
     }
   }
 
   return {std::move(food_items), std::move(scores)};
+}
+
+/**
+ * @brief Replenish food to maintain target count
+ *
+ * Adds new food items until the target count is reached.
+ *
+ * @param target_count Desired number of food items
+ * @param food_items Food (by value)
+ * @param board Board dimensions
+ * @param snakes Snakes (for position generation)
+ * @return Updated food with new items added
+ */
+static std::vector<Point> replenishFood(int target_count, std::vector<Point> food_items, const Board& board,
+                                        const std::map<PlayerId, Snake>& snakes) {
+  if (food_items.size() >= static_cast<size_t>(target_count)) {
+    return food_items;
+  }
+
+  static std::random_device rd;
+  static std::mt19937 gen(rd());
+  auto random_int = [&gen](int min, int max) {
+    std::uniform_int_distribution<> dist(min, max);
+    return dist(gen);
+  };
+
+  // Add food items until we reach target count
+  while (food_items.size() < static_cast<size_t>(target_count)) {
+    Point new_food_pos = generateRandomFoodPosition(board, snakes, random_int);
+    food_items.push_back(new_food_pos);
+  }
+
+  return food_items;
 }
 
 /**
@@ -495,6 +516,7 @@ void GameSession::onTick() {
       when<0>(isBiteDropFoodMode, over_food(dropCutTailsAsFood)),                    // → state
       when(isBiteDropFoodMode, over_food_with_snakes(dropDeadSnakesAsFood)),         // → state
       over_food_and_scores_with_snakes(handleFoodEating),                            // → state
+      over_food_with_board_and_snakes(bindFront(replenishFood, 5)),                  // → state
       over_food_with_board_and_snakes(bindFront(updateFoodPositions, tick_count_))); // → state
   // clang-format on
 

@@ -111,12 +111,26 @@ auto over_snakes_and_scores(Op op) {
 /**
  * @brief Lens decorator: Update both food and scores with access to snakes
  *
- * @tparam Op Function type: (food, scores, snakes, board) -> (food, scores)
+ * @tparam Op Function type: (food, scores, snakes) -> (food, scores)
  * @param op Operation to apply
  * @return State transformer: GameState -> GameState
  */
 template <typename Op>
 auto over_food_and_scores_with_snakes(Op op) {
+  return lens(mutate<&GameState::food_items, &GameState::scores>,
+              read<&GameState::snakes>,
+              std::move(op));
+}
+
+/**
+ * @brief Lens decorator: Update both food and scores with access to snakes and board
+ *
+ * @tparam Op Function type: (food, scores, snakes, board) -> (food, scores)
+ * @param op Operation to apply
+ * @return State transformer: GameState -> GameState
+ */
+template <typename Op>
+auto over_food_and_scores_with_snakes_and_board(Op op) {
   return lens(mutate<&GameState::food_items, &GameState::scores>,
               read<&GameState::snakes, &GameState::board>,
               std::move(op));
