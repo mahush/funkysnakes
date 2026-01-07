@@ -143,7 +143,7 @@ TEST(GenericLensTest, ComplexTransformation) {
 TEST(GenericLensTest, WithBindFront) {
   // Simulate a function like updateFoodPositions that takes extra param first
   auto updateWithTick = [](int tick, std::vector<Point> food,
-                          const Board& board, const std::map<PlayerId, Snake>& snakes) {
+                          const Board& board, const std::map<PlayerId, Snake>&) {
     // Only update on certain ticks
     if (tick % 3 == 0 && !food.empty()) {
       food[0].x = (food[0].x + 1) % board.width;

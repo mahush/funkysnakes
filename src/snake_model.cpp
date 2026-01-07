@@ -45,6 +45,8 @@ bool bothBiteEachOther(const Snake& a, const Snake& b) {
   return firstBitesSecond(a, b) && firstBitesSecond(b, a);
 }
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
 SnakePair applyBiteRule(SnakePair s) {
   auto rule = cond(
       // Otherwise / default case: return unchanged
@@ -66,5 +68,6 @@ SnakePair applyBiteRule(SnakePair s) {
 
   return rule(s);
 }
+#pragma GCC diagnostic pop
 
 }  // namespace snake
