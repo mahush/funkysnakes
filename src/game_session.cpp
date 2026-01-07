@@ -11,6 +11,7 @@
 #include "snake/functional_utils.hpp"
 #include "snake/game_state_lenses.hpp"
 #include "snake/game_state_views.hpp"
+#include "snake/process_helpers.hpp"
 #include "snake/snake_model.hpp"
 #include "snake/timer/timer_factory.hpp"
 
@@ -463,28 +464,16 @@ GameSession::GameSession(asio::io_context& io, TopicPtr<DirectionChange> directi
 
 void GameSession::processMessages() {
   // Drain direction commands into filtered queues
-  auto add_direction = over_pending_directions_with_snakes(direction_command_filter::try_add);
-  while (auto dir = direction_sub_->tryReceive()) {
-    state_ = add_direction(state_, *dir);
-  }
+  process_message_with_state(direction_sub_, state_,
+                             over_pending_directions_with_snakes(direction_command_filter::try_add));
 
-  auto timer_events = timer_->take_all_elapsed_events();
-  for (const auto& event : timer_events) {
-    (void)event;  // Unused for now
-    onTick();
-  }
+  process_event(timer_, [&](const GameTimerElapsedEvent&) { onTick(); });
 
-  while (auto msg = clock_sub_->tryReceive()) {
-    onGameClockCommand(*msg);
-  }
+  process_message(clock_sub_, [&](const GameClockCommand& msg) { onGameClockCommand(msg); });
 
-  while (auto msg = tickrate_sub_->tryReceive()) {
-    onTickRateChange(*msg);
-  }
+  process_message(tickrate_sub_, [&](const TickRateChange& msg) { onTickRateChange(msg); });
 
-  while (auto msg = levelchange_sub_->tryReceive()) {
-    onLevelChange(*msg);
-  }
+  process_message(levelchange_sub_, [&](const LevelChange& msg) { onLevelChange(msg); });
 }
 
 void GameSession::onTick() {
