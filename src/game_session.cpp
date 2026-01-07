@@ -20,6 +20,9 @@ namespace snake {
 using funkypipes::bindFront;
 using funkypipes::makePipe;
 
+// Random integer generator function type
+using RandomIntFn = std::function<int(int, int)>;
+
 // ============================================================================
 // Basic Game Functions
 // ============================================================================
@@ -367,9 +370,8 @@ static std::vector<Point> dropDeadSnakesAsFood(std::vector<Point> food_items, co
  * @param snakes Snakes (to check head positions)
  * @return Tuple of (updated food, updated scores)
  */
-static std::tuple<std::vector<Point>, std::map<PlayerId, int>> handleFoodEating(std::vector<Point> food_items,
-                                                                                std::map<PlayerId, int> scores,
-                                                                                const std::map<PlayerId, Snake>& snakes) {
+static std::tuple<std::vector<Point>, std::map<PlayerId, int>> handleFoodEating(
+    std::vector<Point> food_items, std::map<PlayerId, int> scores, const std::map<PlayerId, Snake>& snakes) {
   for (const auto& [player_id, snake] : snakes) {
     if (!snake.alive) continue;
 
@@ -393,24 +395,18 @@ static std::tuple<std::vector<Point>, std::map<PlayerId, int>> handleFoodEating(
  *
  * Adds new food items until the target count is reached.
  *
+ * @param random_int Random number generator function
  * @param target_count Desired number of food items
  * @param food_items Food (by value)
  * @param board Board dimensions
  * @param snakes Snakes (for position generation)
  * @return Updated food with new items added
  */
-static std::vector<Point> replenishFood(int target_count, std::vector<Point> food_items, const Board& board,
-                                        const std::map<PlayerId, Snake>& snakes) {
+static std::vector<Point> replenishFood(RandomIntFn random_int, int target_count, std::vector<Point> food_items,
+                                        const Board& board, const std::map<PlayerId, Snake>& snakes) {
   if (food_items.size() >= static_cast<size_t>(target_count)) {
     return food_items;
   }
-
-  static std::random_device rd;
-  static std::mt19937 gen(rd());
-  auto random_int = [&gen](int min, int max) {
-    std::uniform_int_distribution<> dist(min, max);
-    return dist(gen);
-  };
 
   // Add food items until we reach target count
   while (food_items.size() < static_cast<size_t>(target_count)) {
@@ -426,34 +422,51 @@ static std::vector<Point> replenishFood(int target_count, std::vector<Point> foo
  *
  * Every 15 ticks, move one random food item to a new position.
  *
+ * @param random_int Random number generator function
+ * @param tick_count Current tick number
  * @param food_items Food (by value)
  * @param board Board dimensions
  * @param snakes Snakes (for position generation)
- * @param tick_count Current tick number
  * @return Updated food with repositioned item
  */
-static std::vector<Point> updateFoodPositions(int tick_count, std::vector<Point> food_items, const Board& board,
-                                              const std::map<PlayerId, Snake>& snakes) {
+static std::vector<Point> updateFoodPositions(RandomIntFn random_int, int tick_count, std::vector<Point> food_items,
+                                              const Board& board, const std::map<PlayerId, Snake>& snakes) {
   // Only update every 15 ticks
   if (tick_count % 15 != 0 || food_items.empty()) {
     return food_items;
   }
 
-  static std::random_device rd;
-  static std::mt19937 gen(rd());
-
   // Pick random food to move
-  std::uniform_int_distribution<> dist(0, food_items.size() - 1);
-  int food_index = dist(gen);
+  int food_index = random_int(0, food_items.size() - 1);
 
   // Replace with new position
-  auto random_int = [&gen](int min, int max) {
-    std::uniform_int_distribution<> dist(min, max);
-    return dist(gen);
-  };
   food_items[food_index] = generateRandomFoodPosition(board, snakes, random_int);
 
   return food_items;
+}
+
+// ============================================================================
+// Random Number Generation
+// ============================================================================
+
+/**
+ * @brief Create a random integer generator function
+ *
+ * Returns a function that generates random integers in a given range [min, max].
+ * Uses static random_device and mt19937 for thread-safe randomness.
+ *
+ * @return Function that takes (min, max) and returns random int in that range
+ */
+static RandomIntFn makeRandomIntGenerator() {
+  static std::random_device rd;
+  static std::mt19937 gen(rd());
+
+  return [](int min, int max) mutable {
+    static std::random_device rd;
+    static std::mt19937 gen(rd());
+    std::uniform_int_distribution<> dist(min, max);
+    return dist(gen);
+  };
 }
 
 // ============================================================================
@@ -500,6 +513,9 @@ void GameSession::processMessages() {
 void GameSession::onTick() {
   ++tick_count_;
 
+  // Create random number generator for this tick
+  auto random_fn = makeRandomIntGenerator();
+
   // ============================================================================
   // GAME LOGIC PIPELINE - Functional Composition with funkypipes
   // ============================================================================
@@ -509,15 +525,15 @@ void GameSession::onTick() {
 
   // clang-format off
   auto tick_pipeline = makePipe(
-      over_pending_directions(direction_command_filter::try_consume_next),           // → (state, next_directions)
-      over_snakes(applyDirectionChanges),                                            // → state
-      over_snakes_with_board_and_food(moveSnakes),                                   // → state
-      over_snakes_and_scores(handleCollisions),                                      // → (state, cut_tails)
-      when<0>(isBiteDropFoodMode, over_food(dropCutTailsAsFood)),                    // → state
-      when(isBiteDropFoodMode, over_food_with_snakes(dropDeadSnakesAsFood)),         // → state
-      over_food_and_scores_with_snakes(handleFoodEating),                            // → state
-      over_food_with_board_and_snakes(bindFront(replenishFood, 5)),                  // → state
-      over_food_with_board_and_snakes(bindFront(updateFoodPositions, tick_count_))); // → state
+      over_pending_directions(direction_command_filter::try_consume_next),                 // → (state, next_directions)
+      over_snakes(applyDirectionChanges),                                                  // → state
+      over_snakes_with_board_and_food(moveSnakes),                                         // → state
+      over_snakes_and_scores(handleCollisions),                                            // → (state, cut_tails)
+      when<0>(isBiteDropFoodMode, over_food(dropCutTailsAsFood)),                          // → state
+      when(isBiteDropFoodMode, over_food_with_snakes(dropDeadSnakesAsFood)),               // → state
+      over_food_and_scores_with_snakes(handleFoodEating),                                  // → state
+      over_food_with_board_and_snakes(bindFront(replenishFood, random_fn, 5)),             // → state
+      over_food_with_board_and_snakes(bindFront(updateFoodPositions, random_fn, tick_count_))); // → state
   // clang-format on
 
   state_ = tick_pipeline(state_);
@@ -591,12 +607,7 @@ void GameSession::initializeSnake(const PlayerId& player_id) {
 }
 
 void GameSession::initializeFood() {
-  static std::random_device rd;
-  static std::mt19937 gen(rd());
-  auto random_int = [&gen](int min, int max) {
-    std::uniform_int_distribution<> dist(min, max);
-    return dist(gen);
-  };
+  auto random_int = makeRandomIntGenerator();
 
   // Generate 5 random food items
   auto generate_food = with_board_and_snakes(generateRandomFoodPosition);
