@@ -23,6 +23,9 @@ using funkypipes::makePipe;
 // Random integer generator function type
 using RandomIntFn = std::function<int(int, int)>;
 
+// Game configuration constants
+constexpr int MIN_FOOD_COUNT = 5;
+
 // ============================================================================
 // Basic Game Functions
 // ============================================================================
@@ -532,7 +535,7 @@ void GameSession::onTick() {
       when<0>(isBiteDropFoodMode, over_food(dropCutTailsAsFood)),                          // → state
       when(isBiteDropFoodMode, over_food_with_snakes(dropDeadSnakesAsFood)),               // → state
       over_food_and_scores_with_snakes(handleFoodEating),                                  // → state
-      over_food_with_board_and_snakes(bindFront(replenishFood, random_fn, 5)),             // → state
+      over_food_with_board_and_snakes(bindFront(replenishFood, random_fn, MIN_FOOD_COUNT)),             // → state
       over_food_with_board_and_snakes(bindFront(updateFoodPositions, random_fn, tick_count_))); // → state
   // clang-format on
 
@@ -609,9 +612,9 @@ void GameSession::initializeSnake(const PlayerId& player_id) {
 void GameSession::initializeFood() {
   auto random_int = makeRandomIntGenerator();
 
-  // Generate 5 random food items
+  // Generate MIN_FOOD_COUNT random food items
   auto generate_food = with_board_and_snakes(generateRandomFoodPosition);
-  for (int i = 0; i < 5; ++i) {
+  for (int i = 0; i < MIN_FOOD_COUNT; ++i) {
     state_.food_items.push_back(generate_food(state_, random_int));
   }
   std::cout << "[GameSession] Initialized " << state_.food_items.size() << " food items\n";
