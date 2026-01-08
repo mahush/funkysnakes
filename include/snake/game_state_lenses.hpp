@@ -109,6 +109,23 @@ auto over_snakes_and_scores(Op op) {
 }
 
 /**
+ * @brief Lens decorator: Update snakes, scores, and pending directions together
+ *
+ * Used for player initialization and other operations that need to update
+ * all three player-related collections atomically.
+ *
+ * @tparam Op Function type: (snakes, scores, pending_directions) -> (snakes, scores, pending_directions)
+ * @param op Operation to apply
+ * @return State transformer: GameState -> GameState
+ */
+template <typename Op>
+auto over_snakes_scores_and_pending_directions(Op op) {
+  return lens(mutate<&GameState::snakes, &GameState::scores, &GameState::pending_directions>,
+              read<>,
+              std::move(op));
+}
+
+/**
  * @brief Lens decorator: Update both food and scores with access to snakes
  *
  * @tparam Op Function type: (food, scores, snakes) -> (food, scores)

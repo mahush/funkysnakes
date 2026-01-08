@@ -60,10 +60,6 @@ class GameSession : public Actor<GameSession> {
   void onTickRateChange(const TickRateChange& msg);
   void onLevelChange(const LevelChange& msg);
 
-  // Game initialization helpers
-  void initializeSnake(const PlayerId& player_id);
-  void initializeFood();
-
   // Publishers for sending messages
   PublisherPtr<StateUpdate> state_pub_;
 

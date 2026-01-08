@@ -64,6 +64,36 @@ Snake growSnake(Snake snake, const Board& board);
 std::tuple<Snake, std::vector<Point>> cutSnakeTailAt(Snake snake, Point cut_point);
 
 // ============================================================================
+// Player Initialization
+// ============================================================================
+
+/**
+ * @brief Add a new player to the game
+ *
+ * Creates a snake at the specified position, initializes score to 0,
+ * and sets up an empty direction queue for the player.
+ *
+ * Parameter order: bound parameters first (for bindFront compatibility),
+ * then state parameters (snakes, scores, pending_directions).
+ *
+ * @param player_id Player identifier
+ * @param start_position Starting position for snake head
+ * @param initial_direction Initial movement direction
+ * @param snake_length Initial snake length
+ * @param snakes Current snakes map (by value)
+ * @param scores Current scores map (by value)
+ * @param pending_directions Current direction queues (by value)
+ * @return Tuple of (updated snakes, updated scores, updated direction queues)
+ */
+std::tuple<PerPlayerSnakes, PerPlayerScores, PerPlayerDirectionQueue> addPlayer(PlayerId player_id,
+                                                                                  Point start_position,
+                                                                                  Direction initial_direction,
+                                                                                  int snake_length,
+                                                                                  PerPlayerSnakes snakes,
+                                                                                  PerPlayerScores scores,
+                                                                                  PerPlayerDirectionQueue pending_directions);
+
+// ============================================================================
 // Game Logic Operations on Snakes
 // ============================================================================
 

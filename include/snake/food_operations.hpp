@@ -70,6 +70,24 @@ std::tuple<FoodItems, PerPlayerScores> handleFoodEating(FoodItems food_items, Pe
                                                          const PerPlayerSnakes& snakes);
 
 /**
+ * @brief Initialize food items to a target count
+ *
+ * Creates food items from scratch (starting with empty list).
+ * Thin wrapper around replenishFood for semantic clarity.
+ *
+ * Parameter order: bound parameters first (for bindFront), then lens parameters (food, board, snakes).
+ * Note: food_items parameter is unused since we initialize from scratch.
+ *
+ * @param random_int Random number generator function
+ * @param count Number of food items to create
+ * @param food_items Current food items (unused - for lens compatibility)
+ * @param board Board dimensions
+ * @param snakes Snakes (for position generation)
+ * @return Food items list with specified count
+ */
+FoodItems initializeFood(RandomIntFn random_int, int count, FoodItems food_items, const Board& board, const PerPlayerSnakes& snakes);
+
+/**
  * @brief Replenish food to maintain target count
  *
  * Adds new food items until the target count is reached.

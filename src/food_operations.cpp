@@ -80,6 +80,11 @@ std::tuple<FoodItems, PerPlayerScores> handleFoodEating(FoodItems food_items, Pe
   return {std::move(food_items), std::move(scores)};
 }
 
+FoodItems initializeFood(RandomIntFn random_int, int count, FoodItems /* food_items */, const Board& board, const PerPlayerSnakes& snakes) {
+  // Ignore current food_items and initialize from scratch
+  return replenishFood(random_int, count, {}, board, snakes);
+}
+
 FoodItems replenishFood(RandomIntFn random_int, int target_count, FoodItems food_items,
                                  const Board& board, const PerPlayerSnakes& snakes) {
   if (food_items.size() >= static_cast<size_t>(target_count)) {

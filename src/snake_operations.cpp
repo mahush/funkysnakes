@@ -106,6 +106,53 @@ std::tuple<Snake, std::vector<Point>> cutSnakeTailAt(Snake snake, Point cut_poin
 }
 
 // ============================================================================
+// Player Initialization
+// ============================================================================
+
+std::tuple<PerPlayerSnakes, PerPlayerScores, PerPlayerDirectionQueue> addPlayer(PlayerId player_id,
+                                                                                  Point start_position,
+                                                                                  Direction initial_direction,
+                                                                                  int snake_length,
+                                                                                  PerPlayerSnakes snakes,
+                                                                                  PerPlayerScores scores,
+                                                                                  PerPlayerDirectionQueue pending_directions) {
+  // Create snake tail extending backwards from start position
+  Point head = start_position;
+  std::vector<Point> tail;
+  for (int i = 1; i < snake_length; ++i) {
+    // Extend tail in opposite direction of initial movement
+    Point tail_segment = start_position;
+    switch (initial_direction) {
+      case Direction::RIGHT:
+        tail_segment.x = start_position.x - i;
+        break;
+      case Direction::LEFT:
+        tail_segment.x = start_position.x + i;
+        break;
+      case Direction::DOWN:
+        tail_segment.y = start_position.y - i;
+        break;
+      case Direction::UP:
+        tail_segment.y = start_position.y + i;
+        break;
+    }
+    tail.push_back(tail_segment);
+  }
+
+  // Create and add snake
+  Snake snake{head, tail, initial_direction, true};
+  snakes[player_id] = snake;
+
+  // Initialize score
+  scores[player_id] = 0;
+
+  // Initialize empty direction queue
+  pending_directions[player_id] = std::deque<Direction>{};
+
+  return {std::move(snakes), std::move(scores), std::move(pending_directions)};
+}
+
+// ============================================================================
 // Game Logic Operations on Snakes
 // ============================================================================
 

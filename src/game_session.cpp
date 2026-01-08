@@ -78,12 +78,17 @@ GameSession::GameSession(asio::io_context& io, TopicPtr<DirectionChange> directi
   state_.board.width = 60;
   state_.board.height = 20;
 
-  // Initialize snakes for player1 and player2
-  initializeSnake("player1");
-  initializeSnake("player2");
+  // Initialize players
+  apply_to_state(state_, over_snakes_scores_and_pending_directions(
+                             bindFront(addPlayer, PlayerId{"player1"}, Point{5, 10}, Direction::RIGHT, 7)));
+  apply_to_state(state_, over_snakes_scores_and_pending_directions(
+                             bindFront(addPlayer, PlayerId{"player2"}, Point{5, 15}, Direction::RIGHT, 7)));
 
   // Initialize food items
-  initializeFood();
+  apply_to_state(state_,
+                 over_food_with_board_and_snakes(bindFront(initializeFood, makeRandomIntGenerator(), MIN_FOOD_COUNT)));
+
+  std::cout << "[GameSession] Initialized " << state_.food_items.size() << " food items\n";
 }
 
 void GameSession::processMessages() {
@@ -103,9 +108,6 @@ void GameSession::processMessages() {
 void GameSession::onTick() {
   ++tick_count_;
 
-  // Create random number generator for this tick
-  auto random_fn = makeRandomIntGenerator();
-
   // ============================================================================
   // GAME LOGIC PIPELINE - Functional Composition with funkypipes
   // ============================================================================
@@ -115,15 +117,15 @@ void GameSession::onTick() {
 
   // clang-format off
   auto tick_pipeline = makePipe(
-      over_pending_directions(direction_command_filter::try_consume_next),                 // → (state, next_directions)
-      over_snakes(applyDirectionChanges),                                                  // → state
-      over_snakes_with_board_and_food(moveSnakes),                                         // → state
-      over_snakes_and_scores(handleCollisions),                                            // → (state, cut_tails)
-      when<0>(isBiteDropFoodMode, over_food(dropCutTailsAsFood)),                          // → state
-      when(isBiteDropFoodMode, over_food_with_snakes(dropDeadSnakesAsFood)),               // → state
-      over_food_and_scores_with_snakes(handleFoodEating),                                  // → state
-      over_food_with_board_and_snakes(bindFront(replenishFood, random_fn, MIN_FOOD_COUNT)),             // → state
-      over_food_with_board_and_snakes(bindFront(updateFoodPositions, random_fn, tick_count_))); // → state
+      over_pending_directions(direction_command_filter::try_consume_next),                                     // → (state, next_directions)
+      over_snakes(applyDirectionChanges),                                                                      // → state
+      over_snakes_with_board_and_food(moveSnakes),                                                             // → state
+      over_snakes_and_scores(handleCollisions),                                                                // → (state, cut_tails)
+      when<0>(isBiteDropFoodMode, over_food(dropCutTailsAsFood)),                                              // → state
+      when(isBiteDropFoodMode, over_food_with_snakes(dropDeadSnakesAsFood)),                                   // → state
+      over_food_and_scores_with_snakes(handleFoodEating),                                                      // → state
+      over_food_with_board_and_snakes(bindFront(replenishFood, makeRandomIntGenerator(), MIN_FOOD_COUNT)),     // → state
+      over_food_with_board_and_snakes(bindFront(updateFoodPositions, makeRandomIntGenerator(), tick_count_))); // → state
   // clang-format on
 
   state_ = tick_pipeline(state_);
@@ -168,43 +170,4 @@ void GameSession::onLevelChange(const LevelChange& msg) {
   std::cout << "[GameSession] Level changed to " << msg.new_level << "\n";
   state_.level = msg.new_level;
 }
-
-void GameSession::initializeSnake(const PlayerId& player_id) {
-  // Position snakes at different y-levels
-  int y_pos = (player_id == "player1") ? 10 : 15;
-  int start_x = 5;
-
-  // Create a snake of length 7, moving right
-  // Head at front, tail behind it
-  Point head = {start_x, y_pos};
-  std::vector<Point> tail;
-  for (int i = 1; i < 7; ++i) {
-    tail.push_back({start_x - i, y_pos});
-  }
-
-  Snake snake{head, tail, Direction::RIGHT, true};
-
-  // Insert snake into map using player_id as key
-  state_.snakes[player_id] = snake;
-
-  // Initialize score in GameState
-  state_.scores[player_id] = 0;
-
-  // Initialize pending direction queue for this player
-  state_.pending_directions[player_id] = std::deque<Direction>{};
-
-  std::cout << "[GameSession] Initialized snake for '" << player_id << "' at y=" << y_pos << "\n";
-}
-
-void GameSession::initializeFood() {
-  auto random_int = makeRandomIntGenerator();
-
-  // Generate MIN_FOOD_COUNT random food items
-  auto generate_food = with_board_and_snakes(generateRandomFoodPosition);
-  for (int i = 0; i < MIN_FOOD_COUNT; ++i) {
-    state_.food_items.push_back(generate_food(state_, random_int));
-  }
-  std::cout << "[GameSession] Initialized " << state_.food_items.size() << " food items\n";
-}
-
 }  // namespace snake
