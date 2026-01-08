@@ -150,6 +150,31 @@ void apply_to_state(State& state, Transformer&& transformer);
 ```
 
 This convention makes it immediately clear which template parameters expect callable objects.
+
+### Parameter Ordering for bindFront
+
+**Rule:** Functions used with `bindFront` must have bound parameters **first**, before lens-provided parameters.
+
+```cpp
+// Correct: bound params first, lens params last
+ReturnType func(BoundParam1, BoundParam2, LensParam1, LensParam2);
+
+// Usage with bindFront
+state = over_lens_params(bindFront(func, bound_arg1, bound_arg2))(state);
+```
+
+**Example:**
+```cpp
+// addPlayer: bound (player_id, pos, dir, len) then lens (snakes, scores, dirs)
+std::tuple<PerPlayerSnakes, PerPlayerScores, PerPlayerDirectionQueue>
+addPlayer(PlayerId player_id, Point pos, Direction dir, int len,
+          PerPlayerSnakes snakes, PerPlayerScores scores, PerPlayerDirectionQueue dirs);
+
+state = over_snakes_scores_and_pending_directions(
+    bindFront(addPlayer, PlayerId{"p1"}, Point{5, 10}, Direction::RIGHT, 7)
+)(state);
+```
+
 ## Important Implementation Notes
 
 ### Actor Creation
