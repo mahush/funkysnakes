@@ -132,6 +132,24 @@ Point pos = with_board_and_snakes(state, generateRandomPosition);
 **Rationale:**
 Functions starting with `over_` clearly signal "focus and modify part of state"; `over_each_` signals iteration with modification; `with_` signals read-only extraction. This keeps transformations declarative, composable, and easily searchable.
 
+### Template Parameter Naming for Callables
+
+**Rule:** Template parameters representing callable objects (functions, lambdas, functors) should be suffixed with `Fn`.
+
+```cpp
+// Correct: callable parameters suffixed with Fn
+template <typename State, typename TransformerFn>
+void apply_to_state(State& state, TransformerFn&& transformer);
+
+template <typename Msg, typename HandlerFn>
+void process_message(const Subscription<Msg>& sub, HandlerFn&& handler);
+
+// Incorrect: no suffix
+template <typename State, typename Transformer>  // ❌
+void apply_to_state(State& state, Transformer&& transformer);
+```
+
+This convention makes it immediately clear which template parameters expect callable objects.
 ## Important Implementation Notes
 
 ### Actor Creation
