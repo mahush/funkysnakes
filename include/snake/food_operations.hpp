@@ -1,16 +1,13 @@
 #ifndef SNAKE_FOOD_OPERATIONS_HPP
 #define SNAKE_FOOD_OPERATIONS_HPP
 
-#include <functional>
 #include <tuple>
 #include <vector>
 
 #include "snake/game_types.hpp"
+#include "snake/utility.hpp"
 
 namespace snake {
-
-// Random integer generator function type
-using RandomIntFn = std::function<int(int, int)>;
 
 // ============================================================================
 // Food Position Generation
@@ -24,7 +21,7 @@ using RandomIntFn = std::function<int(int, int)>;
  * @param random_int Function that generates random int in range [min, max]
  * @return Random unoccupied position (or random position if all attempts fail)
  */
-Point generateRandomFoodPosition(const Board& board, const PerPlayerSnakes& snakes, RandomIntFn random_int);
+Point generateRandomFoodPosition(const Board& board, const PerPlayerSnakes& snakes, RandomIntGeneratorFn random_int);
 
 // ============================================================================
 // Food Transformation Operations
@@ -85,7 +82,7 @@ std::tuple<FoodItems, PerPlayerScores> handleFoodEating(FoodItems food_items, Pe
  * @param snakes Snakes (for position generation)
  * @return Food items list with specified count
  */
-FoodItems initializeFood(RandomIntFn random_int, int count, FoodItems food_items, const Board& board, const PerPlayerSnakes& snakes);
+FoodItems initializeFood(RandomIntGeneratorFn random_int, int count, FoodItems food_items, const Board& board, const PerPlayerSnakes& snakes);
 
 /**
  * @brief Replenish food to maintain target count
@@ -99,7 +96,7 @@ FoodItems initializeFood(RandomIntFn random_int, int count, FoodItems food_items
  * @param snakes Snakes (for position generation)
  * @return Updated food with new items added
  */
-FoodItems replenishFood(RandomIntFn random_int, int target_count, FoodItems food_items, const Board& board,
+FoodItems replenishFood(RandomIntGeneratorFn random_int, int target_count, FoodItems food_items, const Board& board,
                         const PerPlayerSnakes& snakes);
 
 /**
@@ -114,7 +111,7 @@ FoodItems replenishFood(RandomIntFn random_int, int target_count, FoodItems food
  * @param snakes Snakes (for position generation)
  * @return Updated food with repositioned item
  */
-FoodItems updateFoodPositions(RandomIntFn random_int, int tick_count, FoodItems food_items, const Board& board,
+FoodItems updateFoodPositions(RandomIntGeneratorFn random_int, int tick_count, FoodItems food_items, const Board& board,
                               const PerPlayerSnakes& snakes);
 
 }  // namespace snake

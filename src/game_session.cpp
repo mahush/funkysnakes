@@ -1,7 +1,6 @@
 #include "snake/game_session.hpp"
 
 #include <iostream>
-#include <random>
 
 #include "funkypipes/bind_front.hpp"
 #include "funkypipes/make_pipe.hpp"
@@ -14,6 +13,7 @@
 #include "snake/snake_model.hpp"
 #include "snake/snake_operations.hpp"
 #include "snake/timer/timer_factory.hpp"
+#include "snake/utility.hpp"
 
 namespace snake {
 
@@ -34,30 +34,6 @@ constexpr int MIN_FOOD_COUNT = 5;
  * @return true if collision mode is BITE_DROP_FOOD
  */
 static bool isBiteDropFoodMode(const GameState& state) { return state.collision_mode == CollisionMode::BITE_DROP_FOOD; }
-
-// ============================================================================
-// Random Number Generation
-// ============================================================================
-
-/**
- * @brief Create a random integer generator function
- *
- * Returns a function that generates random integers in a given range [min, max].
- * Uses static random_device and mt19937 for thread-safe randomness.
- *
- * @return Function that takes (min, max) and returns random int in that range
- */
-static RandomIntFn makeRandomIntGenerator() {
-  static std::random_device rd;
-  static std::mt19937 gen(rd());
-
-  return [](int min, int max) mutable {
-    static std::random_device rd;
-    static std::mt19937 gen(rd());
-    std::uniform_int_distribution<> dist(min, max);
-    return dist(gen);
-  };
-}
 
 // ============================================================================
 // GameSession implementation

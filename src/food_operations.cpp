@@ -8,7 +8,7 @@ namespace snake {
 // Food Position Generation
 // ============================================================================
 
-Point generateRandomFoodPosition(const Board& board, const PerPlayerSnakes& snakes, RandomIntFn random_int) {
+Point generateRandomFoodPosition(const Board& board, const PerPlayerSnakes& snakes, RandomIntGeneratorFn random_int) {
   // Try to find a position not occupied by snakes
   // Max 100 attempts to avoid infinite loop
   for (int attempt = 0; attempt < 100; ++attempt) {
@@ -80,12 +80,12 @@ std::tuple<FoodItems, PerPlayerScores> handleFoodEating(FoodItems food_items, Pe
   return {std::move(food_items), std::move(scores)};
 }
 
-FoodItems initializeFood(RandomIntFn random_int, int count, FoodItems /* food_items */, const Board& board, const PerPlayerSnakes& snakes) {
+FoodItems initializeFood(RandomIntGeneratorFn random_int, int count, FoodItems /* food_items */, const Board& board, const PerPlayerSnakes& snakes) {
   // Ignore current food_items and initialize from scratch
   return replenishFood(random_int, count, {}, board, snakes);
 }
 
-FoodItems replenishFood(RandomIntFn random_int, int target_count, FoodItems food_items,
+FoodItems replenishFood(RandomIntGeneratorFn random_int, int target_count, FoodItems food_items,
                                  const Board& board, const PerPlayerSnakes& snakes) {
   if (food_items.size() >= static_cast<size_t>(target_count)) {
     return food_items;
@@ -100,7 +100,7 @@ FoodItems replenishFood(RandomIntFn random_int, int target_count, FoodItems food
   return food_items;
 }
 
-FoodItems updateFoodPositions(RandomIntFn random_int, int tick_count, FoodItems food_items,
+FoodItems updateFoodPositions(RandomIntGeneratorFn random_int, int tick_count, FoodItems food_items,
                                        const Board& board, const PerPlayerSnakes& snakes) {
   // Only update every 15 ticks
   if (tick_count % 15 != 0 || food_items.empty()) {
