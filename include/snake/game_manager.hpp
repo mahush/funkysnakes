@@ -25,7 +25,7 @@ using RepositionTimerPtr = std::shared_ptr<RepositionTimer>;
  *
  * GameManager supervises all game sessions and handles high-level
  * game control (start, stop, player join/leave).
- * Sends game clock control commands to GameSession.
+ * Sends game clock control commands to GameEngine.
  */
 class GameManager : public Actor<GameManager> {
  public:

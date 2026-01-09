@@ -2,7 +2,7 @@
 
 #include "mock_actors.hpp"
 #include "snake/game_manager.hpp"
-#include "snake/game_session.hpp"
+#include "snake/game_engine.hpp"
 #include "snake/input_actor.hpp"
 #include "snake/renderer.hpp"
 #include "snake/timer/timer_factory.hpp"
@@ -70,8 +70,8 @@ TEST(ActorTest, GameManager_CoordinatesStartGame) {
   SUCCEED();
 }
 
-// Test GameSession handles clock commands
-TEST(ActorTest, GameSession_HandlesClockCommands) {
+// Test GameEngine handles clock commands
+TEST(ActorTest, GameEngine_HandlesClockCommands) {
   asio::io_context io;
 
   // Create timer factory
@@ -85,9 +85,9 @@ TEST(ActorTest, GameSession_HandlesClockCommands) {
   auto level_topic = std::make_shared<Topic<LevelChange>>();
   auto reposition_topic = std::make_shared<Topic<FoodRepositionTrigger>>();
 
-  // Create GameSession
-  auto session =
-      GameSession::create(io, direction_topic, state_topic, clock_topic, tickrate_topic, level_topic, reposition_topic, timer_factory);
+  // Create GameEngine
+  auto engine =
+      GameEngine::create(io, direction_topic, state_topic, clock_topic, tickrate_topic, level_topic, reposition_topic, timer_factory);
 
   // Create publisher to send clock commands
   Publisher<GameClockCommand> clock_pub{clock_topic};
@@ -105,7 +105,7 @@ TEST(ActorTest, GameSession_HandlesClockCommands) {
   // Process all commands
   io.run();
 
-  // Verify no crash - session should handle START/STOP commands
+  // Verify no crash - engine should handle START/STOP commands
   SUCCEED();
 }
 

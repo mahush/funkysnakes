@@ -1,4 +1,4 @@
-#include "snake/game_session.hpp"
+#include "snake/game_engine.hpp"
 
 #include <iostream>
 
@@ -44,10 +44,10 @@ static bool isBiteDropFoodMode(const GameState& state) { return state.collision_
 static bool shouldRepositionFood(const GameState& state) { return state.should_reposition_food; }
 
 // ============================================================================
-// GameSession implementation
+// GameEngine implementation
 // ============================================================================
 
-GameSession::GameSession(asio::io_context& io, TopicPtr<DirectionChange> direction_topic,
+GameEngine::GameEngine(asio::io_context& io, TopicPtr<DirectionChange> direction_topic,
                          TopicPtr<StateUpdate> state_topic, TopicPtr<GameClockCommand> clock_topic,
                          TopicPtr<TickRateChange> tickrate_topic, TopicPtr<LevelChange> levelchange_topic,
                          TopicPtr<FoodRepositionTrigger> reposition_topic, TimerFactoryPtr timer_factory)
@@ -73,10 +73,10 @@ GameSession::GameSession(asio::io_context& io, TopicPtr<DirectionChange> directi
   apply_to_state(state_,
                  over_food_with_board_and_snakes(bindFront(initializeFood, makeRandomIntGenerator(), MIN_FOOD_COUNT)));
 
-  std::cout << "[GameSession] Initialized " << state_.food_items.size() << " food items\n";
+  std::cout << "[GameEngine] Initialized " << state_.food_items.size() << " food items\n";
 }
 
-void GameSession::processMessages() {
+void GameEngine::processMessages() {
   // Drain direction commands into filtered queues
   process_message_with_state(direction_sub_, state_,
                              over_pending_directions_with_snakes(direction_command_filter::try_add));
@@ -93,7 +93,7 @@ void GameSession::processMessages() {
   process_message(reposition_sub_, [&](const FoodRepositionTrigger&) { state_.should_reposition_food = true; });
 }
 
-void GameSession::onTick() {
+void GameEngine::onTick() {
   ++tick_count_;
 
   // ============================================================================
@@ -128,32 +128,32 @@ void GameSession::onTick() {
   state_pub_->publish(StateUpdate{state_});
 }
 
-void GameSession::onGameClockCommand(const GameClockCommand& msg) {
+void GameEngine::onGameClockCommand(const GameClockCommand& msg) {
   switch (msg.state) {
     case GameClockState::START:
-      std::cout << "[GameSession] Starting internal timer\n";
+      std::cout << "[GameEngine] Starting internal timer\n";
       timer_->execute_command(make_periodic_command<GameTimerTag>(std::chrono::milliseconds(interval_ms_)));
       break;
 
     case GameClockState::STOP:
-      std::cout << "[GameSession] Stopping internal timer\n";
+      std::cout << "[GameEngine] Stopping internal timer\n";
       timer_->execute_command(make_cancel_command<GameTimerTag>());
       break;
 
     case GameClockState::PAUSE:
-      std::cout << "[GameSession] Pausing game\n";
+      std::cout << "[GameEngine] Pausing game\n";
       timer_->execute_command(make_cancel_command<GameTimerTag>());
       break;
 
     case GameClockState::RESUME:
-      std::cout << "[GameSession] Resuming game\n";
+      std::cout << "[GameEngine] Resuming game\n";
       timer_->execute_command(make_periodic_command<GameTimerTag>(std::chrono::milliseconds(interval_ms_)));
       break;
   }
 }
 
-void GameSession::onTickRateChange(const TickRateChange& msg) {
-  std::cout << "[GameSession] Changing tick rate to " << msg.interval_ms << "ms\n";
+void GameEngine::onTickRateChange(const TickRateChange& msg) {
+  std::cout << "[GameEngine] Changing tick rate to " << msg.interval_ms << "ms\n";
   interval_ms_ = msg.interval_ms;
 
   // If timer is currently running, restart it with new interval
@@ -162,8 +162,8 @@ void GameSession::onTickRateChange(const TickRateChange& msg) {
   }
 }
 
-void GameSession::onLevelChange(const LevelChange& msg) {
-  std::cout << "[GameSession] Level changed to " << msg.new_level << "\n";
+void GameEngine::onLevelChange(const LevelChange& msg) {
+  std::cout << "[GameEngine] Level changed to " << msg.new_level << "\n";
   state_.level = msg.new_level;
 }
 }  // namespace snake

@@ -60,7 +60,7 @@ void GameManager::onStartGame(const StartGame& msg) {
 
   current_game_id_ = "game_001";
 
-  // Send START command to GameSession (will use default 200ms interval)
+  // Send START command to GameEngine (will use default 200ms interval)
   GameClockCommand cmd;
   cmd.game_id = current_game_id_;
   cmd.state = GameClockState::START;
@@ -80,7 +80,7 @@ void GameManager::onGameOver(const GameOver& msg) {
   // Stop food reposition timer
   timer_->execute_command(make_cancel_command<RepositionTimerTag>());
 
-  // Send STOP command to GameSession
+  // Send STOP command to GameEngine
   GameClockCommand cmd;
   cmd.game_id = msg.summary.game_id;
   cmd.state = GameClockState::STOP;

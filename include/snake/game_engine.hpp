@@ -12,7 +12,7 @@
 
 namespace snake {
 
-// Timer type definitions for GameSession
+// Timer type definitions for GameEngine
 struct GameTimerTag {};
 using GameTimerElapsedEvent = TimerElapsedEvent<GameTimerTag>;
 using GameTimerCommand = TimerCommand<GameTimerTag>;
@@ -22,20 +22,20 @@ using GameTimerPtr = std::shared_ptr<GameTimer>;
 /**
  * @brief Core game engine - manages game state and logic
  *
- * GameSession holds all game state: board, snakes, food, scores, level.
+ * GameEngine holds all game state: board, snakes, food, scores, level.
  * Processes ticks, direction changes, and game logic.
  * Sends state updates and clock control messages via topics.
  */
-class GameSession : public Actor<GameSession> {
+class GameEngine : public Actor<GameEngine> {
  public:
   // Process messages from subscribed topics
   void processMessages() override;
 
  protected:
-  friend class Actor<GameSession>;
+  friend class Actor<GameEngine>;
 
   /**
-   * @brief Construct a new Game Session
+   * @brief Construct a new Game Engine
    * @param io The io_context for async operations
    * @param direction_topic Topic to subscribe for direction changes
    * @param state_topic Topic to publish state updates
@@ -45,14 +45,14 @@ class GameSession : public Actor<GameSession> {
    * @param reposition_topic Topic to subscribe for food reposition triggers
    * @param timer_factory Factory for creating timers
    */
-  GameSession(asio::io_context& io,
-              TopicPtr<DirectionChange> direction_topic,
-              TopicPtr<StateUpdate> state_topic,
-              TopicPtr<GameClockCommand> clock_topic,
-              TopicPtr<TickRateChange> tickrate_topic,
-              TopicPtr<LevelChange> levelchange_topic,
-              TopicPtr<FoodRepositionTrigger> reposition_topic,
-              TimerFactoryPtr timer_factory);
+  GameEngine(asio::io_context& io,
+             TopicPtr<DirectionChange> direction_topic,
+             TopicPtr<StateUpdate> state_topic,
+             TopicPtr<GameClockCommand> clock_topic,
+             TopicPtr<TickRateChange> tickrate_topic,
+             TopicPtr<LevelChange> levelchange_topic,
+             TopicPtr<FoodRepositionTrigger> reposition_topic,
+             TimerFactoryPtr timer_factory);
 
  private:
   void onTick();

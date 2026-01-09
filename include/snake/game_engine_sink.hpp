@@ -5,14 +5,14 @@
 namespace snake {
 
 /**
- * @brief Interface for components that can receive game session commands
+ * @brief Interface for components that can receive game engine commands
  *
- * GameSession implements this interface.
+ * GameEngine implements this interface.
  * Allows for mocking in tests.
  */
-class GameSessionSink {
+class GameEngineSink {
  public:
-  virtual ~GameSessionSink() = default;
+  virtual ~GameEngineSink() = default;
 
   /**
    * @brief Handle a game tick

@@ -3,7 +3,7 @@
 #include <thread>
 
 #include "snake/game_manager.hpp"
-#include "snake/game_session.hpp"
+#include "snake/game_engine.hpp"
 #include "snake/input_actor.hpp"
 #include "snake/renderer.hpp"
 #include "snake/timer/timer_factory.hpp"
@@ -34,8 +34,8 @@ int main() {
   // Create actors using factory methods - clean single-stage construction!
   auto renderer = snake::Renderer::create(io, state_topic, gameover_topic, level_topic);
 
-  auto session = snake::GameSession::create(io, direction_topic, state_topic, clock_topic, tickrate_topic, level_topic,
-                                            reposition_topic, timer_factory);
+  auto engine = snake::GameEngine::create(io, direction_topic, state_topic, clock_topic, tickrate_topic, level_topic,
+                                          reposition_topic, timer_factory);
 
   auto manager = snake::GameManager::create(io, gameover_topic, clock_topic, joinrequest_topic, leaverequest_topic,
                                             startgame_topic, reposition_topic, timer_factory);
