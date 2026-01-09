@@ -66,6 +66,27 @@ void process_event(const std::shared_ptr<Timer>& timer, HandlerFn&& handler) {
 }
 
 /**
+ * @brief Higher-order function to process all timer events with state transformation
+ *
+ * Takes all elapsed events from timer and applies handler to each,
+ * passing state and event, then assigns the result back to state.
+ *
+ * @tparam Timer Timer type
+ * @tparam State State type
+ * @tparam HandlerFn Function type (State, Event) -> State
+ * @param timer Timer to take events from
+ * @param state State reference to pass and update
+ * @param handler Function to call with state and each event
+ */
+template <typename Timer, typename State, typename HandlerFn>
+void process_event_with_state(const std::shared_ptr<Timer>& timer, State& state, HandlerFn&& handler) {
+  auto timer_events = timer->take_all_elapsed_events();
+  for (const auto& event : timer_events) {
+    state = handler(state, event);
+  }
+}
+
+/**
  * @brief Higher-order function to apply state transformation
  *
  * Applies a state transformer (e.g., lens) to state and assigns result back.

@@ -17,6 +17,7 @@ struct GameState {
   Board board;                                                  // Board dimensions
   CollisionMode collision_mode{CollisionMode::BITE_DROP_FOOD};  // Collision handling mode
   int level{1};
+  int interval_ms{200};                                         // Tick interval in milliseconds
   bool should_reposition_food{false};                           // Flag: reposition food this tick
 };
 

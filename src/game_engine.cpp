@@ -53,6 +53,122 @@ static GameState clearRepositionFlag(GameState state) {
   return state;
 }
 
+/**
+ * @brief Handle a game tick - process game logic and publish state
+ *
+ * @param state_pub Publisher for state updates
+ * @param state Current game state
+ * @param event Timer elapsed event (unused, required for signature)
+ * @return Updated game state after tick processing
+ */
+static GameState handleTick(PublisherPtr<StateUpdate> state_pub, GameState state, const GameTimerElapsedEvent& event) {
+  // ============================================================================
+  // GAME LOGIC PIPELINE - Functional Composition with funkypipes
+  // ============================================================================
+  // makePipe automatically unpacks tuples between stages
+  // When a function returns tuple<A, B>, the next function receives (A, B) as separate args
+  // Lenses are decorators that return state transformers
+
+  // clang-format off
+  auto tick_pipeline = makePipe(
+      over_pending_directions(direction_command_filter::try_consume_next),                                     // → (state, next_directions)
+      over_snakes(applyDirectionChanges),                                                                      // → state
+      over_snakes_with_board_and_food(moveSnakes),                                                             // → state
+      over_snakes_and_scores(handleCollisions),                                                                // → (state, cut_tails)
+      when<0>(isBiteDropFoodMode, over_food(dropCutTailsAsFood)),                                              // → state
+      when(isBiteDropFoodMode, over_food_with_snakes(dropDeadSnakesAsFood)),                                   // → state
+      over_food_and_scores_with_snakes(handleFoodEating),                                                      // → state
+      over_food_with_board_and_snakes(bindFront(replenishFood, makeRandomIntGenerator(), MIN_FOOD_COUNT)),     // → state
+      when(shouldRepositionFood,
+           over_food_with_board_and_snakes(bindFront(repositionRandomFood, makeRandomIntGenerator()))),        // → state
+      clearRepositionFlag);                                                                                     // → state (clear flag)
+  // clang-format on
+
+  state = tick_pipeline(state);
+  state_pub->publish(StateUpdate{state});
+  return state;
+}
+
+/**
+ * @brief Handle game clock command (start/stop/pause/resume)
+ *
+ * @param timer Game timer to control
+ * @param state Current game state
+ * @param msg Clock command message
+ * @return Updated game state (unchanged)
+ */
+static GameState handleGameClockCommand(GameTimerPtr timer, GameState state, const GameClockCommand& msg) {
+  switch (msg.state) {
+    case GameClockState::START:
+      std::cout << "[GameEngine] Starting internal timer\n";
+      timer->execute_command(make_periodic_command<GameTimerTag>(std::chrono::milliseconds(state.interval_ms)));
+      break;
+
+    case GameClockState::STOP:
+      std::cout << "[GameEngine] Stopping internal timer\n";
+      timer->execute_command(make_cancel_command<GameTimerTag>());
+      break;
+
+    case GameClockState::PAUSE:
+      std::cout << "[GameEngine] Pausing game\n";
+      timer->execute_command(make_cancel_command<GameTimerTag>());
+      break;
+
+    case GameClockState::RESUME:
+      std::cout << "[GameEngine] Resuming game\n";
+      timer->execute_command(make_periodic_command<GameTimerTag>(std::chrono::milliseconds(state.interval_ms)));
+      break;
+  }
+
+  return state;
+}
+
+/**
+ * @brief Handle tick rate change
+ *
+ * @param timer Game timer to control
+ * @param state Current game state
+ * @param msg Tick rate change message
+ * @return Updated game state with new interval
+ */
+static GameState handleTickRateChange(GameTimerPtr timer, GameState state, const TickRateChange& msg) {
+  std::cout << "[GameEngine] Changing tick rate to " << msg.interval_ms << "ms\n";
+
+  state.interval_ms = msg.interval_ms;
+
+  // If timer is currently running, restart it with new interval
+  if (timer->is_scheduled()) {
+    timer->execute_command(make_periodic_command<GameTimerTag>(std::chrono::milliseconds(state.interval_ms)));
+  }
+
+  return state;
+}
+
+/**
+ * @brief Handle level change
+ *
+ * @param state Current game state
+ * @param msg Level change message
+ * @return Updated game state with new level
+ */
+static GameState handleLevelChange(GameState state, const LevelChange& msg) {
+  std::cout << "[GameEngine] Level changed to " << msg.new_level << "\n";
+  state.level = msg.new_level;
+  return state;
+}
+
+/**
+ * @brief Set food reposition flag
+ *
+ * @param state Current game state
+ * @param trigger Food reposition trigger (unused)
+ * @return Updated game state with reposition flag set
+ */
+static GameState setFoodRepositionFlag(GameState state, const FoodRepositionTrigger& trigger) {
+  state.should_reposition_food = true;
+  return state;
+}
+
 // ============================================================================
 // GameEngine implementation
 // ============================================================================
@@ -91,82 +207,15 @@ void GameEngine::processMessages() {
   process_message_with_state(direction_sub_, state_,
                              over_pending_directions_with_snakes(direction_command_filter::try_add));
 
-  process_event(timer_, [&](const GameTimerElapsedEvent&) { onTick(); });
+  process_event_with_state(timer_, state_, bindFront(handleTick, state_pub_));
 
-  process_message(clock_sub_, [&](const GameClockCommand& msg) { onGameClockCommand(msg); });
+  process_message_with_state(clock_sub_, state_, bindFront(handleGameClockCommand, timer_));
 
-  process_message(tickrate_sub_, [&](const TickRateChange& msg) { onTickRateChange(msg); });
+  process_message_with_state(tickrate_sub_, state_, bindFront(handleTickRateChange, timer_));
 
-  process_message(levelchange_sub_, [&](const LevelChange& msg) { onLevelChange(msg); });
+  process_message_with_state(levelchange_sub_, state_, handleLevelChange);
 
-  // Set flag when food reposition trigger arrives
-  process_message(reposition_sub_, [&](const FoodRepositionTrigger&) { state_.should_reposition_food = true; });
+  process_message_with_state(reposition_sub_, state_, setFoodRepositionFlag);
 }
 
-void GameEngine::onTick() {
-  // ============================================================================
-  // GAME LOGIC PIPELINE - Functional Composition with funkypipes
-  // ============================================================================
-  // makePipe automatically unpacks tuples between stages
-  // When a function returns tuple<A, B>, the next function receives (A, B) as separate args
-  // Lenses are decorators that return state transformers
-
-  // clang-format off
-  auto tick_pipeline = makePipe(
-      over_pending_directions(direction_command_filter::try_consume_next),                                     // → (state, next_directions)
-      over_snakes(applyDirectionChanges),                                                                      // → state
-      over_snakes_with_board_and_food(moveSnakes),                                                             // → state
-      over_snakes_and_scores(handleCollisions),                                                                // → (state, cut_tails)
-      when<0>(isBiteDropFoodMode, over_food(dropCutTailsAsFood)),                                              // → state
-      when(isBiteDropFoodMode, over_food_with_snakes(dropDeadSnakesAsFood)),                                   // → state
-      over_food_and_scores_with_snakes(handleFoodEating),                                                      // → state
-      over_food_with_board_and_snakes(bindFront(replenishFood, makeRandomIntGenerator(), MIN_FOOD_COUNT)),     // → state
-      when(shouldRepositionFood,
-           over_food_with_board_and_snakes(bindFront(repositionRandomFood, makeRandomIntGenerator()))),        // → state
-      clearRepositionFlag);                                                                                     // → state (clear flag)
-  // clang-format on
-
-  apply_to_state(state_, tick_pipeline);
-
-  state_pub_->publish(StateUpdate{state_});
-}
-
-void GameEngine::onGameClockCommand(const GameClockCommand& msg) {
-  switch (msg.state) {
-    case GameClockState::START:
-      std::cout << "[GameEngine] Starting internal timer\n";
-      timer_->execute_command(make_periodic_command<GameTimerTag>(std::chrono::milliseconds(interval_ms_)));
-      break;
-
-    case GameClockState::STOP:
-      std::cout << "[GameEngine] Stopping internal timer\n";
-      timer_->execute_command(make_cancel_command<GameTimerTag>());
-      break;
-
-    case GameClockState::PAUSE:
-      std::cout << "[GameEngine] Pausing game\n";
-      timer_->execute_command(make_cancel_command<GameTimerTag>());
-      break;
-
-    case GameClockState::RESUME:
-      std::cout << "[GameEngine] Resuming game\n";
-      timer_->execute_command(make_periodic_command<GameTimerTag>(std::chrono::milliseconds(interval_ms_)));
-      break;
-  }
-}
-
-void GameEngine::onTickRateChange(const TickRateChange& msg) {
-  std::cout << "[GameEngine] Changing tick rate to " << msg.interval_ms << "ms\n";
-  interval_ms_ = msg.interval_ms;
-
-  // If timer is currently running, restart it with new interval
-  if (timer_->is_scheduled()) {
-    timer_->execute_command(make_periodic_command<GameTimerTag>(std::chrono::milliseconds(interval_ms_)));
-  }
-}
-
-void GameEngine::onLevelChange(const LevelChange& msg) {
-  std::cout << "[GameEngine] Level changed to " << msg.new_level << "\n";
-  state_.level = msg.new_level;
-}
 }  // namespace snake

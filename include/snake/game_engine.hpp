@@ -63,13 +63,6 @@ class GameEngine : public Actor<GameEngine> {
              TimerFactoryPtr timer_factory);
 
  private:
-  void onTick();
-
-  // Control message handlers
-  void onGameClockCommand(const GameClockCommand& msg);
-  void onTickRateChange(const TickRateChange& msg);
-  void onLevelChange(const LevelChange& msg);
-
   // Publishers for sending messages
   PublisherPtr<StateUpdate> state_pub_;
 
@@ -84,7 +77,6 @@ class GameEngine : public Actor<GameEngine> {
 
   // Timer
   GameTimerPtr timer_;
-  int interval_ms_{200};  // Default 200ms, used for tick rate changes
 };
 
 }  // namespace snake
