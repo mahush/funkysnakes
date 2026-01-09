@@ -100,10 +100,9 @@ FoodItems replenishFood(RandomIntGeneratorFn random_int, int target_count, FoodI
   return food_items;
 }
 
-FoodItems updateFoodPositions(RandomIntGeneratorFn random_int, int tick_count, FoodItems food_items,
-                                       const Board& board, const PerPlayerSnakes& snakes) {
-  // Only update every 15 ticks
-  if (tick_count % 15 != 0 || food_items.empty()) {
+FoodItems repositionRandomFood(RandomIntGeneratorFn random_int, FoodItems food_items,
+                                const Board& board, const PerPlayerSnakes& snakes) {
+  if (food_items.empty()) {
     return food_items;
   }
 

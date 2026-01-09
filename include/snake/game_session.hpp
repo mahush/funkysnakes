@@ -42,6 +42,7 @@ class GameSession : public Actor<GameSession> {
    * @param clock_topic Topic to subscribe for clock control commands
    * @param tickrate_topic Topic to subscribe for tick rate changes
    * @param levelchange_topic Topic to subscribe for level changes
+   * @param reposition_topic Topic to subscribe for food reposition triggers
    * @param timer_factory Factory for creating timers
    */
   GameSession(asio::io_context& io,
@@ -50,6 +51,7 @@ class GameSession : public Actor<GameSession> {
               TopicPtr<GameClockCommand> clock_topic,
               TopicPtr<TickRateChange> tickrate_topic,
               TopicPtr<LevelChange> levelchange_topic,
+              TopicPtr<FoodRepositionTrigger> reposition_topic,
               TimerFactoryPtr timer_factory);
 
  private:
@@ -68,6 +70,7 @@ class GameSession : public Actor<GameSession> {
   SubscriptionPtr<GameClockCommand> clock_sub_;
   SubscriptionPtr<TickRateChange> tickrate_sub_;
   SubscriptionPtr<LevelChange> levelchange_sub_;
+  SubscriptionPtr<FoodRepositionTrigger> reposition_sub_;
 
   GameState state_;
   int tick_count_{0};

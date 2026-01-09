@@ -41,16 +41,20 @@ TEST(ActorTest, InputActor_ProcessesUserInput) {
 TEST(ActorTest, GameManager_CoordinatesStartGame) {
   asio::io_context io;
 
+  // Create timer factory
+  auto timer_factory = std::make_shared<TimerFactory>(io);
+
   // Create topics
   auto gameover_topic = std::make_shared<Topic<GameOver>>();
   auto clock_topic = std::make_shared<Topic<GameClockCommand>>();
   auto joinrequest_topic = std::make_shared<Topic<JoinRequest>>();
   auto leaverequest_topic = std::make_shared<Topic<LeaveRequest>>();
   auto startgame_topic = std::make_shared<Topic<StartGame>>();
+  auto reposition_topic = std::make_shared<Topic<FoodRepositionTrigger>>();
 
   // Create GameManager
   auto manager = GameManager::create(io, gameover_topic, clock_topic, joinrequest_topic, leaverequest_topic,
-                                     startgame_topic);
+                                     startgame_topic, reposition_topic, timer_factory);
 
   // Create publisher to send join requests
   Publisher<JoinRequest> joinrequest_pub{joinrequest_topic};
@@ -79,9 +83,11 @@ TEST(ActorTest, GameSession_HandlesClockCommands) {
   auto clock_topic = std::make_shared<Topic<GameClockCommand>>();
   auto tickrate_topic = std::make_shared<Topic<TickRateChange>>();
   auto level_topic = std::make_shared<Topic<LevelChange>>();
+  auto reposition_topic = std::make_shared<Topic<FoodRepositionTrigger>>();
 
   // Create GameSession
-  auto session = GameSession::create(io, direction_topic, state_topic, clock_topic, tickrate_topic, level_topic, timer_factory);
+  auto session =
+      GameSession::create(io, direction_topic, state_topic, clock_topic, tickrate_topic, level_topic, reposition_topic, timer_factory);
 
   // Create publisher to send clock commands
   Publisher<GameClockCommand> clock_pub{clock_topic};
@@ -107,19 +113,23 @@ TEST(ActorTest, GameSession_HandlesClockCommands) {
 TEST(ActorTest, GameManager_SendsClockCommands) {
   asio::io_context io;
 
+  // Create timer factory
+  auto timer_factory = std::make_shared<TimerFactory>(io);
+
   // Create topics
   auto gameover_topic = std::make_shared<Topic<GameOver>>();
   auto clock_topic = std::make_shared<Topic<GameClockCommand>>();
   auto joinrequest_topic = std::make_shared<Topic<JoinRequest>>();
   auto leaverequest_topic = std::make_shared<Topic<LeaveRequest>>();
   auto startgame_topic = std::make_shared<Topic<StartGame>>();
+  auto reposition_topic = std::make_shared<Topic<FoodRepositionTrigger>>();
 
   // Create mock subscriber for clock commands
   auto mock_clock_subscriber = MockClockCommandSubscriber::create(io, clock_topic);
 
   // Create GameManager
   auto manager = GameManager::create(io, gameover_topic, clock_topic, joinrequest_topic, leaverequest_topic,
-                                     startgame_topic);
+                                     startgame_topic, reposition_topic, timer_factory);
 
   // Create publisher for start game
   Publisher<StartGame> startgame_pub{startgame_topic};
@@ -130,8 +140,8 @@ TEST(ActorTest, GameManager_SendsClockCommands) {
   start.players = {"player1", "player2"};
   startgame_pub.publish(start);
 
-  // Run pending operations
-  io.run();
+  // Run pending operations (use poll to avoid waiting for 20s timer)
+  io.poll();
 
   // Verify GameManager sent START clock command
   ASSERT_EQ(mock_clock_subscriber->clock_commands.size(), 1u);

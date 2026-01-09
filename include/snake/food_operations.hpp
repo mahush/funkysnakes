@@ -100,19 +100,21 @@ FoodItems replenishFood(RandomIntGeneratorFn random_int, int target_count, FoodI
                         const PerPlayerSnakes& snakes);
 
 /**
- * @brief Update food positions periodically
+ * @brief Reposition one random food item
  *
- * Every 15 ticks, move one random food item to a new position.
+ * Moves one randomly selected food item to a new random position.
+ * Does nothing if food list is empty.
+ *
+ * Parameter order: bound parameters first (for bindFront), then lens parameters.
  *
  * @param random_int Random number generator function
- * @param tick_count Current tick number
  * @param food_items Food (by value)
  * @param board Board dimensions
  * @param snakes Snakes (for position generation)
- * @return Updated food with repositioned item
+ * @return Updated food with one item repositioned
  */
-FoodItems updateFoodPositions(RandomIntGeneratorFn random_int, int tick_count, FoodItems food_items, const Board& board,
-                              const PerPlayerSnakes& snakes);
+FoodItems repositionRandomFood(RandomIntGeneratorFn random_int, FoodItems food_items, const Board& board,
+                                const PerPlayerSnakes& snakes);
 
 }  // namespace snake
 

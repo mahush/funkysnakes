@@ -35,6 +35,14 @@ constexpr int MIN_FOOD_COUNT = 5;
  */
 static bool isBiteDropFoodMode(const GameState& state) { return state.collision_mode == CollisionMode::BITE_DROP_FOOD; }
 
+/**
+ * @brief Check if food should be repositioned this tick
+ *
+ * @param state Current game state
+ * @return true if food reposition trigger was received
+ */
+static bool shouldRepositionFood(const GameState& state) { return state.should_reposition_food; }
+
 // ============================================================================
 // GameSession implementation
 // ============================================================================
@@ -42,13 +50,14 @@ static bool isBiteDropFoodMode(const GameState& state) { return state.collision_
 GameSession::GameSession(asio::io_context& io, TopicPtr<DirectionChange> direction_topic,
                          TopicPtr<StateUpdate> state_topic, TopicPtr<GameClockCommand> clock_topic,
                          TopicPtr<TickRateChange> tickrate_topic, TopicPtr<LevelChange> levelchange_topic,
-                         TimerFactoryPtr timer_factory)
+                         TopicPtr<FoodRepositionTrigger> reposition_topic, TimerFactoryPtr timer_factory)
     : Actor(io),
       state_pub_(create_pub(state_topic)),
       direction_sub_(create_sub(direction_topic)),
       clock_sub_(create_sub(clock_topic)),
       tickrate_sub_(create_sub(tickrate_topic)),
       levelchange_sub_(create_sub(levelchange_topic)),
+      reposition_sub_(create_sub(reposition_topic)),
       timer_(create_timer<GameTimer>(timer_factory)) {
   state_.game_id = "game_001";
   state_.board.width = 60;
@@ -79,6 +88,9 @@ void GameSession::processMessages() {
   process_message(tickrate_sub_, [&](const TickRateChange& msg) { onTickRateChange(msg); });
 
   process_message(levelchange_sub_, [&](const LevelChange& msg) { onLevelChange(msg); });
+
+  // Set flag when food reposition trigger arrives
+  process_message(reposition_sub_, [&](const FoodRepositionTrigger&) { state_.should_reposition_food = true; });
 }
 
 void GameSession::onTick() {
@@ -91,6 +103,12 @@ void GameSession::onTick() {
   // When a function returns tuple<A, B>, the next function receives (A, B) as separate args
   // Lenses are decorators that return state transformers
 
+  // Transformer to clear reposition flag
+  auto clearRepositionFlag = [](GameState state) {
+    state.should_reposition_food = false;
+    return state;
+  };
+
   // clang-format off
   auto tick_pipeline = makePipe(
       over_pending_directions(direction_command_filter::try_consume_next),                                     // → (state, next_directions)
@@ -101,7 +119,9 @@ void GameSession::onTick() {
       when(isBiteDropFoodMode, over_food_with_snakes(dropDeadSnakesAsFood)),                                   // → state
       over_food_and_scores_with_snakes(handleFoodEating),                                                      // → state
       over_food_with_board_and_snakes(bindFront(replenishFood, makeRandomIntGenerator(), MIN_FOOD_COUNT)),     // → state
-      over_food_with_board_and_snakes(bindFront(updateFoodPositions, makeRandomIntGenerator(), tick_count_))); // → state
+      when(shouldRepositionFood,
+           over_food_with_board_and_snakes(bindFront(repositionRandomFood, makeRandomIntGenerator()))),        // → state
+      clearRepositionFlag);                                                                                     // → state (clear flag)
   // clang-format on
 
   state_ = tick_pipeline(state_);

@@ -17,6 +17,7 @@ struct GameState {
   Board board;                                                  // Board dimensions
   CollisionMode collision_mode{CollisionMode::BITE_DROP_FOOD};  // Collision handling mode
   int level{1};
+  bool should_reposition_food{false};                           // Flag: reposition food this tick
 };
 
 /**
@@ -63,6 +64,16 @@ struct GameOver {
 struct TickRateChange {
   GameId game_id;
   int interval_ms;  // New tick interval in milliseconds
+};
+
+/**
+ * @brief Food reposition trigger
+ *
+ * Signals that food items should be repositioned this tick.
+ * Sent by GameManager based on its scheduling logic.
+ */
+struct FoodRepositionTrigger {
+  GameId game_id;
 };
 
 /**
