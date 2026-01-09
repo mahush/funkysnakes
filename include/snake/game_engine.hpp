@@ -3,14 +3,26 @@
 #include <asio.hpp>
 #include <memory>
 
-#include "snake/actor.hpp"
+#include "actor-core/actor.hpp"
+#include "actor-core/timer/timer.hpp"
+#include "actor-core/topic.hpp"
+#include "actor-core/topic_subscription.hpp"
 #include "snake/control_messages.hpp"
 #include "snake/game_messages.hpp"
-#include "snake/timer/timer.hpp"
-#include "snake/topic.hpp"
-#include "snake/topic_subscription.hpp"
 
 namespace snake {
+
+// Import actor_core types into snake namespace for convenience
+using actor_core::Actor;
+using actor_core::make_cancel_command;
+using actor_core::make_periodic_command;
+using actor_core::PublisherPtr;
+using actor_core::SubscriptionPtr;
+using actor_core::Timer;
+using actor_core::TimerCommand;
+using actor_core::TimerElapsedEvent;
+using actor_core::TimerFactoryPtr;
+using actor_core::TopicPtr;
 
 // Timer type definitions for GameEngine
 struct GameTimerTag {};

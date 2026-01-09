@@ -1,11 +1,11 @@
-#ifndef SNAKE_ACTOR_HPP
-#define SNAKE_ACTOR_HPP
+#ifndef ACTOR_CORE_ACTOR_HPP
+#define ACTOR_CORE_ACTOR_HPP
 
-#include "snake/processor_interface.hpp"
-#include "snake/topic.hpp"
-#include "snake/topic_publisher.hpp"
-#include "snake/topic_subscription.hpp"
-#include "snake/timer/timer_factory.hpp"
+#include "actor-core/processor_interface.hpp"
+#include "actor-core/topic.hpp"
+#include "actor-core/topic_publisher.hpp"
+#include "actor-core/topic_subscription.hpp"
+#include "actor-core/timer/timer_factory.hpp"
 
 #include <functional>
 #include <memory>
@@ -14,7 +14,7 @@
 
 #include "asio.hpp"
 
-namespace snake {
+namespace actor_core {
 
 // CRTP base class for all actors
 // Provides factory pattern, strand management, and subscription lifecycle
@@ -96,6 +96,6 @@ class Actor : public ProcessorInterface,
   std::vector<std::function<void()>> deferred_;  // Deferred subscription registrations
 };
 
-}  // namespace snake
+}  // namespace actor_core
 
-#endif  // SNAKE_ACTOR_HPP
+#endif  // ACTOR_CORE_ACTOR_HPP

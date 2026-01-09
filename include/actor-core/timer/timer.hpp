@@ -6,9 +6,9 @@
 #include <string>
 #include <vector>
 
-#include "snake/timer/timer_core.hpp"
+#include "actor-core/timer/timer_core.hpp"
 
-namespace snake {
+namespace actor_core {
 
 // Forward declaration
 class ProcessorInterface;
@@ -178,4 +178,4 @@ std::string to_string(const TimerCommand<TTag, TContext>& command) {
   return ss.str();
 }
 
-}  // namespace snake
+}  // namespace actor_core

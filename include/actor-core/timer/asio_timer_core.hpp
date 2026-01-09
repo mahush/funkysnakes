@@ -6,10 +6,10 @@
 #include <memory>
 #include <mutex>
 
-#include "snake/processor_interface.hpp"
-#include "snake/timer/timer_core.hpp"
+#include "actor-core/processor_interface.hpp"
+#include "actor-core/timer/timer_core.hpp"
 
-namespace snake {
+namespace actor_core {
 
 /**
  * @brief Asio-based implementation of ITimerCore
@@ -49,4 +49,4 @@ class AsioTimerCore : public ITimerCore, public std::enable_shared_from_this<Asi
   size_t elapsed_count_{0};
 };
 
-}  // namespace snake
+}  // namespace actor_core

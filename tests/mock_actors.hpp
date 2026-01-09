@@ -3,13 +3,18 @@
 #include <memory>
 #include <vector>
 
-#include "snake/actor.hpp"
+#include "actor-core/actor.hpp"
+#include "actor-core/topic.hpp"
+#include "actor-core/topic_subscription.hpp"
 #include "snake/control_messages.hpp"
 #include "snake/game_messages.hpp"
-#include "snake/topic.hpp"
-#include "snake/topic_subscription.hpp"
 
 namespace snake {
+
+// Import actor_core types into snake namespace for convenience
+using actor_core::Actor;
+using actor_core::SubscriptionPtr;
+using actor_core::TopicPtr;
 
 /**
  * @brief Mock subscriber for Tick messages

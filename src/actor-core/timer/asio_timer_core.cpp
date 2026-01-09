@@ -1,6 +1,6 @@
-#include "snake/timer/asio_timer_core.hpp"
+#include "actor-core/timer/asio_timer_core.hpp"
 
-namespace snake {
+namespace actor_core {
 
 AsioTimerCore::AsioTimerCore(asio::io_context& io, asio::strand<asio::io_context::executor_type>& strand)
     : timer_(io), strand_(strand) {}
@@ -90,4 +90,4 @@ void AsioTimerCore::on_timer_expired(const asio::error_code& ec) {
   }
 }
 
-}  // namespace snake
+}  // namespace actor_core

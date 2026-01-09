@@ -3,7 +3,7 @@
 #include <chrono>
 #include <memory>
 
-namespace snake {
+namespace actor_core {
 
 // Forward declaration
 class ProcessorInterface;
@@ -56,4 +56,4 @@ class ITimerCore {
 
 using TimerCorePtr = std::shared_ptr<ITimerCore>;
 
-}  // namespace snake
+}  // namespace actor_core

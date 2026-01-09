@@ -12,7 +12,6 @@
 #include "snake/process_helpers.hpp"
 #include "snake/snake_model.hpp"
 #include "snake/snake_operations.hpp"
-#include "snake/timer/timer_factory.hpp"
 #include "snake/utility.hpp"
 
 namespace snake {

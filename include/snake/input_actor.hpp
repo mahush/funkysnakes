@@ -7,11 +7,16 @@
 #include <thread>
 #include <termios.h>
 
-#include "snake/actor.hpp"
+#include "actor-core/actor.hpp"
+#include "actor-core/topic.hpp"
 #include "snake/game_messages.hpp"
-#include "snake/topic.hpp"
 
 namespace snake {
+
+// Import actor_core types into snake namespace for convenience
+using actor_core::Actor;
+using actor_core::PublisherPtr;
+using actor_core::TopicPtr;
 
 /**
  * @brief Captures and processes user input

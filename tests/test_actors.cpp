@@ -1,13 +1,17 @@
 #include <gtest/gtest.h>
 
+#include "actor-core/timer/timer_factory.hpp"
+#include "actor-core/topic.hpp"
+#include "actor-core/topic_publisher.hpp"
 #include "mock_actors.hpp"
-#include "snake/game_manager.hpp"
 #include "snake/game_engine.hpp"
+#include "snake/game_manager.hpp"
 #include "snake/input_actor.hpp"
 #include "snake/renderer.hpp"
-#include "snake/timer/timer_factory.hpp"
-#include "snake/topic.hpp"
-#include "snake/topic_publisher.hpp"
+
+using actor_core::Publisher;
+using actor_core::TimerFactory;
+using actor_core::Topic;
 
 namespace snake {
 

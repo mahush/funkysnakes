@@ -3,9 +3,12 @@
 #include <memory>
 #include <vector>
 
-#include "snake/topic_subscription.hpp"
+#include "actor-core/topic_subscription.hpp"
 
 namespace snake {
+
+// Import actor_core types into snake namespace for convenience
+using actor_core::Subscription;
 
 /**
  * @brief Higher-order function to process all messages from a subscription

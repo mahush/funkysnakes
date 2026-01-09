@@ -59,7 +59,7 @@ add_executable(snake_actors
   src/renderer.cpp
   src/snake_model.cpp
   src/snake_operations.cpp
-  src/timer/asio_timer_core.cpp
+  src/actor-core/timer/asio_timer_core.cpp
   src/utility.cpp
 )
 
@@ -105,7 +105,7 @@ if(SNAKE_BUILD_TESTS)
     src/renderer.cpp
     src/snake_model.cpp
     src/snake_operations.cpp
-    src/timer/asio_timer_core.cpp
+    src/actor-core/timer/asio_timer_core.cpp
     src/utility.cpp
   )
 

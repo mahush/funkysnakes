@@ -1,5 +1,5 @@
-#ifndef SNAKE_TOPIC_HPP
-#define SNAKE_TOPIC_HPP
+#ifndef ACTOR_CORE_TOPIC_HPP
+#define ACTOR_CORE_TOPIC_HPP
 
 #include <algorithm>
 #include <memory>
@@ -7,10 +7,10 @@
 #include <vector>
 
 #include "asio.hpp"
-#include "snake/processor_interface.hpp"
-#include "snake/topic_subscription.hpp"
+#include "actor-core/processor_interface.hpp"
+#include "actor-core/topic_subscription.hpp"
 
-namespace snake {
+namespace actor_core {
 
 // Forward declarations
 template <typename Msg>
@@ -99,6 +99,6 @@ class Topic {
 template<typename Msg>
 using TopicPtr = std::shared_ptr<Topic<Msg>>;
 
-}  // namespace snake
+}  // namespace actor_core
 
-#endif  // SNAKE_TOPIC_HPP
+#endif  // ACTOR_CORE_TOPIC_HPP

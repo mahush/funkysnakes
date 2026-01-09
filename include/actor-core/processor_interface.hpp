@@ -1,7 +1,7 @@
-#ifndef SNAKE_PROCESSOR_INTERFACE_HPP
-#define SNAKE_PROCESSOR_INTERFACE_HPP
+#ifndef ACTOR_CORE_PROCESSOR_INTERFACE_HPP
+#define ACTOR_CORE_PROCESSOR_INTERFACE_HPP
 
-namespace snake {
+namespace actor_core {
 
 // Interface for actors that process events from event sources (topics, timers, etc.)
 // Event sources use weak_ptr to this interface to notify actors when events occur
@@ -14,6 +14,6 @@ class ProcessorInterface {
   virtual void processMessages() = 0;
 };
 
-}  // namespace snake
+}  // namespace actor_core
 
-#endif  // SNAKE_PROCESSOR_INTERFACE_HPP
+#endif  // ACTOR_CORE_PROCESSOR_INTERFACE_HPP

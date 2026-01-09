@@ -3,11 +3,11 @@
 #include <asio.hpp>
 #include <memory>
 
-#include "snake/timer/asio_timer_core.hpp"
-#include "snake/timer/timer.hpp"
-#include "snake/timer/timer_core.hpp"
+#include "actor-core/timer/asio_timer_core.hpp"
+#include "actor-core/timer/timer.hpp"
+#include "actor-core/timer/timer_core.hpp"
 
-namespace snake {
+namespace actor_core {
 
 /**
  * @brief Factory class for creating timers with Asio backend
@@ -41,4 +41,4 @@ class TimerFactory {
 
 using TimerFactoryPtr = std::shared_ptr<TimerFactory>;
 
-}  // namespace snake
+}  // namespace actor_core

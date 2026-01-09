@@ -1,12 +1,15 @@
-#ifndef SNAKE_TOPIC_PUBLISHER_HPP
-#define SNAKE_TOPIC_PUBLISHER_HPP
+#ifndef ACTOR_CORE_TOPIC_PUBLISHER_HPP
+#define ACTOR_CORE_TOPIC_PUBLISHER_HPP
 
 #include <memory>
 
-namespace snake {
+namespace actor_core {
 
 template<typename Msg>
 class Topic;
+
+template<typename Msg>
+using TopicPtr = std::shared_ptr<Topic<Msg>>;
 
 // Publisher interface for sending messages to a topic
 // Provides symmetric API to Subscription
@@ -29,6 +32,6 @@ class Publisher {
 template<typename Msg>
 using PublisherPtr = std::shared_ptr<Publisher<Msg>>;
 
-}  // namespace snake
+}  // namespace actor_core
 
-#endif  // SNAKE_TOPIC_PUBLISHER_HPP
+#endif  // ACTOR_CORE_TOPIC_PUBLISHER_HPP

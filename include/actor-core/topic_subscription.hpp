@@ -1,11 +1,12 @@
-#ifndef SNAKE_TOPIC_SUBSCRIPTION_HPP
-#define SNAKE_TOPIC_SUBSCRIPTION_HPP
+#ifndef ACTOR_CORE_TOPIC_SUBSCRIPTION_HPP
+#define ACTOR_CORE_TOPIC_SUBSCRIPTION_HPP
 
 #include <deque>
+#include <memory>
 #include <mutex>
 #include <optional>
 
-namespace snake {
+namespace actor_core {
 
 // Represents an actor's subscription to a specific topic
 // Holds a bounded queue of pending messages
@@ -80,6 +81,6 @@ class Subscription {
 template<typename Msg>
 using SubscriptionPtr = std::shared_ptr<Subscription<Msg>>;
 
-}  // namespace snake
+}  // namespace actor_core
 
-#endif  // SNAKE_TOPIC_SUBSCRIPTION_HPP
+#endif  // ACTOR_CORE_TOPIC_SUBSCRIPTION_HPP
