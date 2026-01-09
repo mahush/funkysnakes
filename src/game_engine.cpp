@@ -42,14 +42,25 @@ static bool isBiteDropFoodMode(const GameState& state) { return state.collision_
  */
 static bool shouldRepositionFood(const GameState& state) { return state.should_reposition_food; }
 
+/**
+ * @brief Clear the food reposition flag after processing
+ *
+ * @param state Current game state
+ * @return Updated game state with reposition flag cleared
+ */
+static GameState clearRepositionFlag(GameState state) {
+  state.should_reposition_food = false;
+  return state;
+}
+
 // ============================================================================
 // GameEngine implementation
 // ============================================================================
 
 GameEngine::GameEngine(asio::io_context& io, TopicPtr<DirectionChange> direction_topic,
-                         TopicPtr<StateUpdate> state_topic, TopicPtr<GameClockCommand> clock_topic,
-                         TopicPtr<TickRateChange> tickrate_topic, TopicPtr<LevelChange> levelchange_topic,
-                         TopicPtr<FoodRepositionTrigger> reposition_topic, TimerFactoryPtr timer_factory)
+                       TopicPtr<StateUpdate> state_topic, TopicPtr<GameClockCommand> clock_topic,
+                       TopicPtr<TickRateChange> tickrate_topic, TopicPtr<LevelChange> levelchange_topic,
+                       TopicPtr<FoodRepositionTrigger> reposition_topic, TimerFactoryPtr timer_factory)
     : Actor(io),
       state_pub_(create_pub(state_topic)),
       direction_sub_(create_sub(direction_topic)),
@@ -93,20 +104,12 @@ void GameEngine::processMessages() {
 }
 
 void GameEngine::onTick() {
-  ++tick_count_;
-
   // ============================================================================
   // GAME LOGIC PIPELINE - Functional Composition with funkypipes
   // ============================================================================
   // makePipe automatically unpacks tuples between stages
   // When a function returns tuple<A, B>, the next function receives (A, B) as separate args
   // Lenses are decorators that return state transformers
-
-  // Transformer to clear reposition flag
-  auto clearRepositionFlag = [](GameState state) {
-    state.should_reposition_food = false;
-    return state;
-  };
 
   // clang-format off
   auto tick_pipeline = makePipe(
@@ -123,7 +126,8 @@ void GameEngine::onTick() {
       clearRepositionFlag);                                                                                     // → state (clear flag)
   // clang-format on
 
-  state_ = tick_pipeline(state_);
+  apply_to_state(state_, tick_pipeline);
+
   state_pub_->publish(StateUpdate{state_});
 }
 

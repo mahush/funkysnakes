@@ -57,13 +57,9 @@ class GameEngine : public Actor<GameEngine> {
    * @param reposition_topic Topic to subscribe for food reposition triggers
    * @param timer_factory Factory for creating timers
    */
-  GameEngine(asio::io_context& io,
-             TopicPtr<DirectionChange> direction_topic,
-             TopicPtr<StateUpdate> state_topic,
-             TopicPtr<GameClockCommand> clock_topic,
-             TopicPtr<TickRateChange> tickrate_topic,
-             TopicPtr<LevelChange> levelchange_topic,
-             TopicPtr<FoodRepositionTrigger> reposition_topic,
+  GameEngine(asio::io_context& io, TopicPtr<DirectionChange> direction_topic, TopicPtr<StateUpdate> state_topic,
+             TopicPtr<GameClockCommand> clock_topic, TopicPtr<TickRateChange> tickrate_topic,
+             TopicPtr<LevelChange> levelchange_topic, TopicPtr<FoodRepositionTrigger> reposition_topic,
              TimerFactoryPtr timer_factory);
 
  private:
@@ -85,7 +81,6 @@ class GameEngine : public Actor<GameEngine> {
   SubscriptionPtr<FoodRepositionTrigger> reposition_sub_;
 
   GameState state_;
-  int tick_count_{0};
 
   // Timer
   GameTimerPtr timer_;
