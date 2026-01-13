@@ -61,7 +61,7 @@ static GameState clearRepositionFlag(GameState state) {
  * @param event Timer elapsed event (unused, required for signature)
  * @return Updated game state after tick processing
  */
-static GameState handleTick(PublisherPtr<StateUpdate> state_pub, GameState state, const GameTimerElapsedEvent& event) {
+static GameState handleTick(PublisherPtr<StateUpdate> state_pub, GameState state, const GameTimerElapsedEvent& /* event */) {
   // ============================================================================
   // GAME LOGIC PIPELINE - Functional Composition with funkypipes
   // ============================================================================
@@ -161,11 +161,14 @@ static GameState handleLevelChange(GameState state, const LevelChange& msg) {
  * @brief Set food reposition flag
  *
  * @param state Current game state
- * @param trigger Food reposition trigger (unused)
- * @return Updated game state with reposition flag set
+ * @param trigger Food reposition trigger (contains game_id for validation)
+ * @return Updated game state with reposition flag set if game_id matches
  */
 static GameState setFoodRepositionFlag(GameState state, const FoodRepositionTrigger& trigger) {
-  state.should_reposition_food = true;
+  // Only set flag if trigger is for current game (ignore stale triggers)
+  if (trigger.game_id == state.game_id) {
+    state.should_reposition_food = true;
+  }
   return state;
 }
 
