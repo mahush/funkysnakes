@@ -65,15 +65,11 @@ struct OutputMsg {
 // Create actor class
 class MyActor : public Actor<MyActor> {
 public:
-    // Factory method is inherited from Actor<T>
-    // Use: auto actor = MyActor::create(io, input_topic, output_topic);
-
-protected:
-    // Constructor must be protected
-    MyActor(asio::io_context& io,
+    // Constructor - takes ActorContext as first parameter
+    MyActor(Actor<MyActor>::ActorContext ctx,
             TopicPtr<InputMsg> input_topic,
             TopicPtr<OutputMsg> output_topic)
-        : Actor(io),
+        : Actor(ctx),
           input_sub_(create_sub(input_topic)),
           output_pub_(create_pub(output_topic)) {}
 
@@ -96,10 +92,10 @@ private:
 
     SubscriptionPtr<InputMsg> input_sub_;
     PublisherPtr<OutputMsg> output_pub_;
-
-    // Actor<T> needs access to constructor
-    friend class Actor<MyActor>;
 };
+
+// Factory method is inherited from Actor<T>
+// Use: auto actor = MyActor::create(io, input_topic, output_topic);
 ```
 
 ## Message Flow
@@ -130,11 +126,11 @@ using ProducerTimer = Timer<ProducerElapsed, ProducerCommand>;
 
 // Producer actor (timer-driven)
 class Producer : public Actor<Producer> {
-protected:
-    Producer(asio::io_context& io,
+public:
+    Producer(Actor<Producer>::ActorContext ctx,
              TopicPtr<Request> request_topic,
              TimerFactoryPtr timer_factory)
-        : Actor(io),
+        : Actor(ctx),
           request_pub_(create_pub(request_topic)),
           timer_(create_timer<ProducerTimer>(timer_factory)) {
         // Start periodic timer (1 second intervals)
@@ -158,17 +154,15 @@ private:
     PublisherPtr<Request> request_pub_;
     std::shared_ptr<ProducerTimer> timer_;
     int next_id_ = 0;
-
-    friend class Actor<Producer>;
 };
 
 // Worker actor
 class Worker : public Actor<Worker> {
-protected:
-    Worker(asio::io_context& io,
+public:
+    Worker(Actor<Worker>::ActorContext ctx,
            TopicPtr<Request> request_topic,
            TopicPtr<Response> response_topic)
-        : Actor(io),
+        : Actor(ctx),
           request_sub_(create_sub(request_topic)),
           response_pub_(create_pub(response_topic)) {}
 
@@ -183,8 +177,6 @@ protected:
 private:
     SubscriptionPtr<Request> request_sub_;
     PublisherPtr<Response> response_pub_;
-
-    friend class Actor<Worker>;
 };
 
 // Main
@@ -213,14 +205,14 @@ Actors must be created using the factory method and follow this structure:
 
 ```cpp
 class MyActor : public Actor<MyActor> {
-protected:
-    MyActor(asio::io_context& io, /* your dependencies */)
-        : Actor(io) { /* initialize subscriptions/publishers */ }
+public:
+    MyActor(Actor<MyActor>::ActorContext ctx, /* your dependencies */)
+        : Actor(ctx) { /* initialize subscriptions/publishers */ }
 
     void processMessages() override { /* handle messages */ }
 
 private:
-    friend class Actor<MyActor>;  // Required for factory access
+    // Your private members
 };
 
 // Create with factory method

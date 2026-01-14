@@ -22,11 +22,24 @@ template<typename Derived>
 class Actor : public ProcessorInterface,
               public std::enable_shared_from_this<Derived> {
  public:
+  // Execution context wrapper - can only be constructed by factory
+  // Abstracts away asio implementation details from actor constructors
+  class ActorContext {
+   public:
+    asio::io_context& io_context() { return io_; }
+
+   private:
+    asio::io_context& io_;
+    explicit ActorContext(asio::io_context& io) : io_(io) {}
+    friend class Actor<Derived>;  // Only Actor can construct
+  };
+
   // Factory method - creates actor and finalizes subscriptions
   template<typename... Args>
   static std::shared_ptr<Derived> create(asio::io_context& io, Args&&... args) {
-    // Use new instead of make_shared to allow protected constructor
-    auto actor = std::shared_ptr<Derived>(new Derived(io, std::forward<Args>(args)...));
+    // Wrap io_context in ActorContext (only factory can do this)
+    ActorContext ctx{io};
+    auto actor = std::make_shared<Derived>(ctx, std::forward<Args>(args)...);
 
     // Finalize deferred subscriptions (now shared_from_this() works)
     actor->finalize();
@@ -35,7 +48,7 @@ class Actor : public ProcessorInterface,
   }
 
  protected:
-  explicit Actor(asio::io_context& io) : strand_(asio::make_strand(io)) {}
+  explicit Actor(ActorContext ctx) : strand_(asio::make_strand(ctx.io_context())) {}
   virtual ~Actor() = default;
 
   // Helper for derived classes to create subscriptions

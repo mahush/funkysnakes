@@ -40,15 +40,9 @@ using GameTimerPtr = std::shared_ptr<GameTimer>;
  */
 class GameEngine : public Actor<GameEngine> {
  public:
-  // Process messages from subscribed topics
-  void processMessages() override;
-
- protected:
-  friend class Actor<GameEngine>;
-
   /**
    * @brief Construct a new Game Engine
-   * @param io The io_context for async operations
+   * @param ctx Actor execution context
    * @param direction_topic Topic to subscribe for direction changes
    * @param state_topic Topic to publish state updates
    * @param clock_topic Topic to subscribe for clock control commands
@@ -57,10 +51,13 @@ class GameEngine : public Actor<GameEngine> {
    * @param reposition_topic Topic to subscribe for food reposition triggers
    * @param timer_factory Factory for creating timers
    */
-  GameEngine(asio::io_context& io, TopicPtr<DirectionChange> direction_topic, TopicPtr<StateUpdate> state_topic,
-             TopicPtr<GameClockCommand> clock_topic, TopicPtr<TickRateChange> tickrate_topic,
-             TopicPtr<LevelChange> levelchange_topic, TopicPtr<FoodRepositionTrigger> reposition_topic,
-             TimerFactoryPtr timer_factory);
+  GameEngine(Actor<GameEngine>::ActorContext ctx, TopicPtr<DirectionChange> direction_topic,
+             TopicPtr<StateUpdate> state_topic, TopicPtr<GameClockCommand> clock_topic,
+             TopicPtr<TickRateChange> tickrate_topic, TopicPtr<LevelChange> levelchange_topic,
+             TopicPtr<FoodRepositionTrigger> reposition_topic, TimerFactoryPtr timer_factory);
+
+  // Process messages from subscribed topics
+  void processMessages() override;
 
  private:
   // Publishers for sending messages

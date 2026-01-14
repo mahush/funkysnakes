@@ -5,11 +5,9 @@
 
 namespace snake {
 
-Renderer::Renderer(asio::io_context& io,
-                   TopicPtr<StateUpdate> state_topic,
-                   TopicPtr<GameOver> gameover_topic,
-                   TopicPtr<LevelChange> level_topic)
-    : Actor(io),
+Renderer::Renderer(Actor<Renderer>::ActorContext ctx, TopicPtr<StateUpdate> state_topic,
+                   TopicPtr<GameOver> gameover_topic, TopicPtr<LevelChange> level_topic)
+    : Actor(ctx),
       state_sub_(create_sub(state_topic)),
       gameover_sub_(create_sub(gameover_topic)),
       level_sub_(create_sub(level_topic)) {

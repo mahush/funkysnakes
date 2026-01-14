@@ -6,11 +6,11 @@
 
 namespace snake {
 
-GameManager::GameManager(asio::io_context& io, TopicPtr<GameOver> gameover_topic,
+GameManager::GameManager(Actor<GameManager>::ActorContext ctx, TopicPtr<GameOver> gameover_topic,
                          TopicPtr<GameClockCommand> clock_topic, TopicPtr<JoinRequest> joinrequest_topic,
                          TopicPtr<LeaveRequest> leaverequest_topic, TopicPtr<StartGame> startgame_topic,
                          TopicPtr<FoodRepositionTrigger> reposition_topic, TimerFactoryPtr timer_factory)
-    : Actor(io),
+    : Actor(ctx),
       clock_pub_(create_pub(clock_topic)),
       reposition_pub_(create_pub(reposition_topic)),
       gameover_sub_(create_sub(gameover_topic)),

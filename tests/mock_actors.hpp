@@ -29,10 +29,8 @@ class MockTickSubscriber : public Actor<MockTickSubscriber> {
 
   std::vector<Tick> ticks;
 
- protected:
-  friend class Actor<MockTickSubscriber>;
-  MockTickSubscriber(asio::io_context& io, TopicPtr<Tick> topic)
-      : Actor(io), tick_sub_(create_sub(topic)) {}
+   MockTickSubscriber(Actor<MockTickSubscriber>::ActorContext ctx, TopicPtr<Tick> topic)
+      : Actor(ctx), tick_sub_(create_sub(topic)) {}
 
  private:
   SubscriptionPtr<Tick> tick_sub_;
@@ -51,10 +49,9 @@ class MockDirectionChangeSubscriber : public Actor<MockDirectionChangeSubscriber
 
   std::vector<DirectionChange> direction_changes;
 
- protected:
-  friend class Actor<MockDirectionChangeSubscriber>;
-  MockDirectionChangeSubscriber(asio::io_context& io, TopicPtr<DirectionChange> topic)
-      : Actor(io), direction_sub_(create_sub(topic)) {}
+   MockDirectionChangeSubscriber(Actor<MockDirectionChangeSubscriber>::ActorContext ctx,
+                                TopicPtr<DirectionChange> topic)
+      : Actor(ctx), direction_sub_(create_sub(topic)) {}
 
  private:
   SubscriptionPtr<DirectionChange> direction_sub_;
@@ -73,10 +70,9 @@ class MockStateUpdateSubscriber : public Actor<MockStateUpdateSubscriber> {
 
   std::vector<StateUpdate> state_updates;
 
- protected:
-  friend class Actor<MockStateUpdateSubscriber>;
-  MockStateUpdateSubscriber(asio::io_context& io, TopicPtr<StateUpdate> topic)
-      : Actor(io), state_sub_(create_sub(topic)) {}
+   MockStateUpdateSubscriber(Actor<MockStateUpdateSubscriber>::ActorContext ctx,
+                            TopicPtr<StateUpdate> topic)
+      : Actor(ctx), state_sub_(create_sub(topic)) {}
 
  private:
   SubscriptionPtr<StateUpdate> state_sub_;
@@ -95,10 +91,8 @@ class MockGameOverSubscriber : public Actor<MockGameOverSubscriber> {
 
   std::vector<GameOver> game_overs;
 
- protected:
-  friend class Actor<MockGameOverSubscriber>;
-  MockGameOverSubscriber(asio::io_context& io, TopicPtr<GameOver> topic)
-      : Actor(io), gameover_sub_(create_sub(topic)) {}
+   MockGameOverSubscriber(Actor<MockGameOverSubscriber>::ActorContext ctx, TopicPtr<GameOver> topic)
+      : Actor(ctx), gameover_sub_(create_sub(topic)) {}
 
  private:
   SubscriptionPtr<GameOver> gameover_sub_;
@@ -117,10 +111,9 @@ class MockStartClockSubscriber : public Actor<MockStartClockSubscriber> {
 
   std::vector<StartClock> start_clocks;
 
- protected:
-  friend class Actor<MockStartClockSubscriber>;
-  MockStartClockSubscriber(asio::io_context& io, TopicPtr<StartClock> topic)
-      : Actor(io), startclock_sub_(create_sub(topic)) {}
+   MockStartClockSubscriber(Actor<MockStartClockSubscriber>::ActorContext ctx,
+                           TopicPtr<StartClock> topic)
+      : Actor(ctx), startclock_sub_(create_sub(topic)) {}
 
  private:
   SubscriptionPtr<StartClock> startclock_sub_;
@@ -139,10 +132,8 @@ class MockStopClockSubscriber : public Actor<MockStopClockSubscriber> {
 
   std::vector<StopClock> stop_clocks;
 
- protected:
-  friend class Actor<MockStopClockSubscriber>;
-  MockStopClockSubscriber(asio::io_context& io, TopicPtr<StopClock> topic)
-      : Actor(io), stopclock_sub_(create_sub(topic)) {}
+   MockStopClockSubscriber(Actor<MockStopClockSubscriber>::ActorContext ctx, TopicPtr<StopClock> topic)
+      : Actor(ctx), stopclock_sub_(create_sub(topic)) {}
 
  private:
   SubscriptionPtr<StopClock> stopclock_sub_;
@@ -161,10 +152,9 @@ class MockClockCommandSubscriber : public Actor<MockClockCommandSubscriber> {
 
   std::vector<GameClockCommand> clock_commands;
 
- protected:
-  friend class Actor<MockClockCommandSubscriber>;
-  MockClockCommandSubscriber(asio::io_context& io, TopicPtr<GameClockCommand> topic)
-      : Actor(io), clock_sub_(create_sub(topic)) {}
+   MockClockCommandSubscriber(Actor<MockClockCommandSubscriber>::ActorContext ctx,
+                             TopicPtr<GameClockCommand> topic)
+      : Actor(ctx), clock_sub_(create_sub(topic)) {}
 
  private:
   SubscriptionPtr<GameClockCommand> clock_sub_;

@@ -41,15 +41,9 @@ using RepositionTimerPtr = std::shared_ptr<RepositionTimer>;
  */
 class GameManager : public Actor<GameManager> {
  public:
-  // Process messages from subscribed topics
-  void processMessages() override;
-
- protected:
-  friend class Actor<GameManager>;
-
   /**
    * @brief Construct a new Game Manager
-   * @param io The io_context for async operations
+   * @param ctx Actor execution context
    * @param gameover_topic Topic to subscribe for game over notifications
    * @param clock_topic Topic to publish game clock control commands
    * @param joinrequest_topic Topic to subscribe for join requests
@@ -58,14 +52,13 @@ class GameManager : public Actor<GameManager> {
    * @param reposition_topic Topic to publish food reposition triggers
    * @param timer_factory Factory for creating timers
    */
-  GameManager(asio::io_context& io,
-              TopicPtr<GameOver> gameover_topic,
-              TopicPtr<GameClockCommand> clock_topic,
-              TopicPtr<JoinRequest> joinrequest_topic,
-              TopicPtr<LeaveRequest> leaverequest_topic,
-              TopicPtr<StartGame> startgame_topic,
-              TopicPtr<FoodRepositionTrigger> reposition_topic,
-              TimerFactoryPtr timer_factory);
+  GameManager(Actor<GameManager>::ActorContext ctx, TopicPtr<GameOver> gameover_topic,
+              TopicPtr<GameClockCommand> clock_topic, TopicPtr<JoinRequest> joinrequest_topic,
+              TopicPtr<LeaveRequest> leaverequest_topic, TopicPtr<StartGame> startgame_topic,
+              TopicPtr<FoodRepositionTrigger> reposition_topic, TimerFactoryPtr timer_factory);
+
+  // Process messages from subscribed topics
+  void processMessages() override;
 
  private:
   void onJoinRequest(const JoinRequest& msg);

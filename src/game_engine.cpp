@@ -176,11 +176,11 @@ static GameState setFoodRepositionFlag(GameState state, const FoodRepositionTrig
 // GameEngine implementation
 // ============================================================================
 
-GameEngine::GameEngine(asio::io_context& io, TopicPtr<DirectionChange> direction_topic,
+GameEngine::GameEngine(Actor<GameEngine>::ActorContext ctx, TopicPtr<DirectionChange> direction_topic,
                        TopicPtr<StateUpdate> state_topic, TopicPtr<GameClockCommand> clock_topic,
                        TopicPtr<TickRateChange> tickrate_topic, TopicPtr<LevelChange> levelchange_topic,
                        TopicPtr<FoodRepositionTrigger> reposition_topic, TimerFactoryPtr timer_factory)
-    : Actor(io),
+    : Actor(ctx),
       state_pub_(create_pub(state_topic)),
       direction_sub_(create_sub(direction_topic)),
       clock_sub_(create_sub(clock_topic)),

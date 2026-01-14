@@ -24,23 +24,18 @@ using actor_core::TopicPtr;
  */
 class Renderer : public Actor<Renderer> {
  public:
-  // Process messages from subscribed topics
-  void processMessages() override;
-
- protected:
-  friend class Actor<Renderer>;
-
   /**
    * @brief Construct a new Renderer
-   * @param io The io_context for async operations
+   * @param ctx Actor execution context
    * @param state_topic Topic for state updates
    * @param gameover_topic Topic for game over notifications
    * @param level_topic Topic for level changes
    */
-  Renderer(asio::io_context& io,
-           TopicPtr<StateUpdate> state_topic,
-           TopicPtr<GameOver> gameover_topic,
-           TopicPtr<LevelChange> level_topic);
+  Renderer(Actor<Renderer>::ActorContext ctx, TopicPtr<StateUpdate> state_topic,
+           TopicPtr<GameOver> gameover_topic, TopicPtr<LevelChange> level_topic);
+
+  // Process messages from subscribed topics
+  void processMessages() override;
 
  private:
   void onStateUpdate(const StateUpdate& msg);

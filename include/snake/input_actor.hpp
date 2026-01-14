@@ -51,19 +51,16 @@ class InputActor : public Actor<InputActor> {
   // No subscriptions - InputActor only publishes
   void processMessages() override {}
 
-  // Helper for background thread and tests to post events to this actor's strand
-  void post(UserInputEvent msg);
-
- protected:
-  friend class Actor<InputActor>;
-
   /**
    * @brief Construct a new Input Actor
-   * @param io The io_context for async operations
+   * @param ctx Actor execution context
    * @param direction_topic Topic to publish direction changes
    * @param game_id The current game ID
    */
-  InputActor(asio::io_context& io, TopicPtr<DirectionChange> direction_topic, GameId game_id);
+  InputActor(Actor<InputActor>::ActorContext ctx, TopicPtr<DirectionChange> direction_topic, GameId game_id);
+
+  // Helper for background thread and tests to post events to this actor's strand
+  void post(UserInputEvent msg);
 
  private:
   void onUserInput(UserInputEvent msg);
