@@ -92,7 +92,6 @@ enum class CollisionMode {
 // Type aliases for per-player game data
 using PerPlayerSnakes = std::map<PlayerId, Snake>;
 using PerPlayerScores = std::map<PlayerId, int>;
-using PerPlayerDirectionQueue = std::map<PlayerId, std::deque<Direction>>;
 using PerPlayerDirection = std::map<PlayerId, Direction>;
 
 // Type alias for food items

@@ -71,7 +71,7 @@ static GameState handleTick(PublisherPtr<StateUpdate> state_pub, GameState state
 
   // clang-format off
   auto tick_pipeline = makePipe(
-      over_pending_directions(direction_command_filter::try_consume_next),                                     // → (state, next_directions)
+      over_direction_command_filter_state(direction_command_filter::try_consume_next),                         // → (state, next_directions)
       over_snakes(applyDirectionChanges),                                                                      // → state
       over_snakes_with_board_and_food(moveSnakes),                                                             // → state
       over_snakes_and_scores(handleCollisions),                                                                // → (state, cut_tails)
@@ -193,9 +193,9 @@ GameEngine::GameEngine(Actor<GameEngine>::ActorContext ctx, TopicPtr<DirectionCh
   state_.board.height = 20;
 
   // Initialize players
-  apply_to_state(state_, over_snakes_scores_and_pending_directions(
+  apply_to_state(state_, over_snakes_and_scores(
                              bindFront(addPlayer, PlayerId{"player1"}, Point{5, 10}, Direction::RIGHT, 7)));
-  apply_to_state(state_, over_snakes_scores_and_pending_directions(
+  apply_to_state(state_, over_snakes_and_scores(
                              bindFront(addPlayer, PlayerId{"player2"}, Point{5, 15}, Direction::RIGHT, 7)));
 
   // Initialize food items
@@ -208,7 +208,7 @@ GameEngine::GameEngine(Actor<GameEngine>::ActorContext ctx, TopicPtr<DirectionCh
 void GameEngine::processMessages() {
   // Drain direction commands into filtered queues
   process_message_with_state(direction_sub_, state_,
-                             over_pending_directions_with_snakes(direction_command_filter::try_add));
+                             over_direction_command_filter_state_with_snakes(direction_command_filter::try_add));
 
   process_event_with_state(timer_, state_, bindFront(handleTick, state_pub_));
 

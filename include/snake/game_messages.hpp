@@ -1,6 +1,7 @@
 #pragma once
 
 #include "snake/control_messages.hpp"
+#include "snake/direction_command_filter.hpp"
 #include "snake/game_types.hpp"
 
 namespace snake {
@@ -13,9 +14,9 @@ struct GameState {
   PerPlayerSnakes snakes;                                       // Snakes for each player
   PerPlayerScores scores;                                       // Scores for each player
   FoodItems food_items;                                         // Food items on the board
-  PerPlayerDirectionQueue pending_directions;                   // Pending direction commands per player
-  Board board;                                                  // Board dimensions
-  CollisionMode collision_mode{CollisionMode::BITE_DROP_FOOD};  // Collision handling mode
+  direction_command_filter::State direction_command_filter_state;  // Direction command filter module state
+  Board board;                                                      // Board dimensions
+  CollisionMode collision_mode{CollisionMode::BITE_DROP_FOOD};     // Collision handling mode
   int level{1};
   int interval_ms{200};                                         // Tick interval in milliseconds
   bool should_reposition_food{false};                           // Flag: reposition food this tick

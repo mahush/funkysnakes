@@ -28,33 +28,33 @@ struct GameState;
 //   new_state = transformer(state);              // Apply to state
 
 /**
- * @brief Lens decorator: Update pending direction queues
+ * @brief Lens decorator: Update direction command filter state
  *
- * Returns a state transformer that applies an operation to pending direction queues.
+ * Returns a state transformer that applies an operation to direction_command_filter module state.
  *
  * Example usage:
- *   auto transformer = over_pending_directions(direction_command_filter::try_consume_next);
+ *   auto transformer = over_direction_command_filter_state(direction_command_filter::try_consume_next);
  *   auto [new_state, next_dirs] = transformer(state);
  *
- * @tparam Op Function type: (pending_directions) -> pending_directions or tuple<pending_directions, ...>
+ * @tparam Op Function type: (state) -> state or tuple<state, ...>
  * @param op Operation to apply
  * @return State transformer: GameState -> GameState or tuple<GameState, ...>
  */
 template <typename Op>
-auto over_pending_directions(Op op) {
-  return lens(mutate<&GameState::pending_directions>, read<>, std::move(op));
+auto over_direction_command_filter_state(Op op) {
+  return lens(mutate<&GameState::direction_command_filter_state>, read<>, std::move(op));
 }
 
 /**
- * @brief Lens decorator: Update pending directions with access to snakes
+ * @brief Lens decorator: Update direction command filter state with access to snakes
  *
- * @tparam Op Function type: (pending_directions, snakes, args...) -> pending_directions
+ * @tparam Op Function type: (direction_command_filter_state, snakes, args...) -> direction_command_filter_state
  * @param op Operation to apply
  * @return State transformer: (GameState, args...) -> GameState
  */
 template <typename Op>
-auto over_pending_directions_with_snakes(Op op) {
-  return lens(mutate<&GameState::pending_directions>,
+auto over_direction_command_filter_state_with_snakes(Op op) {
+  return lens(mutate<&GameState::direction_command_filter_state>,
               read<&GameState::snakes>,
               std::move(op));
 }
@@ -104,23 +104,6 @@ auto over_snakes_with_board_and_food(Op op) {
 template <typename Op>
 auto over_snakes_and_scores(Op op) {
   return lens(mutate<&GameState::snakes, &GameState::scores>,
-              read<>,
-              std::move(op));
-}
-
-/**
- * @brief Lens decorator: Update snakes, scores, and pending directions together
- *
- * Used for player initialization and other operations that need to update
- * all three player-related collections atomically.
- *
- * @tparam Op Function type: (snakes, scores, pending_directions) -> (snakes, scores, pending_directions)
- * @param op Operation to apply
- * @return State transformer: GameState -> GameState
- */
-template <typename Op>
-auto over_snakes_scores_and_pending_directions(Op op) {
-  return lens(mutate<&GameState::snakes, &GameState::scores, &GameState::pending_directions>,
               read<>,
               std::move(op));
 }

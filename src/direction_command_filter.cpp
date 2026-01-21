@@ -1,5 +1,7 @@
 #include "snake/direction_command_filter.hpp"
 
+#include "snake/game_messages.hpp"
+
 namespace snake {
 namespace direction_command_filter {
 
@@ -8,17 +10,17 @@ bool is_opposite(Direction a, Direction b) {
          (a == Direction::LEFT && b == Direction::RIGHT) || (a == Direction::RIGHT && b == Direction::LEFT);
 }
 
-PerPlayerDirectionQueue try_add(PerPlayerDirectionQueue pending_directions, const PerPlayerSnakes& snakes,
-                                const DirectionCommand& cmd) {
-  // Look up player's snake and direction queue
+State try_add(State state, const PerPlayerSnakes& snakes, const DirectionCommand& cmd) {
+  // Look up player's snake
   auto snake_it = snakes.find(cmd.player_id);
-  auto queue_it = pending_directions.find(cmd.player_id);
-
-  if (snake_it == snakes.end() || queue_it == pending_directions.end()) {
-    return pending_directions;  // Player not found, no change
+  if (snake_it == snakes.end()) {
+    return state;  // Player not found, no change
   }
 
   const Snake& snake = snake_it->second;
+
+  // Lazy initialization: create queue if player doesn't have one yet
+  auto [queue_it, inserted] = state.queues.try_emplace(cmd.player_id, std::deque<Direction>{});
   std::deque<Direction>& player_queue = queue_it->second;
   Direction new_dir = cmd.new_direction;
 
@@ -36,30 +38,30 @@ PerPlayerDirectionQueue try_add(PerPlayerDirectionQueue pending_directions, cons
 
   // Rule 2: Reject 180° turn from effective direction
   if (is_opposite(new_dir, effective_dir)) {
-    return pending_directions;  // Reject, return unchanged
+    return state;  // Reject, return unchanged
   }
 
   // Rule 3: Reject 0° turn (same as effective)
   if (new_dir == effective_dir) {
-    return pending_directions;  // Reject, return unchanged
+    return state;  // Reject, return unchanged
   }
 
   // Rule 4: Reject if queue is full
   if (player_queue.size() >= MAX_QUEUE_SIZE) {
-    return pending_directions;  // Reject, return unchanged
+    return state;  // Reject, return unchanged
   }
 
   // Rule 5: Accept and add to queue
   player_queue.push_back(new_dir);
 
-  return pending_directions;
+  return state;
 }
 
-std::tuple<PerPlayerDirectionQueue, PerPlayerDirection> try_consume_next(PerPlayerDirectionQueue pending_directions) {
+std::tuple<State, PerPlayerDirection> try_consume_next(State state) {
   PerPlayerDirection next_directions;
 
   // Consume one direction from each player's queue
-  for (auto& [player_id, player_queue] : pending_directions) {
+  for (auto& [player_id, player_queue] : state.queues) {
     if (!player_queue.empty()) {
       Direction next = player_queue.front();
       player_queue.pop_front();
@@ -67,7 +69,7 @@ std::tuple<PerPlayerDirectionQueue, PerPlayerDirection> try_consume_next(PerPlay
     }
   }
 
-  return std::make_tuple(std::move(pending_directions), std::move(next_directions));
+  return std::make_tuple(std::move(state), std::move(next_directions));
 }
 
 }  // namespace direction_command_filter

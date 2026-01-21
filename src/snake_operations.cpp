@@ -109,13 +109,9 @@ std::tuple<Snake, std::vector<Point>> cutSnakeTailAt(Snake snake, Point cut_poin
 // Player Initialization
 // ============================================================================
 
-std::tuple<PerPlayerSnakes, PerPlayerScores, PerPlayerDirectionQueue> addPlayer(PlayerId player_id,
-                                                                                  Point start_position,
-                                                                                  Direction initial_direction,
-                                                                                  int snake_length,
-                                                                                  PerPlayerSnakes snakes,
-                                                                                  PerPlayerScores scores,
-                                                                                  PerPlayerDirectionQueue pending_directions) {
+std::tuple<PerPlayerSnakes, PerPlayerScores> addPlayer(PlayerId player_id, Point start_position,
+                                                        Direction initial_direction, int snake_length,
+                                                        PerPlayerSnakes snakes, PerPlayerScores scores) {
   // Create snake tail extending backwards from start position
   Point head = start_position;
   std::vector<Point> tail;
@@ -146,10 +142,7 @@ std::tuple<PerPlayerSnakes, PerPlayerScores, PerPlayerDirectionQueue> addPlayer(
   // Initialize score
   scores[player_id] = 0;
 
-  // Initialize empty direction queue
-  pending_directions[player_id] = std::deque<Direction>{};
-
-  return {std::move(snakes), std::move(scores), std::move(pending_directions)};
+  return {std::move(snakes), std::move(scores)};
 }
 
 // ============================================================================
