@@ -1,6 +1,7 @@
 #ifndef SNAKE_GENERIC_LENS_HPP
 #define SNAKE_GENERIC_LENS_HPP
 
+#include <functional>
 #include <tuple>
 #include <utility>
 
@@ -131,9 +132,10 @@ auto lens(mutate_t<MutableMembers...>, read_t<ReadMembers...>, Op op) {
 
   return [op = std::move(op)](State state, auto&&... pipeline_args) mutable {
     // Extract mutable fields and call operation
-    auto result = op(std::move(state.*MutableMembers)...,                             // Mutable fields
-                     std::as_const(state.*ReadMembers)...,                            // Readonly fields
-                     std::forward<decltype(pipeline_args)>(pipeline_args)...);        // Pipeline args
+    auto result = std::invoke(op,                                                     // Function/functor
+                              std::move(state.*MutableMembers)...,                    // Mutable fields
+                              std::as_const(state.*ReadMembers)...,                   // Readonly fields
+                              std::forward<decltype(pipeline_args)>(pipeline_args)...);  // Pipeline args
 
     constexpr std::size_t num_mutable = sizeof...(MutableMembers);
 

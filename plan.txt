@@ -1,0 +1,299 @@
+
+  ⎿  Current Plan
+     /home/matthias/.claude/plans/functional-dancing-catmull.md
+     
+     # Pipeline Refactoring: Heterogeneous Effect Composition
+     
+     ## Goal
+     Refactor the game tick pipeline to use heterogeneous effect composition where
+     each stage returns only its specific effects (no dependency on `GameEffect`),
+     and effects are accumulated generically by type.
+     
+     ## Current State Analysis
+     
+     ### Pipeline Stages (game_session.cpp:594-641)
+     Current pipeline passes `GameStateWithEffect` through all stages:
+     
+     **Generate Stages** (produce effects):
+     - `provideDirectionChangeOps` → GameEffect (SnakeUpdateEffect only)
+     - `generateSnakeMovementOps` → GameStateWithEffect (produces SnakeUpdateEffect)
+     - `generateCollisionOps` → GameStateWithEffect (produces ScoreDelta +
+     SnakeUpdateEffect + FoodEffect)
+     - `generateFoodEatingOps` → GameStateWithEffect (produces ScoreDelta +
+     FoodEffect)
+     - `generateFoodUpdateOps` → GameStateWithEffect (produces FoodEffect)
+     
+     **Apply Stages** (consume effects, modify state):
+     - `applySnakeOps` → Applies SnakeUpdateEffect, clears operations
+     - `applyScoreEffects` → Applies ScoreDelta, clears deltas
+     - `applyFoodEffects` → Applies FoodEffect, clears additions/removals
+     
+     **Helper Functions** (already pure):
+     - `handleSnakeCollision` → GameEffect (ScoreDelta + SnakeUpdateEffect)
+     - `handleSnakeCollisionWithFoodDrop` → GameEffect (ScoreDelta +
+     SnakeUpdateEffect + FoodEffect)
+     
+     ### Problem
+     - All stages depend on `GameEffect` struct
+     - Signatures don't reveal what each stage actually produces
+     - Can't reuse stages in contexts that need only specific effects
+     
+     ## Target Design
+     
+     ### Principle: Each Stage Returns Only What It Produces
+     
+     ```cpp
+     // Returns only SnakeUpdateEffect
+     SnakeUpdateEffect generateSnakeMovementOps(const GameState& state);
+     
+     // Returns ScoreDelta + SnakeUpdateEffect
+     std::tuple<ScoreDelta, SnakeUpdateEffect> generateCollisionOps(const GameState&
+     state);
+     
+     // Returns ScoreDelta + FoodEffect
+     std::tuple<ScoreDelta, FoodEffect> generateFoodEatingOps(const GameState& state,
+      ...);
+     
+     // Returns FoodEffect
+     FoodEffect generateFoodUpdateOps(const GameState& state, int tick_count, ...);
+     ```
+     
+     ### Generic Composition Mechanism
+     
+     The `EffectCombiner` class accumulates heterogeneous effects by type:
+     
+     ```cpp
+     class EffectCombiner {
+       void add(const ScoreDelta&);     // Overloaded for each effect type
+       void add(const FoodEffect&);
+       void add(const SnakeUpdateEffect&);
+     
+       template<typename... Effects>
+       void add(const std::tuple<Effects...>&);  // Recursively adds tuple elements
+     
+       GameEffect result() const;  // Convert to unified GameEffect
+     };
+     ```
+     
+     Pipeline composition:
+     ```cpp
+     template<typename... Stages>
+     std::pair<GameState, GameEffect> compose_effects(GameState initial, Stages&&...
+     stages);
+     ```
+     
+     Each stage can return:
+     - Single effect: `SnakeUpdateEffect`
+     - Multiple effects: `std::tuple<ScoreDelta, FoodEffect>`
+     - State + effects: `std::tuple<GameState, SnakeUpdateEffect>`
+     
+     State is threaded through, effects are accumulated by type.
+     
+     ## Implementation Plan
+     
+     ### Step 1: Add Generic Composition Infrastructure
+     **File**: `include/snake/effect_composition.hpp` (new file)
+     
+     Create:
+     1. `EffectCombiner` class with overloaded `add()` methods
+     2. Type traits: `is_tuple`, `first_is_state`
+     3. `process_stage_result()` - dispatches based on return type
+     4. `compose_effects()` - main composition function
+     
+     ### Step 2: Refactor Generate Stages to Return Specific Effects
+     **File**: `src/game_session.cpp`
+     
+     Transform each generate stage:
+     
+     **2a. `generateSnakeMovementOps`** (lines 303-323)
+     - Change signature: `SnakeUpdateEffect generateSnakeMovementOps(const GameState&
+      state)`
+     - Remove `state_with_effect` parameter, take `const GameState&`
+     - Build and return `SnakeUpdateEffect` directly
+     
+     **2b. `generateCollisionOps`** (lines 331-346)
+     - Change signature: `std::tuple<ScoreDelta, SnakeUpdateEffect>
+     generateCollisionOps(const GameState& state)`
+     - Extract scores and operations from collision handlers
+     - Return as tuple (no GameEffect)
+     - Note: May return `std::tuple<ScoreDelta, SnakeUpdateEffect, FoodEffect>` in
+     food drop mode
+     
+     **2c. `generateFoodEatingOps`** (lines 439-462)
+     - Change signature: `std::tuple<ScoreDelta, FoodEffect>
+     generateFoodEatingOps(const GameState& state, std::function<Point()> gen)`
+     - Build ScoreDelta and FoodEffect separately
+     - Return as tuple
+     
+     **2d. `generateFoodUpdateOps`** (lines 519-540)
+     - Change signature: `FoodEffect generateFoodUpdateOps(const GameState& state,
+     int tick_count, std::function<Point()> gen)`
+     - Build and return FoodEffect directly
+     
+     **2e. Keep `provideDirectionChangeOps` as-is** (already returns specific effect)
+     
+     ### Step 3: Consolidate Apply Stages
+     **File**: `src/game_session.cpp`
+     
+     Replace three separate apply functions with:
+     
+     ```cpp
+     GameState applyAllEffects(GameState state, const GameEffect& effects);
+     ```
+     
+     This function:
+     - Applies snake operations from `effects.snakes`
+     - Applies score deltas from `effects.scores`
+     - Applies food changes from `effects.food`
+     - Returns updated state (doesn't need to clear effects)
+     
+     ### Step 4: Refactor Collision Handlers (Optional but Recommended)
+     **File**: `src/game_session.cpp` (lines 195-288)
+     
+     Change signatures to return tuples instead of GameEffect:
+     - `handleSnakeCollision` → `std::tuple<ScoreDelta, SnakeUpdateEffect>`
+     - `handleSnakeCollisionWithFoodDrop` → `std::tuple<ScoreDelta,
+     SnakeUpdateEffect, FoodEffect>`
+     
+     This makes them more reusable and removes GameEffect dependency.
+     
+     ### Step 5: Update onTick Pipeline
+     **File**: `src/game_session.cpp` (lines 594-641)
+     
+     **User Decision**: Interleave applies (current approach) - later stages need to
+     see state changes from earlier effects. Generate effects as one step, apply as
+     separate dedicated step.
+     
+     Add helper composition functions:
+     
+     ```cpp
+     // Compose multiple effect-generating stages into combined effects
+     template<typename... Stages>
+     GameEffect composeEffects(const GameState& state, Stages&&... stages) {
+       EffectCombiner combiner;
+       (combiner.add(std::forward<Stages>(stages)(state)), ...);
+       return combiner.result();
+     }
+     
+     // Apply snake operations to state (pure function)
+     GameState applySnakeOps(GameState state, const SnakeUpdateEffect& ops);
+     
+     // Apply score deltas to state (pure function)
+     GameState applyScoreEffects(GameState state, const ScoreDelta& scores);
+     
+     // Apply food changes to state (pure function)
+     GameState applyFoodEffects(GameState state, const FoodEffect& food);
+     ```
+     
+     Then `onTick` becomes:
+     
+     ```cpp
+     void GameSession::onTick() {
+       ++tick_count_;
+     
+       // ===== INPUT PREPROCESSING =====
+       auto consume_result =
+     direction_command_filter::try_consume_next(state_.direction_command);
+       state_.direction_command = consume_result.filters;
+     
+       // ===== GAME LOGIC PIPELINE (interleaved generate/apply phases) =====
+       GameState state = state_;
+     
+       // Phase 1: Generate direction + movement + collision effects
+       GameEffect phase1_effects = composeEffects(
+         state,
+         [&](const GameState& s) { return
+     provideDirectionChangeOps(consume_result.consumed_directions); },
+         generateSnakeMovementOps,
+         generateCollisionOps
+       );
+     
+       // Apply snake operations (dedicated step)
+       state = applySnakeOps(state, phase1_effects.snakes);
+     
+       // Phase 2: Generate food eating + food update effects
+       GameEffect phase2_effects = composeEffects(
+         state,
+         [&](const GameState& s) {
+           return generateFoodEatingOps(s, [&s]() {
+             return with_board_and_snakes(s, generateRandomFoodPosition);
+           });
+         },
+         [&](const GameState& s) {
+           return generateFoodUpdateOps(s, tick_count_, [&s]() {
+             return with_board_and_snakes(s, generateRandomFoodPosition);
+           });
+         }
+       );
+     
+       // Apply scores and food (dedicated steps)
+       state = applyScoreEffects(state, phase2_effects.scores);
+       state = applyFoodEffects(state, phase2_effects.food);
+     
+       // Update internal state and publish
+       state_ = state;
+       state_pub_->publish(StateUpdate{state_});
+     }
+     ```
+     
+     **Key pattern**:
+     - Generate phase: `composeEffects(state, stage1, stage2, ...)` → accumulates all
+      effects
+     - Apply phase: Dedicated pure functions apply specific effect types to state
+     - Clear separation between generation and application
+     
+     ### Step 6: Update Comments and Documentation
+     Update function comments to reflect new signatures and pure functional approach.
+     
+     ## Files to Modify
+     
+     1. **include/snake/effect_composition.hpp** (new) - Generic composition
+     infrastructure
+     2. **src/game_session.cpp** - Refactor all pipeline stages
+     3. **include/snake/functional_utils.hpp** - Potentially move composition
+     utilities here
+     
+     ## Benefits
+     
+     1. **Decoupling**: Stages have no dependency on `GameEffect`
+     2. **Honest signatures**: Function type tells exactly what it produces
+     3. **Type safety**: Compiler ensures all effect types are handled
+     4. **Reusability**: Can use stages in different contexts
+     5. **Composability**: Generic mechanism works for any effect types
+     6. **Extensibility**: Add new effect types by adding `EffectCombiner::add()`
+     overload
+     
+     ## Decisions Made
+     
+     1. **Effect application order**: ✅ **Interleave applies** - Later stages need
+     to see state changes from earlier effects (e.g., collision detection needs snake
+      positions after movement applied)
+     
+     2. **Collision handler signatures**: ✅ **Return tuples** - Maximum decoupling
+     principle, even though it's more work. Handlers become:
+        - `handleSnakeCollision` → `std::tuple<ScoreDelta, SnakeUpdateEffect>`
+        - `handleSnakeCollisionWithFoodDrop` → `std::tuple<ScoreDelta,
+     SnakeUpdateEffect, FoodEffect>`
+     
+     3. **File organization**: Create separate `include/snake/effect_composition.hpp`
+      for clarity and reusability
+     
+     ## Risk Assessment
+     
+     - **Low risk**: Infrastructure is additive (new composition utilities)
+     - **Medium risk**: Changing stage signatures affects call sites but compiler
+     catches issues
+     - **Testing**: Existing tests should verify behavior unchanged after refactoring
+     
+     ## Summary
+     
+     This refactoring transforms the pipeline from passing `GameStateWithEffect`
+     through all stages to a cleaner design where:
+     - Generate stages return only their specific effects (tuples)
+     - EffectCombiner generically accumulates heterogeneous effects by type
+     - Apply stages consume specific effect types
+     - Pipeline interleaves generate/apply phases for correct ordering
+     - No stage depends on the monolithic `GameEffect` struct
+     
+     The result is more modular, type-safe, and composable code that makes
+     dependencies explicit through function signatures.
