@@ -85,6 +85,53 @@ struct is_tuple<std::tuple<Ts...>> : std::true_type {};
 template <typename T>
 inline constexpr bool is_tuple_v = is_tuple<std::decay_t<T>>::value;
 
+// Tag types for result dispatching (workaround for clang 16 bug)
+struct non_tuple_tag {};
+struct tuple_tag {};
+
+template <typename T>
+using result_category = std::conditional_t<is_tuple_v<T>, tuple_tag, non_tuple_tag>;
+
+// Process non-tuple result: single value must match single mutable field
+template <auto... MutableMembers, typename State, typename Result>
+State processLensResult(State&& state, Result&& result, non_tuple_tag) {
+  constexpr std::size_t num_mutable = sizeof...(MutableMembers);
+  static_assert(num_mutable == 1, "Single return requires exactly one mutable field");
+  state.*(get_member<0>::template value<MutableMembers...>()) = std::move(result);
+  return state;
+}
+
+// Process tuple result: write back mutable fields, handle additional outputs
+template <auto... MutableMembers, typename State, typename Result>
+decltype(auto) processLensResult(State&& state, Result&& result, tuple_tag) {
+  constexpr std::size_t num_mutable = sizeof...(MutableMembers);
+  constexpr std::size_t result_size = std::tuple_size_v<std::decay_t<Result>>;
+
+  static_assert(result_size >= num_mutable,
+                "Operation must return at least the mutated fields");
+
+  // Write back mutated fields
+  write_back_helper<MutableMembers...>::apply(
+      state, result, std::make_index_sequence<num_mutable>{});
+
+  if constexpr (result_size == num_mutable) {
+    // Simple case: only mutated fields returned
+    return state;
+  } else {
+    // Extended case: mutated fields + additional outputs
+    auto additional = extract_additional<num_mutable>(
+        std::move(result), std::make_index_sequence<result_size - num_mutable>{});
+
+    if constexpr (result_size == num_mutable + 1) {
+      // Single additional output - unwrap from tuple
+      return std::make_tuple(std::move(state), std::move(std::get<0>(additional)));
+    } else {
+      // Multiple additional outputs - keep as tuple
+      return std::tuple_cat(std::make_tuple(std::move(state)), std::move(additional));
+    }
+  }
+}
+
 }  // namespace detail
 
 // ============================================================================
@@ -137,42 +184,11 @@ auto lens(mutate_t<MutableMembers...>, read_t<ReadMembers...>, Op op) {
                               std::as_const(state.*ReadMembers)...,                   // Readonly fields
                               std::forward<decltype(pipeline_args)>(pipeline_args)...);  // Pipeline args
 
-    constexpr std::size_t num_mutable = sizeof...(MutableMembers);
-
-    // Handle different result types
-    if constexpr (!detail::is_tuple_v<decltype(result)>) {
-      // Single return value - must have single mutable field
-      static_assert(num_mutable == 1, "Single return requires exactly one mutable field");
-      state.*(detail::get_member<0>::template value<MutableMembers...>()) = std::move(result);
-      return state;
-
-    } else {
-      constexpr std::size_t result_size = std::tuple_size_v<std::decay_t<decltype(result)>>;
-
-      static_assert(result_size >= num_mutable,
-                    "Operation must return at least the mutated fields");
-
-      // Write back mutated fields
-      detail::write_back_helper<MutableMembers...>::apply(
-          state, result, std::make_index_sequence<num_mutable>{});
-
-      if constexpr (result_size == num_mutable) {
-        // Simple case: only mutated fields returned
-        return state;
-      } else {
-        // Extended case: mutated fields + additional outputs
-        auto additional = detail::extract_additional<num_mutable>(
-            std::move(result), std::make_index_sequence<result_size - num_mutable>{});
-
-        if constexpr (result_size == num_mutable + 1) {
-          // Single additional output - unwrap from tuple
-          return std::make_tuple(std::move(state), std::move(std::get<0>(additional)));
-        } else {
-          // Multiple additional outputs - keep as tuple
-          return std::tuple_cat(std::make_tuple(std::move(state)), std::move(additional));
-        }
-      }
-    }
+    // Use tag dispatch to handle tuple vs non-tuple results
+    // (workaround for clang 16 bug with if constexpr on decltype(result))
+    using ResultType = decltype(result);
+    return detail::processLensResult<MutableMembers...>(
+        std::move(state), std::move(result), detail::result_category<ResultType>{});
   };
 }
 
