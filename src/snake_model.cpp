@@ -46,6 +46,8 @@ bool bothBiteEachOther(const Snake& a, const Snake& b) {
 }
 
 #pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wpragmas"
+#pragma GCC diagnostic ignored "-Wunknown-warning-option"
 #pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
 SnakePair applyBiteRule(SnakePair s) {
   auto rule = cond(
