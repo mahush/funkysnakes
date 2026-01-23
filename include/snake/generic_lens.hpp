@@ -85,6 +85,11 @@ struct is_tuple<std::tuple<Ts...>> : std::true_type {};
 template <typename T>
 inline constexpr bool is_tuple_v = is_tuple<std::decay_t<T>>::value;
 
+// Helper for dependent static_assert in if constexpr branches
+// (workaround for clang < 17 evaluating static_assert in discarded branches)
+template <typename>
+inline constexpr bool dependent_true = true;
+
 }  // namespace detail
 
 // ============================================================================
@@ -142,7 +147,9 @@ auto lens(mutate_t<MutableMembers...>, read_t<ReadMembers...>, Op op) {
     // Handle different result types
     if constexpr (!detail::is_tuple_v<decltype(result)>) {
       // Single return value - must have single mutable field
-      static_assert(num_mutable == 1, "Single return requires exactly one mutable field");
+      // Note: dependent_true makes this assert dependent on result type (clang < 17 workaround)
+      static_assert(detail::dependent_true<decltype(result)> && num_mutable == 1,
+                    "Single return requires exactly one mutable field");
       state.*(detail::get_member<0>::template value<MutableMembers...>()) = std::move(result);
       return state;
 
