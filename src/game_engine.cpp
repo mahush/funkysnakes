@@ -108,56 +108,58 @@ static std::tuple<GameState, RenderableState> handleTick(GameState state, const 
 /**
  * @brief Handle game clock command (start/stop/pause/resume)
  *
- * @param timer Game timer to control
+ * Pure function that returns state and timer command effect.
+ *
  * @param state Current game state
  * @param msg Clock command message
- * @return Updated game state (unchanged)
+ * @return Tuple of (state, timer command effect)
  */
-static GameState handleGameClockCommand(GameTimerPtr timer, GameState state, const GameClockCommand& msg) {
+static std::tuple<GameState, GameTimerCommand> handleGameClockCommand(GameState state, const GameClockCommand& msg) {
+  GameTimerCommand timer_cmd;
+
   switch (msg.state) {
     case GameClockState::START:
       std::cout << "[GameEngine] Starting internal timer\n";
-      timer->execute_command(make_periodic_command<GameTimerTag>(std::chrono::milliseconds(state.interval_ms)));
+      timer_cmd = make_periodic_command<GameTimerTag>(std::chrono::milliseconds(state.interval_ms));
       break;
 
     case GameClockState::STOP:
       std::cout << "[GameEngine] Stopping internal timer\n";
-      timer->execute_command(make_cancel_command<GameTimerTag>());
+      timer_cmd = make_cancel_command<GameTimerTag>();
       break;
 
     case GameClockState::PAUSE:
       std::cout << "[GameEngine] Pausing game\n";
-      timer->execute_command(make_cancel_command<GameTimerTag>());
+      timer_cmd = make_cancel_command<GameTimerTag>();
       break;
 
     case GameClockState::RESUME:
       std::cout << "[GameEngine] Resuming game\n";
-      timer->execute_command(make_periodic_command<GameTimerTag>(std::chrono::milliseconds(state.interval_ms)));
+      timer_cmd = make_periodic_command<GameTimerTag>(std::chrono::milliseconds(state.interval_ms));
       break;
   }
 
-  return state;
+  return std::make_tuple(state, timer_cmd);
 }
 
 /**
  * @brief Handle tick rate change
  *
- * @param timer Game timer to control
+ * Pure function that returns state and timer command effect to restart timer with new interval.
+ *
  * @param state Current game state
  * @param msg Tick rate change message
- * @return Updated game state with new interval
+ * @return Tuple of (updated state, timer command effect)
  */
-static GameState handleTickRateChange(GameTimerPtr timer, GameState state, const TickRateChange& msg) {
+static std::tuple<GameState, GameTimerCommand> handleTickRateChange(GameState state, const TickRateChange& msg) {
   std::cout << "[GameEngine] Changing tick rate to " << msg.interval_ms << "ms\n";
 
   state.interval_ms = msg.interval_ms;
 
-  // If timer is currently running, restart it with new interval
-  if (timer->is_scheduled()) {
-    timer->execute_command(make_periodic_command<GameTimerTag>(std::chrono::milliseconds(state.interval_ms)));
-  }
+  // Return periodic command to restart timer with new interval
+  GameTimerCommand timer_cmd = make_periodic_command<GameTimerTag>(std::chrono::milliseconds(state.interval_ms));
 
-  return state;
+  return std::make_tuple(state, timer_cmd);
 }
 
 /**
@@ -193,21 +195,26 @@ static GameState setFoodRepositionFlag(GameState state, const FoodRepositionTrig
 // ============================================================================
 
 /**
- * @brief Effect handler for GameEngine tick effects
+ * @brief Effect handler for GameEngine effects
  *
- * Interprets effects returned from handleTick (excluding the GameState):
+ * Interprets effects returned from handler functions (excluding the GameState):
  * - RenderableState: Publishes to renderer topic
- * - Future effect types can be added as additional handle() overloads
+ * - GameTimerCommand: Executes timer commands
  */
 class GameEngineEffectHandler {
  public:
-  explicit GameEngineEffectHandler(PublisherPtr<RenderableState> renderable_pub) : renderable_pub_(renderable_pub) {}
+  GameEngineEffectHandler(PublisherPtr<RenderableState> renderable_pub, GameTimerPtr timer)
+      : renderable_pub_(renderable_pub), timer_(timer) {}
 
   // Handle RenderableState effect: publish to renderer
   void handle(const RenderableState& msg) { renderable_pub_->publish(msg); }
 
+  // Handle GameTimerCommand effect: execute timer command
+  void handle(const GameTimerCommand& cmd) { timer_->execute_command(cmd); }
+
  private:
   PublisherPtr<RenderableState> renderable_pub_;
+  GameTimerPtr timer_;
 };
 
 // ============================================================================
@@ -248,16 +255,22 @@ void GameEngine::processMessages() {
   process_message_with_state(direction_sub_, state_,
                              over_direction_command_filter_state_with_snakes(direction_command_filter::try_add));
 
+  // Create effect handler for messages that produce effects
+  GameEngineEffectHandler effect_handler(renderable_state_pub_, timer_);
+
   // Process timer events with effect handler pattern
-  GameEngineEffectHandler effect_handler(renderable_state_pub_);
   process_event_with_state(timer_, state_, handleTick, effect_handler);
 
-  process_message_with_state(clock_sub_, state_, bindFront(handleGameClockCommand, timer_));
+  // Process clock commands with effect handler pattern
+  process_message_with_state(clock_sub_, state_, handleGameClockCommand, effect_handler);
 
-  process_message_with_state(tickrate_sub_, state_, bindFront(handleTickRateChange, timer_));
+  // Process tick rate changes with effect handler pattern
+  process_message_with_state(tickrate_sub_, state_, handleTickRateChange, effect_handler);
 
+  // Process level changes (pure, no effects)
   process_message_with_state(levelchange_sub_, state_, handleLevelChange);
 
+  // Process food reposition triggers (pure, no effects)
   process_message_with_state(reposition_sub_, state_, setFoodRepositionFlag);
 }
 

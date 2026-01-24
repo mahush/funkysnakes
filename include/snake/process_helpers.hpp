@@ -69,6 +69,36 @@ void process_event(const std::shared_ptr<Timer>& timer, HandlerFn&& handler) {
 }
 
 /**
+ * @brief Helper to wrap a pure function with effect handling logic
+ *
+ * Takes a pure function that returns tuple<State, Effects...> and wraps it
+ * into a state transformer (State, Arg) -> State that dispatches effects.
+ *
+ * @tparam State State type
+ * @tparam TEffectHandler Effect handler type with handle() overloads
+ * @tparam TProcessFn Function type (State, Arg) -> tuple<State, Effects...>
+ * @param process_fn Pure function returning state and effects
+ * @param effect_handler Interpreter for effects
+ * @return State transformer function
+ */
+template <typename State, typename TEffectHandler, typename TProcessFn>
+auto make_state_transformer_with_effects(TProcessFn&& process_fn, TEffectHandler& effect_handler) {
+  return [&process_fn, &effect_handler](State state_arg, const auto& arg) -> State {
+    // Call pure process function
+    auto result = process_fn(state_arg, arg);
+
+    // Separate state (index 0) from effects (remaining indices)
+    auto [state_tuple, effects_tuple] = funkypipes::details::separateTupleElements<0>(std::move(result));
+
+    // Dispatch effects through effect handler
+    actor_core::dispatch_effect(effect_handler, effects_tuple);
+
+    // Return new state
+    return std::move(std::get<0>(state_tuple));
+  };
+}
+
+/**
  * @brief Higher-order function to process all timer events with state transformation
  *
  * Takes all elapsed events from timer and applies process_fn to each,
@@ -111,23 +141,32 @@ void process_event_with_state(const std::shared_ptr<Timer>& timer, State& state,
 template <typename Timer, typename State, typename TEffectHandler, typename TProcessFn>
 void process_event_with_state(const std::shared_ptr<Timer>& timer, State& state, TProcessFn&& process_fn,
                                TEffectHandler& effect_handler) {
-  // Wrap effect-handling logic in a state transformer
-  auto state_transformer = [&process_fn, &effect_handler](State state_arg, const auto& event) -> State {
-    // Call pure process function
-    auto result = process_fn(state_arg, event);
-
-    // Separate state (index 0) from effects (remaining indices)
-    auto [state_tuple, effects_tuple] = funkypipes::details::separateTupleElements<0>(std::move(result));
-
-    // Dispatch effects through effect handler
-    actor_core::dispatch_effect(effect_handler, effects_tuple);
-
-    // Return new state
-    return std::move(std::get<0>(state_tuple));
-  };
-
-  // Delegate to original process_event_with_state
+  auto state_transformer = make_state_transformer_with_effects<State>(std::forward<TProcessFn>(process_fn), effect_handler);
   process_event_with_state(timer, state, state_transformer);
+}
+
+/**
+ * @brief Process messages with effect handler pattern
+ *
+ * Drains all pending messages from subscription and applies process_fn to each.
+ * Process function returns tuple<State, Effects...> where:
+ * - First element (State) updates the state
+ * - Remaining elements (Effects) are dispatched through effect_handler
+ *
+ * @tparam Msg Message type
+ * @tparam State State type
+ * @tparam TEffectHandler Effect handler type with handle() overloads
+ * @tparam TProcessFn Function type (State, Msg) -> tuple<State, Effects...>
+ * @param sub Subscription to drain
+ * @param state State reference to pass and update
+ * @param process_fn Pure function returning state and effects
+ * @param effect_handler Interpreter for effects
+ */
+template <typename Msg, typename State, typename TEffectHandler, typename TProcessFn>
+void process_message_with_state(const std::shared_ptr<Subscription<Msg>>& sub, State& state, TProcessFn&& process_fn,
+                                 TEffectHandler& effect_handler) {
+  auto state_transformer = make_state_transformer_with_effects<State>(std::forward<TProcessFn>(process_fn), effect_handler);
+  process_message_with_state(sub, state, state_transformer);
 }
 
 /**
