@@ -108,71 +108,76 @@ static std::tuple<GameState, RenderableState> handleTick(GameState state, const 
 /**
  * @brief Handle game clock command (start/stop/pause/resume)
  *
- * Pure function that returns state and timer command effect.
+ * Pure function that returns state, timer command effect, and log message effect.
  *
  * @param state Current game state
  * @param msg Clock command message
- * @return Tuple of (state, timer command effect)
+ * @return Tuple of (state, timer command effect, log message effect)
  */
-static std::tuple<GameState, GameTimerCommand> handleGameClockCommand(GameState state, const GameClockCommand& msg) {
+static std::tuple<GameState, GameTimerCommand, LogMessage> handleGameClockCommand(GameState state,
+                                                                                   const GameClockCommand& msg) {
   GameTimerCommand timer_cmd;
+  LogMessage log_msg;
 
   switch (msg.state) {
     case GameClockState::START:
-      std::cout << "[GameEngine] Starting internal timer\n";
+      log_msg = {"[GameEngine] Starting internal timer\n"};
       timer_cmd = make_periodic_command<GameTimerTag>(std::chrono::milliseconds(state.interval_ms));
       break;
 
     case GameClockState::STOP:
-      std::cout << "[GameEngine] Stopping internal timer\n";
+      log_msg = {"[GameEngine] Stopping internal timer\n"};
       timer_cmd = make_cancel_command<GameTimerTag>();
       break;
 
     case GameClockState::PAUSE:
-      std::cout << "[GameEngine] Pausing game\n";
+      log_msg = {"[GameEngine] Pausing game\n"};
       timer_cmd = make_cancel_command<GameTimerTag>();
       break;
 
     case GameClockState::RESUME:
-      std::cout << "[GameEngine] Resuming game\n";
+      log_msg = {"[GameEngine] Resuming game\n"};
       timer_cmd = make_periodic_command<GameTimerTag>(std::chrono::milliseconds(state.interval_ms));
       break;
   }
 
-  return std::make_tuple(state, timer_cmd);
+  return std::make_tuple(state, timer_cmd, log_msg);
 }
 
 /**
  * @brief Handle tick rate change
  *
- * Pure function that returns state and timer command effect to restart timer with new interval.
+ * Pure function that returns state, timer command effect, and log message effect.
  *
  * @param state Current game state
  * @param msg Tick rate change message
- * @return Tuple of (updated state, timer command effect)
+ * @return Tuple of (updated state, timer command effect, log message effect)
  */
-static std::tuple<GameState, GameTimerCommand> handleTickRateChange(GameState state, const TickRateChange& msg) {
-  std::cout << "[GameEngine] Changing tick rate to " << msg.interval_ms << "ms\n";
-
+static std::tuple<GameState, GameTimerCommand, LogMessage> handleTickRateChange(GameState state,
+                                                                                 const TickRateChange& msg) {
   state.interval_ms = msg.interval_ms;
 
   // Return periodic command to restart timer with new interval
   GameTimerCommand timer_cmd = make_periodic_command<GameTimerTag>(std::chrono::milliseconds(state.interval_ms));
 
-  return std::make_tuple(state, timer_cmd);
+  LogMessage log_msg = {"[GameEngine] Changing tick rate to " + std::to_string(msg.interval_ms) + "ms\n"};
+
+  return std::make_tuple(state, timer_cmd, log_msg);
 }
 
 /**
  * @brief Handle level change
  *
+ * Pure function that returns state and log message effect.
+ *
  * @param state Current game state
  * @param msg Level change message
- * @return Updated game state with new level
+ * @return Tuple of (updated state, log message effect)
  */
-static GameState handleLevelChange(GameState state, const LevelChange& msg) {
-  std::cout << "[GameEngine] Level changed to " << msg.new_level << "\n";
+static std::tuple<GameState, LogMessage> handleLevelChange(GameState state, const LevelChange& msg) {
   state.level = msg.new_level;
-  return state;
+  LogMessage log_msg = {"[GameEngine] Level changed to " + std::to_string(msg.new_level) + "\n"};
+  return std::make_tuple(state, log_msg);
 }
 
 /**
@@ -200,6 +205,7 @@ static GameState setFoodRepositionFlag(GameState state, const FoodRepositionTrig
  * Interprets effects returned from handler functions (excluding the GameState):
  * - RenderableState: Publishes to renderer topic
  * - GameTimerCommand: Executes timer commands
+ * - LogMessage: Logs messages to console
  */
 class GameEngineEffectHandler {
  public:
@@ -211,6 +217,9 @@ class GameEngineEffectHandler {
 
   // Handle GameTimerCommand effect: execute timer command
   void handle(const GameTimerCommand& cmd) { timer_->execute_command(cmd); }
+
+  // Handle LogMessage effect: log to console
+  void handle(const LogMessage& log) { std::cout << log.message; }
 
  private:
   PublisherPtr<RenderableState> renderable_pub_;
@@ -267,8 +276,8 @@ void GameEngine::processMessages() {
   // Process tick rate changes with effect handler pattern
   process_message_with_state(tickrate_sub_, state_, handleTickRateChange, effect_handler);
 
-  // Process level changes (pure, no effects)
-  process_message_with_state(levelchange_sub_, state_, handleLevelChange);
+  // Process level changes with effect handler pattern
+  process_message_with_state(levelchange_sub_, state_, handleLevelChange, effect_handler);
 
   // Process food reposition triggers (pure, no effects)
   process_message_with_state(reposition_sub_, state_, setFoodRepositionFlag);

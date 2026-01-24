@@ -109,4 +109,14 @@ struct UserInputEvent {
   char key;  // For now, simple char input
 };
 
+/**
+ * @brief Log message effect - represents a message to be logged
+ *
+ * Used in effect handler pattern to keep logging logic pure.
+ * Handler functions return this effect instead of calling std::cout directly.
+ */
+struct LogMessage {
+  std::string message;
+};
+
 }  // namespace snake
