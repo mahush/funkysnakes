@@ -132,24 +132,36 @@ Point pos = with_board_and_snakes(state, generateRandomPosition);
 **Rationale:**
 Functions starting with `over_` clearly signal "focus and modify part of state"; `over_each_` signals iteration with modification; `with_` signals read-only extraction. This keeps transformations declarative, composable, and easily searchable.
 
-### Template Parameter Naming for Callables
+### Template Parameter Naming
 
-**Rule:** Template parameters representing callable objects (functions, lambdas, functors) should be suffixed with `Fn`.
+**Rule:** Template parameters should start with `T` and use descriptive names. For callable types, append `Fn` suffix.
 
 ```cpp
-// Correct: callable parameters suffixed with Fn
-template <typename State, typename TransformerFn>
+// Correct: template parameters prefixed with T
+template <typename TTimer, typename TState, typename TProcessFn>
+void process_event_with_state(const std::shared_ptr<TTimer>& timer, TState& state, TProcessFn&& process_fn);
+
+template <typename TState, typename TTransformerFn>
+void apply_to_state(TState& state, TTransformerFn&& transformer);
+
+// Incorrect: no T prefix
+template <typename State, typename TransformerFn>  // ❌
 void apply_to_state(State& state, TransformerFn&& transformer);
-
-template <typename Msg, typename HandlerFn>
-void process_message(const Subscription<Msg>& sub, HandlerFn&& handler);
-
-// Incorrect: no suffix
-template <typename State, typename Transformer>  // ❌
-void apply_to_state(State& state, Transformer&& transformer);
 ```
 
-This convention makes it immediately clear which template parameters expect callable objects.
+**Variable Naming:** Avoid generic names like `handler`. Use descriptive names like `process_fn`, `transformer`, `mapper`:
+
+```cpp
+// Correct: descriptive variable names
+template <typename TMsg, typename TProcessFn>
+void process_message(const Subscription<TMsg>& sub, TProcessFn&& process_fn);
+
+// Incorrect: generic "handler" name
+template <typename TMsg, typename THandlerFn>
+void process_message(const Subscription<TMsg>& sub, THandlerFn&& handler);  // ❌
+```
+
+This convention makes template parameters easily identifiable and clarifies the purpose of callable parameters.
 
 ### Parameter Ordering for bindFront
 
