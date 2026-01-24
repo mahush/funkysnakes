@@ -1,8 +1,11 @@
 #include "snake/game_engine.hpp"
 
 #include <iostream>
+#include <tuple>
 
+#include "actor-core/effect_handler.hpp"
 #include "funkypipes/bind_front.hpp"
+#include "funkypipes/details/tuple/separate_tuple_elements.hpp"
 #include "funkypipes/make_pipe.hpp"
 #include "snake/direction_command_filter.hpp"
 #include "snake/food_operations.hpp"
@@ -54,14 +57,17 @@ static GameState clearRepositionFlag(GameState state) {
 }
 
 /**
- * @brief Handle a game tick - process game logic and publish state
+ * @brief Handle a game tick - process game logic and return effects
  *
- * @param renderable_state_pub Publisher for renderable state
+ * Pure function that processes one game tick and returns effects:
+ * - Updated GameState
+ * - RenderableState message to publish
+ *
  * @param state Current game state
  * @param event Timer elapsed event (unused, required for signature)
- * @return Updated game state after tick processing
+ * @return Tuple of (new GameState, RenderableState to publish)
  */
-static GameState handleTick(PublisherPtr<RenderableState> renderable_state_pub, GameState state, const GameTimerElapsedEvent& /* event */) {
+static std::tuple<GameState, RenderableState> handleTick(GameState state, const GameTimerElapsedEvent& /* event */) {
   // ============================================================================
   // GAME LOGIC PIPELINE - Functional Composition with funkypipes
   // ============================================================================
@@ -85,15 +91,18 @@ static GameState handleTick(PublisherPtr<RenderableState> renderable_state_pub, 
   // clang-format on
 
   state = tick_pipeline(state);
-  renderable_state_pub->publish(RenderableState{
+
+  // Build renderable state from game state
+  RenderableState renderable{
       state.game_id,
       state.level,
       state.board,
       state.food_items,
       state.snakes,
       state.scores,
-  });
-  return state;
+  };
+
+  return std::make_tuple(state, renderable);
 }
 
 /**
@@ -180,6 +189,28 @@ static GameState setFoodRepositionFlag(GameState state, const FoodRepositionTrig
 }
 
 // ============================================================================
+// Effect Handler for GameEngine
+// ============================================================================
+
+/**
+ * @brief Effect handler for GameEngine tick effects
+ *
+ * Interprets effects returned from handleTick (excluding the GameState):
+ * - RenderableState: Publishes to renderer topic
+ * - Future effect types can be added as additional handle() overloads
+ */
+class GameEngineEffectHandler {
+ public:
+  explicit GameEngineEffectHandler(PublisherPtr<RenderableState> renderable_pub) : renderable_pub_(renderable_pub) {}
+
+  // Handle RenderableState effect: publish to renderer
+  void handle(const RenderableState& msg) { renderable_pub_->publish(msg); }
+
+ private:
+  PublisherPtr<RenderableState> renderable_pub_;
+};
+
+// ============================================================================
 // GameEngine implementation
 // ============================================================================
 
@@ -217,7 +248,9 @@ void GameEngine::processMessages() {
   process_message_with_state(direction_sub_, state_,
                              over_direction_command_filter_state_with_snakes(direction_command_filter::try_add));
 
-  process_event_with_state(timer_, state_, bindFront(handleTick, renderable_state_pub_));
+  // Process timer events with effect handler pattern
+  GameEngineEffectHandler effect_handler(renderable_state_pub_);
+  process_event_with_state(timer_, state_, handleTick, effect_handler);
 
   process_message_with_state(clock_sub_, state_, bindFront(handleGameClockCommand, timer_));
 
