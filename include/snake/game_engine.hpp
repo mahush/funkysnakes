@@ -44,7 +44,7 @@ class GameEngine : public Actor<GameEngine> {
    * @brief Construct a new Game Engine
    * @param ctx Actor execution context
    * @param direction_topic Topic to subscribe for direction changes
-   * @param state_topic Topic to publish state updates
+   * @param state_topic Topic to publish renderable state
    * @param clock_topic Topic to subscribe for clock control commands
    * @param tickrate_topic Topic to subscribe for tick rate changes
    * @param levelchange_topic Topic to subscribe for level changes
@@ -52,7 +52,7 @@ class GameEngine : public Actor<GameEngine> {
    * @param timer_factory Factory for creating timers
    */
   GameEngine(Actor<GameEngine>::ActorContext ctx, TopicPtr<DirectionChange> direction_topic,
-             TopicPtr<StateUpdate> state_topic, TopicPtr<GameClockCommand> clock_topic,
+             TopicPtr<RenderableState> state_topic, TopicPtr<GameClockCommand> clock_topic,
              TopicPtr<TickRateChange> tickrate_topic, TopicPtr<LevelChange> levelchange_topic,
              TopicPtr<FoodRepositionTrigger> reposition_topic, TimerFactoryPtr timer_factory);
 
@@ -61,7 +61,7 @@ class GameEngine : public Actor<GameEngine> {
 
  private:
   // Publishers for sending messages
-  PublisherPtr<StateUpdate> state_pub_;
+  PublisherPtr<RenderableState> renderable_state_pub_;
 
   // Subscriptions for pulling messages
   SubscriptionPtr<DirectionChange> direction_sub_;

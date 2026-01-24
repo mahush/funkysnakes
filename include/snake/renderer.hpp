@@ -27,23 +27,23 @@ class Renderer : public Actor<Renderer> {
   /**
    * @brief Construct a new Renderer
    * @param ctx Actor execution context
-   * @param state_topic Topic for state updates
+   * @param state_topic Topic for renderable state
    * @param gameover_topic Topic for game over notifications
    * @param level_topic Topic for level changes
    */
-  Renderer(Actor<Renderer>::ActorContext ctx, TopicPtr<StateUpdate> state_topic,
+  Renderer(Actor<Renderer>::ActorContext ctx, TopicPtr<RenderableState> state_topic,
            TopicPtr<GameOver> gameover_topic, TopicPtr<LevelChange> level_topic);
 
   // Process messages from subscribed topics
   void processMessages() override;
 
  private:
-  void onStateUpdate(const StateUpdate& msg);
+  void onRenderableState(const RenderableState& state);
   void onGameOver(const GameOver& msg);
   void onLevelChange(const LevelChange& msg);
 
   // Subscriptions for pulling messages
-  SubscriptionPtr<StateUpdate> state_sub_;
+  SubscriptionPtr<RenderableState> state_sub_;
   SubscriptionPtr<GameOver> gameover_sub_;
   SubscriptionPtr<LevelChange> level_sub_;
 };

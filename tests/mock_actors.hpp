@@ -58,24 +58,24 @@ class MockDirectionChangeSubscriber : public Actor<MockDirectionChangeSubscriber
 };
 
 /**
- * @brief Mock subscriber for StateUpdate messages
+ * @brief Mock subscriber for RenderableState messages
  */
-class MockStateUpdateSubscriber : public Actor<MockStateUpdateSubscriber> {
+class MockRenderableStateSubscriber : public Actor<MockRenderableStateSubscriber> {
  public:
   void processMessages() override {
     while (auto msg = state_sub_->tryReceive()) {
-      state_updates.push_back(*msg);
+      renderable_states.push_back(*msg);
     }
   }
 
-  std::vector<StateUpdate> state_updates;
+  std::vector<RenderableState> renderable_states;
 
-   MockStateUpdateSubscriber(Actor<MockStateUpdateSubscriber>::ActorContext ctx,
-                            TopicPtr<StateUpdate> topic)
+   MockRenderableStateSubscriber(Actor<MockRenderableStateSubscriber>::ActorContext ctx,
+                                 TopicPtr<RenderableState> topic)
       : Actor(ctx), state_sub_(create_sub(topic)) {}
 
  private:
-  SubscriptionPtr<StateUpdate> state_sub_;
+  SubscriptionPtr<RenderableState> state_sub_;
 };
 
 /**

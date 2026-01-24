@@ -83,7 +83,7 @@ TEST(ActorTest, GameEngine_HandlesClockCommands) {
 
   // Create topics
   auto direction_topic = std::make_shared<Topic<DirectionChange>>();
-  auto state_topic = std::make_shared<Topic<StateUpdate>>();
+  auto state_topic = std::make_shared<Topic<RenderableState>>();
   auto clock_topic = std::make_shared<Topic<GameClockCommand>>();
   auto tickrate_topic = std::make_shared<Topic<TickRateChange>>();
   auto level_topic = std::make_shared<Topic<LevelChange>>();

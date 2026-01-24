@@ -39,10 +39,18 @@ struct DirectionChange {
 };
 
 /**
- * @brief Game state update notification
+ * @brief Renderable game state - visual projection for rendering
+ *
+ * Contains only the data needed for rendering, avoiding transfer
+ * of internal engine state like direction filters or timers.
  */
-struct StateUpdate {
-  GameState state;
+struct RenderableState {
+  GameId game_id;
+  int level;
+  Board board;
+  FoodItems food_items;
+  PerPlayerSnakes snakes;
+  PerPlayerScores scores;
 };
 
 /**

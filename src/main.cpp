@@ -25,7 +25,7 @@ int main() {
 
   // Create all topics first
   auto direction_topic = std::make_shared<Topic<snake::DirectionChange>>();
-  auto state_topic = std::make_shared<Topic<snake::StateUpdate>>();
+  auto state_topic = std::make_shared<Topic<snake::RenderableState>>();
   auto gameover_topic = std::make_shared<Topic<snake::GameOver>>();
   auto level_topic = std::make_shared<Topic<snake::LevelChange>>();
   auto clock_topic = std::make_shared<Topic<snake::GameClockCommand>>();

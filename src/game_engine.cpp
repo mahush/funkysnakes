@@ -56,12 +56,12 @@ static GameState clearRepositionFlag(GameState state) {
 /**
  * @brief Handle a game tick - process game logic and publish state
  *
- * @param state_pub Publisher for state updates
+ * @param renderable_state_pub Publisher for renderable state
  * @param state Current game state
  * @param event Timer elapsed event (unused, required for signature)
  * @return Updated game state after tick processing
  */
-static GameState handleTick(PublisherPtr<StateUpdate> state_pub, GameState state, const GameTimerElapsedEvent& /* event */) {
+static GameState handleTick(PublisherPtr<RenderableState> renderable_state_pub, GameState state, const GameTimerElapsedEvent& /* event */) {
   // ============================================================================
   // GAME LOGIC PIPELINE - Functional Composition with funkypipes
   // ============================================================================
@@ -85,7 +85,14 @@ static GameState handleTick(PublisherPtr<StateUpdate> state_pub, GameState state
   // clang-format on
 
   state = tick_pipeline(state);
-  state_pub->publish(StateUpdate{state});
+  renderable_state_pub->publish(RenderableState{
+      state.game_id,
+      state.level,
+      state.board,
+      state.food_items,
+      state.snakes,
+      state.scores,
+  });
   return state;
 }
 
@@ -177,11 +184,11 @@ static GameState setFoodRepositionFlag(GameState state, const FoodRepositionTrig
 // ============================================================================
 
 GameEngine::GameEngine(Actor<GameEngine>::ActorContext ctx, TopicPtr<DirectionChange> direction_topic,
-                       TopicPtr<StateUpdate> state_topic, TopicPtr<GameClockCommand> clock_topic,
+                       TopicPtr<RenderableState> state_topic, TopicPtr<GameClockCommand> clock_topic,
                        TopicPtr<TickRateChange> tickrate_topic, TopicPtr<LevelChange> levelchange_topic,
                        TopicPtr<FoodRepositionTrigger> reposition_topic, TimerFactoryPtr timer_factory)
     : Actor(ctx),
-      state_pub_(create_pub(state_topic)),
+      renderable_state_pub_(create_pub(state_topic)),
       direction_sub_(create_sub(direction_topic)),
       clock_sub_(create_sub(clock_topic)),
       tickrate_sub_(create_sub(tickrate_topic)),
@@ -210,7 +217,7 @@ void GameEngine::processMessages() {
   process_message_with_state(direction_sub_, state_,
                              over_direction_command_filter_state_with_snakes(direction_command_filter::try_add));
 
-  process_event_with_state(timer_, state_, bindFront(handleTick, state_pub_));
+  process_event_with_state(timer_, state_, bindFront(handleTick, renderable_state_pub_));
 
   process_message_with_state(clock_sub_, state_, bindFront(handleGameClockCommand, timer_));
 

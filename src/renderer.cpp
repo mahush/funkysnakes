@@ -5,7 +5,7 @@
 
 namespace snake {
 
-Renderer::Renderer(Actor<Renderer>::ActorContext ctx, TopicPtr<StateUpdate> state_topic,
+Renderer::Renderer(Actor<Renderer>::ActorContext ctx, TopicPtr<RenderableState> state_topic,
                    TopicPtr<GameOver> gameover_topic, TopicPtr<LevelChange> level_topic)
     : Actor(ctx),
       state_sub_(create_sub(state_topic)),
@@ -16,7 +16,7 @@ Renderer::Renderer(Actor<Renderer>::ActorContext ctx, TopicPtr<StateUpdate> stat
 void Renderer::processMessages() {
   // Process all pending state updates
   while (auto msg = state_sub_->tryReceive()) {
-    onStateUpdate(*msg);
+    onRenderableState(*msg);
   }
 
   // Process game over messages
@@ -30,8 +30,7 @@ void Renderer::processMessages() {
   }
 }
 
-void Renderer::onStateUpdate(const StateUpdate& msg) {
-  const auto& state = msg.state;
+void Renderer::onRenderableState(const RenderableState& state) {
 
   // Clear screen (simple version - just add newlines)
   std::cout << "\n\n";
