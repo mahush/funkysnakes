@@ -79,14 +79,14 @@ static std::tuple<GameState, RenderableState> handleTick(GameState state, const 
   auto tick_pipeline = makePipe(
       over_direction_command_filter_state(direction_command_filter::try_consume_next),                         // → (state, next_directions)
       over_snakes(applyDirectionChanges),                                                                      // → state
-      over_snakes_with_board_and_food(moveSnakes),                                                             // → state
+      over_snakes_viewing_board_and_food(moveSnakes),                                                             // → state
       over_snakes_and_scores(handleCollisions),                                                                // → (state, cut_tails)
       when<0>(isBiteDropFoodMode, over_food(dropCutTailsAsFood)),                                              // → state
-      when(isBiteDropFoodMode, over_food_with_snakes(dropDeadSnakesAsFood)),                                   // → state
-      over_food_and_scores_with_snakes(handleFoodEating),                                                      // → state
-      over_food_with_board_and_snakes(bindFront(replenishFood, makeRandomIntGenerator(), MIN_FOOD_COUNT)),     // → state
+      when(isBiteDropFoodMode, over_food_viewing_snakes(dropDeadSnakesAsFood)),                                   // → state
+      over_food_and_scores_viewing_snakes(handleFoodEating),                                                      // → state
+      over_food_viewing_board_and_snakes(bindFront(replenishFood, makeRandomIntGenerator(), MIN_FOOD_COUNT)),     // → state
       when(shouldRepositionFood,
-           over_food_with_board_and_snakes(bindFront(repositionRandomFood, makeRandomIntGenerator()))),        // → state
+           over_food_viewing_board_and_snakes(bindFront(repositionRandomFood, makeRandomIntGenerator()))),        // → state
       clearRepositionFlag);                                                                                     // → state (clear flag)
   // clang-format on
 
@@ -254,7 +254,7 @@ GameEngine::GameEngine(Actor<GameEngine>::ActorContext ctx, TopicPtr<DirectionCh
 
   // Initialize food items
   apply_to_state(state_,
-                 over_food_with_board_and_snakes(bindFront(initializeFood, makeRandomIntGenerator(), MIN_FOOD_COUNT)));
+                 over_food_viewing_board_and_snakes(bindFront(initializeFood, makeRandomIntGenerator(), MIN_FOOD_COUNT)));
 
   std::cout << "[GameEngine] Initialized " << state_.food_items.size() << " food items\n";
 }
@@ -262,7 +262,7 @@ GameEngine::GameEngine(Actor<GameEngine>::ActorContext ctx, TopicPtr<DirectionCh
 void GameEngine::processMessages() {
   // Drain direction commands into filtered queues
   process_message_with_state(direction_sub_, state_,
-                             over_direction_command_filter_state_with_snakes(direction_command_filter::try_add));
+                             over_direction_command_filter_state_viewing_snakes(direction_command_filter::try_add));
 
   // Create effect handler for messages that produce effects
   GameEngineEffectHandler effect_handler(renderable_state_pub_, timer_);

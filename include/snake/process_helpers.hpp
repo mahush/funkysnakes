@@ -69,20 +69,20 @@ void process_event(const std::shared_ptr<Timer>& timer, HandlerFn&& handler) {
 }
 
 /**
- * @brief Helper to wrap a pure function with effect handling logic
+ * @brief Decorator that wraps a pure function with effect handling logic
  *
  * Takes a pure function that returns tuple<State, Effects...> and wraps it
- * into a state transformer (State, Arg) -> State that dispatches effects.
+ * into a state transformer (State, Arg) -> State that automatically handles effects.
  *
  * @tparam State State type
  * @tparam TEffectHandler Effect handler type with handle() overloads
  * @tparam TProcessFn Function type (State, Arg) -> tuple<State, Effects...>
  * @param process_fn Pure function returning state and effects
  * @param effect_handler Interpreter for effects
- * @return State transformer function
+ * @return State transformer function with automatic effect handling
  */
 template <typename State, typename TEffectHandler, typename TProcessFn>
-auto make_state_transformer_with_effects(TProcessFn&& process_fn, TEffectHandler& effect_handler) {
+auto with_effect_handling(TProcessFn&& process_fn, TEffectHandler& effect_handler) {
   return [&process_fn, &effect_handler](State state_arg, const auto& arg) -> State {
     // Call pure process function
     auto result = process_fn(state_arg, arg);
@@ -141,8 +141,8 @@ void process_event_with_state(const std::shared_ptr<Timer>& timer, State& state,
 template <typename Timer, typename State, typename TEffectHandler, typename TProcessFn>
 void process_event_with_state(const std::shared_ptr<Timer>& timer, State& state, TProcessFn&& process_fn,
                                TEffectHandler& effect_handler) {
-  auto state_transformer = make_state_transformer_with_effects<State>(std::forward<TProcessFn>(process_fn), effect_handler);
-  process_event_with_state(timer, state, state_transformer);
+  auto process_with_effect_handling = with_effect_handling<State>(std::forward<TProcessFn>(process_fn), effect_handler);
+  process_event_with_state(timer, state, process_with_effect_handling);
 }
 
 /**
@@ -165,8 +165,8 @@ void process_event_with_state(const std::shared_ptr<Timer>& timer, State& state,
 template <typename Msg, typename State, typename TEffectHandler, typename TProcessFn>
 void process_message_with_state(const std::shared_ptr<Subscription<Msg>>& sub, State& state, TProcessFn&& process_fn,
                                  TEffectHandler& effect_handler) {
-  auto state_transformer = make_state_transformer_with_effects<State>(std::forward<TProcessFn>(process_fn), effect_handler);
-  process_message_with_state(sub, state, state_transformer);
+  auto process_with_effect_handling = with_effect_handling<State>(std::forward<TProcessFn>(process_fn), effect_handler);
+  process_message_with_state(sub, state, process_with_effect_handling);
 }
 
 /**

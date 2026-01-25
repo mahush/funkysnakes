@@ -53,7 +53,7 @@ auto over_direction_command_filter_state(Op op) {
  * @return State transformer: (GameState, args...) -> GameState
  */
 template <typename Op>
-auto over_direction_command_filter_state_with_snakes(Op op) {
+auto over_direction_command_filter_state_viewing_snakes(Op op) {
   return lens(mutate<&GameState::direction_command_filter_state>,
               read<&GameState::snakes>,
               std::move(op));
@@ -82,7 +82,7 @@ auto over_snakes(Op op) {
  * @return State transformer: GameState -> GameState
  */
 template <typename Op>
-auto over_snakes_with_board_and_food(Op op) {
+auto over_snakes_viewing_board_and_food(Op op) {
   return lens(mutate<&GameState::snakes>,
               read<&GameState::board, &GameState::food_items>,
               std::move(op));
@@ -116,7 +116,7 @@ auto over_snakes_and_scores(Op op) {
  * @return State transformer: GameState -> GameState
  */
 template <typename Op>
-auto over_food_and_scores_with_snakes(Op op) {
+auto over_food_and_scores_viewing_snakes(Op op) {
   return lens(mutate<&GameState::food_items, &GameState::scores>,
               read<&GameState::snakes>,
               std::move(op));
@@ -130,7 +130,7 @@ auto over_food_and_scores_with_snakes(Op op) {
  * @return State transformer: GameState -> GameState
  */
 template <typename Op>
-auto over_food_and_scores_with_snakes_and_board(Op op) {
+auto over_food_and_scores_viewing_snakes_and_board(Op op) {
   return lens(mutate<&GameState::food_items, &GameState::scores>,
               read<&GameState::snakes, &GameState::board>,
               std::move(op));
@@ -159,7 +159,7 @@ auto over_food(Op op) {
  * @return State transformer: GameState -> GameState
  */
 template <typename Op>
-auto over_food_with_snakes(Op op) {
+auto over_food_viewing_snakes(Op op) {
   return lens(mutate<&GameState::food_items>,
               read<&GameState::snakes>,
               std::move(op));
@@ -173,7 +173,7 @@ auto over_food_with_snakes(Op op) {
  * @return State transformer: GameState -> GameState
  */
 template <typename Op>
-auto over_food_with_board_and_snakes(Op op) {
+auto over_food_viewing_board_and_snakes(Op op) {
   return lens(mutate<&GameState::food_items>,
               read<&GameState::board, &GameState::snakes>,
               std::move(op));
