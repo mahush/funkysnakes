@@ -97,40 +97,76 @@ This project implements a **typed actor model** using standalone Asio for thread
 
 **Goal:** Consistent, self‑descriptive helpers for accessing and updating parts of complex state.
 
-| Prefix | Meaning | Type | Returns |
+| Pattern | Meaning | Type | Returns |
 |---------|----------|------|---------|
-| `over_` | Apply a transformation to one sub‑part of a structure (modify) | Lens (setter) | Updated structure |
-| `over_each_` | Apply a transformation to every element of a contained list (modify) | Traversal (setter) | Updated structure |
-| `with_` | Extract sub‑parts from a structure (read-only) | View (getter) | Extracted value(s) |
+| `over_X` | Apply a transformation to one sub‑part of a structure (modify X) | Lens (setter) | Updated structure |
+| `over_X_viewing_Y` | Apply a transformation to X while reading Y as context | Lens (setter) | Updated structure |
+| `over_each_X` | Apply a transformation to every element of a contained list | Traversal (setter) | Updated structure |
+| `view_X` | Extract sub‑parts from a structure (read-only) | View (getter) | Extracted value(s) |
 
 **Lens vs View Distinction**
 - **Lenses (`over_*`)**: Focus on a part of state, apply a transformation, return updated state. These are the *setter* side of lenses.
-- **Views (`with_*`)**: Focus on parts of state for read-only access, extract values without modification. These are *getters*.
+  - `over_X`: Mutate X only
+  - `over_X_and_Y`: Mutate both X and Y
+  - `over_X_viewing_Y`: Mutate X while viewing Y as read-only context
+  - `over_X_and_Y_viewing_Z`: Mutate X and Y while viewing Z as read-only context
+- **Views (`view_*`)**: Standalone functions that extract parts of state for read-only access. These are *getters*.
 
 **Rules**
 - Always use lowercase snake_case.
-- Name the focused part explicitly (e.g. `over_snake`, `with_board_and_snakes`).
+- Name the focused part explicitly (e.g. `over_snakes`, `view_board_and_snakes`).
 - Add `_combining_scores` suffix when the helper accumulates score effects.
-- Use `over_` when the function modifies and returns updated state.
-- Use `with_` when the function only extracts data for reading.
+- Use `over_` prefix for lenses that modify and return updated state.
+- Use `_viewing_` infix to indicate read-only context fields in lenses.
+- Use `view_` prefix for standalone getter functions.
 
 **Examples**
 ```cpp
-// Lens (modifier): updates direction_command state
-GameState new_state = over_direction_command_and_snakes(state, filter_op, direction_cmd);
+// Lens (modifier): updates direction_command, views snakes as context
+GameState new_state = over_direction_command_filter_state_viewing_snakes(state, filter_op);
+
+// Lens (modifier): updates snakes, views board and food as context
+GameState new_state = over_snakes_viewing_board_and_food(state, moveSnakes);
+
+// Lens (modifier): updates both food and scores, views snakes as context
+GameState new_state = over_food_and_scores_viewing_snakes(state, handleEating);
 
 // Traversal (modifier): calls function multiple times (once per alive snake)
 GameState new_state = over_each_alive_snake_combining_scores(state, move_snake);
 
-// Lens (modifier): calls function once with all selected snakes as parameters
-GameState new_state = over_selected_snakes_combining_scores(state, handle_collision, "player1", "player2");
-
 // View (getter): extracts board and snakes for read-only access
-Point pos = with_board_and_snakes(state, generateRandomPosition);
+Point pos = view_board_and_snakes(state, generateRandomPosition);
 ```
 
 **Rationale:**
-Functions starting with `over_` clearly signal "focus and modify part of state"; `over_each_` signals iteration with modification; `with_` signals read-only extraction. This keeps transformations declarative, composable, and easily searchable.
+- `over_` prefix clearly signals state modification
+- `_viewing_` infix explicitly marks read-only context, preventing confusion about which fields are mutable
+- `view_` prefix for standalone getters aligns with lens terminology and makes extractors easily searchable
+- This keeps transformations declarative, composable, and self-documenting
+
+### Function Decorators
+
+**Goal:** Consistent naming for higher-order functions that wrap other functions to add behavior.
+
+**Pattern:** Use `with_` prefix for decorators that wrap functions to add cross-cutting concerns like effect handling, logging, retry logic, etc.
+
+**Rules**
+- Use `with_X` when wrapping a function to add X behavior
+- Common in functional programming for resource management, effect handling, etc.
+- The decorator returns a new function with enhanced behavior
+
+**Examples**
+```cpp
+// Decorator: wraps a function to automatically handle effects
+auto process_with_effect_handling = with_effect_handling(process_fn, effect_handler);
+state = process_with_effect_handling(state, event);
+
+// Decorator: wraps a function to add logging
+auto compute_with_logging = with_logging(compute_fn, logger);
+```
+
+**Rationale:**
+The `with_` prefix for decorators is a well-established convention in many languages (React HOCs, Python context managers, etc.). It naturally reads as "do X with Y added" and is kept separate from lens/view naming to avoid confusion.
 
 ### Template Parameter Naming
 
