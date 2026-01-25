@@ -248,9 +248,9 @@ GameEngine::GameEngine(Actor<GameEngine>::ActorContext ctx, TopicPtr<DirectionCh
 
   // Initialize players
   apply_to_state(state_, over_snakes_and_scores(
-                             bindFront(addPlayer, PlayerId{"player1"}, Point{5, 10}, Direction::RIGHT, 7)));
+                             bindFront(addPlayer, PlayerId{"Player A"}, Point{5, 10}, Direction::RIGHT, 7)));
   apply_to_state(state_, over_snakes_and_scores(
-                             bindFront(addPlayer, PlayerId{"player2"}, Point{5, 15}, Direction::RIGHT, 7)));
+                             bindFront(addPlayer, PlayerId{"Player B"}, Point{5, 15}, Direction::RIGHT, 7)));
 
   // Initialize food items
   apply_to_state(state_,

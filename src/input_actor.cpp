@@ -84,7 +84,7 @@ void InputActor::readInputLoop() {
 
             if (arrow_key) {
               UserInputEvent event;
-              event.player_id = "player2";  // Arrow keys control player2
+              event.player_id = "Player B";  // Arrow keys control Player B
               event.key = arrow_key;
               post(event);
             }
@@ -125,7 +125,7 @@ PlayerId InputActor::keyToPlayer(char key) const {
     case 'S':
     case 'd':
     case 'D':
-      return "player1";
+      return "Player A";
 
     case 'i':
     case 'I':
@@ -135,7 +135,7 @@ PlayerId InputActor::keyToPlayer(char key) const {
     case 'K':
     case 'l':
     case 'L':
-      return "player2";
+      return "Player B";
 
     default:
       return "";  // Unknown key

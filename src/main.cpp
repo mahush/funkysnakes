@@ -59,14 +59,14 @@ int main() {
   });
 
   std::cout << "Joining players...\n";
-  joinrequest_pub.publish(snake::JoinRequest{"player1"});
-  joinrequest_pub.publish(snake::JoinRequest{"player2"});
+  joinrequest_pub.publish(snake::JoinRequest{"Player A"});
+  joinrequest_pub.publish(snake::JoinRequest{"Player B"});
   std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
   std::cout << "\nStarting game...\n";
   snake::StartGame start;
   start.starting_level = 1;
-  start.players = {"player1", "player2"};
+  start.players = {"Player A", "Player B"};
   startgame_pub.publish(start);
   std::this_thread::sleep_for(std::chrono::milliseconds(200));
 
