@@ -42,7 +42,8 @@ int main() {
                                           reposition_topic, timer_factory);
 
   auto manager = snake::GameManager::create(io, gameover_topic, clock_topic, joinrequest_topic, leaverequest_topic,
-                                            startgame_topic, reposition_topic, timer_factory);
+                                            startgame_topic, reposition_topic, level_topic, tickrate_topic,
+                                            timer_factory);
 
   auto input_actor = snake::InputActor::create(io, direction_topic, "game_001");
 

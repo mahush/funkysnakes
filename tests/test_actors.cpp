@@ -55,10 +55,12 @@ TEST(ActorTest, GameManager_CoordinatesStartGame) {
   auto leaverequest_topic = std::make_shared<Topic<LeaveRequest>>();
   auto startgame_topic = std::make_shared<Topic<StartGame>>();
   auto reposition_topic = std::make_shared<Topic<FoodRepositionTrigger>>();
+  auto level_topic = std::make_shared<Topic<LevelChange>>();
+  auto tickrate_topic = std::make_shared<Topic<TickRateChange>>();
 
   // Create GameManager
   auto manager = GameManager::create(io, gameover_topic, clock_topic, joinrequest_topic, leaverequest_topic,
-                                     startgame_topic, reposition_topic, timer_factory);
+                                     startgame_topic, reposition_topic, level_topic, tickrate_topic, timer_factory);
 
   // Create publisher to send join requests
   Publisher<JoinRequest> joinrequest_pub{joinrequest_topic};
@@ -127,13 +129,15 @@ TEST(ActorTest, GameManager_SendsClockCommands) {
   auto leaverequest_topic = std::make_shared<Topic<LeaveRequest>>();
   auto startgame_topic = std::make_shared<Topic<StartGame>>();
   auto reposition_topic = std::make_shared<Topic<FoodRepositionTrigger>>();
+  auto level_topic = std::make_shared<Topic<LevelChange>>();
+  auto tickrate_topic = std::make_shared<Topic<TickRateChange>>();
 
   // Create mock subscriber for clock commands
   auto mock_clock_subscriber = MockClockCommandSubscriber::create(io, clock_topic);
 
   // Create GameManager
   auto manager = GameManager::create(io, gameover_topic, clock_topic, joinrequest_topic, leaverequest_topic,
-                                     startgame_topic, reposition_topic, timer_factory);
+                                     startgame_topic, reposition_topic, level_topic, tickrate_topic, timer_factory);
 
   // Create publisher for start game
   Publisher<StartGame> startgame_pub{startgame_topic};

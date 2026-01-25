@@ -32,6 +32,12 @@ using RepositionTimerCommand = TimerCommand<RepositionTimerTag>;
 using RepositionTimer = Timer<RepositionTimerElapsedEvent, RepositionTimerCommand>;
 using RepositionTimerPtr = std::shared_ptr<RepositionTimer>;
 
+struct LevelTimerTag {};
+using LevelTimerElapsedEvent = TimerElapsedEvent<LevelTimerTag>;
+using LevelTimerCommand = TimerCommand<LevelTimerTag>;
+using LevelTimer = Timer<LevelTimerElapsedEvent, LevelTimerCommand>;
+using LevelTimerPtr = std::shared_ptr<LevelTimer>;
+
 /**
  * @brief Coordinates game lifecycle, sessions, and player registry
  *
@@ -50,12 +56,15 @@ class GameManager : public Actor<GameManager> {
    * @param leaverequest_topic Topic to subscribe for leave requests
    * @param startgame_topic Topic to subscribe for start game commands
    * @param reposition_topic Topic to publish food reposition triggers
+   * @param level_topic Topic to publish level changes
+   * @param tickrate_topic Topic to publish tick rate changes
    * @param timer_factory Factory for creating timers
    */
   GameManager(Actor<GameManager>::ActorContext ctx, TopicPtr<GameOver> gameover_topic,
               TopicPtr<GameClockCommand> clock_topic, TopicPtr<JoinRequest> joinrequest_topic,
               TopicPtr<LeaveRequest> leaverequest_topic, TopicPtr<StartGame> startgame_topic,
-              TopicPtr<FoodRepositionTrigger> reposition_topic, TimerFactoryPtr timer_factory);
+              TopicPtr<FoodRepositionTrigger> reposition_topic, TopicPtr<LevelChange> level_topic,
+              TopicPtr<TickRateChange> tickrate_topic, TimerFactoryPtr timer_factory);
 
   // Process messages from subscribed topics
   void processMessages() override;
@@ -66,12 +75,15 @@ class GameManager : public Actor<GameManager> {
   void onStartGame(const StartGame& msg);
   void onGameOver(const GameOver& msg);
   void onRepositionTimer();
+  void onLevelTimer();
 
   std::vector<PlayerId> registered_players_;
 
   // Publishers for sending messages
   PublisherPtr<GameClockCommand> clock_pub_;
   PublisherPtr<FoodRepositionTrigger> reposition_pub_;
+  PublisherPtr<LevelChange> level_pub_;
+  PublisherPtr<TickRateChange> tickrate_pub_;
 
   // Subscriptions for pulling messages
   SubscriptionPtr<GameOver> gameover_sub_;
@@ -79,10 +91,12 @@ class GameManager : public Actor<GameManager> {
   SubscriptionPtr<LeaveRequest> leaverequest_sub_;
   SubscriptionPtr<StartGame> startgame_sub_;
 
-  // Timer for food repositioning
-  RepositionTimerPtr timer_;
+  // Timers
+  RepositionTimerPtr reposition_timer_;
+  LevelTimerPtr level_timer_;
 
   GameId current_game_id_;
+  int current_level_{1};
 };
 
 }  // namespace snake
