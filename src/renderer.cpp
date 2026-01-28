@@ -5,6 +5,8 @@
 #include <string>
 #include <vector>
 
+#include "snake/control_messages.hpp"
+
 namespace snake {
 
 Renderer::Renderer(Actor<Renderer>::ActorContext ctx, TopicPtr<RenderableState> state_topic,
@@ -83,13 +85,13 @@ void Renderer::onRenderableState(const RenderableState& state) {
       // Draw head
       Point head = snake.head;
       if (head.y >= 0 && head.y < state.board.height && head.x >= 0 && head.x < state.board.width) {
-        board[head.y][head.x] = (player_id == "Player A") ? 'A' : 'B';
+        board[head.y][head.x] = (player_id == PLAYER_A) ? 'A' : 'B';
       }
 
       // Draw tail
       for (const Point& segment : snake.tail) {
         if (segment.y >= 0 && segment.y < state.board.height && segment.x >= 0 && segment.x < state.board.width) {
-          board[segment.y][segment.x] = (player_id == "Player A") ? 'a' : 'b';
+          board[segment.y][segment.x] = (player_id == PLAYER_A) ? 'a' : 'b';
         }
       }
     }

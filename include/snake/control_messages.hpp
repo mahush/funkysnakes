@@ -15,19 +15,13 @@ using PlayerId = std::string;
  */
 using GameId = std::string;
 
-/**
- * @brief Request to join a game
- */
-struct JoinRequest {
-  PlayerId player_id;
-};
-
-/**
- * @brief Request to leave a game
- */
-struct LeaveRequest {
-  PlayerId player_id;
-};
+// ============================================================================
+// Single source of truth for player identities
+// ============================================================================
+// For the simplified 2-player game, we hardcode player IDs here.
+// All other code references these constants to avoid duplication.
+inline constexpr const char* PLAYER_A = "Player A";
+inline constexpr const char* PLAYER_B = "Player B";
 
 /**
  * @brief Request to start a new game

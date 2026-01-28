@@ -1,6 +1,5 @@
 #include "snake/game_manager.hpp"
 
-#include <algorithm>
 #include <iostream>
 
 #include "snake/process_helpers.hpp"
@@ -8,8 +7,7 @@
 namespace snake {
 
 GameManager::GameManager(Actor<GameManager>::ActorContext ctx, TopicPtr<GameOver> gameover_topic,
-                         TopicPtr<GameClockCommand> clock_topic, TopicPtr<JoinRequest> joinrequest_topic,
-                         TopicPtr<LeaveRequest> leaverequest_topic, TopicPtr<StartGame> startgame_topic,
+                         TopicPtr<GameClockCommand> clock_topic, TopicPtr<StartGame> startgame_topic,
                          TopicPtr<FoodRepositionTrigger> reposition_topic, TopicPtr<LevelChange> level_topic,
                          TopicPtr<TickRateChange> tickrate_topic, TimerFactoryPtr timer_factory)
     : Actor(ctx),
@@ -18,8 +16,6 @@ GameManager::GameManager(Actor<GameManager>::ActorContext ctx, TopicPtr<GameOver
       level_pub_(create_pub(level_topic)),
       tickrate_pub_(create_pub(tickrate_topic)),
       gameover_sub_(create_sub(gameover_topic)),
-      joinrequest_sub_(create_sub(joinrequest_topic)),
-      leaverequest_sub_(create_sub(leaverequest_topic)),
       startgame_sub_(create_sub(startgame_topic)),
       reposition_timer_(create_timer<RepositionTimer>(timer_factory)),
       level_timer_(create_timer<LevelTimer>(timer_factory)) {}
@@ -35,28 +31,6 @@ void GameManager::processMessages() {
   }
   while (auto msg = gameover_sub_->tryReceive()) {
     onGameOver(*msg);
-  }
-
-  // Player management
-  while (auto msg = joinrequest_sub_->tryReceive()) {
-    onJoinRequest(*msg);
-  }
-  while (auto msg = leaverequest_sub_->tryReceive()) {
-    onLeaveRequest(*msg);
-  }
-}
-
-void GameManager::onJoinRequest(const JoinRequest& msg) {
-  std::cout << "[GameManager] Player '" << msg.player_id << "' joined\n";
-  registered_players_.push_back(msg.player_id);
-}
-
-void GameManager::onLeaveRequest(const LeaveRequest& msg) {
-  std::cout << "[GameManager] Player '" << msg.player_id << "' left\n";
-  // Remove from registered players (simple implementation)
-  auto it = std::find(registered_players_.begin(), registered_players_.end(), msg.player_id);
-  if (it != registered_players_.end()) {
-    registered_players_.erase(it);
   }
 }
 

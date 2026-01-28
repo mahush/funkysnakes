@@ -186,8 +186,8 @@ std::tuple<PerPlayerSnakes, PerPlayerScores, std::vector<Point>> handleCollision
   }
 
   // Get both snakes (hardcoded for 2-player)
-  auto it1 = snakes.find("player1");
-  auto it2 = snakes.find("player2");
+  auto it1 = snakes.find(PLAYER_A);
+  auto it2 = snakes.find(PLAYER_B);
 
   if (it1 == snakes.end() || it2 == snakes.end()) {
     return {snakes, scores, cut_tails};
@@ -205,17 +205,17 @@ std::tuple<PerPlayerSnakes, PerPlayerScores, std::vector<Point>> handleCollision
     // Both die
     snake_a.alive = false;
     snake_b.alive = false;
-    scores["player1"] -= 10;
-    scores["player2"] -= 10;
+    scores[PLAYER_A] -= 10;
+    scores[PLAYER_B] -= 10;
   } else if (firstBitesSecond(snake_a, snake_b)) {
     // Snake A bites B - cut B's tail
-    scores["player2"] -= 10;
+    scores[PLAYER_B] -= 10;
     auto [new_snake, cut] = cutSnakeTailAt(snake_b, snake_a.head);
     snake_b = new_snake;
     cut_tails.insert(cut_tails.end(), cut.begin(), cut.end());
   } else if (firstBitesSecond(snake_b, snake_a)) {
     // Snake B bites A - cut A's tail
-    scores["player1"] -= 10;
+    scores[PLAYER_A] -= 10;
     auto [new_snake, cut] = cutSnakeTailAt(snake_a, snake_b.head);
     snake_a = new_snake;
     cut_tails.insert(cut_tails.end(), cut.begin(), cut.end());

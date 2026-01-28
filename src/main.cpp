@@ -31,8 +31,6 @@ int main() {
   auto clock_topic = std::make_shared<Topic<snake::GameClockCommand>>();
   auto tickrate_topic = std::make_shared<Topic<snake::TickRateChange>>();
   auto reposition_topic = std::make_shared<Topic<snake::FoodRepositionTrigger>>();
-  auto joinrequest_topic = std::make_shared<Topic<snake::JoinRequest>>();
-  auto leaverequest_topic = std::make_shared<Topic<snake::LeaveRequest>>();
   auto startgame_topic = std::make_shared<Topic<snake::StartGame>>();
 
   // Create actors using factory methods - clean single-stage construction!
@@ -41,14 +39,12 @@ int main() {
   auto engine = snake::GameEngine::create(io, direction_topic, state_topic, clock_topic, tickrate_topic, level_topic,
                                           reposition_topic, timer_factory);
 
-  auto manager = snake::GameManager::create(io, gameover_topic, clock_topic, joinrequest_topic, leaverequest_topic,
-                                            startgame_topic, reposition_topic, level_topic, tickrate_topic,
-                                            timer_factory);
+  auto manager = snake::GameManager::create(io, gameover_topic, clock_topic, startgame_topic, reposition_topic,
+                                            level_topic, tickrate_topic, timer_factory);
 
   auto input_actor = snake::InputActor::create(io, direction_topic, "game_001");
 
-  // Create publishers for main thread to send commands
-  Publisher<snake::JoinRequest> joinrequest_pub{joinrequest_topic};
+  // Create publisher for main thread to send commands
   Publisher<snake::StartGame> startgame_pub{startgame_topic};
 
   // Run io_context in background thread
@@ -58,15 +54,10 @@ int main() {
     std::cout << "[Main] io_context thread finished\n";
   });
 
-  std::cout << "Joining players...\n";
-  joinrequest_pub.publish(snake::JoinRequest{"Player A"});
-  joinrequest_pub.publish(snake::JoinRequest{"Player B"});
-  std::this_thread::sleep_for(std::chrono::milliseconds(100));
-
-  std::cout << "\nStarting game...\n";
+  std::cout << "Starting game...\n";
   snake::StartGame start;
   start.starting_level = 1;
-  start.players = {"Player A", "Player B"};
+  start.players = {snake::PLAYER_A, snake::PLAYER_B};
   startgame_pub.publish(start);
   std::this_thread::sleep_for(std::chrono::milliseconds(200));
 

@@ -10,7 +10,7 @@ namespace snake {
 // Test: Single mutable field
 TEST(GenericLensTest, SingleMutableField) {
   auto op = [](std::map<PlayerId, Snake> snakes) {
-    snakes["player1"] = Snake{{5, 5}, {}, Direction::UP, true};
+    snakes["PLAYER_A"] = Snake{{5, 5}, {}, Direction::UP, true};
     return snakes;
   };
 
@@ -20,15 +20,15 @@ TEST(GenericLensTest, SingleMutableField) {
   state = transform(state);
 
   EXPECT_EQ(state.snakes.size(), 1u);
-  EXPECT_EQ(state.snakes["player1"].head.x, 5);
-  EXPECT_EQ(state.snakes["player1"].head.y, 5);
+  EXPECT_EQ(state.snakes["PLAYER_A"].head.x, 5);
+  EXPECT_EQ(state.snakes["PLAYER_A"].head.y, 5);
 }
 
 // Test: Two mutable fields
 TEST(GenericLensTest, TwoMutableFields) {
   auto op = [](std::map<PlayerId, Snake> snakes, std::map<PlayerId, int> scores) {
-    snakes["player1"] = Snake{{5, 5}, {}, Direction::UP, true};
-    scores["player1"] = 100;
+    snakes["PLAYER_A"] = Snake{{5, 5}, {}, Direction::UP, true};
+    scores["PLAYER_A"] = 100;
     return std::make_tuple(snakes, scores);
   };
 
@@ -38,7 +38,7 @@ TEST(GenericLensTest, TwoMutableFields) {
   state = transform(state);
 
   EXPECT_EQ(state.snakes.size(), 1u);
-  EXPECT_EQ(state.scores["player1"], 100);
+  EXPECT_EQ(state.scores["PLAYER_A"], 100);
 }
 
 // Test: Mutable + readonly access
@@ -49,7 +49,7 @@ TEST(GenericLensTest, MutableWithReadonly) {
     EXPECT_EQ(board.height, 20);
     EXPECT_EQ(food.size(), 2u);
 
-    snakes["player1"] = Snake{{10, 10}, {}, Direction::RIGHT, true};
+    snakes["PLAYER_A"] = Snake{{10, 10}, {}, Direction::RIGHT, true};
     return snakes;
   };
 
@@ -63,13 +63,13 @@ TEST(GenericLensTest, MutableWithReadonly) {
 
   state = transform(state);
 
-  EXPECT_EQ(state.snakes["player1"].head.x, 10);
+  EXPECT_EQ(state.snakes["PLAYER_A"].head.x, 10);
 }
 
 // Test: Additional output (threaded to next stage)
 TEST(GenericLensTest, AdditionalOutput) {
   auto op = [](std::map<PlayerId, Snake> snakes, std::map<PlayerId, int> scores) {
-    scores["player1"] = 50;
+    scores["PLAYER_A"] = 50;
     std::vector<Point> cut_tails = {{1, 1}, {2, 2}};
     return std::make_tuple(snakes, scores, cut_tails);
   };
@@ -79,7 +79,7 @@ TEST(GenericLensTest, AdditionalOutput) {
   GameState state;
   auto [new_state, cut_tails] = transform(state);
 
-  EXPECT_EQ(new_state.scores["player1"], 50);
+  EXPECT_EQ(new_state.scores["PLAYER_A"], 50);
   EXPECT_EQ(cut_tails.size(), 2u);
   EXPECT_EQ(cut_tails[0].x, 1);
   EXPECT_EQ(cut_tails[0].y, 1);
@@ -115,7 +115,7 @@ TEST(GenericLensTest, ComplexTransformation) {
     EXPECT_EQ(board.width, 80);
 
     // Use pipeline argument
-    scores["player1"] = bonus;
+    scores["PLAYER_A"] = bonus;
 
     // Generate additional output
     std::vector<Point> result_data = {{board.width / 2, board.height / 2}};
@@ -133,7 +133,7 @@ TEST(GenericLensTest, ComplexTransformation) {
   int bonus_points = 200;
   auto [new_state, result_data] = transform(state, bonus_points);
 
-  EXPECT_EQ(new_state.scores["player1"], 200);
+  EXPECT_EQ(new_state.scores["PLAYER_A"], 200);
   EXPECT_EQ(result_data.size(), 1u);
   EXPECT_EQ(result_data[0].x, 40);
   EXPECT_EQ(result_data[0].y, 15);

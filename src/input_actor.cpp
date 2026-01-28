@@ -3,6 +3,8 @@
 #include <iostream>
 #include <unistd.h>
 
+#include "snake/control_messages.hpp"
+
 namespace snake {
 
 InputActor::InputActor(Actor<InputActor>::ActorContext ctx, TopicPtr<DirectionChange> direction_topic, GameId game_id)
@@ -84,7 +86,7 @@ void InputActor::readInputLoop() {
 
             if (arrow_key) {
               UserInputEvent event;
-              event.player_id = "Player B";  // Arrow keys control Player B
+              event.player_id = PLAYER_B;  // Arrow keys control Player B
               event.key = arrow_key;
               post(event);
             }
@@ -114,8 +116,8 @@ void InputActor::readInputLoop() {
 
 PlayerId InputActor::keyToPlayer(char key) const {
   // Hardcoded mapping:
-  // Player 1: w/a/s/d
-  // Player 2: i/j/k/l
+  // Player A: w/a/s/d
+  // Player B: i/j/k/l
   switch (key) {
     case 'w':
     case 'W':
@@ -125,7 +127,7 @@ PlayerId InputActor::keyToPlayer(char key) const {
     case 'S':
     case 'd':
     case 'D':
-      return "Player A";
+      return PLAYER_A;
 
     case 'i':
     case 'I':
@@ -135,7 +137,7 @@ PlayerId InputActor::keyToPlayer(char key) const {
     case 'K':
     case 'l':
     case 'L':
-      return "Player B";
+      return PLAYER_B;
 
     default:
       return "";  // Unknown key

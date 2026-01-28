@@ -28,7 +28,7 @@ TEST(ActorTest, InputActor_ProcessesUserInput) {
 
   // Simulate user input
   UserInputEvent event;
-  event.player_id = "player1";
+  event.player_id = PLAYER_A;
   event.key = 'w';
   input_actor->post(event);
 
@@ -37,7 +37,7 @@ TEST(ActorTest, InputActor_ProcessesUserInput) {
 
   // Verify direction change was published
   ASSERT_EQ(mock_subscriber->direction_changes.size(), 1);
-  EXPECT_EQ(mock_subscriber->direction_changes[0].player_id, "player1");
+  EXPECT_EQ(mock_subscriber->direction_changes[0].player_id, PLAYER_A);
   EXPECT_EQ(mock_subscriber->direction_changes[0].new_direction, Direction::UP);
 }
 
@@ -51,28 +51,16 @@ TEST(ActorTest, GameManager_CoordinatesStartGame) {
   // Create topics
   auto gameover_topic = std::make_shared<Topic<GameOver>>();
   auto clock_topic = std::make_shared<Topic<GameClockCommand>>();
-  auto joinrequest_topic = std::make_shared<Topic<JoinRequest>>();
-  auto leaverequest_topic = std::make_shared<Topic<LeaveRequest>>();
   auto startgame_topic = std::make_shared<Topic<StartGame>>();
   auto reposition_topic = std::make_shared<Topic<FoodRepositionTrigger>>();
   auto level_topic = std::make_shared<Topic<LevelChange>>();
   auto tickrate_topic = std::make_shared<Topic<TickRateChange>>();
 
   // Create GameManager
-  auto manager = GameManager::create(io, gameover_topic, clock_topic, joinrequest_topic, leaverequest_topic,
-                                     startgame_topic, reposition_topic, level_topic, tickrate_topic, timer_factory);
+  auto manager = GameManager::create(io, gameover_topic, clock_topic, startgame_topic, reposition_topic, level_topic,
+                                     tickrate_topic, timer_factory);
 
-  // Create publisher to send join requests
-  Publisher<JoinRequest> joinrequest_pub{joinrequest_topic};
-
-  // Join players via topic
-  joinrequest_pub.publish(JoinRequest{"player1"});
-  joinrequest_pub.publish(JoinRequest{"player2"});
-
-  // Run pending join operations
-  io.run();
-
-  // Verify no crash during player joins
+  // Verify GameManager was created successfully
   SUCCEED();
 }
 
@@ -125,8 +113,6 @@ TEST(ActorTest, GameManager_SendsClockCommands) {
   // Create topics
   auto gameover_topic = std::make_shared<Topic<GameOver>>();
   auto clock_topic = std::make_shared<Topic<GameClockCommand>>();
-  auto joinrequest_topic = std::make_shared<Topic<JoinRequest>>();
-  auto leaverequest_topic = std::make_shared<Topic<LeaveRequest>>();
   auto startgame_topic = std::make_shared<Topic<StartGame>>();
   auto reposition_topic = std::make_shared<Topic<FoodRepositionTrigger>>();
   auto level_topic = std::make_shared<Topic<LevelChange>>();
@@ -136,8 +122,8 @@ TEST(ActorTest, GameManager_SendsClockCommands) {
   auto mock_clock_subscriber = MockClockCommandSubscriber::create(io, clock_topic);
 
   // Create GameManager
-  auto manager = GameManager::create(io, gameover_topic, clock_topic, joinrequest_topic, leaverequest_topic,
-                                     startgame_topic, reposition_topic, level_topic, tickrate_topic, timer_factory);
+  auto manager = GameManager::create(io, gameover_topic, clock_topic, startgame_topic, reposition_topic, level_topic,
+                                     tickrate_topic, timer_factory);
 
   // Create publisher for start game
   Publisher<StartGame> startgame_pub{startgame_topic};
@@ -145,7 +131,7 @@ TEST(ActorTest, GameManager_SendsClockCommands) {
   // Start game
   StartGame start;
   start.starting_level = 1;
-  start.players = {"player1", "player2"};
+  start.players = {PLAYER_A, PLAYER_B};
   startgame_pub.publish(start);
 
   // Run pending operations (use poll to avoid waiting for 20s timer)

@@ -2,7 +2,6 @@
 
 #include <asio.hpp>
 #include <memory>
-#include <vector>
 
 #include "actor-core/actor.hpp"
 #include "actor-core/timer/timer.hpp"
@@ -39,10 +38,10 @@ using LevelTimer = Timer<LevelTimerElapsedEvent, LevelTimerCommand>;
 using LevelTimerPtr = std::shared_ptr<LevelTimer>;
 
 /**
- * @brief Coordinates game lifecycle, sessions, and player registry
+ * @brief Coordinates game lifecycle and sessions
  *
- * GameManager supervises all game sessions and handles high-level
- * game control (start, stop, player join/leave).
+ * GameManager supervises game sessions and handles high-level
+ * game control (start, stop).
  * Sends game clock control commands to GameEngine.
  */
 class GameManager : public Actor<GameManager> {
@@ -52,8 +51,6 @@ class GameManager : public Actor<GameManager> {
    * @param ctx Actor execution context
    * @param gameover_topic Topic to subscribe for game over notifications
    * @param clock_topic Topic to publish game clock control commands
-   * @param joinrequest_topic Topic to subscribe for join requests
-   * @param leaverequest_topic Topic to subscribe for leave requests
    * @param startgame_topic Topic to subscribe for start game commands
    * @param reposition_topic Topic to publish food reposition triggers
    * @param level_topic Topic to publish level changes
@@ -61,8 +58,7 @@ class GameManager : public Actor<GameManager> {
    * @param timer_factory Factory for creating timers
    */
   GameManager(Actor<GameManager>::ActorContext ctx, TopicPtr<GameOver> gameover_topic,
-              TopicPtr<GameClockCommand> clock_topic, TopicPtr<JoinRequest> joinrequest_topic,
-              TopicPtr<LeaveRequest> leaverequest_topic, TopicPtr<StartGame> startgame_topic,
+              TopicPtr<GameClockCommand> clock_topic, TopicPtr<StartGame> startgame_topic,
               TopicPtr<FoodRepositionTrigger> reposition_topic, TopicPtr<LevelChange> level_topic,
               TopicPtr<TickRateChange> tickrate_topic, TimerFactoryPtr timer_factory);
 
@@ -70,14 +66,10 @@ class GameManager : public Actor<GameManager> {
   void processMessages() override;
 
  private:
-  void onJoinRequest(const JoinRequest& msg);
-  void onLeaveRequest(const LeaveRequest& msg);
   void onStartGame(const StartGame& msg);
   void onGameOver(const GameOver& msg);
   void onRepositionTimer();
   void onLevelTimer();
-
-  std::vector<PlayerId> registered_players_;
 
   // Publishers for sending messages
   PublisherPtr<GameClockCommand> clock_pub_;
@@ -87,8 +79,6 @@ class GameManager : public Actor<GameManager> {
 
   // Subscriptions for pulling messages
   SubscriptionPtr<GameOver> gameover_sub_;
-  SubscriptionPtr<JoinRequest> joinrequest_sub_;
-  SubscriptionPtr<LeaveRequest> leaverequest_sub_;
   SubscriptionPtr<StartGame> startgame_sub_;
 
   // Timers
