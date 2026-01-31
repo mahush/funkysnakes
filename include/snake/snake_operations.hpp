@@ -33,6 +33,14 @@ Point getNextHeadPosition(const Snake& snake);
  */
 Point wrapPoint(Point p, const Board& board);
 
+/**
+ * @brief Check if snake's head collides with its own tail
+ *
+ * @param snake Snake to check
+ * @return true if head is in tail (self-bite)
+ */
+bool snakeBitesItself(const Snake& snake);
+
 // ============================================================================
 // Snake Transformations
 // ============================================================================

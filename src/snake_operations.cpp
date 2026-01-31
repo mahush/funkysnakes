@@ -54,6 +54,11 @@ Point wrapPoint(Point p, const Board& board) {
   return p;
 }
 
+bool snakeBitesItself(const Snake& snake) {
+  // Check if head position is anywhere in the tail
+  return std::find(snake.tail.begin(), snake.tail.end(), snake.head) != snake.tail.end();
+}
+
 // ============================================================================
 // Snake Transformations
 // ============================================================================
@@ -118,8 +123,8 @@ std::tuple<Snake, std::vector<Point>> cutSnakeTailAt(Snake snake, Point cut_poin
 // ============================================================================
 
 std::tuple<PerPlayerSnakes, PerPlayerScores> addPlayer(PlayerId player_id, Point start_position,
-                                                        Direction initial_direction, int snake_length,
-                                                        PerPlayerSnakes snakes, PerPlayerScores scores) {
+                                                       Direction initial_direction, int snake_length,
+                                                       PerPlayerSnakes snakes, PerPlayerScores scores) {
   // Create snake tail extending backwards from start position
   Point head = start_position;
   std::vector<Point> tail;
@@ -185,9 +190,32 @@ PerPlayerSnakes moveSnakes(PerPlayerSnakes snakes, const Board& board, const std
   return snakes;
 }
 
+/**
+ * @brief Handle self-bite collisions for all snakes
+ *
+ * Pure function that checks each snake for self-collision and returns
+ * updated snakes and scores.
+ *
+ * @param snakes Snakes to check (by value)
+ * @param scores Scores (by value)
+ * @return Tuple of (updated snakes, updated scores)
+ */
+static std::tuple<PerPlayerSnakes, PerPlayerScores> handleSelfBites(PerPlayerSnakes snakes, PerPlayerScores scores) {
+  for (auto& [player_id, snake] : snakes) {
+    if (snake.alive && snakeBitesItself(snake)) {
+      snake.alive = false;
+      scores[player_id] -= 10;
+    }
+  }
+  return {snakes, scores};
+}
+
 std::tuple<PerPlayerSnakes, PerPlayerScores, std::vector<Point>> handleCollisions(PerPlayerSnakes snakes,
                                                                                   PerPlayerScores scores) {
   std::vector<Point> cut_tails;  // Collect cut tail segments
+
+  // Handle self-bites first
+  std::tie(snakes, scores) = handleSelfBites(snakes, scores);
 
   if (snakes.size() < 2) {
     return {snakes, scores, cut_tails};
@@ -208,7 +236,7 @@ std::tuple<PerPlayerSnakes, PerPlayerScores, std::vector<Point>> handleCollision
     return {snakes, scores, cut_tails};
   }
 
-  // Check collision cases
+  // Check inter-snake collision cases
   if (bothBiteEachOther(snake_a, snake_b)) {
     // Both die
     snake_a.alive = false;
