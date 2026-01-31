@@ -49,25 +49,31 @@ class GameManager : public Actor<GameManager> {
   /**
    * @brief Construct a new Game Manager
    * @param ctx Actor execution context
-   * @param gameover_topic Topic to subscribe for game over notifications
    * @param clock_topic Topic to publish game clock control commands
    * @param startgame_topic Topic to subscribe for start game commands
    * @param reposition_topic Topic to publish food reposition triggers
    * @param level_topic Topic to publish level changes
    * @param tickrate_topic Topic to publish tick rate changes
+   * @param alivests_topic Topic to subscribe for player alive states
+   * @param summary_req_topic Topic to publish game state summary requests
+   * @param summary_resp_topic Topic to subscribe for game state summary responses
+   * @param gameover_topic Topic to publish game over notifications
    * @param timer_factory Factory for creating timers
    */
-  GameManager(Actor<GameManager>::ActorContext ctx, TopicPtr<GameOver> gameover_topic,
-              TopicPtr<GameClockCommand> clock_topic, TopicPtr<StartGame> startgame_topic,
-              TopicPtr<FoodRepositionTrigger> reposition_topic, TopicPtr<LevelChange> level_topic,
-              TopicPtr<TickRateChange> tickrate_topic, TimerFactoryPtr timer_factory);
+  GameManager(Actor<GameManager>::ActorContext ctx, TopicPtr<GameClockCommand> clock_topic,
+              TopicPtr<StartGame> startgame_topic, TopicPtr<FoodRepositionTrigger> reposition_topic,
+              TopicPtr<LevelChange> level_topic, TopicPtr<TickRateChange> tickrate_topic,
+              TopicPtr<PlayerAliveStates> alivests_topic, TopicPtr<GameStateSummaryRequest> summary_req_topic,
+              TopicPtr<GameStateSummaryResponse> summary_resp_topic, TopicPtr<GameOver> gameover_topic,
+              TimerFactoryPtr timer_factory);
 
   // Process messages from subscribed topics
   void processMessages() override;
 
  private:
   void onStartGame(const StartGame& msg);
-  void onGameOver(const GameOver& msg);
+  void onPlayerAliveStates(const PlayerAliveStates& msg);
+  void onSummaryResponse(const GameStateSummaryResponse& response);
   void onRepositionTimer();
   void onLevelTimer();
 
@@ -76,10 +82,13 @@ class GameManager : public Actor<GameManager> {
   PublisherPtr<FoodRepositionTrigger> reposition_pub_;
   PublisherPtr<LevelChange> level_pub_;
   PublisherPtr<TickRateChange> tickrate_pub_;
+  PublisherPtr<GameStateSummaryRequest> summary_req_pub_;
+  PublisherPtr<GameOver> gameover_pub_;
 
   // Subscriptions for pulling messages
-  SubscriptionPtr<GameOver> gameover_sub_;
   SubscriptionPtr<StartGame> startgame_sub_;
+  SubscriptionPtr<PlayerAliveStates> alive_states_sub_;
+  SubscriptionPtr<GameStateSummaryResponse> summary_resp_sub_;
 
   // Timers
   RepositionTimerPtr reposition_timer_;
@@ -87,6 +96,7 @@ class GameManager : public Actor<GameManager> {
 
   GameId current_game_id_;
   int current_level_{1};
+  bool game_over_detected_{false};
 };
 
 }  // namespace snake

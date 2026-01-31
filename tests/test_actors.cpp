@@ -55,10 +55,14 @@ TEST(ActorTest, GameManager_CoordinatesStartGame) {
   auto reposition_topic = std::make_shared<Topic<FoodRepositionTrigger>>();
   auto level_topic = std::make_shared<Topic<LevelChange>>();
   auto tickrate_topic = std::make_shared<Topic<TickRateChange>>();
+  auto alivests_topic = std::make_shared<Topic<PlayerAliveStates>>();
+  auto summary_req_topic = std::make_shared<Topic<GameStateSummaryRequest>>();
+  auto summary_resp_topic = std::make_shared<Topic<GameStateSummaryResponse>>();
 
   // Create GameManager
-  auto manager = GameManager::create(io, gameover_topic, clock_topic, startgame_topic, reposition_topic, level_topic,
-                                     tickrate_topic, timer_factory);
+  auto manager = GameManager::create(io, clock_topic, startgame_topic, reposition_topic, level_topic, tickrate_topic,
+                                     alivests_topic, summary_req_topic, summary_resp_topic, gameover_topic,
+                                     timer_factory);
 
   // Verify GameManager was created successfully
   SUCCEED();
@@ -78,10 +82,14 @@ TEST(ActorTest, GameEngine_HandlesClockCommands) {
   auto tickrate_topic = std::make_shared<Topic<TickRateChange>>();
   auto level_topic = std::make_shared<Topic<LevelChange>>();
   auto reposition_topic = std::make_shared<Topic<FoodRepositionTrigger>>();
+  auto alivests_topic = std::make_shared<Topic<PlayerAliveStates>>();
+  auto summary_req_topic = std::make_shared<Topic<GameStateSummaryRequest>>();
+  auto summary_resp_topic = std::make_shared<Topic<GameStateSummaryResponse>>();
 
   // Create GameEngine
-  auto engine =
-      GameEngine::create(io, direction_topic, state_topic, clock_topic, tickrate_topic, level_topic, reposition_topic, timer_factory);
+  auto engine = GameEngine::create(io, direction_topic, state_topic, clock_topic, tickrate_topic, level_topic,
+                                   reposition_topic, alivests_topic, summary_req_topic, summary_resp_topic,
+                                   timer_factory);
 
   // Create publisher to send clock commands
   Publisher<GameClockCommand> clock_pub{clock_topic};
@@ -117,13 +125,17 @@ TEST(ActorTest, GameManager_SendsClockCommands) {
   auto reposition_topic = std::make_shared<Topic<FoodRepositionTrigger>>();
   auto level_topic = std::make_shared<Topic<LevelChange>>();
   auto tickrate_topic = std::make_shared<Topic<TickRateChange>>();
+  auto alivests_topic = std::make_shared<Topic<PlayerAliveStates>>();
+  auto summary_req_topic = std::make_shared<Topic<GameStateSummaryRequest>>();
+  auto summary_resp_topic = std::make_shared<Topic<GameStateSummaryResponse>>();
 
   // Create mock subscriber for clock commands
   auto mock_clock_subscriber = MockClockCommandSubscriber::create(io, clock_topic);
 
   // Create GameManager
-  auto manager = GameManager::create(io, gameover_topic, clock_topic, startgame_topic, reposition_topic, level_topic,
-                                     tickrate_topic, timer_factory);
+  auto manager = GameManager::create(io, clock_topic, startgame_topic, reposition_topic, level_topic, tickrate_topic,
+                                     alivests_topic, summary_req_topic, summary_resp_topic, gameover_topic,
+                                     timer_factory);
 
   // Create publisher for start game
   Publisher<StartGame> startgame_pub{startgame_topic};

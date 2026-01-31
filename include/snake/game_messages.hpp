@@ -11,15 +11,16 @@ namespace snake {
  */
 struct GameState {
   GameId game_id;
-  PerPlayerSnakes snakes;                                       // Snakes for each player
-  PerPlayerScores scores;                                       // Scores for each player
-  FoodItems food_items;                                         // Food items on the board
+  PerPlayerSnakes snakes;                                          // Snakes for each player
+  PerPlayerScores scores;                                          // Scores for each player
+  FoodItems food_items;                                            // Food items on the board
   direction_command_filter::State direction_command_filter_state;  // Direction command filter module state
-  Board board;                                                      // Board dimensions
-  CollisionMode collision_mode{CollisionMode::BITE_DROP_FOOD};     // Collision handling mode
+  Board board;                                                     // Board dimensions
+  CollisionMode collision_mode{CollisionMode::BITE_DROP_FOOD};    // Collision handling mode
   int level{1};
-  int interval_ms{200};                                         // Tick interval in milliseconds
-  bool should_reposition_food{false};                           // Flag: reposition food this tick
+  int interval_ms{200};                                            // Tick interval in milliseconds
+  bool should_reposition_food{false};                              // Flag: reposition food this tick
+  PerPlayerAliveStates previous_alive_states;                      // Previous alive states for change detection
 };
 
 /**
@@ -117,6 +118,39 @@ struct UserInputEvent {
  */
 struct LogMessage {
   std::string message;
+};
+
+/**
+ * @brief Player alive states - published when any player's alive state changes
+ *
+ * This message is sent only when at least one player's alive state changes.
+ * Used by GameManager to detect game over conditions.
+ */
+struct PlayerAliveStates {
+  GameId game_id;
+  PerPlayerAliveStates alive_states;
+};
+
+/**
+ * @brief Request current game state summary
+ *
+ * Sent by GameManager when it needs complete game state (e.g., on game over).
+ */
+struct GameStateSummaryRequest {
+  GameId game_id;
+};
+
+/**
+ * @brief Response with current game state summary
+ *
+ * Sent by GameEngine in response to GameStateSummaryRequest.
+ * Contains complete current state for building GameSummary.
+ */
+struct GameStateSummaryResponse {
+  GameId game_id;
+  int level;
+  PerPlayerScores scores;
+  PerPlayerAliveStates alive_states;
 };
 
 }  // namespace snake

@@ -6,17 +6,22 @@
 
 namespace snake {
 
-GameManager::GameManager(Actor<GameManager>::ActorContext ctx, TopicPtr<GameOver> gameover_topic,
-                         TopicPtr<GameClockCommand> clock_topic, TopicPtr<StartGame> startgame_topic,
-                         TopicPtr<FoodRepositionTrigger> reposition_topic, TopicPtr<LevelChange> level_topic,
-                         TopicPtr<TickRateChange> tickrate_topic, TimerFactoryPtr timer_factory)
+GameManager::GameManager(Actor<GameManager>::ActorContext ctx, TopicPtr<GameClockCommand> clock_topic,
+                         TopicPtr<StartGame> startgame_topic, TopicPtr<FoodRepositionTrigger> reposition_topic,
+                         TopicPtr<LevelChange> level_topic, TopicPtr<TickRateChange> tickrate_topic,
+                         TopicPtr<PlayerAliveStates> alivests_topic, TopicPtr<GameStateSummaryRequest> summary_req_topic,
+                         TopicPtr<GameStateSummaryResponse> summary_resp_topic, TopicPtr<GameOver> gameover_topic,
+                         TimerFactoryPtr timer_factory)
     : Actor(ctx),
       clock_pub_(create_pub(clock_topic)),
       reposition_pub_(create_pub(reposition_topic)),
       level_pub_(create_pub(level_topic)),
       tickrate_pub_(create_pub(tickrate_topic)),
-      gameover_sub_(create_sub(gameover_topic)),
+      summary_req_pub_(create_pub(summary_req_topic)),
+      gameover_pub_(create_pub(gameover_topic)),
       startgame_sub_(create_sub(startgame_topic)),
+      alive_states_sub_(create_sub(alivests_topic)),
+      summary_resp_sub_(create_sub(summary_resp_topic)),
       reposition_timer_(create_timer<RepositionTimer>(timer_factory)),
       level_timer_(create_timer<LevelTimer>(timer_factory)) {}
 
@@ -29,8 +34,15 @@ void GameManager::processMessages() {
   while (auto msg = startgame_sub_->tryReceive()) {
     onStartGame(*msg);
   }
-  while (auto msg = gameover_sub_->tryReceive()) {
-    onGameOver(*msg);
+
+  // Game state monitoring
+  while (auto msg = alive_states_sub_->tryReceive()) {
+    onPlayerAliveStates(*msg);
+  }
+
+  // Summary responses
+  while (auto msg = summary_resp_sub_->tryReceive()) {
+    onSummaryResponse(*msg);
   }
 }
 
@@ -40,6 +52,7 @@ void GameManager::onStartGame(const StartGame& msg) {
 
   current_game_id_ = "game_001";
   current_level_ = msg.starting_level;
+  game_over_detected_ = false;
 
   // Send START command to GameEngine (will use default 200ms interval)
   GameClockCommand cmd;
@@ -54,12 +67,52 @@ void GameManager::onStartGame(const StartGame& msg) {
   level_timer_->execute_command(make_periodic_command<LevelTimerTag>(std::chrono::seconds(60)));
 }
 
-void GameManager::onGameOver(const GameOver& msg) {
-  std::cout << "[GameManager] Game '" << msg.summary.game_id << "' ended at level " << msg.summary.final_level << "\n";
-  std::cout << "[GameManager] Final scores:\n";
-  for (const auto& [player_id, score] : msg.summary.final_scores) {
-    std::cout << "[GameManager]   " << player_id << ": " << score << "\n";
+void GameManager::onPlayerAliveStates(const PlayerAliveStates& msg) {
+  // Ignore if game already over or message is for wrong game
+  if (game_over_detected_ || msg.game_id != current_game_id_) {
+    return;
   }
+
+  // Count alive players
+  int alive_count = 0;
+  for (const auto& [player_id, alive] : msg.alive_states) {
+    if (alive) {
+      alive_count++;
+    }
+  }
+
+  // Game over condition: <= 1 player alive (death match mode)
+  if (alive_count <= 1) {
+    std::cout << "[GameManager] Game over condition detected: " << alive_count << " player(s) alive\n";
+    game_over_detected_ = true;
+
+    // Request game state summary to build GameSummary
+    GameStateSummaryRequest request;
+    request.game_id = current_game_id_;
+    summary_req_pub_->publish(request);
+  }
+}
+
+void GameManager::onSummaryResponse(const GameStateSummaryResponse& response) {
+  // Ignore if not expecting response or wrong game
+  if (!game_over_detected_ || response.game_id != current_game_id_) {
+    return;
+  }
+
+  std::cout << "[GameManager] Received game summary, publishing GameOver\n";
+
+  // Build GameSummary
+  GameSummary summary;
+  summary.game_id = response.game_id;
+  summary.final_level = response.level;
+  for (const auto& [player_id, score] : response.scores) {
+    summary.final_scores.push_back({player_id, score});
+  }
+
+  // Publish GameOver
+  GameOver gameover;
+  gameover.summary = summary;
+  gameover_pub_->publish(gameover);
 
   // Stop timers
   reposition_timer_->execute_command(make_cancel_command<RepositionTimerTag>());
@@ -67,9 +120,15 @@ void GameManager::onGameOver(const GameOver& msg) {
 
   // Send STOP command to GameEngine
   GameClockCommand cmd;
-  cmd.game_id = msg.summary.game_id;
+  cmd.game_id = current_game_id_;
   cmd.state = GameClockState::STOP;
   clock_pub_->publish(cmd);
+
+  std::cout << "[GameManager] Game '" << summary.game_id << "' ended at level " << summary.final_level << "\n";
+  std::cout << "[GameManager] Final scores:\n";
+  for (const auto& [player_id, score] : summary.final_scores) {
+    std::cout << "[GameManager]   " << player_id << ": " << score << "\n";
+  }
 }
 
 void GameManager::onRepositionTimer() {

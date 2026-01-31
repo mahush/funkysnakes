@@ -14,6 +14,16 @@ namespace snake {
 // ============================================================================
 
 /**
+ * @brief Extract alive states from snakes
+ *
+ * Transforms per-player snakes into per-player alive states.
+ *
+ * @param snakes Per-player snakes
+ * @return Per-player alive states
+ */
+PerPlayerAliveStates extractAliveStates(const PerPlayerSnakes& snakes);
+
+/**
  * @brief Get next head position based on current direction
  */
 Point getNextHeadPosition(const Snake& snake);

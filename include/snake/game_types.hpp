@@ -93,6 +93,7 @@ enum class CollisionMode {
 using PerPlayerSnakes = std::map<PlayerId, Snake>;
 using PerPlayerScores = std::map<PlayerId, int>;
 using PerPlayerDirection = std::map<PlayerId, Direction>;
+using PerPlayerAliveStates = std::map<PlayerId, bool>;
 
 // Type alias for food items
 using FoodItems = std::vector<Point>;

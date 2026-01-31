@@ -1,12 +1,20 @@
 #include "snake/snake_operations.hpp"
 
 #include <algorithm>
+#include <iterator>
 
 namespace snake {
 
 // ============================================================================
 // Basic Snake Utilities
 // ============================================================================
+
+PerPlayerAliveStates extractAliveStates(const PerPlayerSnakes& snakes) {
+  PerPlayerAliveStates alive_states;
+  std::transform(snakes.begin(), snakes.end(), std::inserter(alive_states, alive_states.begin()),
+                 [](const auto& entry) { return std::make_pair(entry.first, entry.second.alive); });
+  return alive_states;
+}
 
 Point getNextHeadPosition(const Snake& snake) {
   Point head = snake.head;

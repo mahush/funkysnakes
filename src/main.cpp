@@ -32,15 +32,20 @@ int main() {
   auto tickrate_topic = std::make_shared<Topic<snake::TickRateChange>>();
   auto reposition_topic = std::make_shared<Topic<snake::FoodRepositionTrigger>>();
   auto startgame_topic = std::make_shared<Topic<snake::StartGame>>();
+  auto alivests_topic = std::make_shared<Topic<snake::PlayerAliveStates>>();
+  auto summary_req_topic = std::make_shared<Topic<snake::GameStateSummaryRequest>>();
+  auto summary_resp_topic = std::make_shared<Topic<snake::GameStateSummaryResponse>>();
 
   // Create actors using factory methods - clean single-stage construction!
   auto renderer = snake::Renderer::create(io, state_topic, gameover_topic, level_topic);
 
   auto engine = snake::GameEngine::create(io, direction_topic, state_topic, clock_topic, tickrate_topic, level_topic,
-                                          reposition_topic, timer_factory);
+                                          reposition_topic, alivests_topic, summary_req_topic, summary_resp_topic,
+                                          timer_factory);
 
-  auto manager = snake::GameManager::create(io, gameover_topic, clock_topic, startgame_topic, reposition_topic,
-                                            level_topic, tickrate_topic, timer_factory);
+  auto manager = snake::GameManager::create(io, clock_topic, startgame_topic, reposition_topic, level_topic,
+                                            tickrate_topic, alivests_topic, summary_req_topic, summary_resp_topic,
+                                            gameover_topic, timer_factory);
 
   auto input_actor = snake::InputActor::create(io, direction_topic, "game_001");
 
