@@ -1,20 +1,27 @@
 #include "snake/renderer.hpp"
 
+#include <chrono>
 #include <iomanip>
 #include <iostream>
 #include <string>
 #include <vector>
 
+#include "actor-core/timer/timer.hpp"
 #include "snake/control_messages.hpp"
+#include "snake/process_helpers.hpp"
 
 namespace snake {
 
+using actor_core::make_cancel_command;
+using actor_core::make_periodic_command;
+
 Renderer::Renderer(Actor<Renderer>::ActorContext ctx, TopicPtr<RenderableState> state_topic,
-                   TopicPtr<GameOver> gameover_topic, TopicPtr<LevelChange> level_topic)
+                   TopicPtr<GameOver> gameover_topic, TopicPtr<LevelChange> level_topic, TimerFactoryPtr timer_factory)
     : Actor(ctx),
       state_sub_(create_sub(state_topic)),
       gameover_sub_(create_sub(gameover_topic)),
-      level_sub_(create_sub(level_topic)) {}
+      level_sub_(create_sub(level_topic)),
+      flash_timer_(create_timer<FlashTimer>(timer_factory)) {}
 
 void Renderer::processMessages() {
   // Process all pending state updates
@@ -31,9 +38,17 @@ void Renderer::processMessages() {
   while (auto msg = level_sub_->tryReceive()) {
     onLevelChange(*msg);
   }
+
+  // Process flash timer events
+  process_event(flash_timer_, [&](const FlashTimerElapsedEvent&) { onFlashTimer(); });
 }
 
 void Renderer::onRenderableState(const RenderableState& state) {
+  last_state_ = state;
+  renderBoard(state, false);
+}
+
+void Renderer::renderBoard(const RenderableState& state, bool show_game_over) {
   // Clear screen (simple version - just add newlines)
   std::cout << "\n\n";
 
@@ -97,6 +112,55 @@ void Renderer::onRenderableState(const RenderableState& state) {
     }
   }
 
+  // Overlay "GAME OVER" ASCII art if game over and flash is visible
+  if (show_game_over && flash_visible_) {
+    // ASCII art for "GAME OVER" (5 lines, ~50 chars wide)
+    std::vector<std::string> game_over_text = {
+        " ####    ##   #   # ####     ####  #   # #### ####  ",
+        "#       #  #  ## ## #       #    # #   # #    #   # ",
+        "#  ##  ###### # # # ###     #    # #   # ###  ####  ",
+        "#   #  #    # #   # #       #    #  # #  #    #  #  ",
+        " ####  #    # #   # ####     ####    #   #### #   # "
+    };
+
+    // Calculate starting position to center the text
+    int text_height = game_over_text.size();
+    int text_width = game_over_text[0].length();
+    int start_y = (state.board.height - text_height) / 2;
+    int start_x = (state.board.width - text_width) / 2;
+
+    // Add padding for the background box
+    int padding = 2;
+    int box_start_y = start_y - padding;
+    int box_end_y = start_y + text_height + padding - 1;
+    int box_start_x = start_x - padding;
+    int box_end_x = start_x + text_width + padding - 1;
+
+    // First, draw a background box (clear the area)
+    for (int y = box_start_y; y <= box_end_y; ++y) {
+      if (y >= 0 && y < state.board.height) {
+        for (int x = box_start_x; x <= box_end_x; ++x) {
+          if (x >= 0 && x < state.board.width) {
+            board[y][x] = ' ';
+          }
+        }
+      }
+    }
+
+    // Then overlay the text on top
+    for (size_t i = 0; i < game_over_text.size(); ++i) {
+      int y = start_y + i;
+      if (y >= 0 && y < state.board.height) {
+        for (size_t j = 0; j < game_over_text[i].length(); ++j) {
+          int x = start_x + j;
+          if (x >= 0 && x < state.board.width && game_over_text[i][j] != ' ') {
+            board[y][x] = game_over_text[i][j];
+          }
+        }
+      }
+    }
+  }
+
   // Print board with box borders
   std::string horizontal_line;
   for (int i = 0; i < board_width; ++i) {
@@ -138,14 +202,27 @@ void Renderer::onRenderableState(const RenderableState& state) {
   std::cout << "╚" << separator << "╝\n";
 }
 
-void Renderer::onGameOver(const GameOver& msg) {
-  std::cout << "[Renderer] ********** GAME OVER **********\n";
-  std::cout << "[Renderer] Game: " << msg.summary.game_id << " | Final Level: " << msg.summary.final_level << "\n";
-  std::cout << "[Renderer] Final Scores:\n";
-  for (const auto& [player_id, score] : msg.summary.final_scores) {
-    std::cout << "[Renderer]   " << player_id << ": " << score << "\n";
+void Renderer::onGameOver(const GameOver& /* msg */) {
+  game_over_active_ = true;
+  flash_visible_ = true;
+
+  // Start flash timer (750ms interval for flashing effect)
+  flash_timer_->execute_command(make_periodic_command<FlashTimerTag>(std::chrono::milliseconds(750)));
+
+  // Re-render the last state with "GAME OVER" overlay
+  renderBoard(last_state_, true);
+}
+
+void Renderer::onFlashTimer() {
+  if (!game_over_active_) {
+    return;
   }
-  std::cout << "[Renderer] ******************************\n";
+
+  // Toggle flash visibility
+  flash_visible_ = !flash_visible_;
+
+  // Re-render with current flash state
+  renderBoard(last_state_, true);
 }
 
 void Renderer::onLevelChange(const LevelChange& msg) {

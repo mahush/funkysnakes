@@ -37,7 +37,7 @@ int main() {
   auto summary_resp_topic = std::make_shared<Topic<snake::GameStateSummaryResponse>>();
 
   // Create actors using factory methods - clean single-stage construction!
-  auto renderer = snake::Renderer::create(io, state_topic, gameover_topic, level_topic);
+  auto renderer = snake::Renderer::create(io, state_topic, gameover_topic, level_topic, timer_factory);
 
   auto engine = snake::GameEngine::create(io, direction_topic, state_topic, clock_topic, tickrate_topic, level_topic,
                                           reposition_topic, alivests_topic, summary_req_topic, summary_resp_topic,
