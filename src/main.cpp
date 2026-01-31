@@ -8,6 +8,7 @@
 #include "snake/game_engine.hpp"
 #include "snake/game_manager.hpp"
 #include "snake/input_actor.hpp"
+#include "snake/logger.hpp"
 #include "snake/renderer.hpp"
 
 using actor_core::Publisher;
@@ -16,6 +17,9 @@ using actor_core::Topic;
 
 int main() {
   std::cout << "=== Snake Game - Interactive Demo ===\n\n";
+
+  // Initialize logger
+  snake::Logger::initialize("snake_game.log");
 
   asio::io_context io;
   auto work_guard = asio::make_work_guard(io);  // Keep io_context alive
@@ -81,6 +85,9 @@ int main() {
   input_actor->stopReading();
   io.stop();
   runner.join();
+
+  // Shutdown logger
+  snake::Logger::shutdown();
 
   std::cout << "Demo complete!\n";
   return 0;

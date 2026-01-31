@@ -1,7 +1,6 @@
 #include "snake/game_manager.hpp"
 
-#include <iostream>
-
+#include "snake/logger.hpp"
 #include "snake/process_helpers.hpp"
 
 namespace snake {
@@ -47,8 +46,8 @@ void GameManager::processMessages() {
 }
 
 void GameManager::onStartGame(const StartGame& msg) {
-  std::cout << "[GameManager] Starting game with level " << msg.starting_level << " and " << msg.players.size()
-            << " players\n";
+  Logger::log("[GameManager] Starting game with level " + std::to_string(msg.starting_level) + " and " +
+              std::to_string(msg.players.size()) + " players\n");
 
   current_game_id_ = "game_001";
   current_level_ = msg.starting_level;
@@ -83,7 +82,7 @@ void GameManager::onPlayerAliveStates(const PlayerAliveStates& msg) {
 
   // Game over condition: <= 1 player alive (death match mode)
   if (alive_count <= 1) {
-    std::cout << "[GameManager] Game over condition detected: " << alive_count << " player(s) alive\n";
+    Logger::log("[GameManager] Game over condition detected: " + std::to_string(alive_count) + " player(s) alive\n");
     game_over_detected_ = true;
 
     // Request game state summary to build GameSummary
@@ -99,7 +98,7 @@ void GameManager::onSummaryResponse(const GameStateSummaryResponse& response) {
     return;
   }
 
-  std::cout << "[GameManager] Received game summary, publishing GameOver\n";
+  Logger::log("[GameManager] Received game summary, publishing GameOver\n");
 
   // Build GameSummary
   GameSummary summary;
@@ -124,10 +123,11 @@ void GameManager::onSummaryResponse(const GameStateSummaryResponse& response) {
   cmd.state = GameClockState::STOP;
   clock_pub_->publish(cmd);
 
-  std::cout << "[GameManager] Game '" << summary.game_id << "' ended at level " << summary.final_level << "\n";
-  std::cout << "[GameManager] Final scores:\n";
+  Logger::log("[GameManager] Game '" + summary.game_id + "' ended at level " + std::to_string(summary.final_level) +
+              "\n");
+  Logger::log("[GameManager] Final scores:\n");
   for (const auto& [player_id, score] : summary.final_scores) {
-    std::cout << "[GameManager]   " << player_id << ": " << score << "\n";
+    Logger::log("[GameManager]   " + player_id + ": " + std::to_string(score) + "\n");
   }
 }
 
@@ -140,7 +140,7 @@ void GameManager::onLevelTimer() {
   // Increment level
   current_level_++;
 
-  std::cout << "[GameManager] Level up! Now at level " << current_level_ << "\n";
+  Logger::log("[GameManager] Level up! Now at level " + std::to_string(current_level_) + "\n");
 
   // Calculate new tick rate: faster with each level
   // Base interval: 200ms, reduce by 15ms per level, minimum 50ms
@@ -150,7 +150,7 @@ void GameManager::onLevelTimer() {
 
   int new_interval_ms = std::max(MIN_INTERVAL_MS, BASE_INTERVAL_MS - ((current_level_ - 1) * REDUCTION_PER_LEVEL_MS));
 
-  std::cout << "[GameManager] New tick interval: " << new_interval_ms << "ms\n";
+  Logger::log("[GameManager] New tick interval: " + std::to_string(new_interval_ms) + "ms\n");
 
   // Publish level change for display (renderer, etc.)
   LevelChange level_change;

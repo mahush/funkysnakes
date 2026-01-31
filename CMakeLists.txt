@@ -61,6 +61,7 @@ add_executable(snake_actors
   src/snake_operations.cpp
   src/actor-core/timer/asio_timer_core.cpp
   src/utility.cpp
+  src/logger.cpp
 )
 
 target_include_directories(snake_actors PRIVATE
@@ -107,6 +108,7 @@ if(SNAKE_BUILD_TESTS)
     src/snake_operations.cpp
     src/actor-core/timer/asio_timer_core.cpp
     src/utility.cpp
+    src/logger.cpp
   )
 
   target_link_libraries(test_snake PRIVATE gtest_main gmock_main asio funkypipes)

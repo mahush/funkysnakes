@@ -1,7 +1,8 @@
 build/
-.cache/
-compile_commands.json
-*.swp
+*.log
 *.swo
+*.swp
 *~
 .DS_Store
+.cache/
+compile_commands.json

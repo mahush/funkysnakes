@@ -1,6 +1,5 @@
 #include "snake/game_engine.hpp"
 
-#include <iostream>
 #include <optional>
 #include <tuple>
 
@@ -13,6 +12,7 @@
 #include "snake/functional_utils.hpp"
 #include "snake/game_state_lenses.hpp"
 #include "snake/game_state_views.hpp"
+#include "snake/logger.hpp"
 #include "snake/process_helpers.hpp"
 #include "snake/snake_model.hpp"
 #include "snake/snake_operations.hpp"
@@ -271,8 +271,8 @@ class GameEngineEffectHandler {
   // Handle GameTimerCommand effect: execute timer command
   void handle(const GameTimerCommand& cmd) { timer_->execute_command(cmd); }
 
-  // Handle LogMessage effect: log to console
-  void handle(const LogMessage& log) { std::cout << log.message; }
+  // Handle LogMessage effect: log to file
+  void handle(const LogMessage& log) { Logger::log(log.message); }
 
   // Handle optional PlayerAliveStates effect: publish if present
   void handle(const std::optional<PlayerAliveStates>& msg) {
@@ -326,7 +326,7 @@ GameEngine::GameEngine(Actor<GameEngine>::ActorContext ctx, TopicPtr<DirectionCh
   apply_to_state(state_,
                  over_food_viewing_board_and_snakes(bindFront(initializeFood, makeRandomIntGenerator(), MIN_FOOD_COUNT)));
 
-  std::cout << "[GameEngine] Initialized " << state_.food_items.size() << " food items\n";
+  Logger::log("[GameEngine] Initialized " + std::to_string(state_.food_items.size()) + " food items\n");
 }
 
 void GameEngine::processMessages() {

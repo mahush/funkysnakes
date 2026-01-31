@@ -7,6 +7,7 @@
 #include "snake/game_engine.hpp"
 #include "snake/game_manager.hpp"
 #include "snake/input_actor.hpp"
+#include "snake/logger.hpp"
 #include "snake/renderer.hpp"
 
 using actor_core::Publisher;
@@ -14,6 +15,16 @@ using actor_core::TimerFactory;
 using actor_core::Topic;
 
 namespace snake {
+
+// Global test environment for logger initialization
+class LoggerTestEnvironment : public ::testing::Environment {
+ public:
+  void SetUp() override { Logger::initialize("test_snake.log"); }
+  void TearDown() override { Logger::shutdown(); }
+};
+
+// Register the global test environment
+::testing::Environment* const logger_env = ::testing::AddGlobalTestEnvironment(new LoggerTestEnvironment());
 
 // Test InputActor processes user input correctly
 TEST(ActorTest, InputActor_ProcessesUserInput) {
