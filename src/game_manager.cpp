@@ -80,9 +80,9 @@ void GameManager::onPlayerAliveStates(const PlayerAliveStates& msg) {
     }
   }
 
-  // Game over condition: <= 1 player alive (death match mode)
-  if (alive_count <= 1) {
-    Logger::log("[GameManager] Game over condition detected: " + std::to_string(alive_count) + " player(s) alive\n");
+  // Game over condition: 0 players alive (last snake standing wins)
+  if (alive_count == 0) {
+    Logger::log("[GameManager] Game over condition detected: all snakes dead\n");
     game_over_detected_ = true;
 
     // Request game state summary to build GameSummary
