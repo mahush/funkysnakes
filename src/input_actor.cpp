@@ -7,8 +7,12 @@
 
 namespace snake {
 
-InputActor::InputActor(Actor<InputActor>::ActorContext ctx, TopicPtr<DirectionChange> direction_topic, GameId game_id)
-    : Actor(ctx), direction_pub_(create_pub(direction_topic)), game_id_(std::move(game_id)) {}
+InputActor::InputActor(Actor<InputActor>::ActorContext ctx, TopicPtr<DirectionChange> direction_topic,
+                       TopicPtr<PauseToggle> pause_topic, GameId game_id)
+    : Actor(ctx),
+      direction_pub_(create_pub(direction_topic)),
+      pause_pub_(create_pub(pause_topic)),
+      game_id_(std::move(game_id)) {}
 
 InputActor::~InputActor() { stopReading(); }
 
@@ -26,7 +30,7 @@ void InputActor::startReading() {
   std::cout << "[InputActor] Started reading from stdin (raw mode)\n";
   std::cout << "[InputActor] Player 1 (Snake A): w=UP, a=LEFT, s=DOWN, d=RIGHT\n";
   std::cout << "[InputActor] Player 2 (Snake B): Arrow keys (↑ ↓ ← →)\n";
-  std::cout << "[InputActor] Press 'q' to quit\n";
+  std::cout << "[InputActor] Press 'p' to pause/resume, 'q' to quit\n";
 }
 
 void InputActor::stopReading() {
@@ -50,11 +54,27 @@ void InputActor::onUserInput(UserInputEvent msg) {
   direction_pub_->publish(change);
 }
 
+void InputActor::onPauseToggle() {
+  // Publish pause toggle request
+  PauseToggle toggle;
+  toggle.game_id = game_id_;
+  pause_pub_->publish(toggle);
+}
+
 // Helper method for background thread to post events to this actor's strand
 void InputActor::post(UserInputEvent msg) {
   asio::post(strand_, [weak_self = weak_from_this(), msg] {
     if (auto self = weak_self.lock()) {
       self->onUserInput(msg);
+    }
+  });
+}
+
+// Helper method for tests to post pause toggle event to this actor's strand
+void InputActor::post_pause_toggle() {
+  asio::post(strand_, [weak_self = weak_from_this()] {
+    if (auto self = weak_self.lock()) {
+      self->onPauseToggle();
     }
   });
 }
@@ -68,6 +88,17 @@ void InputActor::readInputLoop() {
         std::cout << "\n[InputActor] Quit requested\n";
         should_stop_ = true;
         break;
+      }
+
+      // Check for pause toggle
+      if (ch == 'p' || ch == 'P') {
+        // Post pause toggle to strand for thread-safe processing
+        asio::post(strand_, [weak_self = weak_from_this()] {
+          if (auto self = weak_self.lock()) {
+            self->onPauseToggle();
+          }
+        });
+        continue;
       }
 
       // Check for escape sequences (arrow keys)

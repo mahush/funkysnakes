@@ -60,16 +60,9 @@ struct EndSession {
 };
 
 /**
- * @brief Request to pause the game
+ * @brief Request to toggle pause state
  */
-struct PauseGame {
-  GameId game_id;
-};
-
-/**
- * @brief Request to resume the game
- */
-struct ResumeGame {
+struct PauseToggle {
   GameId game_id;
 };
 

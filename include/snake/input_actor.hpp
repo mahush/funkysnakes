@@ -55,15 +55,21 @@ class InputActor : public Actor<InputActor> {
    * @brief Construct a new Input Actor
    * @param ctx Actor execution context
    * @param direction_topic Topic to publish direction changes
+   * @param pause_topic Topic to publish pause toggle requests
    * @param game_id The current game ID
    */
-  InputActor(Actor<InputActor>::ActorContext ctx, TopicPtr<DirectionChange> direction_topic, GameId game_id);
+  InputActor(Actor<InputActor>::ActorContext ctx, TopicPtr<DirectionChange> direction_topic,
+             TopicPtr<PauseToggle> pause_topic, GameId game_id);
 
   // Helper for background thread and tests to post events to this actor's strand
   void post(UserInputEvent msg);
 
+  // Helper for tests to post pause toggle event to this actor's strand
+  void post_pause_toggle();
+
  private:
   void onUserInput(UserInputEvent msg);
+  void onPauseToggle();
   Direction charToDirection(char key) const;
   void readInputLoop();
   PlayerId keyToPlayer(char key) const;
@@ -71,6 +77,7 @@ class InputActor : public Actor<InputActor> {
   void disableRawMode();
 
   PublisherPtr<DirectionChange> direction_pub_;
+  PublisherPtr<PauseToggle> pause_pub_;
   GameId game_id_;
 
   std::atomic<bool> should_stop_{false};

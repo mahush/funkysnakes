@@ -47,7 +47,6 @@ class GameEngine : public Actor<GameEngine> {
    * @param state_topic Topic to publish renderable state
    * @param clock_topic Topic to subscribe for clock control commands
    * @param tickrate_topic Topic to subscribe for tick rate changes
-   * @param levelchange_topic Topic to subscribe for level changes
    * @param reposition_topic Topic to subscribe for food reposition triggers
    * @param alivests_topic Topic to publish player alive states
    * @param summary_req_topic Topic to subscribe for game state summary requests
@@ -56,10 +55,9 @@ class GameEngine : public Actor<GameEngine> {
    */
   GameEngine(Actor<GameEngine>::ActorContext ctx, TopicPtr<DirectionChange> direction_topic,
              TopicPtr<RenderableState> state_topic, TopicPtr<GameClockCommand> clock_topic,
-             TopicPtr<TickRateChange> tickrate_topic, TopicPtr<LevelChange> levelchange_topic,
-             TopicPtr<FoodRepositionTrigger> reposition_topic, TopicPtr<PlayerAliveStates> alivests_topic,
-             TopicPtr<GameStateSummaryRequest> summary_req_topic, TopicPtr<GameStateSummaryResponse> summary_resp_topic,
-             TimerFactoryPtr timer_factory);
+             TopicPtr<TickRateChange> tickrate_topic, TopicPtr<FoodRepositionTrigger> reposition_topic,
+             TopicPtr<PlayerAliveStates> alivests_topic, TopicPtr<GameStateSummaryRequest> summary_req_topic,
+             TopicPtr<GameStateSummaryResponse> summary_resp_topic, TimerFactoryPtr timer_factory);
 
   // Process messages from subscribed topics
   void processMessages() override;
@@ -74,7 +72,6 @@ class GameEngine : public Actor<GameEngine> {
   SubscriptionPtr<DirectionChange> direction_sub_;
   SubscriptionPtr<GameClockCommand> clock_sub_;
   SubscriptionPtr<TickRateChange> tickrate_sub_;
-  SubscriptionPtr<LevelChange> levelchange_sub_;
   SubscriptionPtr<FoodRepositionTrigger> reposition_sub_;
   SubscriptionPtr<GameStateSummaryRequest> summary_req_sub_;
 

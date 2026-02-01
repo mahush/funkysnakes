@@ -211,13 +211,13 @@ TEST(GenericViewTest, SingleReadonlyField) {
 }
 
 TEST(GenericViewTest, MultipleReadonlyFields) {
-  auto compute_total = view(read<&GameState::board, &GameState::level>,
-                            [](const Board& board, int level) { return board.width * board.height * level; });
+  auto compute_total = view(read<&GameState::board, &GameState::interval_ms>,
+                            [](const Board& board, int interval_ms) { return board.width * board.height * interval_ms; });
 
   GameState state;
   state.board.width = 10;
   state.board.height = 5;
-  state.level = 3;
+  state.interval_ms = 3;
 
   int total = compute_total(state);
 

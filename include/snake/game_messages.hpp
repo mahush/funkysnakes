@@ -8,6 +8,9 @@ namespace snake {
 
 /**
  * @brief Complete game state snapshot
+ *
+ * Contains internal game state for GameEngine.
+ * Does not include level as that is managed by GameManager.
  */
 struct GameState {
   GameId game_id;
@@ -17,7 +20,6 @@ struct GameState {
   direction_command_filter::State direction_command_filter_state;  // Direction command filter module state
   Board board;                                                     // Board dimensions
   CollisionMode collision_mode{CollisionMode::BITE_DROP_FOOD};    // Collision handling mode
-  int level{1};
   int interval_ms{200};                                            // Tick interval in milliseconds
   bool should_reposition_food{false};                              // Flag: reposition food this tick
   PerPlayerAliveStates previous_alive_states;                      // Previous alive states for change detection
@@ -42,12 +44,11 @@ struct DirectionChange {
 /**
  * @brief Renderable game state - visual projection for rendering
  *
- * Contains only the data needed for rendering, avoiding transfer
- * of internal engine state like direction filters or timers.
+ * Contains only the visual data needed for rendering game elements.
+ * Game metadata (level, pause state, game_id) is provided separately
+ * by GameManager via GameStateMetadata.
  */
 struct RenderableState {
-  GameId game_id;
-  int level;
   Board board;
   FoodItems food_items;
   PerPlayerSnakes snakes;
@@ -55,11 +56,16 @@ struct RenderableState {
 };
 
 /**
- * @brief Level change notification
+ * @brief Game state metadata - game lifecycle information
+ *
+ * Sent by GameManager to communicate game metadata that changes during gameplay.
+ * Includes level, pause state, and game identifier.
+ * This is separate from RenderableState which contains only visual game elements.
  */
-struct LevelChange {
+struct GameStateMetadata {
   GameId game_id;
-  int new_level;
+  int level;
+  bool paused;
 };
 
 /**
@@ -144,11 +150,10 @@ struct GameStateSummaryRequest {
  * @brief Response with current game state summary
  *
  * Sent by GameEngine in response to GameStateSummaryRequest.
- * Contains complete current state for building GameSummary.
+ * Contains game state data that GameEngine manages (scores, alive states).
+ * Does not include level or game_id as those are managed by GameManager.
  */
 struct GameStateSummaryResponse {
-  GameId game_id;
-  int level;
   PerPlayerScores scores;
   PerPlayerAliveStates alive_states;
 };

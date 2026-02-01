@@ -41,11 +41,12 @@ class Renderer : public Actor<Renderer> {
    * @param ctx Actor execution context
    * @param state_topic Topic for renderable state
    * @param gameover_topic Topic for game over notifications
-   * @param level_topic Topic for level changes
+   * @param metadata_topic Topic for game state metadata (level, pause state)
    * @param timer_factory Factory for creating timers
    */
   Renderer(Actor<Renderer>::ActorContext ctx, TopicPtr<RenderableState> state_topic,
-           TopicPtr<GameOver> gameover_topic, TopicPtr<LevelChange> level_topic, TimerFactoryPtr timer_factory);
+           TopicPtr<GameOver> gameover_topic, TopicPtr<GameStateMetadata> metadata_topic,
+           TimerFactoryPtr timer_factory);
 
   // Process messages from subscribed topics
   void processMessages() override;
@@ -53,20 +54,23 @@ class Renderer : public Actor<Renderer> {
  private:
   void onRenderableState(const RenderableState& state);
   void onGameOver(const GameOver& msg);
-  void onLevelChange(const LevelChange& msg);
+  void onGameStateMetadata(const GameStateMetadata& msg);
   void onFlashTimer();
-  void renderBoard(const RenderableState& state, bool show_game_over = false);
+  void renderBoard(const RenderableState& state, bool show_game_over = false, bool show_paused = false);
 
   // Subscriptions for pulling messages
   SubscriptionPtr<RenderableState> state_sub_;
   SubscriptionPtr<GameOver> gameover_sub_;
-  SubscriptionPtr<LevelChange> level_sub_;
+  SubscriptionPtr<GameStateMetadata> metadata_sub_;
 
   // Timer for flashing game over overlay
   FlashTimerPtr flash_timer_;
 
   // Last rendered state (for game over overlay)
   RenderableState last_state_;
+
+  // Game metadata (from GameManager)
+  GameStateMetadata metadata_;
 
   // Game over state tracking
   bool game_over_active_{false};

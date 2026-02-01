@@ -123,10 +123,8 @@ static std::tuple<GameState, RenderableState, std::optional<PlayerAliveStates>> 
   auto [state_with_updated_alive, alive_msg] = tryGeneratePlayerAliveStates(state);
   state = state_with_updated_alive;
 
-  // Build renderable state from game state
+  // Build renderable state from game state (visual elements only)
   RenderableState renderable{
-      state.game_id,
-      state.level,
       state.board,
       state.food_items,
       state.snakes,
@@ -197,21 +195,6 @@ static std::tuple<GameState, GameTimerCommand, LogMessage> handleTickRateChange(
 }
 
 /**
- * @brief Handle level change
- *
- * Pure function that returns state and log message effect.
- *
- * @param state Current game state
- * @param msg Level change message
- * @return Tuple of (updated state, log message effect)
- */
-static std::tuple<GameState, LogMessage> handleLevelChange(GameState state, const LevelChange& msg) {
-  state.level = msg.new_level;
-  LogMessage log_msg = {"[GameEngine] Level changed to " + std::to_string(msg.new_level) + "\n"};
-  return std::make_tuple(state, log_msg);
-}
-
-/**
  * @brief Set food reposition flag
  *
  * @param state Current game state
@@ -230,6 +213,7 @@ static GameState setFoodRepositionFlag(GameState state, const FoodRepositionTrig
  * @brief Handle game state summary request
  *
  * Pure function that builds a summary response from current state.
+ * Returns only data that GameEngine manages (scores, alive states).
  *
  * @param state Current game state
  * @param request Summary request (unused, required for signature)
@@ -238,8 +222,6 @@ static GameState setFoodRepositionFlag(GameState state, const FoodRepositionTrig
 static std::tuple<GameState, GameStateSummaryResponse> handleSummaryRequest(
     GameState state, const GameStateSummaryRequest& /* request */) {
   GameStateSummaryResponse response;
-  response.game_id = state.game_id;
-  response.level = state.level;
   response.scores = state.scores;
   response.alive_states = extractAliveStates(state.snakes);
   return {state, response};
@@ -297,9 +279,8 @@ class GameEngineEffectHandler {
 
 GameEngine::GameEngine(Actor<GameEngine>::ActorContext ctx, TopicPtr<DirectionChange> direction_topic,
                        TopicPtr<RenderableState> state_topic, TopicPtr<GameClockCommand> clock_topic,
-                       TopicPtr<TickRateChange> tickrate_topic, TopicPtr<LevelChange> levelchange_topic,
-                       TopicPtr<FoodRepositionTrigger> reposition_topic, TopicPtr<PlayerAliveStates> alivests_topic,
-                       TopicPtr<GameStateSummaryRequest> summary_req_topic,
+                       TopicPtr<TickRateChange> tickrate_topic, TopicPtr<FoodRepositionTrigger> reposition_topic,
+                       TopicPtr<PlayerAliveStates> alivests_topic, TopicPtr<GameStateSummaryRequest> summary_req_topic,
                        TopicPtr<GameStateSummaryResponse> summary_resp_topic, TimerFactoryPtr timer_factory)
     : Actor(ctx),
       renderable_state_pub_(create_pub(state_topic)),
@@ -308,7 +289,6 @@ GameEngine::GameEngine(Actor<GameEngine>::ActorContext ctx, TopicPtr<DirectionCh
       direction_sub_(create_sub(direction_topic)),
       clock_sub_(create_sub(clock_topic)),
       tickrate_sub_(create_sub(tickrate_topic)),
-      levelchange_sub_(create_sub(levelchange_topic)),
       reposition_sub_(create_sub(reposition_topic)),
       summary_req_sub_(create_sub(summary_req_topic)),
       timer_(create_timer<GameTimer>(timer_factory)) {
@@ -345,9 +325,6 @@ void GameEngine::processMessages() {
 
   // Process tick rate changes with effect handler pattern
   process_message_with_state(tickrate_sub_, state_, handleTickRateChange, effect_handler);
-
-  // Process level changes with effect handler pattern
-  process_message_with_state(levelchange_sub_, state_, handleLevelChange, effect_handler);
 
   // Process food reposition triggers (pure, no effects)
   process_message_with_state(reposition_sub_, state_, setFoodRepositionFlag);

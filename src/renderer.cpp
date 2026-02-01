@@ -16,11 +16,12 @@ using actor_core::make_cancel_command;
 using actor_core::make_periodic_command;
 
 Renderer::Renderer(Actor<Renderer>::ActorContext ctx, TopicPtr<RenderableState> state_topic,
-                   TopicPtr<GameOver> gameover_topic, TopicPtr<LevelChange> level_topic, TimerFactoryPtr timer_factory)
+                   TopicPtr<GameOver> gameover_topic, TopicPtr<GameStateMetadata> metadata_topic,
+                   TimerFactoryPtr timer_factory)
     : Actor(ctx),
       state_sub_(create_sub(state_topic)),
       gameover_sub_(create_sub(gameover_topic)),
-      level_sub_(create_sub(level_topic)),
+      metadata_sub_(create_sub(metadata_topic)),
       flash_timer_(create_timer<FlashTimer>(timer_factory)) {}
 
 void Renderer::processMessages() {
@@ -34,9 +35,9 @@ void Renderer::processMessages() {
     onGameOver(*msg);
   }
 
-  // Process level changes
-  while (auto msg = level_sub_->tryReceive()) {
-    onLevelChange(*msg);
+  // Process game state metadata (level, pause state)
+  while (auto msg = metadata_sub_->tryReceive()) {
+    onGameStateMetadata(*msg);
   }
 
   // Process flash timer events
@@ -45,10 +46,18 @@ void Renderer::processMessages() {
 
 void Renderer::onRenderableState(const RenderableState& state) {
   last_state_ = state;
-  renderBoard(state, false);
+  renderBoard(state, false, metadata_.paused);
 }
 
-void Renderer::renderBoard(const RenderableState& state, bool show_game_over) {
+void Renderer::onGameStateMetadata(const GameStateMetadata& msg) {
+  metadata_ = msg;
+  // Re-render if we have state (to show updated level/pause state)
+  if (!last_state_.snakes.empty()) {
+    renderBoard(last_state_, game_over_active_, metadata_.paused);
+  }
+}
+
+void Renderer::renderBoard(const RenderableState& state, bool show_game_over, bool show_paused) {
   // Clear screen (simple version - just add newlines)
   std::cout << "\n\n";
 
@@ -77,8 +86,8 @@ void Renderer::renderBoard(const RenderableState& state, bool show_game_over) {
   std::cout << "╔" << title_padding_left << title << title_padding_right << "╗\n";
 
   // Create info line with left-aligned game ID and right-aligned level
-  std::string game_text = "Game: " + state.game_id;
-  std::string level_text = "Level: " + std::to_string(state.level);
+  std::string game_text = "Game: " + metadata_.game_id;
+  std::string level_text = "Level: " + std::to_string(metadata_.level);
   int padding = separator_width - game_text.length() - level_text.length();
 
   std::cout << "║" << game_text << std::string(padding, ' ') << level_text << "║\n";
@@ -161,6 +170,58 @@ void Renderer::renderBoard(const RenderableState& state, bool show_game_over) {
     }
   }
 
+  // Overlay pause symbol if game is paused
+  if (show_paused) {
+    // Pause symbol: two vertical bars using ASCII
+    std::vector<std::string> pause_symbol = {
+        "|||||||  |||||||",
+        "|||||||  |||||||",
+        "|||||||  |||||||",
+        "|||||||  |||||||",
+        "|||||||  |||||||",
+        "|||||||  |||||||",
+        "|||||||  |||||||"
+    };
+
+    // Calculate starting position to center the symbol
+    int symbol_height = pause_symbol.size();
+    int symbol_width = pause_symbol[0].length();
+    int start_y = (state.board.height - symbol_height) / 2;
+    int start_x = (state.board.width - symbol_width) / 2;
+
+    // Add padding for the background box (horizontal more than vertical)
+    int padding_horizontal = 3;
+    int padding_vertical = 1;
+    int box_start_y = start_y - padding_vertical;
+    int box_end_y = start_y + symbol_height + padding_vertical - 1;
+    int box_start_x = start_x - padding_horizontal;
+    int box_end_x = start_x + symbol_width + padding_horizontal - 1;
+
+    // First, draw a background box (clear the area)
+    for (int y = box_start_y; y <= box_end_y; ++y) {
+      if (y >= 0 && y < state.board.height) {
+        for (int x = box_start_x; x <= box_end_x; ++x) {
+          if (x >= 0 && x < state.board.width) {
+            board[y][x] = ' ';
+          }
+        }
+      }
+    }
+
+    // Then overlay the pause symbol on top
+    for (size_t i = 0; i < pause_symbol.size(); ++i) {
+      int y = start_y + i;
+      if (y >= 0 && y < state.board.height) {
+        for (size_t j = 0; j < pause_symbol[i].length(); ++j) {
+          int x = start_x + j;
+          if (x >= 0 && x < state.board.width && pause_symbol[i][j] != ' ') {
+            board[y][x] = pause_symbol[i][j];
+          }
+        }
+      }
+    }
+  }
+
   // Print board with box borders
   std::string horizontal_line;
   for (int i = 0; i < board_width; ++i) {
@@ -210,7 +271,7 @@ void Renderer::onGameOver(const GameOver& /* msg */) {
   flash_timer_->execute_command(make_periodic_command<FlashTimerTag>(std::chrono::milliseconds(750)));
 
   // Re-render the last state with "GAME OVER" overlay
-  renderBoard(last_state_, true);
+  renderBoard(last_state_, true, metadata_.paused);
 }
 
 void Renderer::onFlashTimer() {
@@ -222,11 +283,7 @@ void Renderer::onFlashTimer() {
   flash_visible_ = !flash_visible_;
 
   // Re-render with current flash state
-  renderBoard(last_state_, true);
-}
-
-void Renderer::onLevelChange(const LevelChange& msg) {
-  std::cout << "[Renderer] >>>>>> LEVEL UP! Now at level " << msg.new_level << " <<<<<<\n";
+  renderBoard(last_state_, true, metadata_.paused);
 }
 
 }  // namespace snake

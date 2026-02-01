@@ -30,12 +30,13 @@ class LoggerTestEnvironment : public ::testing::Environment {
 TEST(ActorTest, InputActor_ProcessesUserInput) {
   asio::io_context io;
 
-  // Create topic and mock subscriber
+  // Create topics and mock subscriber
   auto direction_topic = std::make_shared<Topic<DirectionChange>>();
+  auto pause_topic = std::make_shared<Topic<PauseToggle>>();
   auto mock_subscriber = MockDirectionChangeSubscriber::create(io, direction_topic);
 
-  // Create InputActor with the topic
-  auto input_actor = InputActor::create(io, direction_topic, "game_001");
+  // Create InputActor with the topics
+  auto input_actor = InputActor::create(io, direction_topic, pause_topic, "game_001");
 
   // Simulate user input
   UserInputEvent event;
@@ -64,16 +65,17 @@ TEST(ActorTest, GameManager_CoordinatesStartGame) {
   auto clock_topic = std::make_shared<Topic<GameClockCommand>>();
   auto startgame_topic = std::make_shared<Topic<StartGame>>();
   auto reposition_topic = std::make_shared<Topic<FoodRepositionTrigger>>();
-  auto level_topic = std::make_shared<Topic<LevelChange>>();
+  auto metadata_topic = std::make_shared<Topic<GameStateMetadata>>();
   auto tickrate_topic = std::make_shared<Topic<TickRateChange>>();
   auto alivests_topic = std::make_shared<Topic<PlayerAliveStates>>();
   auto summary_req_topic = std::make_shared<Topic<GameStateSummaryRequest>>();
   auto summary_resp_topic = std::make_shared<Topic<GameStateSummaryResponse>>();
+  auto pause_topic = std::make_shared<Topic<PauseToggle>>();
 
   // Create GameManager
-  auto manager = GameManager::create(io, clock_topic, startgame_topic, reposition_topic, level_topic, tickrate_topic,
+  auto manager = GameManager::create(io, clock_topic, startgame_topic, reposition_topic, metadata_topic, tickrate_topic,
                                      alivests_topic, summary_req_topic, summary_resp_topic, gameover_topic,
-                                     timer_factory);
+                                     pause_topic, timer_factory);
 
   // Verify GameManager was created successfully
   SUCCEED();
@@ -91,14 +93,13 @@ TEST(ActorTest, GameEngine_HandlesClockCommands) {
   auto state_topic = std::make_shared<Topic<RenderableState>>();
   auto clock_topic = std::make_shared<Topic<GameClockCommand>>();
   auto tickrate_topic = std::make_shared<Topic<TickRateChange>>();
-  auto level_topic = std::make_shared<Topic<LevelChange>>();
   auto reposition_topic = std::make_shared<Topic<FoodRepositionTrigger>>();
   auto alivests_topic = std::make_shared<Topic<PlayerAliveStates>>();
   auto summary_req_topic = std::make_shared<Topic<GameStateSummaryRequest>>();
   auto summary_resp_topic = std::make_shared<Topic<GameStateSummaryResponse>>();
 
   // Create GameEngine
-  auto engine = GameEngine::create(io, direction_topic, state_topic, clock_topic, tickrate_topic, level_topic,
+  auto engine = GameEngine::create(io, direction_topic, state_topic, clock_topic, tickrate_topic,
                                    reposition_topic, alivests_topic, summary_req_topic, summary_resp_topic,
                                    timer_factory);
 
@@ -122,6 +123,74 @@ TEST(ActorTest, GameEngine_HandlesClockCommands) {
   SUCCEED();
 }
 
+// Test GameManager handles pause toggle
+TEST(ActorTest, GameManager_HandlesPauseToggle) {
+  asio::io_context io;
+
+  // Create timer factory
+  auto timer_factory = std::make_shared<TimerFactory>(io);
+
+  // Create topics
+  auto gameover_topic = std::make_shared<Topic<GameOver>>();
+  auto clock_topic = std::make_shared<Topic<GameClockCommand>>();
+  auto startgame_topic = std::make_shared<Topic<StartGame>>();
+  auto reposition_topic = std::make_shared<Topic<FoodRepositionTrigger>>();
+  auto metadata_topic = std::make_shared<Topic<GameStateMetadata>>();
+  auto tickrate_topic = std::make_shared<Topic<TickRateChange>>();
+  auto alivests_topic = std::make_shared<Topic<PlayerAliveStates>>();
+  auto summary_req_topic = std::make_shared<Topic<GameStateSummaryRequest>>();
+  auto summary_resp_topic = std::make_shared<Topic<GameStateSummaryResponse>>();
+  auto pause_topic = std::make_shared<Topic<PauseToggle>>();
+
+  // Create mock subscriber for clock commands
+  auto mock_clock_subscriber = MockClockCommandSubscriber::create(io, clock_topic);
+
+  // Create GameManager
+  auto manager = GameManager::create(io, clock_topic, startgame_topic, reposition_topic, metadata_topic, tickrate_topic,
+                                     alivests_topic, summary_req_topic, summary_resp_topic, gameover_topic,
+                                     pause_topic, timer_factory);
+
+  // Create publisher for pause toggle
+  Publisher<PauseToggle> pause_pub{pause_topic};
+
+  // Start game first
+  StartGame start;
+  start.starting_level = 1;
+  start.players = {PLAYER_A, PLAYER_B};
+  Publisher<StartGame> startgame_pub{startgame_topic};
+  startgame_pub.publish(start);
+
+  // Process start game command
+  io.poll();
+  io.restart();
+
+  // Clear the START command from mock subscriber
+  mock_clock_subscriber->clock_commands.clear();
+
+  // Send first pause toggle (should pause)
+  PauseToggle toggle;
+  toggle.game_id = "game_001";
+  pause_pub.publish(toggle);
+
+  // Run all pending work
+  io.poll();
+  io.restart();
+
+  // Verify PAUSE command was published
+  ASSERT_EQ(mock_clock_subscriber->clock_commands.size(), 1u);
+  EXPECT_EQ(mock_clock_subscriber->clock_commands[0].state, GameClockState::PAUSE);
+
+  // Send second pause toggle (should resume)
+  pause_pub.publish(toggle);
+
+  // Run all pending work
+  io.poll();
+
+  // Verify RESUME command was published
+  ASSERT_EQ(mock_clock_subscriber->clock_commands.size(), 2u);
+  EXPECT_EQ(mock_clock_subscriber->clock_commands[1].state, GameClockState::RESUME);
+}
+
 // Test GameManager sends clock commands
 TEST(ActorTest, GameManager_SendsClockCommands) {
   asio::io_context io;
@@ -134,19 +203,20 @@ TEST(ActorTest, GameManager_SendsClockCommands) {
   auto clock_topic = std::make_shared<Topic<GameClockCommand>>();
   auto startgame_topic = std::make_shared<Topic<StartGame>>();
   auto reposition_topic = std::make_shared<Topic<FoodRepositionTrigger>>();
-  auto level_topic = std::make_shared<Topic<LevelChange>>();
+  auto metadata_topic = std::make_shared<Topic<GameStateMetadata>>();
   auto tickrate_topic = std::make_shared<Topic<TickRateChange>>();
   auto alivests_topic = std::make_shared<Topic<PlayerAliveStates>>();
   auto summary_req_topic = std::make_shared<Topic<GameStateSummaryRequest>>();
   auto summary_resp_topic = std::make_shared<Topic<GameStateSummaryResponse>>();
+  auto pause_topic = std::make_shared<Topic<PauseToggle>>();
 
   // Create mock subscriber for clock commands
   auto mock_clock_subscriber = MockClockCommandSubscriber::create(io, clock_topic);
 
   // Create GameManager
-  auto manager = GameManager::create(io, clock_topic, startgame_topic, reposition_topic, level_topic, tickrate_topic,
+  auto manager = GameManager::create(io, clock_topic, startgame_topic, reposition_topic, metadata_topic, tickrate_topic,
                                      alivests_topic, summary_req_topic, summary_resp_topic, gameover_topic,
-                                     timer_factory);
+                                     pause_topic, timer_factory);
 
   // Create publisher for start game
   Publisher<StartGame> startgame_pub{startgame_topic};
