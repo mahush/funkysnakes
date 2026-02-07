@@ -63,37 +63,22 @@ bool snakeBitesItself(const Snake& snake) {
 // Snake Transformations
 // ============================================================================
 
-Snake moveSnake(Snake snake, const Board& board) {
+Snake moveSnake(Snake snake, const Board& board, bool is_eating) {
   if (!snake.alive) return snake;
 
   Point new_head = getNextHeadPosition(snake);
   new_head = wrapPoint(new_head, board);
 
-  // Build new tail: old head + old tail (minus last)
+  // Build new tail: old head + old tail
   std::vector<Point> new_tail;
   new_tail.reserve(snake.tail.size() + 1);
   new_tail.push_back(snake.head);
   new_tail.insert(new_tail.end(), snake.tail.begin(), snake.tail.end());
-  if (!new_tail.empty()) {
+
+  // Remove last segment if not eating (maintains length)
+  if (!is_eating && !new_tail.empty()) {
     new_tail.pop_back();
   }
-
-  snake.head = new_head;
-  snake.tail = std::move(new_tail);
-  return snake;
-}
-
-Snake growSnake(Snake snake, const Board& board) {
-  if (!snake.alive) return snake;
-
-  Point new_head = getNextHeadPosition(snake);
-  new_head = wrapPoint(new_head, board);
-
-  // Build new tail: old head + old tail (keep all)
-  std::vector<Point> new_tail;
-  new_tail.reserve(snake.tail.size() + 1);
-  new_tail.push_back(snake.head);
-  new_tail.insert(new_tail.end(), snake.tail.begin(), snake.tail.end());
 
   snake.head = new_head;
   snake.tail = std::move(new_tail);
@@ -181,10 +166,10 @@ PerPlayerSnakes moveSnakes(PerPlayerSnakes snakes, const Board& board, const std
     next_head = wrapPoint(next_head, board);
 
     // Check if landing on food
-    bool will_eat = std::find(food_items.begin(), food_items.end(), next_head) != food_items.end();
+    bool is_eating = std::find(food_items.begin(), food_items.end(), next_head) != food_items.end();
 
-    // Grow if eating, move otherwise
-    snake = will_eat ? growSnake(snake, board) : moveSnake(snake, board);
+    // Move snake (grows if eating, maintains length otherwise)
+    snake = moveSnake(snake, board, is_eating);
   }
 
   return snakes;

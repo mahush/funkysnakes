@@ -46,28 +46,18 @@ bool snakeBitesItself(const Snake& snake);
 // ============================================================================
 
 /**
- * @brief Move snake one step in current direction (shortens tail)
+ * @brief Move snake one step in current direction
  *
- * Calculates new head position, wraps it around board boundaries,
- * and removes the last tail segment.
+ * Calculates new head position, wraps it around board boundaries.
+ * If eating, keeps all tail segments (snake grows by one).
+ * If not eating, removes the last tail segment (maintains length).
  *
  * @param snake Snake to move
  * @param board Board dimensions for wrapping
+ * @param is_eating Whether snake is eating food (grows if true)
  * @return Snake after moving
  */
-Snake moveSnake(Snake snake, const Board& board);
-
-/**
- * @brief Grow snake one step in current direction (keeps tail)
- *
- * Calculates new head position, wraps it around board boundaries,
- * and keeps all tail segments (snake grows by one).
- *
- * @param snake Snake to grow
- * @param board Board dimensions for wrapping
- * @return Snake after growing
- */
-Snake growSnake(Snake snake, const Board& board);
+Snake moveSnake(Snake snake, const Board& board, bool is_eating);
 
 /**
  * @brief Cut snake tail at specified point
