@@ -119,7 +119,7 @@ PerPlayerSnakes applyDirectionChanges(PerPlayerSnakes snakes, const PerPlayerDir
  * @param food_items Food positions (to check if eating)
  * @return Updated snakes after movement
  */
-PerPlayerSnakes moveSnakes(PerPlayerSnakes snakes, const Board& board, const std::vector<Point>& food_items);
+PerPlayerSnakes moveSnakes(PerPlayerSnakes snakes, const Board& board, const FoodItems& food_items);
 
 /**
  * @brief Handle snake-to-snake collisions
