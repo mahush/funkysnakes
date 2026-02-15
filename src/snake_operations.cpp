@@ -157,7 +157,7 @@ PerPlayerSnakes applyDirectionChanges(PerPlayerSnakes snakes, const PerPlayerDir
   return snakes;
 }
 
-PerPlayerSnakes moveSnakes(PerPlayerSnakes snakes, const Board& board, const std::vector<Point>& food_items) {
+PerPlayerSnakes moveSnakes(PerPlayerSnakes snakes, const Board& board, const FoodItems& food_items) {
   for (auto& [player_id, snake] : snakes) {
     if (!snake.alive) continue;
 
