@@ -47,6 +47,12 @@ clang-format -i src/*.cpp include/**/*.hpp
 clang-tidy src/*.cpp -- -I include
 ```
 
+### Coding Style
+
+**Constructor Initializer Lists:** Always use curly braces `{}` for member initialization in constructor initializer lists. This prevents narrowing conversions.
+
+**Variable Initialization:** For regular variable declarations, use assignment `=` or curly braces `{}`.
+
 ## Architecture Overview
 
 ### Actor-Based Message Passing System

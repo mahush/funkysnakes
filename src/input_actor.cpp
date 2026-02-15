@@ -9,12 +9,12 @@ namespace snake {
 
 InputActor::InputActor(Actor<InputActor>::ActorContext ctx, TopicPtr<DirectionChange> direction_topic,
                        TopicPtr<PauseToggle> pause_topic, GameId game_id)
-    : Actor(ctx),
-      direction_pub_(create_pub(std::move(direction_topic))),
-      pause_pub_(create_pub(std::move(pause_topic))),
-      game_id_(std::move(game_id)),
-      stdin_(ctx.io_context(), STDIN_FILENO),
-      read_buffer_(1) {}
+    : Actor{ctx},
+      direction_pub_{create_pub(std::move(direction_topic))},
+      pause_pub_{create_pub(std::move(pause_topic))},
+      game_id_{std::move(game_id)},
+      stdin_{ctx.io_context(), STDIN_FILENO},
+      read_buffer_{1} {}
 
 InputActor::~InputActor() { stopReading(); }
 
@@ -101,7 +101,8 @@ void InputActor::handleChar(char ch) {
 void InputActor::handleEscapeSequence() {
   // Read the next two characters synchronously for escape sequence
   // (Arrow keys are: ESC [ A/B/C/D)
-  char seq1, seq2;
+  char seq1 = 0;
+  char seq2 = 0;
   if (read(STDIN_FILENO, &seq1, 1) == 1 && read(STDIN_FILENO, &seq2, 1) == 1) {
     if (seq1 == '[') {
       // Arrow key detected - map to Player B controls
