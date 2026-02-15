@@ -10,139 +10,137 @@ namespace snake {
 InputActor::InputActor(Actor<InputActor>::ActorContext ctx, TopicPtr<DirectionChange> direction_topic,
                        TopicPtr<PauseToggle> pause_topic, GameId game_id)
     : Actor(ctx),
-      direction_pub_(create_pub(direction_topic)),
-      pause_pub_(create_pub(pause_topic)),
-      game_id_(std::move(game_id)) {}
+      direction_pub_(create_pub(std::move(direction_topic))),
+      pause_pub_(create_pub(std::move(pause_topic))),
+      game_id_(std::move(game_id)),
+      stdin_(ctx.io_context(), STDIN_FILENO),
+      read_buffer_(1) {}
 
 InputActor::~InputActor() { stopReading(); }
 
 void InputActor::startReading() {
-  if (input_thread_.joinable()) {
-    return;  // Already running
+  if (is_reading_) {
+    return;  // Already reading
   }
 
   enableRawMode();
+  is_reading_ = true;
 
-  should_stop_ = false;
-  // Note: Background thread keeps shared_ptr to keep actor alive while reading
-  input_thread_ = std::thread([self = shared_from_this()] { self->readInputLoop(); });
-
-  std::cout << "[InputActor] Started reading from stdin (raw mode)\n";
+  std::cout << "[InputActor] Started reading from stdin (async mode)\n";
   std::cout << "[InputActor] Player 1 (Snake A): w=UP, a=LEFT, s=DOWN, d=RIGHT\n";
   std::cout << "[InputActor] Player 2 (Snake B): Arrow keys (↑ ↓ ← →)\n";
   std::cout << "[InputActor] Press 'p' to pause/resume, 'q' to quit\n";
+
+  scheduleRead();
 }
 
 void InputActor::stopReading() {
-  should_stop_ = true;
-  if (input_thread_.joinable()) {
-    input_thread_.join();
+  if (!is_reading_) {
+    return;
   }
+
+  is_reading_ = false;
+  stdin_.cancel();
   disableRawMode();
+
+  std::cout << "\n[InputActor] Stopped reading from stdin\n";
 }
 
-void InputActor::onUserInput(UserInputEvent msg) {
-  // Translate key to direction
-  Direction dir = charToDirection(msg.key);
+void InputActor::scheduleRead() {
+  if (!is_reading_) {
+    return;
+  }
 
-  // Publish direction change to topic
+  // Async read one character - runs on strand via bind_executor
+  asio::async_read(stdin_, asio::buffer(read_buffer_),
+                   asio::bind_executor(strand_, [weak_self = weak_from_this()](std::error_code ec, std::size_t) {
+                     auto self = weak_self.lock();
+                     if (!self || ec) {
+                       if (self) {
+                         self->is_reading_ = false;
+                       }
+                       return;
+                     }
+
+                     char ch = self->read_buffer_[0];
+                     self->handleChar(ch);
+
+                     // Re-schedule next read
+                     self->scheduleRead();
+                   }));
+}
+
+void InputActor::handleChar(char ch) {
+  // Check for quit command
+  if (ch == 'q' || ch == 'Q') {
+    std::cout << "\n[InputActor] Quit requested\n";
+    stopReading();
+    return;
+  }
+
+  // Check for pause toggle
+  if (ch == 'p' || ch == 'P') {
+    publishPauseToggle();
+    return;
+  }
+
+  // Check for escape sequences (arrow keys)
+  if (ch == 27) {  // ESC
+    handleEscapeSequence();
+    return;
+  }
+
+  // Determine which player this key belongs to
+  PlayerId player = keyToPlayer(ch);
+  if (!player.empty()) {
+    Direction dir = charToDirection(ch);
+    publishDirectionChange(player, dir);
+  }
+}
+
+void InputActor::handleEscapeSequence() {
+  // Read the next two characters synchronously for escape sequence
+  // (Arrow keys are: ESC [ A/B/C/D)
+  char seq1, seq2;
+  if (read(STDIN_FILENO, &seq1, 1) == 1 && read(STDIN_FILENO, &seq2, 1) == 1) {
+    if (seq1 == '[') {
+      // Arrow key detected - map to Player B controls
+      char mapped_key = 0;
+      switch (seq2) {
+        case 'A':
+          mapped_key = 'i';
+          break;  // Up arrow
+        case 'B':
+          mapped_key = 'k';
+          break;  // Down arrow
+        case 'C':
+          mapped_key = 'l';
+          break;  // Right arrow
+        case 'D':
+          mapped_key = 'j';
+          break;  // Left arrow
+      }
+
+      if (mapped_key) {
+        Direction dir = charToDirection(mapped_key);
+        publishDirectionChange(PLAYER_B, dir);
+      }
+    }
+  }
+}
+
+void InputActor::publishDirectionChange(PlayerId player_id, Direction dir) {
   DirectionChange change;
   change.game_id = game_id_;
-  change.player_id = msg.player_id;
+  change.player_id = player_id;
   change.new_direction = dir;
-
   direction_pub_->publish(change);
 }
 
-void InputActor::onPauseToggle() {
-  // Publish pause toggle request
+void InputActor::publishPauseToggle() {
   PauseToggle toggle;
   toggle.game_id = game_id_;
   pause_pub_->publish(toggle);
-}
-
-// Helper method for background thread to post events to this actor's strand
-void InputActor::post(UserInputEvent msg) {
-  asio::post(strand_, [weak_self = weak_from_this(), msg] {
-    if (auto self = weak_self.lock()) {
-      self->onUserInput(msg);
-    }
-  });
-}
-
-// Helper method for tests to post pause toggle event to this actor's strand
-void InputActor::post_pause_toggle() {
-  asio::post(strand_, [weak_self = weak_from_this()] {
-    if (auto self = weak_self.lock()) {
-      self->onPauseToggle();
-    }
-  });
-}
-
-void InputActor::readInputLoop() {
-  while (!should_stop_) {
-    char ch;
-    if (std::cin.get(ch)) {
-      // Check for quit command
-      if (ch == 'q' || ch == 'Q') {
-        std::cout << "\n[InputActor] Quit requested\n";
-        should_stop_ = true;
-        break;
-      }
-
-      // Check for pause toggle
-      if (ch == 'p' || ch == 'P') {
-        // Post pause toggle to strand for thread-safe processing
-        asio::post(strand_, [weak_self = weak_from_this()] {
-          if (auto self = weak_self.lock()) {
-            self->onPauseToggle();
-          }
-        });
-        continue;
-      }
-
-      // Check for escape sequences (arrow keys)
-      if (ch == 27) {  // ESC
-        char seq1, seq2;
-        if (std::cin.get(seq1) && std::cin.get(seq2)) {
-          if (seq1 == '[') {
-            // Arrow key detected
-            char arrow_key = 0;
-            switch (seq2) {
-              case 'A': arrow_key = 'i'; break;  // Up arrow -> 'i'
-              case 'B': arrow_key = 'k'; break;  // Down arrow -> 'k'
-              case 'C': arrow_key = 'l'; break;  // Right arrow -> 'l'
-              case 'D': arrow_key = 'j'; break;  // Left arrow -> 'j'
-            }
-
-            if (arrow_key) {
-              UserInputEvent event;
-              event.player_id = PLAYER_B;  // Arrow keys control Player B
-              event.key = arrow_key;
-              post(event);
-            }
-          }
-        }
-        continue;
-      }
-
-      // Determine which player this key belongs to
-      PlayerId player = keyToPlayer(ch);
-      if (!player.empty()) {
-        UserInputEvent event;
-        event.player_id = player;
-        event.key = ch;
-
-        // Post to our own strand for thread-safe processing
-        post(event);
-      }
-    } else {
-      // EOF or error
-      break;
-    }
-  }
-
-  std::cout << "\n[InputActor] Stopped reading from stdin\n";
 }
 
 PlayerId InputActor::keyToPlayer(char key) const {

@@ -1,11 +1,8 @@
 #pragma once
 
 #include <asio.hpp>
-#include <atomic>
-#include <map>
-#include <memory>
-#include <thread>
 #include <termios.h>
+#include <vector>
 
 #include "actor-core/actor.hpp"
 #include "actor-core/topic.hpp"
@@ -24,29 +21,29 @@ using actor_core::TopicPtr;
  * InputActor receives input events, tags them with player ID,
  * and translates them into DirectionChange commands.
  * Supports multiple players (shared controller/keyboard).
- * Reads from stdin in a background thread.
+ * Uses asio async IO to read from stdin without blocking.
  */
 class InputActor : public Actor<InputActor> {
  public:
   /**
-   * @brief Destructor - stops the input reading thread
+   * @brief Destructor - stops input reading
    */
   ~InputActor();
 
   /**
-   * @brief Start reading from stdin in background thread
+   * @brief Start async reading from stdin
    */
   void startReading();
 
   /**
-   * @brief Stop reading from stdin
+   * @brief Stop async reading from stdin
    */
   void stopReading();
 
   /**
-   * @brief Check if the input thread is still running
+   * @brief Check if still reading input
    */
-  bool isReading() const { return input_thread_.joinable() && !should_stop_; }
+  bool isReading() const { return is_reading_; }
 
   // No subscriptions - InputActor only publishes
   void processMessages() override {}
@@ -61,17 +58,13 @@ class InputActor : public Actor<InputActor> {
   InputActor(Actor<InputActor>::ActorContext ctx, TopicPtr<DirectionChange> direction_topic,
              TopicPtr<PauseToggle> pause_topic, GameId game_id);
 
-  // Helper for background thread and tests to post events to this actor's strand
-  void post(UserInputEvent msg);
-
-  // Helper for tests to post pause toggle event to this actor's strand
-  void post_pause_toggle();
-
  private:
-  void onUserInput(UserInputEvent msg);
-  void onPauseToggle();
+  void scheduleRead();
+  void handleChar(char ch);
+  void handleEscapeSequence();
+  void publishDirectionChange(PlayerId player_id, Direction dir);
+  void publishPauseToggle();
   Direction charToDirection(char key) const;
-  void readInputLoop();
   PlayerId keyToPlayer(char key) const;
   void enableRawMode();
   void disableRawMode();
@@ -80,8 +73,9 @@ class InputActor : public Actor<InputActor> {
   PublisherPtr<PauseToggle> pause_pub_;
   GameId game_id_;
 
-  std::atomic<bool> should_stop_{false};
-  std::thread input_thread_;
+  asio::posix::stream_descriptor stdin_;
+  std::vector<char> read_buffer_;
+  bool is_reading_{false};
   termios orig_termios_{};
   bool raw_mode_enabled_{false};
 };
