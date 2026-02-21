@@ -78,7 +78,7 @@ class GameEngineActor : public Actor<GameEngineActor> {
   GameState game_state_;
 
   // Timer
-  GameTimerPtr timer_;
+  GameTimerPtr game_loop_timer_;
 };
 
 }  // namespace snake
