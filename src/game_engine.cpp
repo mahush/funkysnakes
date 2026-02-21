@@ -144,7 +144,7 @@ static std::tuple<GameState, RenderableState, std::optional<PlayerAliveStates>> 
  * @return Tuple of (state, timer command effect, log message effect)
  */
 static std::tuple<GameState, GameTimerCommand, LogMessage> handleGameClockCommand(GameState state,
-                                                                                   const GameClockCommand& msg) {
+                                                                                  const GameClockCommand& msg) {
   GameTimerCommand timer_cmd;
   LogMessage log_msg;
 
@@ -183,7 +183,7 @@ static std::tuple<GameState, GameTimerCommand, LogMessage> handleGameClockComman
  * @return Tuple of (updated state, timer command effect, log message effect)
  */
 static std::tuple<GameState, GameTimerCommand, LogMessage> handleTickRateChange(GameState state,
-                                                                                 const TickRateChange& msg) {
+                                                                                const TickRateChange& msg) {
   state.interval_ms = msg.interval_ms;
 
   // Return periodic command to restart timer with new interval
@@ -277,7 +277,7 @@ class GameEngineEffectHandler {
 // GameEngine implementation
 // ============================================================================
 
-GameEngine::GameEngine(Actor<GameEngine>::ActorContext ctx, TopicPtr<DirectionChange> direction_topic,
+GameEngine::GameEngine(ActorContext ctx, TopicPtr<DirectionChange> direction_topic,
                        TopicPtr<RenderableState> state_topic, TopicPtr<GameClockCommand> clock_topic,
                        TopicPtr<TickRateChange> tickrate_topic, TopicPtr<FoodRepositionTrigger> reposition_topic,
                        TopicPtr<PlayerAliveStates> alivests_topic, TopicPtr<GameStateSummaryRequest> summary_req_topic,
@@ -297,14 +297,14 @@ GameEngine::GameEngine(Actor<GameEngine>::ActorContext ctx, TopicPtr<DirectionCh
   state_.board.height = 20;
 
   // Initialize players
-  apply_to_state(state_, over_snakes_and_scores(
-                             bindFront(addPlayer, PlayerId{PLAYER_A}, Point{5, 10}, Direction::RIGHT, 7)));
-  apply_to_state(state_, over_snakes_and_scores(
-                             bindFront(addPlayer, PlayerId{PLAYER_B}, Point{5, 15}, Direction::RIGHT, 7)));
+  apply_to_state(state_,
+                 over_snakes_and_scores(bindFront(addPlayer, PlayerId{PLAYER_A}, Point{5, 10}, Direction::RIGHT, 7)));
+  apply_to_state(state_,
+                 over_snakes_and_scores(bindFront(addPlayer, PlayerId{PLAYER_B}, Point{5, 15}, Direction::RIGHT, 7)));
 
   // Initialize food items
-  apply_to_state(state_,
-                 over_food_viewing_board_and_snakes(bindFront(initializeFood, makeRandomIntGenerator(), MIN_FOOD_COUNT)));
+  apply_to_state(
+      state_, over_food_viewing_board_and_snakes(bindFront(initializeFood, makeRandomIntGenerator(), MIN_FOOD_COUNT)));
 
   Logger::log("[GameEngine] Initialized " + std::to_string(state_.food_items.size()) + " food items\n");
 }

@@ -26,17 +26,17 @@ Renderer::Renderer(Actor<Renderer>::ActorContext ctx, TopicPtr<RenderableState> 
 
 void Renderer::processMessages() {
   // Process all pending state updates
-  while (auto msg = state_sub_->tryReceive()) {
+  while (auto msg = state_sub_->tryTakeMessage()) {
     onRenderableState(*msg);
   }
 
   // Process game over messages
-  while (auto msg = gameover_sub_->tryReceive()) {
+  while (auto msg = gameover_sub_->tryTakeMessage()) {
     onGameOver(*msg);
   }
 
   // Process game state metadata (level, pause state)
-  while (auto msg = metadata_sub_->tryReceive()) {
+  while (auto msg = metadata_sub_->tryTakeMessage()) {
     onGameStateMetadata(*msg);
   }
 

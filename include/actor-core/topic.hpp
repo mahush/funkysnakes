@@ -8,7 +8,7 @@
 
 #include "asio.hpp"
 #include "actor-core/processor_interface.hpp"
-#include "actor-core/topic_subscription.hpp"
+#include "actor-core/subscription.hpp"
 
 namespace actor_core {
 

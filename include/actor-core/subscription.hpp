@@ -1,5 +1,5 @@
-#ifndef ACTOR_CORE_TOPIC_SUBSCRIPTION_HPP
-#define ACTOR_CORE_TOPIC_SUBSCRIPTION_HPP
+#ifndef ACTOR_CORE_SUBSCRIPTION_HPP
+#define ACTOR_CORE_SUBSCRIPTION_HPP
 
 #include <deque>
 #include <memory>
@@ -11,7 +11,7 @@ namespace actor_core {
 // Represents an actor's subscription to a specific topic
 // Holds a bounded queue of pending messages
 // Owned by the actor as a value type
-template<typename Msg>
+template<typename TMessage>
 class Subscription {
  public:
   Subscription() = default;
@@ -23,20 +23,20 @@ class Subscription {
   Subscription(Subscription&&) = default;
   Subscription& operator=(Subscription&&) = default;
 
-  // Try to receive the next message from queue (non-blocking)
+  // Try to take the next message from queue (non-blocking)
   // Returns std::nullopt if queue is empty
-  std::optional<Msg> tryReceive() {
+  std::optional<TMessage> tryTakeMessage() {
     std::lock_guard<std::mutex> lock(mutex_);
     if (queue_.empty()) {
       return std::nullopt;
     }
-    Msg msg = queue_.front();
+    TMessage msg = queue_.front();
     queue_.pop_front();
     return msg;
   }
 
   // Peek at next message without removing it
-  std::optional<Msg> peek() const {
+  std::optional<TMessage> peek() const {
     std::lock_guard<std::mutex> lock(mutex_);
     if (queue_.empty()) {
       return std::nullopt;
@@ -58,7 +58,7 @@ class Subscription {
 
   // Internal: Add message to queue (called by Topic::publish)
   // Returns true if this is the first message (was empty before)
-  bool enqueue(Msg msg) {
+  bool enqueue(TMessage msg) {
     std::lock_guard<std::mutex> lock(mutex_);
 
     // If queue is full, drop oldest message
@@ -73,14 +73,14 @@ class Subscription {
 
  private:
   mutable std::mutex mutex_;
-  std::deque<Msg> queue_;
+  std::deque<TMessage> queue_;
   size_t max_queue_size_{100};  // Default max queue size
 };
 
-// Convenience type alias for shared_ptr<Subscription<Msg>>
-template<typename Msg>
-using SubscriptionPtr = std::shared_ptr<Subscription<Msg>>;
+// Convenience type alias for shared_ptr<Subscription<TMessage>>
+template<typename TMessage>
+using SubscriptionPtr = std::shared_ptr<Subscription<TMessage>>;
 
 }  // namespace actor_core
 
-#endif  // ACTOR_CORE_TOPIC_SUBSCRIPTION_HPP
+#endif  // ACTOR_CORE_SUBSCRIPTION_HPP

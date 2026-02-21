@@ -5,7 +5,7 @@
 #include <vector>
 
 #include "actor-core/effect_handler.hpp"
-#include "actor-core/topic_subscription.hpp"
+#include "actor-core/subscription.hpp"
 #include "funkypipes/details/tuple/separate_tuple_elements.hpp"
 
 namespace snake {
@@ -25,7 +25,7 @@ using actor_core::Subscription;
  */
 template <typename Msg, typename HandlerFn>
 void process_message(const std::shared_ptr<Subscription<Msg>>& sub, HandlerFn&& handler) {
-  while (auto msg = sub->tryReceive()) {
+  while (auto msg = sub->tryTakeMessage()) {
     handler(*msg);
   }
 }
@@ -45,7 +45,7 @@ void process_message(const std::shared_ptr<Subscription<Msg>>& sub, HandlerFn&& 
  */
 template <typename Msg, typename State, typename HandlerFn>
 void process_message_with_state(const std::shared_ptr<Subscription<Msg>>& sub, State& state, HandlerFn&& handler) {
-  while (auto msg = sub->tryReceive()) {
+  while (auto msg = sub->tryTakeMessage()) {
     state = handler(state, *msg);
   }
 }
