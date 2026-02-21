@@ -75,7 +75,7 @@ class GameEngineActor : public Actor<GameEngineActor> {
   SubscriptionPtr<FoodRepositionTrigger> reposition_sub_;
   SubscriptionPtr<GameStateSummaryRequest> summary_req_sub_;
 
-  GameState state_;
+  GameState game_state_;
 
   // Timer
   GameTimerPtr timer_;
