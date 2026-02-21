@@ -53,27 +53,27 @@ class GameEngineActor : public Actor<GameEngineActor> {
    * @param summary_resp_topic Topic to publish game state summary responses
    * @param timer_factory Factory for creating timers
    */
-  GameEngineActor(ActorContext ctx, TopicPtr<DirectionMsg> direction_topic, TopicPtr<RenderableState> state_topic,
-                  TopicPtr<GameClockCommand> clock_topic, TopicPtr<TickRateChange> tickrate_topic,
-                  TopicPtr<FoodRepositionTrigger> reposition_topic, TopicPtr<PlayerAliveStates> alivests_topic,
-                  TopicPtr<GameStateSummaryRequest> summary_req_topic,
-                  TopicPtr<GameStateSummaryResponse> summary_resp_topic, TimerFactoryPtr timer_factory);
+  GameEngineActor(ActorContext ctx, TopicPtr<DirectionMsg> direction_topic, TopicPtr<RenderableStateMsg> state_topic,
+                  TopicPtr<GameClockCommandMsg> clock_topic, TopicPtr<TickRateChangeMsg> tickrate_topic,
+                  TopicPtr<FoodRepositionTriggerMsg> reposition_topic, TopicPtr<PlayerAliveStatesMsg> alivests_topic,
+                  TopicPtr<GameStateSummaryRequestMsg> summary_req_topic,
+                  TopicPtr<GameStateSummaryResponseMsg> summary_resp_topic, TimerFactoryPtr timer_factory);
 
   // Process messages from subscribed topics
   void processInputs() override;
 
  private:
   // Publishers for sending messages
-  PublisherPtr<RenderableState> renderable_state_pub_;
-  PublisherPtr<PlayerAliveStates> alive_states_pub_;
-  PublisherPtr<GameStateSummaryResponse> summary_resp_pub_;
+  PublisherPtr<RenderableStateMsg> renderable_state_pub_;
+  PublisherPtr<PlayerAliveStatesMsg> alive_states_pub_;
+  PublisherPtr<GameStateSummaryResponseMsg> summary_resp_pub_;
 
   // Subscriptions for pulling messages
   SubscriptionPtr<DirectionMsg> direction_sub_;
-  SubscriptionPtr<GameClockCommand> clock_sub_;
-  SubscriptionPtr<TickRateChange> tickrate_sub_;
-  SubscriptionPtr<FoodRepositionTrigger> reposition_sub_;
-  SubscriptionPtr<GameStateSummaryRequest> summary_req_sub_;
+  SubscriptionPtr<GameClockCommandMsg> clock_sub_;
+  SubscriptionPtr<TickRateChangeMsg> tickrate_sub_;
+  SubscriptionPtr<FoodRepositionTriggerMsg> reposition_sub_;
+  SubscriptionPtr<GameStateSummaryRequestMsg> summary_req_sub_;
 
   GameState game_state_;
 

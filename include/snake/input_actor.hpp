@@ -57,7 +57,7 @@ class InputActor : public Actor<InputActor> {
    * @param game_id The current game ID
    */
   InputActor(Actor<InputActor>::ActorContext ctx, TopicPtr<DirectionMsg> direction_topic,
-             TopicPtr<PauseToggle> pause_topic, GameId game_id);
+             TopicPtr<PauseToggleMsg> pause_topic, GameId game_id);
 
  private:
   void scheduleRead();
@@ -71,7 +71,7 @@ class InputActor : public Actor<InputActor> {
   void disableRawMode();
 
   PublisherPtr<DirectionMsg> direction_pub_;
-  PublisherPtr<PauseToggle> pause_pub_;
+  PublisherPtr<PauseToggleMsg> pause_pub_;
   GameId game_id_;
 
   asio::posix::stream_descriptor stdin_;

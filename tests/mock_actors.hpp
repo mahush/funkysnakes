@@ -17,7 +17,7 @@ using actor_core::SubscriptionPtr;
 using actor_core::TopicPtr;
 
 /**
- * @brief Mock subscriber for Tick messages
+ * @brief Mock subscriber for TickMsg messages
  */
 class MockTickSubscriber : public Actor<MockTickSubscriber> {
  public:
@@ -27,13 +27,13 @@ class MockTickSubscriber : public Actor<MockTickSubscriber> {
     }
   }
 
-  std::vector<Tick> ticks;
+  std::vector<TickMsg> ticks;
 
-  MockTickSubscriber(Actor<MockTickSubscriber>::ActorContext ctx, TopicPtr<Tick> topic)
+  MockTickSubscriber(Actor<MockTickSubscriber>::ActorContext ctx, TopicPtr<TickMsg> topic)
       : Actor(ctx), tick_sub_(create_sub(topic)) {}
 
  private:
-  SubscriptionPtr<Tick> tick_sub_;
+  SubscriptionPtr<TickMsg> tick_sub_;
 };
 
 /**
@@ -57,7 +57,7 @@ class MockDirectionMsgSubscriber : public Actor<MockDirectionMsgSubscriber> {
 };
 
 /**
- * @brief Mock subscriber for RenderableState messages
+ * @brief Mock subscriber for RenderableStateMsg messages
  */
 class MockRenderableStateSubscriber : public Actor<MockRenderableStateSubscriber> {
  public:
@@ -67,17 +67,17 @@ class MockRenderableStateSubscriber : public Actor<MockRenderableStateSubscriber
     }
   }
 
-  std::vector<RenderableState> renderable_states;
+  std::vector<RenderableStateMsg> renderable_states;
 
-  MockRenderableStateSubscriber(Actor<MockRenderableStateSubscriber>::ActorContext ctx, TopicPtr<RenderableState> topic)
+  MockRenderableStateSubscriber(Actor<MockRenderableStateSubscriber>::ActorContext ctx, TopicPtr<RenderableStateMsg> topic)
       : Actor(ctx), state_sub_(create_sub(topic)) {}
 
  private:
-  SubscriptionPtr<RenderableState> state_sub_;
+  SubscriptionPtr<RenderableStateMsg> state_sub_;
 };
 
 /**
- * @brief Mock subscriber for GameOver messages
+ * @brief Mock subscriber for GameOverMsg messages
  */
 class MockGameOverSubscriber : public Actor<MockGameOverSubscriber> {
  public:
@@ -87,17 +87,17 @@ class MockGameOverSubscriber : public Actor<MockGameOverSubscriber> {
     }
   }
 
-  std::vector<GameOver> game_overs;
+  std::vector<GameOverMsg> game_overs;
 
-  MockGameOverSubscriber(Actor<MockGameOverSubscriber>::ActorContext ctx, TopicPtr<GameOver> topic)
+  MockGameOverSubscriber(Actor<MockGameOverSubscriber>::ActorContext ctx, TopicPtr<GameOverMsg> topic)
       : Actor(ctx), gameover_sub_(create_sub(topic)) {}
 
  private:
-  SubscriptionPtr<GameOver> gameover_sub_;
+  SubscriptionPtr<GameOverMsg> gameover_sub_;
 };
 
 /**
- * @brief Mock subscriber for StartClock messages
+ * @brief Mock subscriber for StartClockMsg messages
  */
 class MockStartClockSubscriber : public Actor<MockStartClockSubscriber> {
  public:
@@ -107,17 +107,17 @@ class MockStartClockSubscriber : public Actor<MockStartClockSubscriber> {
     }
   }
 
-  std::vector<StartClock> start_clocks;
+  std::vector<StartClockMsg> start_clocks;
 
-  MockStartClockSubscriber(Actor<MockStartClockSubscriber>::ActorContext ctx, TopicPtr<StartClock> topic)
+  MockStartClockSubscriber(Actor<MockStartClockSubscriber>::ActorContext ctx, TopicPtr<StartClockMsg> topic)
       : Actor(ctx), startclock_sub_(create_sub(topic)) {}
 
  private:
-  SubscriptionPtr<StartClock> startclock_sub_;
+  SubscriptionPtr<StartClockMsg> startclock_sub_;
 };
 
 /**
- * @brief Mock subscriber for StopClock messages
+ * @brief Mock subscriber for StopClockMsg messages
  */
 class MockStopClockSubscriber : public Actor<MockStopClockSubscriber> {
  public:
@@ -127,17 +127,17 @@ class MockStopClockSubscriber : public Actor<MockStopClockSubscriber> {
     }
   }
 
-  std::vector<StopClock> stop_clocks;
+  std::vector<StopClockMsg> stop_clocks;
 
-  MockStopClockSubscriber(Actor<MockStopClockSubscriber>::ActorContext ctx, TopicPtr<StopClock> topic)
+  MockStopClockSubscriber(Actor<MockStopClockSubscriber>::ActorContext ctx, TopicPtr<StopClockMsg> topic)
       : Actor(ctx), stopclock_sub_(create_sub(topic)) {}
 
  private:
-  SubscriptionPtr<StopClock> stopclock_sub_;
+  SubscriptionPtr<StopClockMsg> stopclock_sub_;
 };
 
 /**
- * @brief Mock subscriber for GameClockCommand messages
+ * @brief Mock subscriber for GameClockCommandMsg messages
  */
 class MockClockCommandSubscriber : public Actor<MockClockCommandSubscriber> {
  public:
@@ -147,13 +147,13 @@ class MockClockCommandSubscriber : public Actor<MockClockCommandSubscriber> {
     }
   }
 
-  std::vector<GameClockCommand> clock_commands;
+  std::vector<GameClockCommandMsg> clock_commands;
 
-  MockClockCommandSubscriber(Actor<MockClockCommandSubscriber>::ActorContext ctx, TopicPtr<GameClockCommand> topic)
+  MockClockCommandSubscriber(Actor<MockClockCommandSubscriber>::ActorContext ctx, TopicPtr<GameClockCommandMsg> topic)
       : Actor(ctx), clock_sub_(create_sub(topic)) {}
 
  private:
-  SubscriptionPtr<GameClockCommand> clock_sub_;
+  SubscriptionPtr<GameClockCommandMsg> clock_sub_;
 };
 
 }  // namespace snake

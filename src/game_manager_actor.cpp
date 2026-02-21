@@ -5,14 +5,14 @@
 
 namespace snake {
 
-GameManagerActor::GameManagerActor(Actor<GameManagerActor>::ActorContext ctx, TopicPtr<GameClockCommand> clock_topic,
-                                   TopicPtr<StartGame> startgame_topic,
-                                   TopicPtr<FoodRepositionTrigger> reposition_topic,
-                                   TopicPtr<GameStateMetadata> metadata_topic, TopicPtr<TickRateChange> tickrate_topic,
-                                   TopicPtr<PlayerAliveStates> alivests_topic,
-                                   TopicPtr<GameStateSummaryRequest> summary_req_topic,
-                                   TopicPtr<GameStateSummaryResponse> summary_resp_topic,
-                                   TopicPtr<GameOver> gameover_topic, TopicPtr<PauseToggle> pause_topic,
+GameManagerActor::GameManagerActor(Actor<GameManagerActor>::ActorContext ctx, TopicPtr<GameClockCommandMsg> clock_topic,
+                                   TopicPtr<StartGameMsg> startgame_topic,
+                                   TopicPtr<FoodRepositionTriggerMsg> reposition_topic,
+                                   TopicPtr<GameStateMetadataMsg> metadata_topic, TopicPtr<TickRateChangeMsg> tickrate_topic,
+                                   TopicPtr<PlayerAliveStatesMsg> alivests_topic,
+                                   TopicPtr<GameStateSummaryRequestMsg> summary_req_topic,
+                                   TopicPtr<GameStateSummaryResponseMsg> summary_resp_topic,
+                                   TopicPtr<GameOverMsg> gameover_topic, TopicPtr<PauseToggleMsg> pause_topic,
                                    TimerFactoryPtr timer_factory)
     : Actor(ctx),
       clock_pub_(create_pub(clock_topic)),
@@ -55,14 +55,14 @@ void GameManagerActor::processInputs() {
 }
 
 void GameManagerActor::publishMetadata() {
-  GameStateMetadata metadata;
+  GameStateMetadataMsg metadata;
   metadata.game_id = current_game_id_;
   metadata.level = current_level_;
   metadata.paused = paused_;
   metadata_pub_->publish(metadata);
 }
 
-void GameManagerActor::onStartGame(const StartGame& msg) {
+void GameManagerActor::onStartGame(const StartGameMsg& msg) {
   Logger::log("[GameManagerActor] Starting game with level " + std::to_string(msg.starting_level) + " and " +
               std::to_string(msg.players.size()) + " players\n");
 
@@ -72,7 +72,7 @@ void GameManagerActor::onStartGame(const StartGame& msg) {
   paused_ = false;
 
   // Send START command to GameEngineActor (will use default 200ms interval)
-  GameClockCommand cmd;
+  GameClockCommandMsg cmd;
   cmd.game_id = current_game_id_;
   cmd.state = GameClockState::START;
   clock_pub_->publish(cmd);
@@ -87,7 +87,7 @@ void GameManagerActor::onStartGame(const StartGame& msg) {
   level_timer_->execute_command(make_periodic_command<LevelTimerTag>(std::chrono::seconds(60)));
 }
 
-void GameManagerActor::onPlayerAliveStates(const PlayerAliveStates& msg) {
+void GameManagerActor::onPlayerAliveStates(const PlayerAliveStatesMsg& msg) {
   // Ignore if game already over or message is for wrong game
   if (game_over_detected_ || msg.game_id != current_game_id_) {
     return;
@@ -106,31 +106,31 @@ void GameManagerActor::onPlayerAliveStates(const PlayerAliveStates& msg) {
     Logger::log("[GameManagerActor] Game over condition detected: all snakes dead\n");
     game_over_detected_ = true;
 
-    // Request game state summary to build GameSummary
-    GameStateSummaryRequest request;
+    // Request game state summary to build GameSummaryMsg
+    GameStateSummaryRequestMsg request;
     request.game_id = current_game_id_;
     summary_req_pub_->publish(request);
   }
 }
 
-void GameManagerActor::onSummaryResponse(const GameStateSummaryResponse& response) {
+void GameManagerActor::onSummaryResponse(const GameStateSummaryResponseMsg& response) {
   // Ignore if not expecting response
   if (!game_over_detected_) {
     return;
   }
 
-  Logger::log("[GameManagerActor] Received game summary, publishing GameOver\n");
+  Logger::log("[GameManagerActor] Received game summary, publishing GameOverMsg\n");
 
-  // Build GameSummary using GameManagerActor's own state for level/game_id
-  GameSummary summary;
+  // Build GameSummaryMsg using GameManagerActor's own state for level/game_id
+  GameSummaryMsg summary;
   summary.game_id = current_game_id_;
   summary.final_level = current_level_;
   for (const auto& [player_id, score] : response.scores) {
     summary.final_scores.push_back({player_id, score});
   }
 
-  // Publish GameOver
-  GameOver gameover;
+  // Publish GameOverMsg
+  GameOverMsg gameover;
   gameover.summary = summary;
   gameover_pub_->publish(gameover);
 
@@ -139,7 +139,7 @@ void GameManagerActor::onSummaryResponse(const GameStateSummaryResponse& respons
   level_timer_->execute_command(make_cancel_command<LevelTimerTag>());
 
   // Send STOP command to GameEngineActor
-  GameClockCommand cmd;
+  GameClockCommandMsg cmd;
   cmd.game_id = current_game_id_;
   cmd.state = GameClockState::STOP;
   clock_pub_->publish(cmd);
@@ -158,7 +158,7 @@ void GameManagerActor::onRepositionTimer() {
     return;
   }
 
-  FoodRepositionTrigger trigger{current_game_id_};
+  FoodRepositionTriggerMsg trigger{current_game_id_};
   reposition_pub_->publish(trigger);
 }
 
@@ -187,13 +187,13 @@ void GameManagerActor::onLevelTimer() {
   publishMetadata();
 
   // Publish tick rate change to speed up the game
-  TickRateChange tickrate_change;
+  TickRateChangeMsg tickrate_change;
   tickrate_change.game_id = current_game_id_;
   tickrate_change.interval_ms = new_interval_ms;
   tickrate_pub_->publish(tickrate_change);
 }
 
-void GameManagerActor::onPauseToggle(const PauseToggle& msg) {
+void GameManagerActor::onPauseToggle(const PauseToggleMsg& msg) {
   // Ignore if message is for wrong game
   if (msg.game_id != current_game_id_) {
     return;
@@ -205,7 +205,7 @@ void GameManagerActor::onPauseToggle(const PauseToggle& msg) {
   Logger::log("[GameManagerActor] Game " + std::string(paused_ ? "PAUSED" : "RESUMED") + "\n");
 
   // Send clock command to GameEngineActor
-  GameClockCommand cmd;
+  GameClockCommandMsg cmd;
   cmd.game_id = current_game_id_;
   cmd.state = paused_ ? GameClockState::PAUSE : GameClockState::RESUME;
   clock_pub_->publish(cmd);
