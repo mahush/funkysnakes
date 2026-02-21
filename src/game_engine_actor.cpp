@@ -294,45 +294,45 @@ GameEngineActor::GameEngineActor(Actor<GameEngineActor>::ActorContext ctx, Topic
       reposition_sub_(create_sub(reposition_topic)),
       summary_req_sub_(create_sub(summary_req_topic)),
       timer_(create_timer<GameTimer>(timer_factory)) {
-  state_.game_id = "game_001";
-  state_.board.width = 60;
-  state_.board.height = 20;
+  game_state_.game_id = "game_001";
+  game_state_.board.width = 60;
+  game_state_.board.height = 20;
 
   // Initialize players
-  apply_to_state(state_,
+  apply_to_state(game_state_,
                  over_snakes_and_scores(bindFront(addPlayer, PlayerId{PLAYER_A}, Point{5, 10}, Direction::RIGHT, 7)));
-  apply_to_state(state_,
+  apply_to_state(game_state_,
                  over_snakes_and_scores(bindFront(addPlayer, PlayerId{PLAYER_B}, Point{5, 15}, Direction::RIGHT, 7)));
 
   // Initialize food items
-  apply_to_state(
-      state_, over_food_viewing_board_and_snakes(bindFront(initializeFood, makeRandomIntGenerator(), MIN_FOOD_COUNT)));
+  apply_to_state(game_state_, over_food_viewing_board_and_snakes(
+                                  bindFront(initializeFood, makeRandomIntGenerator(), MIN_FOOD_COUNT)));
 
-  Logger::log("[GameEngineActor] Initialized " + std::to_string(state_.food_items.size()) + " food items\n");
+  Logger::log("[GameEngineActor] Initialized " + std::to_string(game_state_.food_items.size()) + " food items\n");
 }
 
 void GameEngineActor::processInputs() {
   // Drain direction commands into filtered queues
-  process_message_with_state(direction_sub_, state_,
+  process_message_with_state(direction_sub_, game_state_,
                              over_direction_command_filter_state_viewing_snakes(direction_command_filter::try_add));
 
   // Create effect handler for messages that produce effects
   GameEngineEffectHandler effect_handler(renderable_state_pub_, alive_states_pub_, summary_resp_pub_, timer_);
 
   // Process timer events with effect handler pattern
-  process_event_with_state(timer_, state_, handleTick, effect_handler);
+  process_event_with_state(timer_, game_state_, handleTick, effect_handler);
 
   // Process clock commands with effect handler pattern
-  process_message_with_state(clock_sub_, state_, handleGameClockCommand, effect_handler);
+  process_message_with_state(clock_sub_, game_state_, handleGameClockCommand, effect_handler);
 
   // Process tick rate changes with effect handler pattern
-  process_message_with_state(tickrate_sub_, state_, handleTickRateChange, effect_handler);
+  process_message_with_state(tickrate_sub_, game_state_, handleTickRateChange, effect_handler);
 
   // Process food reposition triggers (pure, no effects)
-  process_message_with_state(reposition_sub_, state_, setFoodRepositionFlag);
+  process_message_with_state(reposition_sub_, game_state_, setFoodRepositionFlag);
 
   // Process game state summary requests with effect handler pattern
-  process_message_with_state(summary_req_sub_, state_, handleSummaryRequest, effect_handler);
+  process_message_with_state(summary_req_sub_, game_state_, handleSummaryRequest, effect_handler);
 }
 
 }  // namespace snake
