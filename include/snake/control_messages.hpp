@@ -26,7 +26,7 @@ inline constexpr const char* PLAYER_B = "Player B";
 /**
  * @brief Request to start a new game
  */
-struct StartGame {
+struct StartGameMsg {
   int starting_level{1};
   std::vector<PlayerId> players;
 };
@@ -34,7 +34,7 @@ struct StartGame {
 /**
  * @brief Request to start a game session
  */
-struct StartSession {
+struct StartSessionMsg {
   GameId game_id;
   int starting_level;
   std::vector<PlayerId> players;
@@ -45,7 +45,7 @@ struct StartSession {
 /**
  * @brief Summary of a completed game
  */
-struct GameSummary {
+struct GameSummaryMsg {
   GameId game_id;
   std::vector<std::pair<PlayerId, int>> final_scores;  // player_id, score
   int final_level;
@@ -54,15 +54,15 @@ struct GameSummary {
 /**
  * @brief Request to end a game session
  */
-struct EndSession {
+struct EndSessionMsg {
   GameId game_id;
-  GameSummary summary;
+  GameSummaryMsg summary;
 };
 
 /**
  * @brief Request to toggle pause state
  */
-struct PauseToggle {
+struct PauseToggleMsg {
   GameId game_id;
 };
 
@@ -79,10 +79,10 @@ enum class GameClockState {
 /**
  * @brief Unified game clock control command
  *
- * Replaces StartClock, StopClock, PauseGame, ResumeGame with single message.
- * Tick interval is controlled separately via TickRateChange message.
+ * Replaces StartClockMsg, StopClockMsg, PauseGame, ResumeGame with single message.
+ * TickMsg interval is controlled separately via TickRateChangeMsg message.
  */
-struct GameClockCommand {
+struct GameClockCommandMsg {
   GameId game_id;
   GameClockState state;
 };

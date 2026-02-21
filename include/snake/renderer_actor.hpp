@@ -44,33 +44,33 @@ class RendererActor : public Actor<RendererActor> {
    * @param metadata_topic Topic for game state metadata (level, pause state)
    * @param timer_factory Factory for creating timers
    */
-  RendererActor(Actor<RendererActor>::ActorContext ctx, TopicPtr<RenderableState> state_topic,
-                TopicPtr<GameOver> gameover_topic, TopicPtr<GameStateMetadata> metadata_topic,
+  RendererActor(Actor<RendererActor>::ActorContext ctx, TopicPtr<RenderableStateMsg> state_topic,
+                TopicPtr<GameOverMsg> gameover_topic, TopicPtr<GameStateMetadataMsg> metadata_topic,
                 TimerFactoryPtr timer_factory);
 
   // Process messages from subscribed topics
   void processInputs() override;
 
  private:
-  void onRenderableState(const RenderableState& state);
-  void onGameOver(const GameOver& msg);
-  void onGameStateMetadata(const GameStateMetadata& msg);
+  void onRenderableState(const RenderableStateMsg& state);
+  void onGameOver(const GameOverMsg& msg);
+  void onGameStateMetadata(const GameStateMetadataMsg& msg);
   void onFlashTimer();
-  void renderBoard(const RenderableState& state, bool show_game_over = false, bool show_paused = false);
+  void renderBoard(const RenderableStateMsg& state, bool show_game_over = false, bool show_paused = false);
 
   // Subscriptions for pulling messages
-  SubscriptionPtr<RenderableState> state_sub_;
-  SubscriptionPtr<GameOver> gameover_sub_;
-  SubscriptionPtr<GameStateMetadata> metadata_sub_;
+  SubscriptionPtr<RenderableStateMsg> state_sub_;
+  SubscriptionPtr<GameOverMsg> gameover_sub_;
+  SubscriptionPtr<GameStateMetadataMsg> metadata_sub_;
 
   // Timer for flashing game over overlay
   FlashTimerPtr flash_timer_;
 
   // Last rendered state (for game over overlay)
-  RenderableState last_state_;
+  RenderableStateMsg last_state_;
 
   // Game metadata (from GameManager)
-  GameStateMetadata metadata_;
+  GameStateMetadataMsg metadata_;
 
   // Game over state tracking
   bool game_over_active_{false};

@@ -29,17 +29,17 @@ int main() {
 
   // Create all topics first
   auto direction_topic = std::make_shared<Topic<snake::DirectionMsg>>();
-  auto state_topic = std::make_shared<Topic<snake::RenderableState>>();
-  auto gameover_topic = std::make_shared<Topic<snake::GameOver>>();
-  auto metadata_topic = std::make_shared<Topic<snake::GameStateMetadata>>();
-  auto clock_topic = std::make_shared<Topic<snake::GameClockCommand>>();
-  auto tickrate_topic = std::make_shared<Topic<snake::TickRateChange>>();
-  auto reposition_topic = std::make_shared<Topic<snake::FoodRepositionTrigger>>();
-  auto startgame_topic = std::make_shared<Topic<snake::StartGame>>();
-  auto alivests_topic = std::make_shared<Topic<snake::PlayerAliveStates>>();
-  auto summary_req_topic = std::make_shared<Topic<snake::GameStateSummaryRequest>>();
-  auto summary_resp_topic = std::make_shared<Topic<snake::GameStateSummaryResponse>>();
-  auto pause_topic = std::make_shared<Topic<snake::PauseToggle>>();
+  auto state_topic = std::make_shared<Topic<snake::RenderableStateMsg>>();
+  auto gameover_topic = std::make_shared<Topic<snake::GameOverMsg>>();
+  auto metadata_topic = std::make_shared<Topic<snake::GameStateMetadataMsg>>();
+  auto clock_topic = std::make_shared<Topic<snake::GameClockCommandMsg>>();
+  auto tickrate_topic = std::make_shared<Topic<snake::TickRateChangeMsg>>();
+  auto reposition_topic = std::make_shared<Topic<snake::FoodRepositionTriggerMsg>>();
+  auto startgame_topic = std::make_shared<Topic<snake::StartGameMsg>>();
+  auto alivests_topic = std::make_shared<Topic<snake::PlayerAliveStatesMsg>>();
+  auto summary_req_topic = std::make_shared<Topic<snake::GameStateSummaryRequestMsg>>();
+  auto summary_resp_topic = std::make_shared<Topic<snake::GameStateSummaryResponseMsg>>();
+  auto pause_topic = std::make_shared<Topic<snake::PauseToggleMsg>>();
 
   // Create actors using factory methods - clean single-stage construction!
   auto renderer = snake::RendererActor::create(io, state_topic, gameover_topic, metadata_topic, timer_factory);
@@ -55,7 +55,7 @@ int main() {
   auto input_actor = snake::InputActor::create(io, direction_topic, pause_topic, "game_001");
 
   // Create publisher for main thread to send commands
-  Publisher<snake::StartGame> startgame_pub{startgame_topic};
+  Publisher<snake::StartGameMsg> startgame_pub{startgame_topic};
 
   // Run io_context in background thread
   std::thread runner([&io] {
@@ -65,7 +65,7 @@ int main() {
   });
 
   std::cout << "Starting game...\n";
-  snake::StartGame start;
+  snake::StartGameMsg start;
   start.starting_level = 1;
   start.players = {snake::PLAYER_A, snake::PLAYER_B};
   startgame_pub.publish(start);

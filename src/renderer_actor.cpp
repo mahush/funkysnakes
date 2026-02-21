@@ -15,8 +15,8 @@ namespace snake {
 using actor_core::make_cancel_command;
 using actor_core::make_periodic_command;
 
-RendererActor::RendererActor(Actor<RendererActor>::ActorContext ctx, TopicPtr<RenderableState> state_topic,
-                             TopicPtr<GameOver> gameover_topic, TopicPtr<GameStateMetadata> metadata_topic,
+RendererActor::RendererActor(Actor<RendererActor>::ActorContext ctx, TopicPtr<RenderableStateMsg> state_topic,
+                             TopicPtr<GameOverMsg> gameover_topic, TopicPtr<GameStateMetadataMsg> metadata_topic,
                              TimerFactoryPtr timer_factory)
     : Actor(ctx),
       state_sub_(create_sub(state_topic)),
@@ -44,12 +44,12 @@ void RendererActor::processInputs() {
   process_event(flash_timer_, [&](const FlashTimerElapsedEvent&) { onFlashTimer(); });
 }
 
-void RendererActor::onRenderableState(const RenderableState& state) {
+void RendererActor::onRenderableState(const RenderableStateMsg& state) {
   last_state_ = state;
   renderBoard(state, false, metadata_.paused);
 }
 
-void RendererActor::onGameStateMetadata(const GameStateMetadata& msg) {
+void RendererActor::onGameStateMetadata(const GameStateMetadataMsg& msg) {
   metadata_ = msg;
   // Re-render if we have state (to show updated level/pause state)
   if (!last_state_.snakes.empty()) {
@@ -57,7 +57,7 @@ void RendererActor::onGameStateMetadata(const GameStateMetadata& msg) {
   }
 }
 
-void RendererActor::renderBoard(const RenderableState& state, bool show_game_over, bool show_paused) {
+void RendererActor::renderBoard(const RenderableStateMsg& state, bool show_game_over, bool show_paused) {
   // Clear screen (simple version - just add newlines)
   std::cout << "\n\n";
 
@@ -267,7 +267,7 @@ void RendererActor::renderBoard(const RenderableState& state, bool show_game_ove
   std::cout << "╚" << separator << "╝\n";
 }
 
-void RendererActor::onGameOver(const GameOver& /* msg */) {
+void RendererActor::onGameOver(const GameOverMsg& /* msg */) {
   game_over_active_ = true;
   flash_visible_ = true;
 

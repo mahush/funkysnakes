@@ -9,7 +9,7 @@
 namespace snake {
 
 InputActor::InputActor(Actor<InputActor>::ActorContext ctx, TopicPtr<DirectionMsg> direction_topic,
-                       TopicPtr<PauseToggle> pause_topic, GameId game_id)
+                       TopicPtr<PauseToggleMsg> pause_topic, GameId game_id)
     : Actor{ctx},
       direction_pub_{create_pub(std::move(direction_topic))},
       pause_pub_{create_pub(std::move(pause_topic))},
@@ -140,7 +140,7 @@ void InputActor::publishDirectionMsg(PlayerId player_id, Direction dir) {
 }
 
 void InputActor::publishPauseToggle() {
-  PauseToggle toggle;
+  PauseToggleMsg toggle;
   toggle.game_id = game_id_;
   pause_pub_->publish(toggle);
 }

@@ -61,38 +61,38 @@ class GameManagerActor : public Actor<GameManagerActor> {
    * @param pause_topic Topic to subscribe for pause toggle requests
    * @param timer_factory Factory for creating timers
    */
-  GameManagerActor(Actor<GameManagerActor>::ActorContext ctx, TopicPtr<GameClockCommand> clock_topic,
-                   TopicPtr<StartGame> startgame_topic, TopicPtr<FoodRepositionTrigger> reposition_topic,
-                   TopicPtr<GameStateMetadata> metadata_topic, TopicPtr<TickRateChange> tickrate_topic,
-                   TopicPtr<PlayerAliveStates> alivests_topic, TopicPtr<GameStateSummaryRequest> summary_req_topic,
-                   TopicPtr<GameStateSummaryResponse> summary_resp_topic, TopicPtr<GameOver> gameover_topic,
-                   TopicPtr<PauseToggle> pause_topic, TimerFactoryPtr timer_factory);
+  GameManagerActor(Actor<GameManagerActor>::ActorContext ctx, TopicPtr<GameClockCommandMsg> clock_topic,
+                   TopicPtr<StartGameMsg> startgame_topic, TopicPtr<FoodRepositionTriggerMsg> reposition_topic,
+                   TopicPtr<GameStateMetadataMsg> metadata_topic, TopicPtr<TickRateChangeMsg> tickrate_topic,
+                   TopicPtr<PlayerAliveStatesMsg> alivests_topic, TopicPtr<GameStateSummaryRequestMsg> summary_req_topic,
+                   TopicPtr<GameStateSummaryResponseMsg> summary_resp_topic, TopicPtr<GameOverMsg> gameover_topic,
+                   TopicPtr<PauseToggleMsg> pause_topic, TimerFactoryPtr timer_factory);
 
   // Process messages from subscribed topics
   void processInputs() override;
 
  private:
-  void onStartGame(const StartGame& msg);
-  void onPlayerAliveStates(const PlayerAliveStates& msg);
-  void onSummaryResponse(const GameStateSummaryResponse& response);
-  void onPauseToggle(const PauseToggle& msg);
+  void onStartGame(const StartGameMsg& msg);
+  void onPlayerAliveStates(const PlayerAliveStatesMsg& msg);
+  void onSummaryResponse(const GameStateSummaryResponseMsg& response);
+  void onPauseToggle(const PauseToggleMsg& msg);
   void onRepositionTimer();
   void onLevelTimer();
   void publishMetadata();
 
   // Publishers for sending messages
-  PublisherPtr<GameClockCommand> clock_pub_;
-  PublisherPtr<FoodRepositionTrigger> reposition_pub_;
-  PublisherPtr<GameStateMetadata> metadata_pub_;
-  PublisherPtr<TickRateChange> tickrate_pub_;
-  PublisherPtr<GameStateSummaryRequest> summary_req_pub_;
-  PublisherPtr<GameOver> gameover_pub_;
+  PublisherPtr<GameClockCommandMsg> clock_pub_;
+  PublisherPtr<FoodRepositionTriggerMsg> reposition_pub_;
+  PublisherPtr<GameStateMetadataMsg> metadata_pub_;
+  PublisherPtr<TickRateChangeMsg> tickrate_pub_;
+  PublisherPtr<GameStateSummaryRequestMsg> summary_req_pub_;
+  PublisherPtr<GameOverMsg> gameover_pub_;
 
   // Subscriptions for pulling messages
-  SubscriptionPtr<StartGame> startgame_sub_;
-  SubscriptionPtr<PlayerAliveStates> alive_states_sub_;
-  SubscriptionPtr<GameStateSummaryResponse> summary_resp_sub_;
-  SubscriptionPtr<PauseToggle> pause_sub_;
+  SubscriptionPtr<StartGameMsg> startgame_sub_;
+  SubscriptionPtr<PlayerAliveStatesMsg> alive_states_sub_;
+  SubscriptionPtr<GameStateSummaryResponseMsg> summary_resp_sub_;
+  SubscriptionPtr<PauseToggleMsg> pause_sub_;
 
   // Timers
   RepositionTimerPtr reposition_timer_;

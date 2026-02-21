@@ -58,20 +58,20 @@ static GameState clearRepositionFlag(GameState state) {
 }
 
 /**
- * @brief Try to generate PlayerAliveStates message if alive states changed
+ * @brief Try to generate PlayerAliveStatesMsg message if alive states changed
  *
  * Pure function that compares current alive states with previous ones.
- * If changed, generates a PlayerAliveStates message and updates previous state.
+ * If changed, generates a PlayerAliveStatesMsg message and updates previous state.
  *
  * @param state Current game state
- * @return Tuple of (updated state, optional PlayerAliveStates message)
+ * @return Tuple of (updated state, optional PlayerAliveStatesMsg message)
  */
-static std::tuple<GameState, std::optional<PlayerAliveStates>> tryGeneratePlayerAliveStates(GameState state) {
+static std::tuple<GameState, std::optional<PlayerAliveStatesMsg>> tryGeneratePlayerAliveStates(GameState state) {
   PerPlayerAliveStates current_alive_states = extractAliveStates(state.snakes);
-  std::optional<PlayerAliveStates> msg;
+  std::optional<PlayerAliveStatesMsg> msg;
 
   if (current_alive_states != state.previous_alive_states) {
-    PlayerAliveStates alive_msg;
+    PlayerAliveStatesMsg alive_msg;
     alive_msg.game_id = state.game_id;
     alive_msg.alive_states = current_alive_states;
     msg = alive_msg;
@@ -86,14 +86,14 @@ static std::tuple<GameState, std::optional<PlayerAliveStates>> tryGeneratePlayer
  *
  * Pure function that processes one game tick and returns effects:
  * - Updated GameState
- * - RenderableState message to publish
- * - Optional PlayerAliveStates message (if alive states changed)
+ * - RenderableStateMsg message to publish
+ * - Optional PlayerAliveStatesMsg message (if alive states changed)
  *
  * @param state Current game state
  * @param event Timer elapsed event (unused, required for signature)
- * @return Tuple of (new GameState, RenderableState, optional PlayerAliveStates)
+ * @return Tuple of (new GameState, RenderableStateMsg, optional PlayerAliveStatesMsg)
  */
-static std::tuple<GameState, RenderableState, std::optional<PlayerAliveStates>> handleTick(
+static std::tuple<GameState, RenderableStateMsg, std::optional<PlayerAliveStatesMsg>> handleTick(
     GameState state, const GameTimerElapsedEvent& /* event */) {
   // ============================================================================
   // GAME LOGIC PIPELINE - Functional Composition with funkypipes
@@ -124,7 +124,7 @@ static std::tuple<GameState, RenderableState, std::optional<PlayerAliveStates>> 
   state = state_with_updated_alive;
 
   // Build renderable state from game state (visual elements only)
-  RenderableState renderable{
+  RenderableStateMsg renderable{
       state.board,
       state.food_items,
       state.snakes,
@@ -143,10 +143,10 @@ static std::tuple<GameState, RenderableState, std::optional<PlayerAliveStates>> 
  * @param msg Clock command message
  * @return Tuple of (state, timer command effect, log message effect)
  */
-static std::tuple<GameState, GameTimerCommand, LogMessage> handleGameClockCommand(GameState state,
-                                                                                  const GameClockCommand& msg) {
+static std::tuple<GameState, GameTimerCommand, LogMsg> handleGameClockCommand(GameState state,
+                                                                                  const GameClockCommandMsg& msg) {
   GameTimerCommand timer_cmd;
-  LogMessage log_msg;
+  LogMsg log_msg;
 
   switch (msg.state) {
     case GameClockState::START:
@@ -179,17 +179,17 @@ static std::tuple<GameState, GameTimerCommand, LogMessage> handleGameClockComman
  * Pure function that returns state, timer command effect, and log message effect.
  *
  * @param state Current game state
- * @param msg Tick rate change message
+ * @param msg TickMsg rate change message
  * @return Tuple of (updated state, timer command effect, log message effect)
  */
-static std::tuple<GameState, GameTimerCommand, LogMessage> handleTickRateChange(GameState state,
-                                                                                const TickRateChange& msg) {
+static std::tuple<GameState, GameTimerCommand, LogMsg> handleTickRateChange(GameState state,
+                                                                                const TickRateChangeMsg& msg) {
   state.interval_ms = msg.interval_ms;
 
   // Return periodic command to restart timer with new interval
   GameTimerCommand timer_cmd = make_periodic_command<GameTimerTag>(std::chrono::milliseconds(state.interval_ms));
 
-  LogMessage log_msg = {"[GameEngineActor] Changing tick rate to " + std::to_string(msg.interval_ms) + "ms\n"};
+  LogMsg log_msg = {"[GameEngineActor] Changing tick rate to " + std::to_string(msg.interval_ms) + "ms\n"};
 
   return std::make_tuple(state, timer_cmd, log_msg);
 }
@@ -201,7 +201,7 @@ static std::tuple<GameState, GameTimerCommand, LogMessage> handleTickRateChange(
  * @param trigger Food reposition trigger (contains game_id for validation)
  * @return Updated game state with reposition flag set if game_id matches
  */
-static GameState setFoodRepositionFlag(GameState state, const FoodRepositionTrigger& trigger) {
+static GameState setFoodRepositionFlag(GameState state, const FoodRepositionTriggerMsg& trigger) {
   // Only set flag if trigger is for current game (ignore stale triggers)
   if (trigger.game_id == state.game_id) {
     state.should_reposition_food = true;
@@ -219,9 +219,9 @@ static GameState setFoodRepositionFlag(GameState state, const FoodRepositionTrig
  * @param request Summary request (unused, required for signature)
  * @return Tuple of (unchanged state, summary response)
  */
-static std::tuple<GameState, GameStateSummaryResponse> handleSummaryRequest(
-    GameState state, const GameStateSummaryRequest& /* request */) {
-  GameStateSummaryResponse response;
+static std::tuple<GameState, GameStateSummaryResponseMsg> handleSummaryRequest(
+    GameState state, const GameStateSummaryRequestMsg& /* request */) {
+  GameStateSummaryResponseMsg response;
   response.scores = state.scores;
   response.alive_states = extractAliveStates(state.snakes);
   return {state, response};
@@ -235,41 +235,41 @@ static std::tuple<GameState, GameStateSummaryResponse> handleSummaryRequest(
  * @brief Effect handler for GameEngineActor effects
  *
  * Interprets effects returned from handler functions (excluding the GameState):
- * - RenderableState: Publishes to renderer topic
+ * - RenderableStateMsg: Publishes to renderer topic
  * - GameTimerCommand: Executes timer commands
- * - LogMessage: Logs messages to console
- * - std::optional<PlayerAliveStates>: Publishes if present
- * - GameStateSummaryResponse: Publishes to summary response topic
+ * - LogMsg: Logs messages to console
+ * - std::optional<PlayerAliveStatesMsg>: Publishes if present
+ * - GameStateSummaryResponseMsg: Publishes to summary response topic
  */
 class GameEngineEffectHandler {
  public:
-  GameEngineEffectHandler(PublisherPtr<RenderableState> renderable_pub, PublisherPtr<PlayerAliveStates> alive_pub,
-                          PublisherPtr<GameStateSummaryResponse> summary_resp_pub, GameTimerPtr timer)
+  GameEngineEffectHandler(PublisherPtr<RenderableStateMsg> renderable_pub, PublisherPtr<PlayerAliveStatesMsg> alive_pub,
+                          PublisherPtr<GameStateSummaryResponseMsg> summary_resp_pub, GameTimerPtr timer)
       : renderable_pub_(renderable_pub), alive_pub_(alive_pub), summary_resp_pub_(summary_resp_pub), timer_(timer) {}
 
-  // Handle RenderableState effect: publish to renderer
-  void handle(const RenderableState& msg) { renderable_pub_->publish(msg); }
+  // Handle RenderableStateMsg effect: publish to renderer
+  void handle(const RenderableStateMsg& msg) { renderable_pub_->publish(msg); }
 
   // Handle GameTimerCommand effect: execute timer command
   void handle(const GameTimerCommand& cmd) { timer_->execute_command(cmd); }
 
-  // Handle LogMessage effect: log to file
-  void handle(const LogMessage& log) { Logger::log(log.message); }
+  // Handle LogMsg effect: log to file
+  void handle(const LogMsg& log) { Logger::log(log.message); }
 
-  // Handle optional PlayerAliveStates effect: publish if present
-  void handle(const std::optional<PlayerAliveStates>& msg) {
+  // Handle optional PlayerAliveStatesMsg effect: publish if present
+  void handle(const std::optional<PlayerAliveStatesMsg>& msg) {
     if (msg) {
       alive_pub_->publish(*msg);
     }
   }
 
-  // Handle GameStateSummaryResponse effect: publish to summary response topic
-  void handle(const GameStateSummaryResponse& msg) { summary_resp_pub_->publish(msg); }
+  // Handle GameStateSummaryResponseMsg effect: publish to summary response topic
+  void handle(const GameStateSummaryResponseMsg& msg) { summary_resp_pub_->publish(msg); }
 
  private:
-  PublisherPtr<RenderableState> renderable_pub_;
-  PublisherPtr<PlayerAliveStates> alive_pub_;
-  PublisherPtr<GameStateSummaryResponse> summary_resp_pub_;
+  PublisherPtr<RenderableStateMsg> renderable_pub_;
+  PublisherPtr<PlayerAliveStatesMsg> alive_pub_;
+  PublisherPtr<GameStateSummaryResponseMsg> summary_resp_pub_;
   GameTimerPtr timer_;
 };
 
@@ -278,12 +278,12 @@ class GameEngineEffectHandler {
 // ============================================================================
 
 GameEngineActor::GameEngineActor(Actor<GameEngineActor>::ActorContext ctx, TopicPtr<DirectionMsg> direction_topic,
-                                 TopicPtr<RenderableState> state_topic, TopicPtr<GameClockCommand> clock_topic,
-                                 TopicPtr<TickRateChange> tickrate_topic,
-                                 TopicPtr<FoodRepositionTrigger> reposition_topic,
-                                 TopicPtr<PlayerAliveStates> alivests_topic,
-                                 TopicPtr<GameStateSummaryRequest> summary_req_topic,
-                                 TopicPtr<GameStateSummaryResponse> summary_resp_topic, TimerFactoryPtr timer_factory)
+                                 TopicPtr<RenderableStateMsg> state_topic, TopicPtr<GameClockCommandMsg> clock_topic,
+                                 TopicPtr<TickRateChangeMsg> tickrate_topic,
+                                 TopicPtr<FoodRepositionTriggerMsg> reposition_topic,
+                                 TopicPtr<PlayerAliveStatesMsg> alivests_topic,
+                                 TopicPtr<GameStateSummaryRequestMsg> summary_req_topic,
+                                 TopicPtr<GameStateSummaryResponseMsg> summary_resp_topic, TimerFactoryPtr timer_factory)
     : Actor(ctx),
       renderable_state_pub_(create_pub(state_topic)),
       alive_states_pub_(create_pub(alivests_topic)),
