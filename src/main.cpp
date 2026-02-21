@@ -6,10 +6,10 @@
 #include "actor-core/timer/timer_factory.hpp"
 #include "actor-core/topic.hpp"
 #include "snake/game_engine_actor.hpp"
-#include "snake/game_manager.hpp"
+#include "snake/game_manager_actor.hpp"
 #include "snake/input_actor.hpp"
 #include "snake/logger.hpp"
-#include "snake/renderer.hpp"
+#include "snake/renderer_actor.hpp"
 
 using actor_core::Publisher;
 using actor_core::TimerFactory;
@@ -42,15 +42,15 @@ int main() {
   auto pause_topic = std::make_shared<Topic<snake::PauseToggle>>();
 
   // Create actors using factory methods - clean single-stage construction!
-  auto renderer = snake::Renderer::create(io, state_topic, gameover_topic, metadata_topic, timer_factory);
+  auto renderer = snake::RendererActor::create(io, state_topic, gameover_topic, metadata_topic, timer_factory);
 
   auto engine =
       snake::GameEngineActor::create(io, direction_topic, state_topic, clock_topic, tickrate_topic, reposition_topic,
                                      alivests_topic, summary_req_topic, summary_resp_topic, timer_factory);
 
-  auto manager = snake::GameManager::create(io, clock_topic, startgame_topic, reposition_topic, metadata_topic,
-                                            tickrate_topic, alivests_topic, summary_req_topic, summary_resp_topic,
-                                            gameover_topic, pause_topic, timer_factory);
+  auto manager = snake::GameManagerActor::create(io, clock_topic, startgame_topic, reposition_topic, metadata_topic,
+                                                 tickrate_topic, alivests_topic, summary_req_topic, summary_resp_topic,
+                                                 gameover_topic, pause_topic, timer_factory);
 
   auto input_actor = snake::InputActor::create(io, direction_topic, pause_topic, "game_001");
 

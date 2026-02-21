@@ -24,7 +24,7 @@ using actor_core::TimerElapsedEvent;
 using actor_core::TimerFactoryPtr;
 using actor_core::TopicPtr;
 
-// Timer type definitions for GameManager
+// Timer type definitions for GameManagerActor
 struct RepositionTimerTag {};
 using RepositionTimerElapsedEvent = TimerElapsedEvent<RepositionTimerTag>;
 using RepositionTimerCommand = TimerCommand<RepositionTimerTag>;
@@ -40,11 +40,11 @@ using LevelTimerPtr = std::shared_ptr<LevelTimer>;
 /**
  * @brief Coordinates game lifecycle and sessions
  *
- * GameManager supervises game sessions and handles high-level
+ * GameManagerActor supervises game sessions and handles high-level
  * game control (start, stop).
  * Sends game clock control commands to GameEngineActor.
  */
-class GameManager : public Actor<GameManager> {
+class GameManagerActor : public Actor<GameManagerActor> {
  public:
   /**
    * @brief Construct a new Game Manager
@@ -61,12 +61,12 @@ class GameManager : public Actor<GameManager> {
    * @param pause_topic Topic to subscribe for pause toggle requests
    * @param timer_factory Factory for creating timers
    */
-  GameManager(Actor<GameManager>::ActorContext ctx, TopicPtr<GameClockCommand> clock_topic,
-              TopicPtr<StartGame> startgame_topic, TopicPtr<FoodRepositionTrigger> reposition_topic,
-              TopicPtr<GameStateMetadata> metadata_topic, TopicPtr<TickRateChange> tickrate_topic,
-              TopicPtr<PlayerAliveStates> alivests_topic, TopicPtr<GameStateSummaryRequest> summary_req_topic,
-              TopicPtr<GameStateSummaryResponse> summary_resp_topic, TopicPtr<GameOver> gameover_topic,
-              TopicPtr<PauseToggle> pause_topic, TimerFactoryPtr timer_factory);
+  GameManagerActor(Actor<GameManagerActor>::ActorContext ctx, TopicPtr<GameClockCommand> clock_topic,
+                   TopicPtr<StartGame> startgame_topic, TopicPtr<FoodRepositionTrigger> reposition_topic,
+                   TopicPtr<GameStateMetadata> metadata_topic, TopicPtr<TickRateChange> tickrate_topic,
+                   TopicPtr<PlayerAliveStates> alivests_topic, TopicPtr<GameStateSummaryRequest> summary_req_topic,
+                   TopicPtr<GameStateSummaryResponse> summary_resp_topic, TopicPtr<GameOver> gameover_topic,
+                   TopicPtr<PauseToggle> pause_topic, TimerFactoryPtr timer_factory);
 
   // Process messages from subscribed topics
   void processInputs() override;

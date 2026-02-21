@@ -53,10 +53,10 @@ class GameEngineActor : public Actor<GameEngineActor> {
    * @param summary_resp_topic Topic to publish game state summary responses
    * @param timer_factory Factory for creating timers
    */
-  GameEngineActor(Actor<GameEngineActor>::ActorContext ctx, TopicPtr<DirectionChange> direction_topic,
-                  TopicPtr<RenderableState> state_topic, TopicPtr<GameClockCommand> clock_topic,
-                  TopicPtr<TickRateChange> tickrate_topic, TopicPtr<FoodRepositionTrigger> reposition_topic,
-                  TopicPtr<PlayerAliveStates> alivests_topic, TopicPtr<GameStateSummaryRequest> summary_req_topic,
+  GameEngineActor(ActorContext ctx, TopicPtr<DirectionChange> direction_topic, TopicPtr<RenderableState> state_topic,
+                  TopicPtr<GameClockCommand> clock_topic, TopicPtr<TickRateChange> tickrate_topic,
+                  TopicPtr<FoodRepositionTrigger> reposition_topic, TopicPtr<PlayerAliveStates> alivests_topic,
+                  TopicPtr<GameStateSummaryRequest> summary_req_topic,
                   TopicPtr<GameStateSummaryResponse> summary_resp_topic, TimerFactoryPtr timer_factory);
 
   // Process messages from subscribed topics
