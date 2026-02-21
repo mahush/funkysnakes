@@ -59,10 +59,10 @@ clang-tidy src/*.cpp -- -I include
 
 This project implements a **typed actor model** using standalone Asio for thread-safe, message-based concurrency. The core architecture consists of:
 
-1. **Topic-Based Pub/Sub** (`topic.hpp`, `topic_subscription.hpp`, `topic_publisher.hpp`)
-   - Topics are typed message channels (`Topic<Msg>`)
-   - Publishers send messages via `Publisher<Msg>::publish()`
-   - Actors subscribe with `Subscription<Msg>` and pull messages via `tryTakeMessage()`
+1. **Topic-Based Pub/Sub** (`topic.hpp`, `subscription.hpp`, `publisher.hpp`)
+   - Topics are typed message channels (`Topic<TMessage>`)
+   - Publishers send messages via `Publisher<TMessage>::publish()`
+   - Actors subscribe with `Subscription<TMessage>` and pull messages via `tryTakeMessage()`
    - Thread-safe: multiple actors can publish/subscribe concurrently
    - Uses weak_ptr for automatic cleanup of dead subscribers
 

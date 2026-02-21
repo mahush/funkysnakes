@@ -4,7 +4,7 @@
 
 #include "actor-core/timer/timer_factory.hpp"
 #include "actor-core/topic.hpp"
-#include "actor-core/topic_publisher.hpp"
+#include "actor-core/publisher.hpp"
 #include "snake/game_engine.hpp"
 #include "snake/game_manager.hpp"
 #include "snake/input_actor.hpp"
