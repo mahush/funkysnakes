@@ -1,7 +1,8 @@
 #pragma once
 
-#include <asio.hpp>
 #include <termios.h>
+
+#include <asio.hpp>
 #include <vector>
 
 #include "actor-core/actor.hpp"
@@ -19,7 +20,7 @@ using actor_core::TopicPtr;
  * @brief Captures and processes user input
  *
  * InputActor receives input events, tags them with player ID,
- * and translates them into DirectionChange commands.
+ * and translates them into DirectionMsg commands.
  * Supports multiple players (shared controller/keyboard).
  * Uses asio async IO to read from stdin without blocking.
  */
@@ -55,21 +56,21 @@ class InputActor : public Actor<InputActor> {
    * @param pause_topic Topic to publish pause toggle requests
    * @param game_id The current game ID
    */
-  InputActor(Actor<InputActor>::ActorContext ctx, TopicPtr<DirectionChange> direction_topic,
+  InputActor(Actor<InputActor>::ActorContext ctx, TopicPtr<DirectionMsg> direction_topic,
              TopicPtr<PauseToggle> pause_topic, GameId game_id);
 
  private:
   void scheduleRead();
   void handleChar(char ch);
   void handleEscapeSequence();
-  void publishDirectionChange(PlayerId player_id, Direction dir);
+  void publishDirectionMsg(PlayerId player_id, Direction dir);
   void publishPauseToggle();
   Direction charToDirection(char key) const;
   PlayerId keyToPlayer(char key) const;
   void enableRawMode();
   void disableRawMode();
 
-  PublisherPtr<DirectionChange> direction_pub_;
+  PublisherPtr<DirectionMsg> direction_pub_;
   PublisherPtr<PauseToggle> pause_pub_;
   GameId game_id_;
 

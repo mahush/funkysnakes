@@ -35,7 +35,7 @@ struct Tick {
 /**
  * @brief Player direction change command
  */
-struct DirectionChange {
+struct DirectionMsg {
   GameId game_id;
   PlayerId player_id;
   Direction new_direction;

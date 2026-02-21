@@ -1,13 +1,14 @@
 #include "snake/input_actor.hpp"
 
-#include <iostream>
 #include <unistd.h>
+
+#include <iostream>
 
 #include "snake/control_messages.hpp"
 
 namespace snake {
 
-InputActor::InputActor(Actor<InputActor>::ActorContext ctx, TopicPtr<DirectionChange> direction_topic,
+InputActor::InputActor(Actor<InputActor>::ActorContext ctx, TopicPtr<DirectionMsg> direction_topic,
                        TopicPtr<PauseToggle> pause_topic, GameId game_id)
     : Actor{ctx},
       direction_pub_{create_pub(std::move(direction_topic))},
@@ -94,7 +95,7 @@ void InputActor::handleChar(char ch) {
   PlayerId player = keyToPlayer(ch);
   if (!player.empty()) {
     Direction dir = charToDirection(ch);
-    publishDirectionChange(player, dir);
+    publishDirectionMsg(player, dir);
   }
 }
 
@@ -124,14 +125,14 @@ void InputActor::handleEscapeSequence() {
 
       if (mapped_key) {
         Direction dir = charToDirection(mapped_key);
-        publishDirectionChange(PLAYER_B, dir);
+        publishDirectionMsg(PLAYER_B, dir);
       }
     }
   }
 }
 
-void InputActor::publishDirectionChange(PlayerId player_id, Direction dir) {
-  DirectionChange change;
+void InputActor::publishDirectionMsg(PlayerId player_id, Direction dir) {
+  DirectionMsg change;
   change.game_id = game_id_;
   change.player_id = player_id;
   change.new_direction = dir;

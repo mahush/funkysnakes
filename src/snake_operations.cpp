@@ -147,7 +147,7 @@ std::tuple<PerPlayerSnakes, PerPlayerScores> addPlayer(PlayerId player_id, Point
 // Game Logic Operations on Snakes
 // ============================================================================
 
-PerPlayerSnakes applyDirectionChanges(PerPlayerSnakes snakes, const PerPlayerDirection& consumed_directions) {
+PerPlayerSnakes applyDirectionMsgs(PerPlayerSnakes snakes, const PerPlayerDirection& consumed_directions) {
   for (const auto& [player_id, direction] : consumed_directions) {
     auto it = snakes.find(player_id);
     if (it != snakes.end()) {

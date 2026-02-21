@@ -9,10 +9,10 @@
 namespace snake {
 
 // Forward declaration
-struct DirectionChange;
+struct DirectionMsg;
 
-// Type alias for semantic clarity - DirectionChange represents a command
-using DirectionCommand = DirectionChange;
+// Type alias for semantic clarity - DirectionMsg represents a command
+using DirectionCommand = DirectionMsg;
 
 namespace direction_command_filter {
 
