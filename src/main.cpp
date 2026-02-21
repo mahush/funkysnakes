@@ -28,7 +28,7 @@ int main() {
   auto timer_factory = std::make_shared<TimerFactory>(io);
 
   // Create all topics first
-  auto direction_topic = std::make_shared<Topic<snake::DirectionChange>>();
+  auto direction_topic = std::make_shared<Topic<snake::DirectionMsg>>();
   auto state_topic = std::make_shared<Topic<snake::RenderableState>>();
   auto gameover_topic = std::make_shared<Topic<snake::GameOver>>();
   auto metadata_topic = std::make_shared<Topic<snake::GameStateMetadata>>();

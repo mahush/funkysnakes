@@ -105,7 +105,7 @@ static std::tuple<GameState, RenderableState, std::optional<PlayerAliveStates>> 
   // clang-format off
   auto tick_pipeline = makePipe(
       over_direction_command_filter_state(direction_command_filter::try_consume_next),                         // → (state, next_directions)
-      over_snakes(applyDirectionChanges),                                                                      // → state
+      over_snakes(applyDirectionMsgs),                                                                      // → state
       over_snakes_viewing_board_and_food(moveSnakes),                                                             // → state
       over_snakes_and_scores(handleCollisions),                                                                // → (state, cut_tails)
       when<0>(isBiteDropFoodMode, over_food(dropCutTailsAsFood)),                                              // → state
@@ -277,7 +277,7 @@ class GameEngineEffectHandler {
 // GameEngineActor implementation
 // ============================================================================
 
-GameEngineActor::GameEngineActor(Actor<GameEngineActor>::ActorContext ctx, TopicPtr<DirectionChange> direction_topic,
+GameEngineActor::GameEngineActor(Actor<GameEngineActor>::ActorContext ctx, TopicPtr<DirectionMsg> direction_topic,
                                  TopicPtr<RenderableState> state_topic, TopicPtr<GameClockCommand> clock_topic,
                                  TopicPtr<TickRateChange> tickrate_topic,
                                  TopicPtr<FoodRepositionTrigger> reposition_topic,

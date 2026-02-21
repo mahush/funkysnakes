@@ -92,8 +92,8 @@ std::tuple<Snake, std::vector<Point>> cutSnakeTailAt(Snake snake, Point cut_poin
  * @return Tuple of (updated snakes, updated scores)
  */
 std::tuple<PerPlayerSnakes, PerPlayerScores> addPlayer(PlayerId player_id, Point start_position,
-                                                        Direction initial_direction, int snake_length,
-                                                        PerPlayerSnakes snakes, PerPlayerScores scores);
+                                                       Direction initial_direction, int snake_length,
+                                                       PerPlayerSnakes snakes, PerPlayerScores scores);
 
 // ============================================================================
 // Game Logic Operations on Snakes
@@ -106,7 +106,7 @@ std::tuple<PerPlayerSnakes, PerPlayerScores> addPlayer(PlayerId player_id, Point
  * @param consumed_directions Directions consumed from input queues
  * @return Updated snakes with new directions
  */
-PerPlayerSnakes applyDirectionChanges(PerPlayerSnakes snakes, const PerPlayerDirection& consumed_directions);
+PerPlayerSnakes applyDirectionMsgs(PerPlayerSnakes snakes, const PerPlayerDirection& consumed_directions);
 
 /**
  * @brief Move all alive snakes one step
@@ -132,7 +132,7 @@ PerPlayerSnakes moveSnakes(PerPlayerSnakes snakes, const Board& board, const Foo
  * @return Tuple of (updated snakes, updated scores, cut tail segments)
  */
 std::tuple<PerPlayerSnakes, PerPlayerScores, std::vector<Point>> handleCollisions(PerPlayerSnakes snakes,
-                                                                                   PerPlayerScores scores);
+                                                                                  PerPlayerScores scores);
 
 }  // namespace snake
 

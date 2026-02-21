@@ -31,7 +31,7 @@ TEST(ActorTest, InputActor_CreationAndLifecycle) {
   asio::io_context io;
 
   // Create topics
-  auto direction_topic = std::make_shared<Topic<DirectionChange>>();
+  auto direction_topic = std::make_shared<Topic<DirectionMsg>>();
   auto pause_topic = std::make_shared<Topic<PauseToggle>>();
 
   // Create InputActor with the topics
@@ -82,7 +82,7 @@ TEST(ActorTest, GameEngineActor_HandlesClockCommands) {
   auto timer_factory = std::make_shared<TimerFactory>(io);
 
   // Create topics
-  auto direction_topic = std::make_shared<Topic<DirectionChange>>();
+  auto direction_topic = std::make_shared<Topic<DirectionMsg>>();
   auto state_topic = std::make_shared<Topic<RenderableState>>();
   auto clock_topic = std::make_shared<Topic<GameClockCommand>>();
   auto tickrate_topic = std::make_shared<Topic<TickRateChange>>();

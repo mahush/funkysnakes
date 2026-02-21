@@ -84,12 +84,12 @@ This project implements a **typed actor model** using standalone Asio for thread
 - **GameManager** (`game_manager.hpp/.cpp`): Coordinates game lifecycle, owns game timer, generates Tick messages
 - **GameEngineActor** (`game_engine_actor.hpp/.cpp`): Core game engine, manages game state (board, snakes, food, scores)
 - **Renderer** (`renderer.hpp/.cpp`): Subscribes to StateUpdate, renders game state to console
-- **InputActor** (`input_actor.hpp/.cpp`): Reads keyboard input, publishes DirectionChange messages
+- **InputActor** (`input_actor.hpp/.cpp`): Reads keyboard input, publishes DirectionMsg messages
 
 ### Message Types
 
 - **Control Messages** (`control_messages.hpp`): JoinRequest, LeaveRequest, StartGame, GameSummary
-- **Game Messages** (`game_messages.hpp`): Tick, DirectionChange, StateUpdate, GameOver, LevelChange
+- **Game Messages** (`game_messages.hpp`): Tick, DirectionMsg, StateUpdate, GameOver, LevelChange
 
 ### Key Patterns
 
