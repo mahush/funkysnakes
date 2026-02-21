@@ -54,7 +54,7 @@ add_executable(snake_actors
   src/direction_command_filter.cpp
   src/food_operations.cpp
   src/game_manager.cpp
-  src/game_engine.cpp
+  src/game_engine_actor.cpp
   src/input_actor.cpp
   src/renderer.cpp
   src/snake_model.cpp
@@ -101,7 +101,7 @@ if(SNAKE_BUILD_TESTS)
     src/direction_command_filter.cpp
     src/food_operations.cpp
     src/game_manager.cpp
-    src/game_engine.cpp
+    src/game_engine_actor.cpp
     src/input_actor.cpp
     src/renderer.cpp
     src/snake_model.cpp

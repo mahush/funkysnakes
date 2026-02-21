@@ -8,7 +8,8 @@ namespace snake {
 GameManager::GameManager(Actor<GameManager>::ActorContext ctx, TopicPtr<GameClockCommand> clock_topic,
                          TopicPtr<StartGame> startgame_topic, TopicPtr<FoodRepositionTrigger> reposition_topic,
                          TopicPtr<GameStateMetadata> metadata_topic, TopicPtr<TickRateChange> tickrate_topic,
-                         TopicPtr<PlayerAliveStates> alivests_topic, TopicPtr<GameStateSummaryRequest> summary_req_topic,
+                         TopicPtr<PlayerAliveStates> alivests_topic,
+                         TopicPtr<GameStateSummaryRequest> summary_req_topic,
                          TopicPtr<GameStateSummaryResponse> summary_resp_topic, TopicPtr<GameOver> gameover_topic,
                          TopicPtr<PauseToggle> pause_topic, TimerFactoryPtr timer_factory)
     : Actor(ctx),
@@ -68,7 +69,7 @@ void GameManager::onStartGame(const StartGame& msg) {
   game_over_detected_ = false;
   paused_ = false;
 
-  // Send START command to GameEngine (will use default 200ms interval)
+  // Send START command to GameEngineActor (will use default 200ms interval)
   GameClockCommand cmd;
   cmd.game_id = current_game_id_;
   cmd.state = GameClockState::START;
@@ -135,7 +136,7 @@ void GameManager::onSummaryResponse(const GameStateSummaryResponse& response) {
   reposition_timer_->execute_command(make_cancel_command<RepositionTimerTag>());
   level_timer_->execute_command(make_cancel_command<LevelTimerTag>());
 
-  // Send STOP command to GameEngine
+  // Send STOP command to GameEngineActor
   GameClockCommand cmd;
   cmd.game_id = current_game_id_;
   cmd.state = GameClockState::STOP;
@@ -201,7 +202,7 @@ void GameManager::onPauseToggle(const PauseToggle& msg) {
 
   Logger::log("[GameManager] Game " + std::string(paused_ ? "PAUSED" : "RESUMED") + "\n");
 
-  // Send clock command to GameEngine
+  // Send clock command to GameEngineActor
   GameClockCommand cmd;
   cmd.game_id = current_game_id_;
   cmd.state = paused_ ? GameClockState::PAUSE : GameClockState::RESUME;
