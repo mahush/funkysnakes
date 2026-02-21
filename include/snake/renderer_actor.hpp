@@ -4,9 +4,9 @@
 #include <memory>
 
 #include "actor-core/actor.hpp"
+#include "actor-core/subscription.hpp"
 #include "actor-core/timer/timer.hpp"
 #include "actor-core/topic.hpp"
-#include "actor-core/subscription.hpp"
 #include "snake/game_messages.hpp"
 
 namespace snake {
@@ -20,7 +20,7 @@ using actor_core::TimerElapsedEvent;
 using actor_core::TimerFactoryPtr;
 using actor_core::TopicPtr;
 
-// Timer type definitions for Renderer
+// Timer type definitions for RendererActor
 struct FlashTimerTag {};
 using FlashTimerElapsedEvent = TimerElapsedEvent<FlashTimerTag>;
 using FlashTimerCommand = TimerCommand<FlashTimerTag>;
@@ -30,23 +30,23 @@ using FlashTimerPtr = std::shared_ptr<FlashTimer>;
 /**
  * @brief Displays game state
  *
- * Renderer receives state updates and renders the current board,
+ * RendererActor receives state updates and renders the current board,
  * snakes, food, scores, and level information.
  * For now, uses std::cout for simple text output.
  */
-class Renderer : public Actor<Renderer> {
+class RendererActor : public Actor<RendererActor> {
  public:
   /**
-   * @brief Construct a new Renderer
+   * @brief Construct a new RendererActor
    * @param ctx Actor execution context
    * @param state_topic Topic for renderable state
    * @param gameover_topic Topic for game over notifications
    * @param metadata_topic Topic for game state metadata (level, pause state)
    * @param timer_factory Factory for creating timers
    */
-  Renderer(Actor<Renderer>::ActorContext ctx, TopicPtr<RenderableState> state_topic,
-           TopicPtr<GameOver> gameover_topic, TopicPtr<GameStateMetadata> metadata_topic,
-           TimerFactoryPtr timer_factory);
+  RendererActor(Actor<RendererActor>::ActorContext ctx, TopicPtr<RenderableState> state_topic,
+                TopicPtr<GameOver> gameover_topic, TopicPtr<GameStateMetadata> metadata_topic,
+                TimerFactoryPtr timer_factory);
 
   // Process messages from subscribed topics
   void processInputs() override;

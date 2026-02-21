@@ -1,4 +1,4 @@
-#include "snake/renderer.hpp"
+#include "snake/renderer_actor.hpp"
 
 #include <chrono>
 #include <iomanip>
@@ -15,16 +15,16 @@ namespace snake {
 using actor_core::make_cancel_command;
 using actor_core::make_periodic_command;
 
-Renderer::Renderer(Actor<Renderer>::ActorContext ctx, TopicPtr<RenderableState> state_topic,
-                   TopicPtr<GameOver> gameover_topic, TopicPtr<GameStateMetadata> metadata_topic,
-                   TimerFactoryPtr timer_factory)
+RendererActor::RendererActor(Actor<RendererActor>::ActorContext ctx, TopicPtr<RenderableState> state_topic,
+                             TopicPtr<GameOver> gameover_topic, TopicPtr<GameStateMetadata> metadata_topic,
+                             TimerFactoryPtr timer_factory)
     : Actor(ctx),
       state_sub_(create_sub(state_topic)),
       gameover_sub_(create_sub(gameover_topic)),
       metadata_sub_(create_sub(metadata_topic)),
       flash_timer_(create_timer<FlashTimer>(timer_factory)) {}
 
-void Renderer::processInputs() {
+void RendererActor::processInputs() {
   // Process all pending state updates
   while (auto msg = state_sub_->tryTakeMessage()) {
     onRenderableState(*msg);
@@ -44,12 +44,12 @@ void Renderer::processInputs() {
   process_event(flash_timer_, [&](const FlashTimerElapsedEvent&) { onFlashTimer(); });
 }
 
-void Renderer::onRenderableState(const RenderableState& state) {
+void RendererActor::onRenderableState(const RenderableState& state) {
   last_state_ = state;
   renderBoard(state, false, metadata_.paused);
 }
 
-void Renderer::onGameStateMetadata(const GameStateMetadata& msg) {
+void RendererActor::onGameStateMetadata(const GameStateMetadata& msg) {
   metadata_ = msg;
   // Re-render if we have state (to show updated level/pause state)
   if (!last_state_.snakes.empty()) {
@@ -57,7 +57,7 @@ void Renderer::onGameStateMetadata(const GameStateMetadata& msg) {
   }
 }
 
-void Renderer::renderBoard(const RenderableState& state, bool show_game_over, bool show_paused) {
+void RendererActor::renderBoard(const RenderableState& state, bool show_game_over, bool show_paused) {
   // Clear screen (simple version - just add newlines)
   std::cout << "\n\n";
 
@@ -124,6 +124,7 @@ void Renderer::renderBoard(const RenderableState& state, bool show_game_over, bo
   // Overlay "GAME OVER" ASCII art if game over and flash is visible
   if (show_game_over && flash_visible_) {
     // ASCII art for "GAME OVER" (5 lines, ~50 chars wide)
+    // clang-format off
     std::vector<std::string> game_over_text = {
         " ####    ##   #   # ####     ####  #   # #### ####  ",
         "#       #  #  ## ## #       #    # #   # #    #   # ",
@@ -131,6 +132,7 @@ void Renderer::renderBoard(const RenderableState& state, bool show_game_over, bo
         "#   #  #    # #   # #       #    #  # #  #    #  #  ",
         " ####  #    # #   # ####     ####    #   #### #   # "
     };
+    // clang-format on
 
     // Calculate starting position to center the text
     int text_height = game_over_text.size();
@@ -173,6 +175,7 @@ void Renderer::renderBoard(const RenderableState& state, bool show_game_over, bo
   // Overlay pause symbol if game is paused
   if (show_paused) {
     // Pause symbol: two vertical bars using ASCII
+    // clang-format off
     std::vector<std::string> pause_symbol = {
         "|||||||  |||||||",
         "|||||||  |||||||",
@@ -182,6 +185,7 @@ void Renderer::renderBoard(const RenderableState& state, bool show_game_over, bo
         "|||||||  |||||||",
         "|||||||  |||||||"
     };
+    // clang-format on
 
     // Calculate starting position to center the symbol
     int symbol_height = pause_symbol.size();
@@ -263,7 +267,7 @@ void Renderer::renderBoard(const RenderableState& state, bool show_game_over, bo
   std::cout << "╚" << separator << "╝\n";
 }
 
-void Renderer::onGameOver(const GameOver& /* msg */) {
+void RendererActor::onGameOver(const GameOver& /* msg */) {
   game_over_active_ = true;
   flash_visible_ = true;
 
@@ -274,7 +278,7 @@ void Renderer::onGameOver(const GameOver& /* msg */) {
   renderBoard(last_state_, true, metadata_.paused);
 }
 
-void Renderer::onFlashTimer() {
+void RendererActor::onFlashTimer() {
   if (!game_over_active_) {
     return;
   }
