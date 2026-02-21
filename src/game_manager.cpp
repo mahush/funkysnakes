@@ -31,22 +31,22 @@ void GameManager::processMessages() {
   process_event(level_timer_, [&](const LevelTimerElapsedEvent&) { onLevelTimer(); });
 
   // Game lifecycle
-  while (auto msg = startgame_sub_->tryReceive()) {
+  while (auto msg = startgame_sub_->tryTakeMessage()) {
     onStartGame(*msg);
   }
 
   // Game state monitoring
-  while (auto msg = alive_states_sub_->tryReceive()) {
+  while (auto msg = alive_states_sub_->tryTakeMessage()) {
     onPlayerAliveStates(*msg);
   }
 
   // Summary responses
-  while (auto msg = summary_resp_sub_->tryReceive()) {
+  while (auto msg = summary_resp_sub_->tryTakeMessage()) {
     onSummaryResponse(*msg);
   }
 
   // Pause toggle
-  while (auto msg = pause_sub_->tryReceive()) {
+  while (auto msg = pause_sub_->tryTakeMessage()) {
     onPauseToggle(*msg);
   }
 }

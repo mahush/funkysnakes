@@ -6,7 +6,7 @@
 #include "actor-core/actor.hpp"
 #include "actor-core/timer/timer.hpp"
 #include "actor-core/topic.hpp"
-#include "actor-core/topic_subscription.hpp"
+#include "actor-core/subscription.hpp"
 #include "snake/game_messages.hpp"
 
 namespace snake {

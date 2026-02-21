@@ -62,7 +62,7 @@ This project implements a **typed actor model** using standalone Asio for thread
 1. **Topic-Based Pub/Sub** (`topic.hpp`, `topic_subscription.hpp`, `topic_publisher.hpp`)
    - Topics are typed message channels (`Topic<Msg>`)
    - Publishers send messages via `Publisher<Msg>::publish()`
-   - Actors subscribe with `Subscription<Msg>` and pull messages via `tryReceive()`
+   - Actors subscribe with `Subscription<Msg>` and pull messages via `tryTakeMessage()`
    - Thread-safe: multiple actors can publish/subscribe concurrently
    - Uses weak_ptr for automatic cleanup of dead subscribers
 
@@ -245,7 +245,7 @@ auto actor = std::make_shared<MyActor>(io, topic1, topic2);
 Actors process messages by pulling from subscriptions:
 ```cpp
 void MyActor::processMessages() {
-  while (auto msg = my_sub_->tryReceive()) {
+  while (auto msg = my_sub_->tryTakeMessage()) {
     handleMessage(*msg);
   }
 }

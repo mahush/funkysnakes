@@ -30,7 +30,7 @@ An actor's message queue for a specific topic. Actors pull messages from subscri
 tick_sub_ = create_sub(tick_topic);
 
 // In processMessages()
-while (auto msg = tick_sub_->tryReceive()) {
+while (auto msg = tick_sub_->tryTakeMessage()) {
     handleTick(*msg);
 }
 ```
@@ -76,7 +76,7 @@ public:
     // Required: implement message processing
     void processMessages() override {
         // Pull and process all pending messages
-        while (auto msg = input_sub_->tryReceive()) {
+        while (auto msg = input_sub_->tryTakeMessage()) {
             handleInput(*msg);
         }
     }
@@ -103,7 +103,7 @@ private:
 1. **Publishing**: Any actor publishes a message via `Publisher::publish()`
 2. **Topic Distribution**: Topic enqueues message in all subscriber queues
 3. **Notification**: Topic posts `processMessages()` call to subscriber's strand (only if queue was empty)
-4. **Pull Processing**: Actor wakes up, pulls messages via `Subscription::tryReceive()` in desired order
+4. **Pull Processing**: Actor wakes up, pulls messages via `Subscription::tryTakeMessage()` in desired order
 5. **Processing**: Actor handles messages, may publish new messages in response
 
 ## Complete Example
@@ -167,7 +167,7 @@ public:
           response_pub_(create_pub(response_topic)) {}
 
     void processMessages() override {
-        while (auto msg = request_sub_->tryReceive()) {
+        while (auto msg = request_sub_->tryTakeMessage()) {
             // Process request
             std::string result = "Processed " + std::to_string(msg->id);
             response_pub_->publish(Response{msg->id, result});
@@ -225,7 +225,7 @@ Actor code runs serialized on its strand - no manual locking needed. Topics are 
 
 ## Best Practices
 
-- **Drain message queues**: Use `while (auto msg = sub->tryReceive())` to process all pending messages
+- **Drain message queues**: Use `while (auto msg = sub->tryTakeMessage())` to process all pending messages
 - **Keep handlers fast**: Avoid blocking operations in `processMessages()`
 - **Inject dependencies**: Pass `TopicPtr` to constructors for better testability
 - **Let actors die naturally**: Just drop the `shared_ptr` - cleanup happens automatically

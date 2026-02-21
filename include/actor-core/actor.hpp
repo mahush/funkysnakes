@@ -4,7 +4,7 @@
 #include "actor-core/processor_interface.hpp"
 #include "actor-core/topic.hpp"
 #include "actor-core/topic_publisher.hpp"
-#include "actor-core/topic_subscription.hpp"
+#include "actor-core/subscription.hpp"
 #include "actor-core/timer/timer_factory.hpp"
 
 #include <functional>
