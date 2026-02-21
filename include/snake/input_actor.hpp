@@ -46,7 +46,7 @@ class InputActor : public Actor<InputActor> {
   bool isReading() const { return is_reading_; }
 
   // No subscriptions - InputActor only publishes
-  void processMessages() override {}
+  void processInputs() override {}
 
   /**
    * @brief Construct a new Input Actor

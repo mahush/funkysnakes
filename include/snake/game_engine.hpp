@@ -60,7 +60,7 @@ class GameEngine : public Actor<GameEngine> {
              TopicPtr<GameStateSummaryResponse> summary_resp_topic, TimerFactoryPtr timer_factory);
 
   // Process messages from subscribed topics
-  void processMessages() override;
+  void processInputs() override;
 
  private:
   // Publishers for sending messages

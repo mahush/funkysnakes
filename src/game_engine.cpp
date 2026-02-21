@@ -309,7 +309,7 @@ GameEngine::GameEngine(ActorContext ctx, TopicPtr<DirectionChange> direction_top
   Logger::log("[GameEngine] Initialized " + std::to_string(state_.food_items.size()) + " food items\n");
 }
 
-void GameEngine::processMessages() {
+void GameEngine::processInputs() {
   // Drain direction commands into filtered queues
   process_message_with_state(direction_sub_, state_,
                              over_direction_command_filter_state_viewing_snakes(direction_command_filter::try_add));

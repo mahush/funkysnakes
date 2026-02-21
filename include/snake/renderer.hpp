@@ -49,7 +49,7 @@ class Renderer : public Actor<Renderer> {
            TimerFactoryPtr timer_factory);
 
   // Process messages from subscribed topics
-  void processMessages() override;
+  void processInputs() override;
 
  private:
   void onRenderableState(const RenderableState& state);

@@ -11,7 +11,7 @@ class ProcessorInterface {
 
   // Called when subscribed event sources have events available
   // Actor should pull events from its subscriptions/timers in desired order
-  virtual void processMessages() = 0;
+  virtual void processInputs() = 0;
 };
 
 }  // namespace actor_core
