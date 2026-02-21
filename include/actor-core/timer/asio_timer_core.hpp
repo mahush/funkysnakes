@@ -32,7 +32,7 @@ class AsioTimerCore : public ITimerCore, public std::enable_shared_from_this<Asi
   void schedule_periodic(std::chrono::milliseconds interval) override;
   void cancel_scheduled() override;
   bool is_scheduled() const override;
-  size_t take_all_elapsed_events() override;
+  bool tryTakeElapsedEvent() override;
 
  private:
   void schedule_timer(std::chrono::milliseconds duration);

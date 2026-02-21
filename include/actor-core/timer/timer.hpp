@@ -2,6 +2,7 @@
 
 #include <chrono>
 #include <memory>
+#include <optional>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -86,22 +87,16 @@ class Timer {
   }
 
   /**
-   * @brief Take all pending timer elapsed events
-   * @return Vector of timer elapsed events that occurred since last take
+   * @brief Try to take the next elapsed event (non-blocking)
+   * @return Optional event if one was available, nullopt if no events pending
    */
-  std::vector<TTimerElapsedEvent> take_all_elapsed_events() {
-    const auto count = timer_core_->take_all_elapsed_events();
-
-    std::vector<TTimerElapsedEvent> events;
-    events.reserve(count);
-
-    for (size_t i = 0; i < count; ++i) {
+  std::optional<TTimerElapsedEvent> tryTakeElapsedEvent() {
+    if (timer_core_->tryTakeElapsedEvent()) {
       TTimerElapsedEvent event{};
       event.context = current_context_;
-      events.push_back(event);
+      return event;
     }
-
-    return events;
+    return std::nullopt;
   }
 
   /**

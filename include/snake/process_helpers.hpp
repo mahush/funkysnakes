@@ -53,7 +53,7 @@ void process_message_with_state(const std::shared_ptr<Subscription<Msg>>& sub, S
 /**
  * @brief Higher-order function to process all timer events
  *
- * Takes all elapsed events from timer and applies handler to each.
+ * Drains all pending events from timer and applies handler to each.
  *
  * @tparam Timer Timer type
  * @tparam HandlerFn Function type (Event -> void)
@@ -62,9 +62,8 @@ void process_message_with_state(const std::shared_ptr<Subscription<Msg>>& sub, S
  */
 template <typename Timer, typename HandlerFn>
 void process_event(const std::shared_ptr<Timer>& timer, HandlerFn&& handler) {
-  auto timer_events = timer->take_all_elapsed_events();
-  for (const auto& event : timer_events) {
-    handler(event);
+  while (auto event = timer->tryTakeElapsedEvent()) {
+    handler(*event);
   }
 }
 
@@ -101,7 +100,7 @@ auto with_effect_handling(TProcessFn&& process_fn, TEffectHandler& effect_handle
 /**
  * @brief Higher-order function to process all timer events with state transformation
  *
- * Takes all elapsed events from timer and applies process_fn to each,
+ * Drains all pending events from timer and applies process_fn to each,
  * passing state and event, then assigns the result back to state.
  *
  * @tparam Timer Timer type
@@ -113,16 +112,15 @@ auto with_effect_handling(TProcessFn&& process_fn, TEffectHandler& effect_handle
  */
 template <typename Timer, typename State, typename TProcessFn>
 void process_event_with_state(const std::shared_ptr<Timer>& timer, State& state, TProcessFn&& process_fn) {
-  auto timer_events = timer->take_all_elapsed_events();
-  for (const auto& event : timer_events) {
-    state = process_fn(state, event);
+  while (auto event = timer->tryTakeElapsedEvent()) {
+    state = process_fn(state, *event);
   }
 }
 
 /**
  * @brief Process timer events with effect handler pattern
  *
- * Takes all elapsed events from timer and applies process_fn to each.
+ * Drains all pending events from timer and applies process_fn to each.
  * Process function returns tuple<State, Effects...> where:
  * - First element (State) updates the state
  * - Remaining elements (Effects) are dispatched through effect_handler
