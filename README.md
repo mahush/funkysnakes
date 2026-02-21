@@ -40,7 +40,7 @@ state = tick_pipeline(state);  // Pure state transformation
 The actor system handles all side effects (I/O, timers, rendering):
 
 ```cpp
-GameEngine  → Pure game logic + effect declarations
+GameEngineActor  → Pure game logic + effect declarations
 GameManager → Coordinates timers and game lifecycle
 Renderer    → Displays game state to console
 InputActor  → Reads keyboard input
@@ -86,7 +86,7 @@ snake/
 │   │   ├── topic.hpp            # Pub/sub messaging
 │   │   └── timer/               # Timer infrastructure
 │   └── snake/                   # Game-specific code
-│       ├── game_engine.hpp      # Core game logic (functional)
+│       ├── game_engine_actor.hpp      # Core game logic (functional)
 │       ├── game_manager.hpp     # Lifecycle coordinator (imperative)
 │       ├── renderer.hpp         # Display output (imperative)
 │       ├── input_actor.hpp      # Keyboard input (imperative)

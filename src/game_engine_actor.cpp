@@ -1,4 +1,4 @@
-#include "snake/game_engine.hpp"
+#include "snake/game_engine_actor.hpp"
 
 #include <optional>
 #include <tuple>
@@ -150,22 +150,22 @@ static std::tuple<GameState, GameTimerCommand, LogMessage> handleGameClockComman
 
   switch (msg.state) {
     case GameClockState::START:
-      log_msg = {"[GameEngine] Starting internal timer\n"};
+      log_msg = {"[GameEngineActor] Starting internal timer\n"};
       timer_cmd = make_periodic_command<GameTimerTag>(std::chrono::milliseconds(state.interval_ms));
       break;
 
     case GameClockState::STOP:
-      log_msg = {"[GameEngine] Stopping internal timer\n"};
+      log_msg = {"[GameEngineActor] Stopping internal timer\n"};
       timer_cmd = make_cancel_command<GameTimerTag>();
       break;
 
     case GameClockState::PAUSE:
-      log_msg = {"[GameEngine] Pausing game\n"};
+      log_msg = {"[GameEngineActor] Pausing game\n"};
       timer_cmd = make_cancel_command<GameTimerTag>();
       break;
 
     case GameClockState::RESUME:
-      log_msg = {"[GameEngine] Resuming game\n"};
+      log_msg = {"[GameEngineActor] Resuming game\n"};
       timer_cmd = make_periodic_command<GameTimerTag>(std::chrono::milliseconds(state.interval_ms));
       break;
   }
@@ -189,7 +189,7 @@ static std::tuple<GameState, GameTimerCommand, LogMessage> handleTickRateChange(
   // Return periodic command to restart timer with new interval
   GameTimerCommand timer_cmd = make_periodic_command<GameTimerTag>(std::chrono::milliseconds(state.interval_ms));
 
-  LogMessage log_msg = {"[GameEngine] Changing tick rate to " + std::to_string(msg.interval_ms) + "ms\n"};
+  LogMessage log_msg = {"[GameEngineActor] Changing tick rate to " + std::to_string(msg.interval_ms) + "ms\n"};
 
   return std::make_tuple(state, timer_cmd, log_msg);
 }
@@ -213,7 +213,7 @@ static GameState setFoodRepositionFlag(GameState state, const FoodRepositionTrig
  * @brief Handle game state summary request
  *
  * Pure function that builds a summary response from current state.
- * Returns only data that GameEngine manages (scores, alive states).
+ * Returns only data that GameEngineActor manages (scores, alive states).
  *
  * @param state Current game state
  * @param request Summary request (unused, required for signature)
@@ -228,11 +228,11 @@ static std::tuple<GameState, GameStateSummaryResponse> handleSummaryRequest(
 }
 
 // ============================================================================
-// Effect Handler for GameEngine
+// Effect Handler for GameEngineActor
 // ============================================================================
 
 /**
- * @brief Effect handler for GameEngine effects
+ * @brief Effect handler for GameEngineActor effects
  *
  * Interprets effects returned from handler functions (excluding the GameState):
  * - RenderableState: Publishes to renderer topic
@@ -274,14 +274,16 @@ class GameEngineEffectHandler {
 };
 
 // ============================================================================
-// GameEngine implementation
+// GameEngineActor implementation
 // ============================================================================
 
-GameEngine::GameEngine(ActorContext ctx, TopicPtr<DirectionChange> direction_topic,
-                       TopicPtr<RenderableState> state_topic, TopicPtr<GameClockCommand> clock_topic,
-                       TopicPtr<TickRateChange> tickrate_topic, TopicPtr<FoodRepositionTrigger> reposition_topic,
-                       TopicPtr<PlayerAliveStates> alivests_topic, TopicPtr<GameStateSummaryRequest> summary_req_topic,
-                       TopicPtr<GameStateSummaryResponse> summary_resp_topic, TimerFactoryPtr timer_factory)
+GameEngineActor::GameEngineActor(Actor<GameEngineActor>::ActorContext ctx, TopicPtr<DirectionChange> direction_topic,
+                                 TopicPtr<RenderableState> state_topic, TopicPtr<GameClockCommand> clock_topic,
+                                 TopicPtr<TickRateChange> tickrate_topic,
+                                 TopicPtr<FoodRepositionTrigger> reposition_topic,
+                                 TopicPtr<PlayerAliveStates> alivests_topic,
+                                 TopicPtr<GameStateSummaryRequest> summary_req_topic,
+                                 TopicPtr<GameStateSummaryResponse> summary_resp_topic, TimerFactoryPtr timer_factory)
     : Actor(ctx),
       renderable_state_pub_(create_pub(state_topic)),
       alive_states_pub_(create_pub(alivests_topic)),
@@ -306,10 +308,10 @@ GameEngine::GameEngine(ActorContext ctx, TopicPtr<DirectionChange> direction_top
   apply_to_state(
       state_, over_food_viewing_board_and_snakes(bindFront(initializeFood, makeRandomIntGenerator(), MIN_FOOD_COUNT)));
 
-  Logger::log("[GameEngine] Initialized " + std::to_string(state_.food_items.size()) + " food items\n");
+  Logger::log("[GameEngineActor] Initialized " + std::to_string(state_.food_items.size()) + " food items\n");
 }
 
-void GameEngine::processInputs() {
+void GameEngineActor::processInputs() {
   // Drain direction commands into filtered queues
   process_message_with_state(direction_sub_, state_,
                              over_direction_command_filter_state_viewing_snakes(direction_command_filter::try_add));

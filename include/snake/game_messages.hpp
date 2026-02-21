@@ -9,7 +9,7 @@ namespace snake {
 /**
  * @brief Complete game state snapshot
  *
- * Contains internal game state for GameEngine.
+ * Contains internal game state for GameEngineActor.
  * Does not include level as that is managed by GameManager.
  */
 struct GameState {
@@ -19,7 +19,7 @@ struct GameState {
   FoodItems food_items;                                            // Food items on the board
   direction_command_filter::State direction_command_filter_state;  // Direction command filter module state
   Board board;                                                     // Board dimensions
-  CollisionMode collision_mode{CollisionMode::BITE_DROP_FOOD};    // Collision handling mode
+  CollisionMode collision_mode{CollisionMode::BITE_DROP_FOOD};     // Collision handling mode
   int interval_ms{200};                                            // Tick interval in milliseconds
   bool should_reposition_food{false};                              // Flag: reposition food this tick
   PerPlayerAliveStates previous_alive_states;                      // Previous alive states for change detection
@@ -149,8 +149,8 @@ struct GameStateSummaryRequest {
 /**
  * @brief Response with current game state summary
  *
- * Sent by GameEngine in response to GameStateSummaryRequest.
- * Contains game state data that GameEngine manages (scores, alive states).
+ * Sent by GameEngineActor in response to GameStateSummaryRequest.
+ * Contains game state data that GameEngineActor manages (scores, alive states).
  * Does not include level or game_id as those are managed by GameManager.
  */
 struct GameStateSummaryResponse {

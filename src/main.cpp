@@ -2,10 +2,10 @@
 #include <iostream>
 #include <thread>
 
+#include "actor-core/publisher.hpp"
 #include "actor-core/timer/timer_factory.hpp"
 #include "actor-core/topic.hpp"
-#include "actor-core/publisher.hpp"
-#include "snake/game_engine.hpp"
+#include "snake/game_engine_actor.hpp"
 #include "snake/game_manager.hpp"
 #include "snake/input_actor.hpp"
 #include "snake/logger.hpp"
@@ -44,9 +44,9 @@ int main() {
   // Create actors using factory methods - clean single-stage construction!
   auto renderer = snake::Renderer::create(io, state_topic, gameover_topic, metadata_topic, timer_factory);
 
-  auto engine = snake::GameEngine::create(io, direction_topic, state_topic, clock_topic, tickrate_topic,
-                                          reposition_topic, alivests_topic, summary_req_topic, summary_resp_topic,
-                                          timer_factory);
+  auto engine =
+      snake::GameEngineActor::create(io, direction_topic, state_topic, clock_topic, tickrate_topic, reposition_topic,
+                                     alivests_topic, summary_req_topic, summary_resp_topic, timer_factory);
 
   auto manager = snake::GameManager::create(io, clock_topic, startgame_topic, reposition_topic, metadata_topic,
                                             tickrate_topic, alivests_topic, summary_req_topic, summary_resp_topic,

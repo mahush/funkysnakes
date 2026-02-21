@@ -4,9 +4,9 @@
 #include <memory>
 
 #include "actor-core/actor.hpp"
+#include "actor-core/subscription.hpp"
 #include "actor-core/timer/timer.hpp"
 #include "actor-core/topic.hpp"
-#include "actor-core/subscription.hpp"
 #include "snake/control_messages.hpp"
 #include "snake/game_messages.hpp"
 
@@ -42,7 +42,7 @@ using LevelTimerPtr = std::shared_ptr<LevelTimer>;
  *
  * GameManager supervises game sessions and handles high-level
  * game control (start, stop).
- * Sends game clock control commands to GameEngine.
+ * Sends game clock control commands to GameEngineActor.
  */
 class GameManager : public Actor<GameManager> {
  public:
