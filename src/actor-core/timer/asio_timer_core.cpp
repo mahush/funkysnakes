@@ -88,7 +88,7 @@ void AsioTimerCore::on_timer_expired(const asio::error_code& ec) {
 
   // Notify processor that timer event occurred (outside lock)
   if (auto processor = processor_.lock()) {
-    asio::post(strand_, [processor]() { processor->processMessages(); });
+    asio::post(strand_, [processor]() { processor->processInputs(); });
   }
 }
 

@@ -72,7 +72,7 @@ class Topic {
         if (was_empty) {
           asio::post(it->strand, [weak_proc = it->processor]() {
             if (auto p = weak_proc.lock()) {
-              p->processMessages();
+              p->processInputs();
             }
           });
         }

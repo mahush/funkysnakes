@@ -69,7 +69,7 @@ class GameManager : public Actor<GameManager> {
               TopicPtr<PauseToggle> pause_topic, TimerFactoryPtr timer_factory);
 
   // Process messages from subscribed topics
-  void processMessages() override;
+  void processInputs() override;
 
  private:
   void onStartGame(const StartGame& msg);

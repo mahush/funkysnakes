@@ -74,8 +74,8 @@ This project implements a **typed actor model** using standalone Asio for thread
    - Helper methods: `create_sub()` and `create_pub()` for subscription/publisher creation
 
 3. **Message Processing Flow**
-   - Topics notify actors via `asio::post(strand, processMessages())`
-   - Actors implement `processMessages()` to pull and process queued messages
+   - Topics notify actors via `asio::post(strand, processInputs())`
+   - Actors implement `processInputs()` to pull and process queued messages
    - Only notifies when queue transitions from empty→non-empty (avoids spam)
    - Pull-based model: actors control when to process messages
 
@@ -244,7 +244,7 @@ auto actor = std::make_shared<MyActor>(io, topic1, topic2);
 ### Message Processing Pattern
 Actors process messages by pulling from subscriptions:
 ```cpp
-void MyActor::processMessages() {
+void MyActor::processInputs() {
   while (auto msg = my_sub_->tryTakeMessage()) {
     handleMessage(*msg);
   }

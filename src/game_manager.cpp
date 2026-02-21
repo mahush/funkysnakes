@@ -25,7 +25,7 @@ GameManager::GameManager(Actor<GameManager>::ActorContext ctx, TopicPtr<GameCloc
       reposition_timer_(create_timer<RepositionTimer>(timer_factory)),
       level_timer_(create_timer<LevelTimer>(timer_factory)) {}
 
-void GameManager::processMessages() {
+void GameManager::processInputs() {
   // Timer events
   process_event(reposition_timer_, [&](const RepositionTimerElapsedEvent&) { onRepositionTimer(); });
   process_event(level_timer_, [&](const LevelTimerElapsedEvent&) { onLevelTimer(); });

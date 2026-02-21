@@ -24,7 +24,7 @@ Renderer::Renderer(Actor<Renderer>::ActorContext ctx, TopicPtr<RenderableState> 
       metadata_sub_(create_sub(metadata_topic)),
       flash_timer_(create_timer<FlashTimer>(timer_factory)) {}
 
-void Renderer::processMessages() {
+void Renderer::processInputs() {
   // Process all pending state updates
   while (auto msg = state_sub_->tryTakeMessage()) {
     onRenderableState(*msg);

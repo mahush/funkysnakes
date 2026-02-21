@@ -29,7 +29,7 @@ An actor's message queue for a specific topic. Actors pull messages from subscri
 // In actor constructor
 tick_sub_ = create_sub(tick_topic);
 
-// In processMessages()
+// In processInputs()
 while (auto msg = tick_sub_->tryTakeMessage()) {
     handleTick(*msg);
 }
@@ -74,7 +74,7 @@ public:
           output_pub_(create_pub(output_topic)) {}
 
     // Required: implement message processing
-    void processMessages() override {
+    void processInputs() override {
         // Pull and process all pending messages
         while (auto msg = input_sub_->tryTakeMessage()) {
             handleInput(*msg);
@@ -102,7 +102,7 @@ private:
 
 1. **Publishing**: Any actor publishes a message via `Publisher::publish()`
 2. **Topic Distribution**: Topic enqueues message in all subscriber queues
-3. **Notification**: Topic posts `processMessages()` call to subscriber's strand (only if queue was empty)
+3. **Notification**: Topic posts `processInputs()` call to subscriber's strand (only if queue was empty)
 4. **Pull Processing**: Actor wakes up, pulls messages via `Subscription::tryTakeMessage()` in desired order
 5. **Processing**: Actor handles messages, may publish new messages in response
 
@@ -139,7 +139,7 @@ public:
         ));
     }
 
-    void processMessages() override {
+    void processInputs() override {
         // Process timer ticks
         while (auto event = timer_->tryTakeElapsedEvent()) {
             produce();
@@ -166,7 +166,7 @@ public:
           request_sub_(create_sub(request_topic)),
           response_pub_(create_pub(response_topic)) {}
 
-    void processMessages() override {
+    void processInputs() override {
         while (auto msg = request_sub_->tryTakeMessage()) {
             // Process request
             std::string result = "Processed " + std::to_string(msg->id);
@@ -209,7 +209,7 @@ public:
     MyActor(Actor<MyActor>::ActorContext ctx, /* your dependencies */)
         : Actor(ctx) { /* initialize subscriptions/publishers */ }
 
-    void processMessages() override { /* handle messages */ }
+    void processInputs() override { /* handle messages */ }
 
 private:
     // Your private members
@@ -226,7 +226,7 @@ Actor code runs serialized on its strand - no manual locking needed. Topics are 
 ## Best Practices
 
 - **Drain message queues**: Use `while (auto msg = sub->tryTakeMessage())` to process all pending messages
-- **Keep handlers fast**: Avoid blocking operations in `processMessages()`
+- **Keep handlers fast**: Avoid blocking operations in `processInputs()`
 - **Inject dependencies**: Pass `TopicPtr` to constructors for better testability
 - **Let actors die naturally**: Just drop the `shared_ptr` - cleanup happens automatically
 

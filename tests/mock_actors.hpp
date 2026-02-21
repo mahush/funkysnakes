@@ -21,7 +21,7 @@ using actor_core::TopicPtr;
  */
 class MockTickSubscriber : public Actor<MockTickSubscriber> {
  public:
-  void processMessages() override {
+  void processInputs() override {
     while (auto msg = tick_sub_->tryTakeMessage()) {
       ticks.push_back(*msg);
     }
@@ -41,7 +41,7 @@ class MockTickSubscriber : public Actor<MockTickSubscriber> {
  */
 class MockDirectionChangeSubscriber : public Actor<MockDirectionChangeSubscriber> {
  public:
-  void processMessages() override {
+  void processInputs() override {
     while (auto msg = direction_sub_->tryTakeMessage()) {
       direction_changes.push_back(*msg);
     }
@@ -62,7 +62,7 @@ class MockDirectionChangeSubscriber : public Actor<MockDirectionChangeSubscriber
  */
 class MockRenderableStateSubscriber : public Actor<MockRenderableStateSubscriber> {
  public:
-  void processMessages() override {
+  void processInputs() override {
     while (auto msg = state_sub_->tryTakeMessage()) {
       renderable_states.push_back(*msg);
     }
@@ -83,7 +83,7 @@ class MockRenderableStateSubscriber : public Actor<MockRenderableStateSubscriber
  */
 class MockGameOverSubscriber : public Actor<MockGameOverSubscriber> {
  public:
-  void processMessages() override {
+  void processInputs() override {
     while (auto msg = gameover_sub_->tryTakeMessage()) {
       game_overs.push_back(*msg);
     }
@@ -103,7 +103,7 @@ class MockGameOverSubscriber : public Actor<MockGameOverSubscriber> {
  */
 class MockStartClockSubscriber : public Actor<MockStartClockSubscriber> {
  public:
-  void processMessages() override {
+  void processInputs() override {
     while (auto msg = startclock_sub_->tryTakeMessage()) {
       start_clocks.push_back(*msg);
     }
@@ -124,7 +124,7 @@ class MockStartClockSubscriber : public Actor<MockStartClockSubscriber> {
  */
 class MockStopClockSubscriber : public Actor<MockStopClockSubscriber> {
  public:
-  void processMessages() override {
+  void processInputs() override {
     while (auto msg = stopclock_sub_->tryTakeMessage()) {
       stop_clocks.push_back(*msg);
     }
@@ -144,7 +144,7 @@ class MockStopClockSubscriber : public Actor<MockStopClockSubscriber> {
  */
 class MockClockCommandSubscriber : public Actor<MockClockCommandSubscriber> {
  public:
-  void processMessages() override {
+  void processInputs() override {
     while (auto msg = clock_sub_->tryTakeMessage()) {
       clock_commands.push_back(*msg);
     }
