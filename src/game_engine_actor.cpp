@@ -293,7 +293,7 @@ GameEngineActor::GameEngineActor(Actor<GameEngineActor>::ActorContext ctx, Topic
       tickrate_sub_(create_sub(tickrate_topic)),
       reposition_sub_(create_sub(reposition_topic)),
       summary_req_sub_(create_sub(summary_req_topic)),
-      timer_(create_timer<GameTimer>(timer_factory)) {
+      game_loop_timer_(create_timer<GameTimer>(timer_factory)) {
   game_state_.game_id = "game_001";
   game_state_.board.width = 60;
   game_state_.board.height = 20;
@@ -317,10 +317,10 @@ void GameEngineActor::processInputs() {
                              over_direction_command_filter_state_viewing_snakes(direction_command_filter::try_add));
 
   // Create effect handler for messages that produce effects
-  GameEngineEffectHandler effect_handler(renderable_state_pub_, alive_states_pub_, summary_resp_pub_, timer_);
+  GameEngineEffectHandler effect_handler(renderable_state_pub_, alive_states_pub_, summary_resp_pub_, game_loop_timer_);
 
   // Process timer events with effect handler pattern
-  process_event_with_state(timer_, game_state_, handleTick, effect_handler);
+  process_event_with_state(game_loop_timer_, game_state_, handleTick, effect_handler);
 
   // Process clock commands with effect handler pattern
   process_message_with_state(clock_sub_, game_state_, handleGameClockCommand, effect_handler);
