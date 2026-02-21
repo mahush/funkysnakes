@@ -141,7 +141,7 @@ public:
 
     void processMessages() override {
         // Process timer ticks
-        for (const auto& event : timer_->take_all_elapsed_events()) {
+        while (auto event = timer_->tryTakeElapsedEvent()) {
             produce();
         }
     }

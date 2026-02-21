@@ -48,10 +48,10 @@ class ITimerCore {
   virtual bool is_scheduled() const = 0;
 
   /**
-   * @brief Take all elapsed events that occurred since last call
-   * @return Number of elapsed events
+   * @brief Try to take the next elapsed event (non-blocking)
+   * @return true if an event was taken, false if no events are pending
    */
-  virtual size_t take_all_elapsed_events() = 0;
+  virtual bool tryTakeElapsedEvent() = 0;
 };
 
 using TimerCorePtr = std::shared_ptr<ITimerCore>;

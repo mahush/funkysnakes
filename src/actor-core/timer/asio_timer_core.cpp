@@ -42,12 +42,14 @@ bool AsioTimerCore::is_scheduled() const {
   return is_scheduled_;
 }
 
-size_t AsioTimerCore::take_all_elapsed_events() {
+bool AsioTimerCore::tryTakeElapsedEvent() {
   std::lock_guard<std::mutex> lock(mutex_);
 
-  size_t count = elapsed_count_;
-  elapsed_count_ = 0;
-  return count;
+  if (elapsed_count_ > 0) {
+    --elapsed_count_;
+    return true;
+  }
+  return false;
 }
 
 void AsioTimerCore::schedule_timer(std::chrono::milliseconds duration) {
