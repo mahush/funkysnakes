@@ -29,8 +29,7 @@ class MockTickSubscriber : public Actor<MockTickSubscriber> {
 
   std::vector<TickMsg> ticks;
 
-  MockTickSubscriber(Actor<MockTickSubscriber>::ActorContext ctx, TopicPtr<TickMsg> topic)
-      : Actor(ctx), tick_sub_(create_sub(topic)) {}
+  MockTickSubscriber(ActorContext ctx, TopicPtr<TickMsg> topic) : Actor(ctx), tick_sub_(create_sub(topic)) {}
 
  private:
   SubscriptionPtr<TickMsg> tick_sub_;
@@ -49,7 +48,7 @@ class MockDirectionMsgSubscriber : public Actor<MockDirectionMsgSubscriber> {
 
   std::vector<DirectionMsg> direction_changes;
 
-  MockDirectionMsgSubscriber(Actor<MockDirectionMsgSubscriber>::ActorContext ctx, TopicPtr<DirectionMsg> topic)
+  MockDirectionMsgSubscriber(ActorContext ctx, TopicPtr<DirectionMsg> topic)
       : Actor(ctx), direction_sub_(create_sub(topic)) {}
 
  private:
@@ -69,7 +68,7 @@ class MockRenderableStateSubscriber : public Actor<MockRenderableStateSubscriber
 
   std::vector<RenderableStateMsg> renderable_states;
 
-  MockRenderableStateSubscriber(Actor<MockRenderableStateSubscriber>::ActorContext ctx, TopicPtr<RenderableStateMsg> topic)
+  MockRenderableStateSubscriber(ActorContext ctx, TopicPtr<RenderableStateMsg> topic)
       : Actor(ctx), state_sub_(create_sub(topic)) {}
 
  private:
@@ -89,7 +88,7 @@ class MockGameOverSubscriber : public Actor<MockGameOverSubscriber> {
 
   std::vector<GameOverMsg> game_overs;
 
-  MockGameOverSubscriber(Actor<MockGameOverSubscriber>::ActorContext ctx, TopicPtr<GameOverMsg> topic)
+  MockGameOverSubscriber(ActorContext ctx, TopicPtr<GameOverMsg> topic)
       : Actor(ctx), gameover_sub_(create_sub(topic)) {}
 
  private:
@@ -109,7 +108,7 @@ class MockStartClockSubscriber : public Actor<MockStartClockSubscriber> {
 
   std::vector<StartClockMsg> start_clocks;
 
-  MockStartClockSubscriber(Actor<MockStartClockSubscriber>::ActorContext ctx, TopicPtr<StartClockMsg> topic)
+  MockStartClockSubscriber(ActorContext ctx, TopicPtr<StartClockMsg> topic)
       : Actor(ctx), startclock_sub_(create_sub(topic)) {}
 
  private:
@@ -129,7 +128,7 @@ class MockStopClockSubscriber : public Actor<MockStopClockSubscriber> {
 
   std::vector<StopClockMsg> stop_clocks;
 
-  MockStopClockSubscriber(Actor<MockStopClockSubscriber>::ActorContext ctx, TopicPtr<StopClockMsg> topic)
+  MockStopClockSubscriber(ActorContext ctx, TopicPtr<StopClockMsg> topic)
       : Actor(ctx), stopclock_sub_(create_sub(topic)) {}
 
  private:
@@ -149,7 +148,7 @@ class MockClockCommandSubscriber : public Actor<MockClockCommandSubscriber> {
 
   std::vector<GameClockCommandMsg> clock_commands;
 
-  MockClockCommandSubscriber(Actor<MockClockCommandSubscriber>::ActorContext ctx, TopicPtr<GameClockCommandMsg> topic)
+  MockClockCommandSubscriber(ActorContext ctx, TopicPtr<GameClockCommandMsg> topic)
       : Actor(ctx), clock_sub_(create_sub(topic)) {}
 
  private:

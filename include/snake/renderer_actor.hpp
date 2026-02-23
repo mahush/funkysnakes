@@ -44,9 +44,8 @@ class RendererActor : public Actor<RendererActor> {
    * @param metadata_topic Topic for game state metadata (level, pause state)
    * @param timer_factory Factory for creating timers
    */
-  RendererActor(Actor<RendererActor>::ActorContext ctx, TopicPtr<RenderableStateMsg> state_topic,
-                TopicPtr<GameOverMsg> gameover_topic, TopicPtr<GameStateMetadataMsg> metadata_topic,
-                TimerFactoryPtr timer_factory);
+  RendererActor(ActorContext ctx, TopicPtr<RenderableStateMsg> state_topic, TopicPtr<GameOverMsg> gameover_topic,
+                TopicPtr<GameStateMetadataMsg> metadata_topic, TimerFactoryPtr timer_factory);
 
   // Process messages from subscribed topics
   void processInputs() override;

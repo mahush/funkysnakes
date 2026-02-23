@@ -144,7 +144,7 @@ static std::tuple<GameState, RenderableStateMsg, std::optional<PlayerAliveStates
  * @return Tuple of (state, timer command effect, log message effect)
  */
 static std::tuple<GameState, GameTimerCommand, LogMsg> handleGameClockCommand(GameState state,
-                                                                                  const GameClockCommandMsg& msg) {
+                                                                              const GameClockCommandMsg& msg) {
   GameTimerCommand timer_cmd;
   LogMsg log_msg;
 
@@ -183,7 +183,7 @@ static std::tuple<GameState, GameTimerCommand, LogMsg> handleGameClockCommand(Ga
  * @return Tuple of (updated state, timer command effect, log message effect)
  */
 static std::tuple<GameState, GameTimerCommand, LogMsg> handleTickRateChange(GameState state,
-                                                                                const TickRateChangeMsg& msg) {
+                                                                            const TickRateChangeMsg& msg) {
   state.interval_ms = msg.interval_ms;
 
   // Return periodic command to restart timer with new interval
@@ -277,13 +277,14 @@ class GameEngineEffectHandler {
 // GameEngineActor implementation
 // ============================================================================
 
-GameEngineActor::GameEngineActor(Actor<GameEngineActor>::ActorContext ctx, TopicPtr<DirectionMsg> direction_topic,
+GameEngineActor::GameEngineActor(ActorContext ctx, TopicPtr<DirectionMsg> direction_topic,
                                  TopicPtr<RenderableStateMsg> state_topic, TopicPtr<GameClockCommandMsg> clock_topic,
                                  TopicPtr<TickRateChangeMsg> tickrate_topic,
                                  TopicPtr<FoodRepositionTriggerMsg> reposition_topic,
                                  TopicPtr<PlayerAliveStatesMsg> alivests_topic,
                                  TopicPtr<GameStateSummaryRequestMsg> summary_req_topic,
-                                 TopicPtr<GameStateSummaryResponseMsg> summary_resp_topic, TimerFactoryPtr timer_factory)
+                                 TopicPtr<GameStateSummaryResponseMsg> summary_resp_topic,
+                                 TimerFactoryPtr timer_factory)
     : Actor(ctx),
       renderable_state_pub_(create_pub(state_topic)),
       alive_states_pub_(create_pub(alivests_topic)),
