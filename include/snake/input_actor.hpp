@@ -46,6 +46,11 @@ class InputActor : public Actor<InputActor> {
    */
   bool isReading() const { return is_reading_; }
 
+  /**
+   * @brief Check if quit was requested
+   */
+  bool quitRequested() const { return quit_requested_; }
+
   // No subscriptions - InputActor only publishes
   void processInputs() override {}
 
@@ -54,29 +59,37 @@ class InputActor : public Actor<InputActor> {
    * @param ctx Actor execution context
    * @param direction_topic Topic to publish direction changes
    * @param pause_topic Topic to publish pause toggle requests
+   * @param quit_topic Topic to publish quit requests
    * @param game_id The current game ID
    */
   InputActor(ActorContext ctx, TopicPtr<DirectionMsg> direction_topic, TopicPtr<PauseToggleMsg> pause_topic,
-             GameId game_id);
+             TopicPtr<QuitMsg> quit_topic, GameId game_id);
 
  private:
+  // Raw input acquisition layer (stdin, escape sequences)
   void scheduleRead();
-  void handleChar(char ch);
-  void handleEscapeSequence();
-  void publishDirectionMsg(PlayerId player_id, Direction dir);
-  void publishPauseToggle();
-  Direction charToDirection(char key) const;
-  PlayerId keyToPlayer(char key) const;
+  void handleRawChar(char ch);
+  std::optional<char> readEscapeSequenceAsKey();
   void enableRawMode();
   void disableRawMode();
 
+  // Key processing layer (semantic key handling)
+  void onKeyPress(char key);
+
+  // Key-to-message converters (clean, scalable pattern)
+  std::optional<DirectionMsg> tryConvertKeyToDirectionMsg(char key) const;
+  std::optional<PauseToggleMsg> tryConvertKeyToPauseToggle(char key) const;
+  std::optional<QuitMsg> tryConvertKeyToQuit(char key) const;
+
   PublisherPtr<DirectionMsg> direction_pub_;
   PublisherPtr<PauseToggleMsg> pause_pub_;
+  PublisherPtr<QuitMsg> quit_pub_;
   GameId game_id_;
 
   asio::posix::stream_descriptor stdin_;
   std::vector<char> read_buffer_;
   bool is_reading_{false};
+  bool quit_requested_{false};
   termios orig_termios_{};
   bool raw_mode_enabled_{false};
 };

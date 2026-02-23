@@ -9,10 +9,11 @@
 namespace snake {
 
 InputActor::InputActor(ActorContext ctx, TopicPtr<DirectionMsg> direction_topic, TopicPtr<PauseToggleMsg> pause_topic,
-                       GameId game_id)
+                       TopicPtr<QuitMsg> quit_topic, GameId game_id)
     : Actor{ctx},
       direction_pub_{create_pub(std::move(direction_topic))},
       pause_pub_{create_pub(std::move(pause_topic))},
+      quit_pub_{create_pub(std::move(quit_topic))},
       game_id_{std::move(game_id)},
       stdin_{ctx.io_context(), STDIN_FILENO},
       read_buffer_{1} {}
@@ -64,148 +65,160 @@ void InputActor::scheduleRead() {
                      }
 
                      char ch = self->read_buffer_[0];
-                     self->handleChar(ch);
+                     self->handleRawChar(ch);
 
                      // Re-schedule next read
                      self->scheduleRead();
                    }));
 }
 
-void InputActor::handleChar(char ch) {
-  // Check for quit command
-  if (ch == 'q' || ch == 'Q') {
-    std::cout << "\n[InputActor] Quit requested\n";
-    stopReading();
-    return;
-  }
+// ============================================================================
+// Raw Input Acquisition Layer
+// ============================================================================
 
-  // Check for pause toggle
-  if (ch == 'p' || ch == 'P') {
-    publishPauseToggle();
-    return;
-  }
-
-  // Check for escape sequences (arrow keys)
+void InputActor::handleRawChar(char ch) {
+  // Special case: escape sequences need multi-char read
   if (ch == 27) {  // ESC
-    handleEscapeSequence();
+    if (auto key = readEscapeSequenceAsKey()) {
+      onKeyPress(*key);
+    }
     return;
   }
 
-  // Determine which player this key belongs to
-  PlayerId player = keyToPlayer(ch);
-  if (!player.empty()) {
-    Direction dir = charToDirection(ch);
-    publishDirectionMsg(player, dir);
-  }
+  // Normal key: pass to semantic key handler
+  onKeyPress(ch);
 }
 
-void InputActor::handleEscapeSequence() {
+std::optional<char> InputActor::readEscapeSequenceAsKey() {
   // Read the next two characters synchronously for escape sequence
   // (Arrow keys are: ESC [ A/B/C/D)
   char seq1 = 0;
   char seq2 = 0;
   if (read(STDIN_FILENO, &seq1, 1) == 1 && read(STDIN_FILENO, &seq2, 1) == 1) {
     if (seq1 == '[') {
-      // Arrow key detected - map to Player B controls
-      char mapped_key = 0;
+      // Arrow key detected - normalize to Player B key equivalents
       switch (seq2) {
         case 'A':
-          mapped_key = 'i';
-          break;  // Up arrow
+          return 'i';  // Up arrow → 'i'
         case 'B':
-          mapped_key = 'k';
-          break;  // Down arrow
+          return 'k';  // Down arrow → 'k'
         case 'C':
-          mapped_key = 'l';
-          break;  // Right arrow
+          return 'l';  // Right arrow → 'l'
         case 'D':
-          mapped_key = 'j';
-          break;  // Left arrow
-      }
-
-      if (mapped_key) {
-        Direction dir = charToDirection(mapped_key);
-        publishDirectionMsg(PLAYER_B, dir);
+          return 'j';  // Left arrow → 'j'
+        default:
+          return std::nullopt;  // Unknown escape sequence
       }
     }
   }
+  return std::nullopt;  // Failed to read or not an arrow key
 }
 
-void InputActor::publishDirectionMsg(PlayerId player_id, Direction dir) {
-  DirectionMsg change;
-  change.game_id = game_id_;
-  change.player_id = player_id;
-  change.new_direction = dir;
-  direction_pub_->publish(change);
-}
+// ============================================================================
+// Key Processing Layer (Semantic Key Handling)
+// ============================================================================
 
-void InputActor::publishPauseToggle() {
-  PauseToggleMsg toggle;
-  toggle.game_id = game_id_;
-  pause_pub_->publish(toggle);
-}
+void InputActor::onKeyPress(char key) {
+  // Check for quit request
+  if (auto quit_msg = tryConvertKeyToQuit(key)) {
+    quit_pub_->publish(*quit_msg);
+    quit_requested_ = true;  // Signal to orchestrator
+    return;
+  }
 
-PlayerId InputActor::keyToPlayer(char key) const {
-  // Hardcoded mapping:
-  // Player A: w/a/s/d
-  // Player B: i/j/k/l
-  switch (key) {
-    case 'w':
-    case 'W':
-    case 'a':
-    case 'A':
-    case 's':
-    case 'S':
-    case 'd':
-    case 'D':
-      return PLAYER_A;
+  // Check for pause toggle
+  if (auto pause_msg = tryConvertKeyToPauseToggle(key)) {
+    pause_pub_->publish(*pause_msg);
+    return;
+  }
 
-    case 'i':
-    case 'I':
-    case 'j':
-    case 'J':
-    case 'k':
-    case 'K':
-    case 'l':
-    case 'L':
-      return PLAYER_B;
-
-    default:
-      return "";  // Unknown key
+  // Check for direction command
+  if (auto direction_msg = tryConvertKeyToDirectionMsg(key)) {
+    direction_pub_->publish(*direction_msg);
   }
 }
 
-Direction InputActor::charToDirection(char key) const {
-  // Player 1: w=UP, a=LEFT, s=DOWN, d=RIGHT
-  // Player 2: i=UP, j=LEFT, k=DOWN, l=RIGHT
+// ============================================================================
+// Key Conversion Functions - Clean, Scalable Pattern
+// ============================================================================
+
+std::optional<DirectionMsg> InputActor::tryConvertKeyToDirectionMsg(char key) const {
+  // Determine player and direction from key
+  PlayerId player_id;
+  Direction direction;
+
+  // Player A: w/a/s/d - Player B: i/j/k/l
   switch (key) {
+    // Player A keys
     case 'w':
     case 'W':
-    case 'i':
-    case 'I':
-      return Direction::UP;
-
+      player_id = PLAYER_A;
+      direction = Direction::UP;
+      break;
     case 's':
     case 'S':
-    case 'k':
-    case 'K':
-      return Direction::DOWN;
-
+      player_id = PLAYER_A;
+      direction = Direction::DOWN;
+      break;
     case 'a':
     case 'A':
-    case 'j':
-    case 'J':
-      return Direction::LEFT;
-
+      player_id = PLAYER_A;
+      direction = Direction::LEFT;
+      break;
     case 'd':
     case 'D':
+      player_id = PLAYER_A;
+      direction = Direction::RIGHT;
+      break;
+
+    // Player B keys
+    case 'i':
+    case 'I':
+      player_id = PLAYER_B;
+      direction = Direction::UP;
+      break;
+    case 'k':
+    case 'K':
+      player_id = PLAYER_B;
+      direction = Direction::DOWN;
+      break;
+    case 'j':
+    case 'J':
+      player_id = PLAYER_B;
+      direction = Direction::LEFT;
+      break;
     case 'l':
     case 'L':
-      return Direction::RIGHT;
+      player_id = PLAYER_B;
+      direction = Direction::RIGHT;
+      break;
 
     default:
-      return Direction::UP;  // Default fallback
+      return std::nullopt;  // Unknown key
   }
+
+  // Build and return DirectionMsg
+  DirectionMsg msg;
+  msg.game_id = game_id_;
+  msg.player_id = player_id;
+  msg.new_direction = direction;
+  return msg;
+}
+
+std::optional<PauseToggleMsg> InputActor::tryConvertKeyToPauseToggle(char key) const {
+  if (key == 'p' || key == 'P') {
+    PauseToggleMsg msg;
+    msg.game_id = game_id_;
+    return msg;
+  }
+  return std::nullopt;
+}
+
+std::optional<QuitMsg> InputActor::tryConvertKeyToQuit(char key) const {
+  if (key == 'q' || key == 'Q') {
+    return QuitMsg{};
+  }
+  return std::nullopt;
 }
 
 void InputActor::enableRawMode() {

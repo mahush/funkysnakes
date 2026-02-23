@@ -67,13 +67,20 @@ struct PauseToggleMsg {
 };
 
 /**
+ * @brief Request to quit the application
+ */
+struct QuitMsg {
+  // Empty - just a signal to initiate shutdown
+};
+
+/**
  * @brief Game clock state for controlling timer
  */
 enum class GameClockState {
-  START,   // Start running the clock
-  STOP,    // Stop and reset
-  PAUSE,   // Pause (can resume)
-  RESUME   // Resume from pause
+  START,  // Start running the clock
+  STOP,   // Stop and reset
+  PAUSE,  // Pause (can resume)
+  RESUME  // Resume from pause
 };
 
 /**
