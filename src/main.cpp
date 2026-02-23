@@ -40,6 +40,7 @@ int main() {
   auto summary_req_topic = std::make_shared<Topic<snake::GameStateSummaryRequestMsg>>();
   auto summary_resp_topic = std::make_shared<Topic<snake::GameStateSummaryResponseMsg>>();
   auto pause_topic = std::make_shared<Topic<snake::PauseToggleMsg>>();
+  auto quit_topic = std::make_shared<Topic<snake::QuitMsg>>();
 
   // Create actors using factory methods - clean single-stage construction!
   auto renderer = snake::RendererActor::create(io, state_topic, gameover_topic, metadata_topic, timer_factory);
@@ -52,7 +53,7 @@ int main() {
                                                  tickrate_topic, alivests_topic, summary_req_topic, summary_resp_topic,
                                                  gameover_topic, pause_topic, timer_factory);
 
-  auto input_actor = snake::InputActor::create(io, direction_topic, pause_topic, "game_001");
+  auto input_actor = snake::InputActor::create(io, direction_topic, pause_topic, quit_topic, "game_001");
 
   // Create publisher for main thread to send commands
   Publisher<snake::StartGameMsg> startgame_pub{startgame_topic};
@@ -77,15 +78,19 @@ int main() {
   // Start reading keyboard input
   input_actor->startReading();
 
-  // Wait for input thread to finish (when user presses 'q' or EOF)
-  while (input_actor->isReading()) {
+  // Wait for quit signal (orchestration layer)
+  std::cout << "[Main] Waiting for quit signal (press 'q' to quit)...\n";
+  while (!input_actor->quitRequested()) {
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
   }
 
-  std::cout << "\nShutting down...\n";
-  input_actor->stopReading();
+  // Orchestrated shutdown sequence
+  std::cout << "\n[Main] Quit signal received, initiating shutdown...\n";
+  work_guard.reset();  // Allow io_context to exit
   io.stop();
   runner.join();
+
+  // InputActor destructor will call stopReading() automatically
 
   // Shutdown logger
   snake::Logger::shutdown();
