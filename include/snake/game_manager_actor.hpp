@@ -61,10 +61,10 @@ class GameManagerActor : public Actor<GameManagerActor> {
    * @param pause_topic Topic to subscribe for pause toggle requests
    * @param timer_factory Factory for creating timers
    */
-  GameManagerActor(Actor<GameManagerActor>::ActorContext ctx, TopicPtr<GameClockCommandMsg> clock_topic,
-                   TopicPtr<StartGameMsg> startgame_topic, TopicPtr<FoodRepositionTriggerMsg> reposition_topic,
-                   TopicPtr<GameStateMetadataMsg> metadata_topic, TopicPtr<TickRateChangeMsg> tickrate_topic,
-                   TopicPtr<PlayerAliveStatesMsg> alivests_topic, TopicPtr<GameStateSummaryRequestMsg> summary_req_topic,
+  GameManagerActor(ActorContext ctx, TopicPtr<GameClockCommandMsg> clock_topic, TopicPtr<StartGameMsg> startgame_topic,
+                   TopicPtr<FoodRepositionTriggerMsg> reposition_topic, TopicPtr<GameStateMetadataMsg> metadata_topic,
+                   TopicPtr<TickRateChangeMsg> tickrate_topic, TopicPtr<PlayerAliveStatesMsg> alivests_topic,
+                   TopicPtr<GameStateSummaryRequestMsg> summary_req_topic,
                    TopicPtr<GameStateSummaryResponseMsg> summary_resp_topic, TopicPtr<GameOverMsg> gameover_topic,
                    TopicPtr<PauseToggleMsg> pause_topic, TimerFactoryPtr timer_factory);
 

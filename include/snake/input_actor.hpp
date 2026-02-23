@@ -56,8 +56,8 @@ class InputActor : public Actor<InputActor> {
    * @param pause_topic Topic to publish pause toggle requests
    * @param game_id The current game ID
    */
-  InputActor(Actor<InputActor>::ActorContext ctx, TopicPtr<DirectionMsg> direction_topic,
-             TopicPtr<PauseToggleMsg> pause_topic, GameId game_id);
+  InputActor(ActorContext ctx, TopicPtr<DirectionMsg> direction_topic, TopicPtr<PauseToggleMsg> pause_topic,
+             GameId game_id);
 
  private:
   void scheduleRead();

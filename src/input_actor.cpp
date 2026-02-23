@@ -8,8 +8,8 @@
 
 namespace snake {
 
-InputActor::InputActor(Actor<InputActor>::ActorContext ctx, TopicPtr<DirectionMsg> direction_topic,
-                       TopicPtr<PauseToggleMsg> pause_topic, GameId game_id)
+InputActor::InputActor(ActorContext ctx, TopicPtr<DirectionMsg> direction_topic, TopicPtr<PauseToggleMsg> pause_topic,
+                       GameId game_id)
     : Actor{ctx},
       direction_pub_{create_pub(std::move(direction_topic))},
       pause_pub_{create_pub(std::move(pause_topic))},

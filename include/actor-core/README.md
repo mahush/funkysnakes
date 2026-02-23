@@ -66,7 +66,7 @@ struct OutputMsg {
 class MyActor : public Actor<MyActor> {
 public:
     // Constructor - takes ActorContext as first parameter
-    MyActor(Actor<MyActor>::ActorContext ctx,
+    MyActor(ActorContext ctx,
             TopicPtr<InputMsg> input_topic,
             TopicPtr<OutputMsg> output_topic)
         : Actor(ctx),
@@ -127,7 +127,7 @@ using ProducerTimer = Timer<ProducerElapsed, ProducerCommand>;
 // Producer actor (timer-driven)
 class Producer : public Actor<Producer> {
 public:
-    Producer(Actor<Producer>::ActorContext ctx,
+    Producer(ActorContext ctx,
              TopicPtr<Request> request_topic,
              TimerFactoryPtr timer_factory)
         : Actor(ctx),
@@ -159,7 +159,7 @@ private:
 // Worker actor
 class Worker : public Actor<Worker> {
 public:
-    Worker(Actor<Worker>::ActorContext ctx,
+    Worker(ActorContext ctx,
            TopicPtr<Request> request_topic,
            TopicPtr<Response> response_topic)
         : Actor(ctx),
@@ -206,7 +206,7 @@ Actors must be created using the factory method and follow this structure:
 ```cpp
 class MyActor : public Actor<MyActor> {
 public:
-    MyActor(Actor<MyActor>::ActorContext ctx, /* your dependencies */)
+    MyActor(ActorContext ctx, /* your dependencies */)
         : Actor(ctx) { /* initialize subscriptions/publishers */ }
 
     void processInputs() override { /* handle messages */ }
