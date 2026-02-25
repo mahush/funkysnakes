@@ -10,6 +10,7 @@
 #include "snake/input_actor.hpp"
 #include "snake/logger.hpp"
 #include "snake/renderer_actor.hpp"
+#include "snake/stdin_reader.hpp"
 
 using actor_core::Publisher;
 using actor_core::TimerFactory;
@@ -53,7 +54,10 @@ int main() {
                                                  tickrate_topic, alivests_topic, summary_req_topic, summary_resp_topic,
                                                  gameover_topic, pause_topic, timer_factory);
 
-  auto input_actor = snake::InputActor::create(io, direction_topic, pause_topic, quit_topic, "game_001");
+  // Create shared stdin reader (like a topic)
+  auto stdin_reader = std::make_shared<snake::StdinReader>(io);
+
+  auto input_actor = snake::InputActor::create(io, stdin_reader, direction_topic, pause_topic, quit_topic, "game_001");
 
   // Create publisher for main thread to send commands
   Publisher<snake::StartGameMsg> startgame_pub{startgame_topic};
@@ -73,10 +77,10 @@ int main() {
   std::this_thread::sleep_for(std::chrono::milliseconds(200));
 
   std::cout << "\n--- Game Running ---\n";
-  std::cout << "Type keys to control the snakes (press Enter after each key):\n\n";
+  std::cout << "Type keys to control the snakes:\n\n";
 
-  // Start reading keyboard input
-  input_actor->startReading();
+  // Start reading keyboard input (like starting to publish to a topic)
+  stdin_reader->startReading();
 
   // Wait for quit signal (orchestration layer)
   std::cout << "[Main] Waiting for quit signal (press 'q' to quit)...\n";
@@ -86,11 +90,10 @@ int main() {
 
   // Orchestrated shutdown sequence
   std::cout << "\n[Main] Quit signal received, initiating shutdown...\n";
-  work_guard.reset();  // Allow io_context to exit
+  stdin_reader->stopReading();  // Stop the stdin reader
+  work_guard.reset();           // Allow io_context to exit
   io.stop();
   runner.join();
-
-  // InputActor destructor will call stopReading() automatically
 
   // Shutdown logger
   snake::Logger::shutdown();
