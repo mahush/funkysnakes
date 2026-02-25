@@ -56,6 +56,7 @@ add_executable(snake_actors
   src/game_manager_actor.cpp
   src/game_engine_actor.cpp
   src/input_actor.cpp
+  src/stdin_reader.cpp
   src/renderer_actor.cpp
   src/snake_model.cpp
   src/snake_operations.cpp
@@ -103,6 +104,7 @@ if(SNAKE_BUILD_TESTS)
     src/game_manager_actor.cpp
     src/game_engine_actor.cpp
     src/input_actor.cpp
+    src/stdin_reader.cpp
     src/renderer_actor.cpp
     src/snake_model.cpp
     src/snake_operations.cpp

@@ -1,165 +1,127 @@
 #include "snake/input_actor.hpp"
 
-#include <unistd.h>
-
-#include <iostream>
-
 #include "snake/control_messages.hpp"
 
 namespace snake {
 
-InputActor::InputActor(ActorContext ctx, TopicPtr<DirectionMsg> direction_topic, TopicPtr<PauseToggleMsg> pause_topic,
+InputActor::InputActor(ActorContext ctx, std::shared_ptr<StdinReader> stdin_reader,
+                       TopicPtr<DirectionMsg> direction_topic, TopicPtr<PauseToggleMsg> pause_topic,
                        TopicPtr<QuitMsg> quit_topic, GameId game_id)
     : Actor{ctx},
+      stdin_reader_{std::move(stdin_reader)},
       direction_pub_{create_pub(std::move(direction_topic))},
       pause_pub_{create_pub(std::move(pause_topic))},
       quit_pub_{create_pub(std::move(quit_topic))},
-      game_id_{std::move(game_id)},
-      stdin_{ctx.io_context(), STDIN_FILENO},
-      read_buffer_{1} {}
-
-InputActor::~InputActor() { stopReading(); }
-
-void InputActor::startReading() {
-  if (is_reading_) {
-    return;  // Already reading
-  }
-
-  enableRawMode();
-  is_reading_ = true;
-
-  std::cout << "[InputActor] Started reading from stdin (async mode)\n";
-  std::cout << "[InputActor] Player 1 (Snake A): w=UP, a=LEFT, s=DOWN, d=RIGHT\n";
-  std::cout << "[InputActor] Player 2 (Snake B): Arrow keys (↑ ↓ ← →)\n";
-  std::cout << "[InputActor] Press 'p' to pause/resume, 'q' to quit\n";
-
-  scheduleRead();
-}
-
-void InputActor::stopReading() {
-  if (!is_reading_) {
-    return;
-  }
-
-  is_reading_ = false;
-  stdin_.cancel();
-  disableRawMode();
-
-  std::cout << "\n[InputActor] Stopped reading from stdin\n";
-}
-
-void InputActor::scheduleRead(InputState state) {
-  if (!is_reading_) {
-    return;
-  }
-
-  // Async read one character - runs on strand via bind_executor
-  asio::async_read(stdin_, asio::buffer(read_buffer_),
-                   asio::bind_executor(strand_, [weak_self = weak_from_this(), state](std::error_code ec, std::size_t) {
-                     auto self = weak_self.lock();
-                     if (!self || ec) {
-                       if (self) {
-                         self->is_reading_ = false;
-                       }
-                       return;
-                     }
-
-                     char ch = self->read_buffer_[0];
-
-                     // Process character with continuation callback
-                     self->processChar(ch, state, [weak_self](InputState next_state) {
-                       if (auto self = weak_self.lock()) {
-                         self->scheduleRead(next_state);
-                       }
-                     });
-                   }));
+      game_id_{std::move(game_id)} {
+  // Subscribe to stdin reader (deferred like topic subscriptions)
+  // Must happen after shared_ptr is fully constructed
+  asio::post(strand_, [this] {
+    // Now we can safely call shared_from_this()
+    stdin_reader_->subscribe(shared_from_this(), strand_);
+  });
 }
 
 // ============================================================================
-// Raw Input Acquisition Layer (Purely Async State Machine)
+// Imperative Shell - Process Inputs (Symmetric to GameEngineActor!)
 // ============================================================================
 
-void InputActor::processChar(char ch, InputState state, std::function<void(InputState)> continue_reading) {
-  // Pure business logic - fully testable without async I/O
-  // Parse character with current state
-  auto [maybe_key, next_state] = parseChar(ch, state);
+void InputActor::processInputs() {
+  // Pull-based processing - exactly like GameEngineActor::processInputs()!
+  while (auto ch = stdin_reader_->tryTakeChar()) {
+    // Functional core: pure state transformation
+    auto [new_state, effects] = processInputChar(*ch, escape_state_);
 
-  // If we got a complete key, process it
+    // Update actor state
+    escape_state_ = new_state;
+
+    // Imperative shell: apply effects
+    applyEffects(effects);
+  }
+}
+
+// ============================================================================
+// Functional Core - Pure State Transformations
+// ============================================================================
+
+std::pair<InputActor::EscapeSequenceState, InputActor::InputEffects> InputActor::processInputChar(
+    char ch, EscapeSequenceState state) const {
+  // Parse escape sequence (state machine)
+  auto [maybe_key, new_state] = parseEscapeSequence(ch, state);
+
+  InputEffects effects;
+
+  // If we got a complete key, convert to messages
   if (maybe_key) {
-    onKeyPress(*maybe_key);
+    effects.quit = tryConvertKeyToQuit(*maybe_key);
+    effects.pause = tryConvertKeyToPauseToggle(*maybe_key);
+    effects.direction = tryConvertKeyToDirectionMsg(*maybe_key);
   }
 
-  // Continue reading with next state
-  continue_reading(next_state);
+  return {new_state, effects};
 }
 
-std::pair<std::optional<char>, InputActor::InputState> InputActor::parseChar(char ch, InputState state) const {
-  // Pure function: takes (char, state) → returns (optional_key, next_state)
-  // State machine for parsing escape sequences across async reads
-  // Arrow keys: ESC [ A/B/C/D (three separate async reads)
+std::pair<std::optional<char>, InputActor::EscapeSequenceState> InputActor::parseEscapeSequence(
+    char ch, EscapeSequenceState state) const {
+  // Pure function: parse escape sequences across multiple chars
+  // Arrow keys: ESC [ A/B/C/D
 
   switch (state) {
-    case InputState::NORMAL:
-      if (ch == 27) {                                // ESC
-        return {std::nullopt, InputState::SAW_ESC};  // Wait for '['
+    case EscapeSequenceState::NORMAL:
+      if (ch == 27) {  // ESC
+        return {std::nullopt, EscapeSequenceState::SAW_ESC};
       }
       // Normal character - pass through
-      return {ch, InputState::NORMAL};
+      return {ch, EscapeSequenceState::NORMAL};
 
-    case InputState::SAW_ESC:
+    case EscapeSequenceState::SAW_ESC:
       if (ch == '[') {
-        return {std::nullopt, InputState::SAW_BRACKET};  // Wait for arrow key code
+        return {std::nullopt, EscapeSequenceState::SAW_BRACKET};
       }
       // Not an arrow key - treat as normal char, ESC is lost
-      return {ch, InputState::NORMAL};
+      return {ch, EscapeSequenceState::NORMAL};
 
-    case InputState::SAW_BRACKET:
+    case EscapeSequenceState::SAW_BRACKET:
       // Arrow key code - normalize to Player B key equivalents
       switch (ch) {
         case 'A':
-          return {'i', InputState::NORMAL};  // Up arrow → 'i'
+          return {'i', EscapeSequenceState::NORMAL};  // Up arrow → 'i'
         case 'B':
-          return {'k', InputState::NORMAL};  // Down arrow → 'k'
+          return {'k', EscapeSequenceState::NORMAL};  // Down arrow → 'k'
         case 'C':
-          return {'l', InputState::NORMAL};  // Right arrow → 'l'
+          return {'l', EscapeSequenceState::NORMAL};  // Right arrow → 'l'
         case 'D':
-          return {'j', InputState::NORMAL};  // Left arrow → 'j'
+          return {'j', EscapeSequenceState::NORMAL};  // Left arrow → 'j'
         default:
           // Unknown escape sequence - ignore, reset state
-          return {std::nullopt, InputState::NORMAL};
+          return {std::nullopt, EscapeSequenceState::NORMAL};
       }
   }
 
   // Unreachable, but satisfy compiler
-  return {std::nullopt, InputState::NORMAL};
+  return {std::nullopt, EscapeSequenceState::NORMAL};
 }
 
 // ============================================================================
-// Key Processing Layer (Semantic Key Handling)
+// Imperative Shell - Apply Effects
 // ============================================================================
 
-void InputActor::onKeyPress(char key) {
-  // Check for quit request
-  if (auto quit_msg = tryConvertKeyToQuit(key)) {
-    quit_pub_->publish(*quit_msg);
-    quit_requested_ = true;  // Signal to orchestrator
-    return;
+void InputActor::applyEffects(const InputEffects& effects) {
+  if (effects.quit) {
+    quit_pub_->publish(*effects.quit);
+    quit_requested_ = true;
   }
 
-  // Check for pause toggle
-  if (auto pause_msg = tryConvertKeyToPauseToggle(key)) {
-    pause_pub_->publish(*pause_msg);
-    return;
+  if (effects.pause) {
+    pause_pub_->publish(*effects.pause);
   }
 
-  // Check for direction command
-  if (auto direction_msg = tryConvertKeyToDirectionMsg(key)) {
-    direction_pub_->publish(*direction_msg);
+  if (effects.direction) {
+    direction_pub_->publish(*effects.direction);
   }
 }
 
 // ============================================================================
-// Key Conversion Functions - Clean, Scalable Pattern
+// Key Conversion Functions - Pure, Testable
 // ============================================================================
 
 std::optional<DirectionMsg> InputActor::tryConvertKeyToDirectionMsg(char key) const {
@@ -239,38 +201,6 @@ std::optional<QuitMsg> InputActor::tryConvertKeyToQuit(char key) const {
     return QuitMsg{};
   }
   return std::nullopt;
-}
-
-void InputActor::enableRawMode() {
-  // Get current terminal attributes
-  if (tcgetattr(STDIN_FILENO, &orig_termios_) == -1) {
-    std::cerr << "[InputActor] Failed to get terminal attributes\n";
-    return;
-  }
-
-  termios raw = orig_termios_;
-
-  // Disable canonical mode (line buffering) and echo
-  raw.c_lflag &= ~(ICANON | ECHO);
-
-  // Set minimum characters to read and timeout
-  raw.c_cc[VMIN] = 1;   // Read one character at a time
-  raw.c_cc[VTIME] = 0;  // No timeout
-
-  // Apply new settings
-  if (tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw) == -1) {
-    std::cerr << "[InputActor] Failed to set raw mode\n";
-    return;
-  }
-
-  raw_mode_enabled_ = true;
-}
-
-void InputActor::disableRawMode() {
-  if (raw_mode_enabled_) {
-    tcsetattr(STDIN_FILENO, TCSAFLUSH, &orig_termios_);
-    raw_mode_enabled_ = false;
-  }
 }
 
 }  // namespace snake

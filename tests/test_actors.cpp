@@ -9,10 +9,12 @@
 #include "snake/input_actor.hpp"
 #include "snake/logger.hpp"
 #include "snake/renderer_actor.hpp"
+#include "snake/stdin_reader.hpp"
 
 using actor_core::Publisher;
 using actor_core::TimerFactory;
 using actor_core::Topic;
+using snake::StdinReader;
 
 namespace snake {
 
@@ -30,22 +32,23 @@ class LoggerTestEnvironment : public ::testing::Environment {
 TEST(ActorTest, InputActor_CreationAndLifecycle) {
   asio::io_context io;
 
+  // Create shared stdin reader
+  auto stdin_reader = std::make_shared<StdinReader>(io);
+
   // Create topics
   auto direction_topic = std::make_shared<Topic<DirectionMsg>>();
   auto pause_topic = std::make_shared<Topic<PauseToggleMsg>>();
   auto quit_topic = std::make_shared<Topic<QuitMsg>>();
 
-  // Create InputActor with the topics
-  auto input_actor = InputActor::create(io, direction_topic, pause_topic, quit_topic, "game_001");
+  // Create InputActor with stdin reader and topics
+  auto input_actor = InputActor::create(io, stdin_reader, direction_topic, pause_topic, quit_topic, "game_001");
 
   // Verify actor was created successfully
   ASSERT_NE(input_actor, nullptr);
-  EXPECT_FALSE(input_actor->isReading());
   EXPECT_FALSE(input_actor->quitRequested());
 
-  // Note: Integration testing of actual keyboard input would require
-  // stdin mocking/piping which is complex. The pure mapping functions
-  // (charToDirection, keyToPlayer) should be tested separately.
+  // Note: The functional core (processInputChar, parseEscapeSequence, etc.)
+  // can be tested separately without any async I/O.
 }
 
 // Test GameManagerActor coordinates actors correctly

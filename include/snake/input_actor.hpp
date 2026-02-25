@@ -1,13 +1,12 @@
 #pragma once
 
-#include <termios.h>
-
-#include <asio.hpp>
-#include <vector>
+#include <memory>
+#include <optional>
 
 #include "actor-core/actor.hpp"
 #include "actor-core/topic.hpp"
 #include "snake/game_messages.hpp"
+#include "snake/stdin_reader.hpp"
 
 namespace snake {
 
@@ -21,84 +20,74 @@ using actor_core::TopicPtr;
  *
  * InputActor receives input events, tags them with player ID,
  * and translates them into DirectionMsg commands.
- * Supports multiple players (shared controller/keyboard).
- * Uses asio async IO to read from stdin without blocking.
+ * Follows the imperative shell / functional core pattern:
+ * - Imperative shell: processInputs() pulls chars and applies effects
+ * - Functional core: pure state transformations
  */
 class InputActor : public Actor<InputActor> {
  public:
   /**
-   * @brief Destructor - stops input reading
+   * @brief Construct a new Input Actor
+   * @param ctx Actor execution context
+   * @param stdin_reader Shared stdin reader (like a topic)
+   * @param direction_topic Topic to publish direction changes
+   * @param pause_topic Topic to publish pause toggle requests
+   * @param quit_topic Topic to publish quit requests
+   * @param game_id The current game ID
    */
-  ~InputActor();
-
-  /**
-   * @brief Start async reading from stdin
-   */
-  void startReading();
-
-  /**
-   * @brief Stop async reading from stdin
-   */
-  void stopReading();
-
-  /**
-   * @brief Check if still reading input
-   */
-  bool isReading() const { return is_reading_; }
+  InputActor(ActorContext ctx, std::shared_ptr<StdinReader> stdin_reader, TopicPtr<DirectionMsg> direction_topic,
+             TopicPtr<PauseToggleMsg> pause_topic, TopicPtr<QuitMsg> quit_topic, GameId game_id);
 
   /**
    * @brief Check if quit was requested
    */
   bool quitRequested() const { return quit_requested_; }
 
-  // No subscriptions - InputActor only publishes
-  void processInputs() override {}
-
   /**
-   * @brief Construct a new Input Actor
-   * @param ctx Actor execution context
-   * @param direction_topic Topic to publish direction changes
-   * @param pause_topic Topic to publish pause toggle requests
-   * @param quit_topic Topic to publish quit requests
-   * @param game_id The current game ID
+   * @brief Process pending input characters (imperative shell)
+   *
+   * Symmetric to GameEngineActor::processInputs()!
    */
-  InputActor(ActorContext ctx, TopicPtr<DirectionMsg> direction_topic, TopicPtr<PauseToggleMsg> pause_topic,
-             TopicPtr<QuitMsg> quit_topic, GameId game_id);
+  void processInputs() override;
 
  private:
-  // Escape sequence parsing state (local to read chain, not actor-global)
-  enum class InputState {
+  // Escape sequence parsing state
+  enum class EscapeSequenceState {
     NORMAL,      // Waiting for any key
     SAW_ESC,     // Saw ESC (27), waiting for '['
     SAW_BRACKET  // Saw ESC + '[', waiting for arrow key code
   };
 
-  // Raw input acquisition layer (stdin, escape sequences)
-  void scheduleRead(InputState state = InputState::NORMAL);
-  void processChar(char ch, InputState state, std::function<void(InputState)> continue_reading);
-  std::pair<std::optional<char>, InputState> parseChar(char ch, InputState state) const;
-  void enableRawMode();
-  void disableRawMode();
+  // Effects from processing input (functional core output)
+  struct InputEffects {
+    std::optional<DirectionMsg> direction;
+    std::optional<PauseToggleMsg> pause;
+    std::optional<QuitMsg> quit;
+  };
 
-  // Key processing layer (semantic key handling)
-  void onKeyPress(char key);
+  // Functional core: pure state transformation
+  std::pair<EscapeSequenceState, InputEffects> processInputChar(char ch, EscapeSequenceState state) const;
 
-  // Key-to-message converters (clean, scalable pattern)
+  // Imperative shell: apply effects
+  void applyEffects(const InputEffects& effects);
+
+  // Key-to-message converters (pure functions)
   std::optional<DirectionMsg> tryConvertKeyToDirectionMsg(char key) const;
   std::optional<PauseToggleMsg> tryConvertKeyToPauseToggle(char key) const;
   std::optional<QuitMsg> tryConvertKeyToQuit(char key) const;
 
+  // Parse escape sequence (pure function)
+  std::pair<std::optional<char>, EscapeSequenceState> parseEscapeSequence(char ch, EscapeSequenceState state) const;
+
+  std::shared_ptr<StdinReader> stdin_reader_;  // Like a subscription
   PublisherPtr<DirectionMsg> direction_pub_;
   PublisherPtr<PauseToggleMsg> pause_pub_;
   PublisherPtr<QuitMsg> quit_pub_;
   GameId game_id_;
 
-  asio::posix::stream_descriptor stdin_;
-  std::vector<char> read_buffer_;
-  bool is_reading_{false};
+  // Actor state (like game engine state)
+  EscapeSequenceState escape_state_{EscapeSequenceState::NORMAL};
   bool quit_requested_{false};
-  termios orig_termios_{};
-  bool raw_mode_enabled_{false};
 };
 
 }  // namespace snake
