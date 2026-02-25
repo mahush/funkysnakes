@@ -48,14 +48,14 @@ void InputActor::stopReading() {
   std::cout << "\n[InputActor] Stopped reading from stdin\n";
 }
 
-void InputActor::scheduleRead() {
+void InputActor::scheduleRead(InputState state) {
   if (!is_reading_) {
     return;
   }
 
   // Async read one character - runs on strand via bind_executor
   asio::async_read(stdin_, asio::buffer(read_buffer_),
-                   asio::bind_executor(strand_, [weak_self = weak_from_this()](std::error_code ec, std::size_t) {
+                   asio::bind_executor(strand_, [weak_self = weak_from_this(), state](std::error_code ec, std::size_t) {
                      auto self = weak_self.lock();
                      if (!self || ec) {
                        if (self) {
@@ -65,53 +65,73 @@ void InputActor::scheduleRead() {
                      }
 
                      char ch = self->read_buffer_[0];
-                     self->handleRawChar(ch);
 
-                     // Re-schedule next read
-                     self->scheduleRead();
+                     // Process character with continuation callback
+                     self->processChar(ch, state, [weak_self](InputState next_state) {
+                       if (auto self = weak_self.lock()) {
+                         self->scheduleRead(next_state);
+                       }
+                     });
                    }));
 }
 
 // ============================================================================
-// Raw Input Acquisition Layer
+// Raw Input Acquisition Layer (Purely Async State Machine)
 // ============================================================================
 
-void InputActor::handleRawChar(char ch) {
-  // Special case: escape sequences need multi-char read
-  if (ch == 27) {  // ESC
-    if (auto key = readEscapeSequenceAsKey()) {
-      onKeyPress(*key);
-    }
-    return;
+void InputActor::processChar(char ch, InputState state, std::function<void(InputState)> continue_reading) {
+  // Pure business logic - fully testable without async I/O
+  // Parse character with current state
+  auto [maybe_key, next_state] = parseChar(ch, state);
+
+  // If we got a complete key, process it
+  if (maybe_key) {
+    onKeyPress(*maybe_key);
   }
 
-  // Normal key: pass to semantic key handler
-  onKeyPress(ch);
+  // Continue reading with next state
+  continue_reading(next_state);
 }
 
-std::optional<char> InputActor::readEscapeSequenceAsKey() {
-  // Read the next two characters synchronously for escape sequence
-  // (Arrow keys are: ESC [ A/B/C/D)
-  char seq1 = 0;
-  char seq2 = 0;
-  if (read(STDIN_FILENO, &seq1, 1) == 1 && read(STDIN_FILENO, &seq2, 1) == 1) {
-    if (seq1 == '[') {
-      // Arrow key detected - normalize to Player B key equivalents
-      switch (seq2) {
-        case 'A':
-          return 'i';  // Up arrow → 'i'
-        case 'B':
-          return 'k';  // Down arrow → 'k'
-        case 'C':
-          return 'l';  // Right arrow → 'l'
-        case 'D':
-          return 'j';  // Left arrow → 'j'
-        default:
-          return std::nullopt;  // Unknown escape sequence
+std::pair<std::optional<char>, InputActor::InputState> InputActor::parseChar(char ch, InputState state) const {
+  // Pure function: takes (char, state) → returns (optional_key, next_state)
+  // State machine for parsing escape sequences across async reads
+  // Arrow keys: ESC [ A/B/C/D (three separate async reads)
+
+  switch (state) {
+    case InputState::NORMAL:
+      if (ch == 27) {                                // ESC
+        return {std::nullopt, InputState::SAW_ESC};  // Wait for '['
       }
-    }
+      // Normal character - pass through
+      return {ch, InputState::NORMAL};
+
+    case InputState::SAW_ESC:
+      if (ch == '[') {
+        return {std::nullopt, InputState::SAW_BRACKET};  // Wait for arrow key code
+      }
+      // Not an arrow key - treat as normal char, ESC is lost
+      return {ch, InputState::NORMAL};
+
+    case InputState::SAW_BRACKET:
+      // Arrow key code - normalize to Player B key equivalents
+      switch (ch) {
+        case 'A':
+          return {'i', InputState::NORMAL};  // Up arrow → 'i'
+        case 'B':
+          return {'k', InputState::NORMAL};  // Down arrow → 'k'
+        case 'C':
+          return {'l', InputState::NORMAL};  // Right arrow → 'l'
+        case 'D':
+          return {'j', InputState::NORMAL};  // Left arrow → 'j'
+        default:
+          // Unknown escape sequence - ignore, reset state
+          return {std::nullopt, InputState::NORMAL};
+      }
   }
-  return std::nullopt;  // Failed to read or not an arrow key
+
+  // Unreachable, but satisfy compiler
+  return {std::nullopt, InputState::NORMAL};
 }
 
 // ============================================================================
