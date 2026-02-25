@@ -66,10 +66,17 @@ class InputActor : public Actor<InputActor> {
              TopicPtr<QuitMsg> quit_topic, GameId game_id);
 
  private:
+  // Escape sequence parsing state (local to read chain, not actor-global)
+  enum class InputState {
+    NORMAL,      // Waiting for any key
+    SAW_ESC,     // Saw ESC (27), waiting for '['
+    SAW_BRACKET  // Saw ESC + '[', waiting for arrow key code
+  };
+
   // Raw input acquisition layer (stdin, escape sequences)
-  void scheduleRead();
-  void handleRawChar(char ch);
-  std::optional<char> readEscapeSequenceAsKey();
+  void scheduleRead(InputState state = InputState::NORMAL);
+  void processChar(char ch, InputState state, std::function<void(InputState)> continue_reading);
+  std::pair<std::optional<char>, InputState> parseChar(char ch, InputState state) const;
   void enableRawMode();
   void disableRawMode();
 
