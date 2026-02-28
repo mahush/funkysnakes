@@ -6,13 +6,16 @@
 #include <mutex>
 #include <optional>
 
+#include "actor-core/input_source.hpp"
+
 namespace actor_core {
 
 // Represents an actor's subscription to a specific topic
 // Holds a bounded queue of pending messages
 // Owned by the actor as a value type
-template<typename TMessage>
-class Subscription {
+// Implements InputSource<TMessage> interface for unified processing
+template <typename TMessage>
+class Subscription : public InputSource<TMessage> {
  public:
   Subscription() = default;
   explicit Subscription(size_t max_queue_size) : max_queue_size_(max_queue_size) {}
@@ -22,6 +25,11 @@ class Subscription {
   Subscription& operator=(const Subscription&) = delete;
   Subscription(Subscription&&) = default;
   Subscription& operator=(Subscription&&) = default;
+
+  // InputSource<TMessage> interface implementation
+  std::optional<TMessage> tryTake() override { return tryTakeMessage(); }
+
+  bool hasInputItems() const override { return hasMessages(); }
 
   // Try to take the next message from queue (non-blocking)
   // Returns std::nullopt if queue is empty
@@ -78,7 +86,7 @@ class Subscription {
 };
 
 // Convenience type alias for shared_ptr<Subscription<TMessage>>
-template<typename TMessage>
+template <typename TMessage>
 using SubscriptionPtr = std::shared_ptr<Subscription<TMessage>>;
 
 }  // namespace actor_core

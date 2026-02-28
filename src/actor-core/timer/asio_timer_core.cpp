@@ -52,13 +52,18 @@ bool AsioTimerCore::tryTakeElapsedEvent() {
   return false;
 }
 
+bool AsioTimerCore::hasElapsedEvents() const {
+  std::lock_guard<std::mutex> lock(mutex_);
+  return elapsed_count_ > 0;
+}
+
 void AsioTimerCore::schedule_timer(std::chrono::milliseconds duration) {
   timer_.expires_after(duration);
   timer_.async_wait(asio::bind_executor(strand_, [weak_self = weak_from_this()](const asio::error_code& ec) {
-                      if (auto self = weak_self.lock()) {
-                        self->on_timer_expired(ec);
-                      }
-                    }));
+    if (auto self = weak_self.lock()) {
+      self->on_timer_expired(ec);
+    }
+  }));
 }
 
 void AsioTimerCore::on_timer_expired(const asio::error_code& ec) {
