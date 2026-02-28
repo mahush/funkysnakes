@@ -5,12 +5,14 @@
 #include <vector>
 
 #include "actor-core/effect_handler.hpp"
+#include "actor-core/input_source.hpp"
 #include "actor-core/subscription.hpp"
 #include "funkypipes/details/tuple/separate_tuple_elements.hpp"
 
 namespace snake {
 
 // Import actor_core types into snake namespace for convenience
+using actor_core::InputSource;
 using actor_core::Subscription;
 
 /**
@@ -138,7 +140,7 @@ void process_event_with_state(const std::shared_ptr<Timer>& timer, State& state,
  */
 template <typename Timer, typename State, typename TEffectHandler, typename TProcessFn>
 void process_event_with_state(const std::shared_ptr<Timer>& timer, State& state, TProcessFn&& process_fn,
-                               TEffectHandler& effect_handler) {
+                              TEffectHandler& effect_handler) {
   auto process_with_effect_handling = with_effect_handling<State>(std::forward<TProcessFn>(process_fn), effect_handler);
   process_event_with_state(timer, state, process_with_effect_handling);
 }
@@ -162,7 +164,7 @@ void process_event_with_state(const std::shared_ptr<Timer>& timer, State& state,
  */
 template <typename Msg, typename State, typename TEffectHandler, typename TProcessFn>
 void process_message_with_state(const std::shared_ptr<Subscription<Msg>>& sub, State& state, TProcessFn&& process_fn,
-                                 TEffectHandler& effect_handler) {
+                                TEffectHandler& effect_handler) {
   auto process_with_effect_handling = with_effect_handling<State>(std::forward<TProcessFn>(process_fn), effect_handler);
   process_message_with_state(sub, state, process_with_effect_handling);
 }
@@ -181,6 +183,78 @@ void process_message_with_state(const std::shared_ptr<Subscription<Msg>>& sub, S
 template <typename State, typename TransformerFn>
 void apply_to_state(State& state, TransformerFn&& transformer) {
   state = transformer(state);
+}
+
+// ============================================================================
+// Unified InputSource<T> Processing Functions
+// ============================================================================
+// These generic functions work with ANY InputSource<T> (Subscription, Timer, StdinReader, etc.)
+
+/**
+ * @brief Generic function to process all items from any input source
+ *
+ * Works with ANY type that implements InputSource<T> interface:
+ * - Subscription<TMessage> → processes messages
+ * - Timer<TEvent, TCommand> → processes timer events
+ * - StdinReader → processes characters
+ * - Custom input sources
+ *
+ * @tparam T Item type from the source
+ * @tparam HandlerFn Function type (T -> void)
+ * @param source Any InputSource<T> implementation
+ * @param handler Function to call with each item
+ */
+template <typename T, typename HandlerFn>
+void process(const std::shared_ptr<InputSource<T>>& source, HandlerFn&& handler) {
+  while (auto item = source->tryTake()) {
+    handler(*item);
+  }
+}
+
+/**
+ * @brief Generic function to process items with state transformation
+ *
+ * Works with ANY input source. Drains all pending items and applies handler to each,
+ * passing state and item, then assigns the result back to state.
+ *
+ * @tparam T Item type from the source
+ * @tparam State State type
+ * @tparam ProcessFn Function type (State, T) -> State
+ * @param source Any InputSource<T> implementation
+ * @param state State reference to pass and update
+ * @param process_fn Function to call with state and each item
+ */
+template <typename T, typename State, typename ProcessFn>
+void process_with_state(const std::shared_ptr<InputSource<T>>& source, State& state, ProcessFn&& process_fn) {
+  while (auto item = source->tryTake()) {
+    state = process_fn(state, *item);
+  }
+}
+
+/**
+ * @brief Generic function to process items with effect handler pattern
+ *
+ * Works with ANY input source. Drains all pending items and applies process_fn to each.
+ * Process function returns tuple<State, Effects...> where:
+ * - First element (State) updates the state
+ * - Remaining elements (Effects) are dispatched through effect_handler
+ *
+ * This separates pure business logic (process_fn) from effect interpretation (effect_handler).
+ *
+ * @tparam T Item type from the source
+ * @tparam State State type
+ * @tparam TEffectHandler Effect handler type with handle() overloads
+ * @tparam TProcessFn Function type (State, T) -> tuple<State, Effects...>
+ * @param source Any InputSource<T> implementation
+ * @param state State reference to pass and update
+ * @param process_fn Pure function returning state and effects
+ * @param effect_handler Interpreter for effects
+ */
+template <typename T, typename State, typename TEffectHandler, typename TProcessFn>
+void process_with_state(const std::shared_ptr<InputSource<T>>& source, State& state, TProcessFn&& process_fn,
+                        TEffectHandler& effect_handler) {
+  auto process_with_effect_handling = with_effect_handling<State>(std::forward<TProcessFn>(process_fn), effect_handler);
+  process_with_state(source, state, process_with_effect_handling);
 }
 
 }  // namespace snake

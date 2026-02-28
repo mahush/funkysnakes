@@ -7,6 +7,7 @@
 #include <string>
 #include <vector>
 
+#include "actor-core/input_source.hpp"
 #include "actor-core/timer/timer_core.hpp"
 
 namespace actor_core {
@@ -25,10 +26,10 @@ struct NoContext {};
 template <typename TTag, typename TContext = NoContext>
 struct TimerCommand {
   enum class Command {
-    NONE,                // No operation
-    START_SINGLE_SHOT,   // Start single-shot timer with specified duration
-    START_PERIODIC,      // Start periodic timer with specified interval
-    CANCEL               // Cancel/reset any scheduled timer
+    NONE,               // No operation
+    START_SINGLE_SHOT,  // Start single-shot timer with specified duration
+    START_PERIODIC,     // Start periodic timer with specified interval
+    CANCEL              // Cancel/reset any scheduled timer
   };
 
   Command command{Command::NONE};
@@ -50,9 +51,11 @@ struct TimerElapsedEvent {
  * This class provides the take_all_elapsed_events() method for consuming elapsed events
  * and execute_command() for timer control. By using templates, different timer event types
  * and command types can be used without code duplication.
+ *
+ * Implements InputSource<TTimerElapsedEvent> for unified processing.
  */
 template <typename TTimerElapsedEvent, typename TTimerCommand>
-class Timer {
+class Timer : public InputSource<TTimerElapsedEvent> {
  public:
   using ElapsedEventType = TTimerElapsedEvent;
   using CommandType = TTimerCommand;
@@ -86,6 +89,11 @@ class Timer {
     }
   }
 
+  // InputSource<TTimerElapsedEvent> interface implementation
+  std::optional<TTimerElapsedEvent> tryTake() override { return tryTakeElapsedEvent(); }
+
+  bool hasInputItems() const override { return timer_core_->hasElapsedEvents(); }
+
   /**
    * @brief Try to take the next elapsed event (non-blocking)
    * @return Optional event if one was available, nullopt if no events pending
@@ -109,9 +117,7 @@ class Timer {
    * @brief Subscribe a processor to receive timer event notifications
    * @param processor The processor (forwards to timer core)
    */
-  void subscribe(std::weak_ptr<ProcessorInterface> processor) {
-    timer_core_->subscribe(std::move(processor));
-  }
+  void subscribe(std::weak_ptr<ProcessorInterface> processor) { timer_core_->subscribe(std::move(processor)); }
 
  private:
   // Helper to extract context type from command
@@ -130,7 +136,7 @@ using TimerPtr = std::shared_ptr<Timer<TTimerElapsedEvent, TTimerCommand>>;
 // Factory functions for creating timer commands
 template <typename TTag, typename TContext = NoContext>
 TimerCommand<TTag, TContext> make_single_shot_command(std::chrono::milliseconds duration,
-                                                       const TContext& context = {}) {
+                                                      const TContext& context = {}) {
   return {TimerCommand<TTag, TContext>::Command::START_SINGLE_SHOT, duration, context};
 }
 

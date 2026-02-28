@@ -9,6 +9,7 @@
 #include <optional>
 #include <vector>
 
+#include "actor-core/input_source.hpp"
 #include "actor-core/processor_interface.hpp"
 
 namespace snake {
@@ -21,8 +22,10 @@ namespace snake {
  * - Buffers characters in a queue (like Subscription)
  * - Notifies processor when chars are available (like Topic notifies subscribers)
  * - Pull-based interface via tryTakeChar() (like tryTakeMessage())
+ *
+ * Implements InputSource<char> for unified processing.
  */
-class StdinReader {
+class StdinReader : public actor_core::InputSource<char> {
  public:
   explicit StdinReader(asio::io_context& io);
   ~StdinReader();
@@ -55,6 +58,11 @@ class StdinReader {
    * @brief Check if currently reading
    */
   bool isReading() const { return is_reading_; }
+
+  // InputSource<char> interface implementation
+  std::optional<char> tryTake() override { return tryTakeChar(); }
+
+  bool hasInputItems() const override { return hasChars(); }
 
   /**
    * @brief Try to take the next character from queue (non-blocking)

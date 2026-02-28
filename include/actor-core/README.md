@@ -15,6 +15,29 @@ Actor-Core implements a **pull-based, typed actor model**:
 
 ## Core Concepts
 
+### InputSource<T> - Unified Input Abstraction
+
+All input to actors follows the **InputSource<T>** interface for unified processing:
+
+```cpp
+template <typename T>
+class InputSource {
+    virtual std::optional<T> tryTake() = 0;        // Pull next item
+    virtual bool hasInputItems() const = 0;         // Check availability
+};
+```
+
+**Standard implementations:**
+- `Subscription<TMessage>` - Messages from topics
+- `Timer<TEvent, TCommand>` - Timer events
+- Custom sources - stdin, files, sockets, etc.
+
+This unified interface enables:
+- ✅ Generic processing helpers that work with ANY input source
+- ✅ Consistent API across all input types
+- ✅ Easy to add new input sources
+- ✅ Polymorphic input handling
+
 ### Topic
 A typed pub-sub channel that delivers messages from publishers to subscribers.
 
@@ -23,13 +46,18 @@ auto tick_topic = std::make_shared<Topic<TickMsg>>();
 ```
 
 ### Subscription
-An actor's message queue for a specific topic. Actors pull messages from subscriptions.
+An actor's message queue for a specific topic. Implements `InputSource<TMessage>`.
 
 ```cpp
 // In actor constructor
 tick_sub_ = create_sub(tick_topic);
 
-// In processInputs()
+// In processInputs() - unified interface
+while (auto msg = tick_sub_->tryTake()) {
+    handleTick(*msg);
+}
+
+// Legacy method still works
 while (auto msg = tick_sub_->tryTakeMessage()) {
     handleTick(*msg);
 }
@@ -44,6 +72,25 @@ tick_pub_ = create_pub(tick_topic);
 
 // Publish a message
 tick_pub_->publish(TickMsg{timestamp});
+```
+
+### Timer
+Periodic or single-shot timers that implement `InputSource<TElapsedEvent>`.
+
+```cpp
+// In actor constructor
+timer_ = create_timer<MyTimer>(timer_factory);
+timer_->execute_command(make_periodic_command<MyTag>(std::chrono::seconds(1)));
+
+// In processInputs() - unified interface
+while (auto event = timer_->tryTake()) {
+    handleTimerEvent(*event);
+}
+
+// Legacy method still works
+while (auto event = timer_->tryTakeElapsedEvent()) {
+    handleTimerEvent(*event);
+}
 ```
 
 ## Creating an Actor

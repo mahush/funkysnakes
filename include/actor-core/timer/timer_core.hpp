@@ -52,6 +52,12 @@ class ITimerCore {
    * @return true if an event was taken, false if no events are pending
    */
   virtual bool tryTakeElapsedEvent() = 0;
+
+  /**
+   * @brief Check if there are pending elapsed events
+   * @return true if there are events available, false otherwise
+   */
+  virtual bool hasElapsedEvents() const = 0;
 };
 
 using TimerCorePtr = std::shared_ptr<ITimerCore>;
