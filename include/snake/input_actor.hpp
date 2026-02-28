@@ -6,6 +6,7 @@
 #include "actor-core/actor.hpp"
 #include "actor-core/topic.hpp"
 #include "snake/game_messages.hpp"
+#include "snake/key.hpp"
 #include "snake/stdin_reader.hpp"
 
 namespace snake {
@@ -51,33 +52,24 @@ class InputActor : public Actor<InputActor> {
   void processInputs() override;
 
  private:
-  // Escape sequence parsing state
-  enum class EscapeSequenceState {
+  // Key parser state
+  enum class KeyParseState {
     NORMAL,      // Waiting for any key
     SAW_ESC,     // Saw ESC (27), waiting for '['
     SAW_BRACKET  // Saw ESC + '[', waiting for arrow key code
   };
 
-  // Effects from processing input (functional core output)
-  struct InputEffects {
-    std::optional<DirectionMsg> direction;
-    std::optional<PauseToggleMsg> pause;
-    std::optional<QuitMsg> quit;
-  };
-
-  // Functional core: pure state transformation
-  std::pair<EscapeSequenceState, InputEffects> processInputChar(char ch, EscapeSequenceState state) const;
-
   // Imperative shell: apply effects
-  void applyEffects(const InputEffects& effects);
+  void applyEffects(std::optional<DirectionMsg> direction, std::optional<PauseToggleMsg> pause,
+                    std::optional<QuitMsg> quit);
 
-  // Key-to-message converters (pure functions)
-  std::optional<DirectionMsg> tryConvertKeyToDirectionMsg(char key) const;
-  std::optional<PauseToggleMsg> tryConvertKeyToPauseToggle(char key) const;
-  std::optional<QuitMsg> tryConvertKeyToQuit(char key) const;
+  // Stage 1: Char stream → Keys (context-free parsing)
+  std::pair<std::optional<Key>, KeyParseState> tryParseKey(char ch, KeyParseState state) const;
 
-  // Parse escape sequence (pure function)
-  std::pair<std::optional<char>, EscapeSequenceState> parseEscapeSequence(char ch, EscapeSequenceState state) const;
+  // Stage 2: Keys → Game messages (game-specific interpretation)
+  std::optional<DirectionMsg> tryConvertKeyToDirectionMsg(const Key& key) const;
+  std::optional<PauseToggleMsg> tryConvertKeyToPauseToggle(const Key& key) const;
+  std::optional<QuitMsg> tryConvertKeyToQuit(const Key& key) const;
 
   std::shared_ptr<StdinReader> stdin_reader_;  // Like a subscription
   PublisherPtr<DirectionMsg> direction_pub_;
@@ -86,7 +78,7 @@ class InputActor : public Actor<InputActor> {
   GameId game_id_;
 
   // Actor state (like game engine state)
-  EscapeSequenceState escape_state_{EscapeSequenceState::NORMAL};
+  KeyParseState key_parser_state_{KeyParseState::NORMAL};
   bool quit_requested_{false};
 };
 
