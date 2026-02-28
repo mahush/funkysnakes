@@ -83,7 +83,6 @@ class StdinReader : public actor_core::InputSource<char> {
   void enableRawMode();
   void disableRawMode();
 
-  asio::io_context& io_;
   asio::posix::stream_descriptor stdin_;
   std::vector<char> read_buffer_;
 

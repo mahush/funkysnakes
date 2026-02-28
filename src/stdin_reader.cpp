@@ -7,7 +7,7 @@
 namespace snake {
 
 StdinReader::StdinReader(asio::io_context& io)
-    : io_{io}, stdin_{io, STDIN_FILENO}, read_buffer_{1}, strand_{asio::make_strand(io)} {}
+    : stdin_{io, STDIN_FILENO}, read_buffer_{1}, strand_{asio::make_strand(io)} {}
 
 StdinReader::~StdinReader() { stopReading(); }
 

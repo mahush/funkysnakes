@@ -28,155 +28,179 @@ InputActor::InputActor(ActorContext ctx, std::shared_ptr<StdinReader> stdin_read
 void InputActor::processInputs() {
   // Pull-based processing - exactly like GameEngineActor::processInputs()!
   while (auto ch = stdin_reader_->tryTakeChar()) {
-    // Functional core: pure state transformation
-    auto [new_state, effects] = processInputChar(*ch, escape_state_);
+    // Stage 1: Parse char stream into logical keys (context-free)
+    auto [maybe_key, new_state] = tryParseKey(*ch, key_parser_state_);
+    key_parser_state_ = new_state;
 
-    // Update actor state
-    escape_state_ = new_state;
-
-    // Imperative shell: apply effects
-    applyEffects(effects);
+    // Stage 2: If we got a key, interpret it in game context and apply effects
+    if (maybe_key) {
+      auto quit = tryConvertKeyToQuit(*maybe_key);
+      auto pause = tryConvertKeyToPauseToggle(*maybe_key);
+      auto direction = tryConvertKeyToDirectionMsg(*maybe_key);
+      applyEffects(direction, pause, quit);
+    }
   }
 }
 
 // ============================================================================
-// Functional Core - Pure State Transformations
+// Stage 1: Context-Free Parsing (Char Stream → Keys)
 // ============================================================================
 
-std::pair<InputActor::EscapeSequenceState, InputActor::InputEffects> InputActor::processInputChar(
-    char ch, EscapeSequenceState state) const {
-  // Parse escape sequence (state machine)
-  auto [maybe_key, new_state] = parseEscapeSequence(ch, state);
-
-  InputEffects effects;
-
-  // If we got a complete key, convert to messages
-  if (maybe_key) {
-    effects.quit = tryConvertKeyToQuit(*maybe_key);
-    effects.pause = tryConvertKeyToPauseToggle(*maybe_key);
-    effects.direction = tryConvertKeyToDirectionMsg(*maybe_key);
-  }
-
-  return {new_state, effects};
-}
-
-std::pair<std::optional<char>, InputActor::EscapeSequenceState> InputActor::parseEscapeSequence(
-    char ch, EscapeSequenceState state) const {
-  // Pure function: parse escape sequences across multiple chars
-  // Arrow keys: ESC [ A/B/C/D
+std::pair<std::optional<Key>, InputActor::KeyParseState> InputActor::tryParseKey(char ch, KeyParseState state) const {
+  // Stage 1: Context-free parsing of char stream into logical keys
+  // Arrow keys come as 3-char escape sequences: ESC [ A/B/C/D
 
   switch (state) {
-    case EscapeSequenceState::NORMAL:
+    case KeyParseState::NORMAL:
       if (ch == 27) {  // ESC
-        return {std::nullopt, EscapeSequenceState::SAW_ESC};
+        return {std::nullopt, KeyParseState::SAW_ESC};
       }
-      // Normal character - pass through
-      return {ch, EscapeSequenceState::NORMAL};
+      // Normal character - pass through as-is
+      return {Key{ch}, KeyParseState::NORMAL};
 
-    case EscapeSequenceState::SAW_ESC:
+    case KeyParseState::SAW_ESC:
       if (ch == '[') {
-        return {std::nullopt, EscapeSequenceState::SAW_BRACKET};
+        return {std::nullopt, KeyParseState::SAW_BRACKET};
       }
       // Not an arrow key - treat as normal char, ESC is lost
-      return {ch, EscapeSequenceState::NORMAL};
+      return {Key{ch}, KeyParseState::NORMAL};
 
-    case EscapeSequenceState::SAW_BRACKET:
-      // Arrow key code - normalize to Player B key equivalents
+    case KeyParseState::SAW_BRACKET:
+      // Arrow key code - return special key
       switch (ch) {
         case 'A':
-          return {'i', EscapeSequenceState::NORMAL};  // Up arrow → 'i'
+          return {Key{SpecialKey::ArrowUp}, KeyParseState::NORMAL};
         case 'B':
-          return {'k', EscapeSequenceState::NORMAL};  // Down arrow → 'k'
+          return {Key{SpecialKey::ArrowDown}, KeyParseState::NORMAL};
         case 'C':
-          return {'l', EscapeSequenceState::NORMAL};  // Right arrow → 'l'
+          return {Key{SpecialKey::ArrowRight}, KeyParseState::NORMAL};
         case 'D':
-          return {'j', EscapeSequenceState::NORMAL};  // Left arrow → 'j'
+          return {Key{SpecialKey::ArrowLeft}, KeyParseState::NORMAL};
         default:
           // Unknown escape sequence - ignore, reset state
-          return {std::nullopt, EscapeSequenceState::NORMAL};
+          return {std::nullopt, KeyParseState::NORMAL};
       }
   }
 
   // Unreachable, but satisfy compiler
-  return {std::nullopt, EscapeSequenceState::NORMAL};
+  return {std::nullopt, KeyParseState::NORMAL};
 }
 
 // ============================================================================
 // Imperative Shell - Apply Effects
 // ============================================================================
 
-void InputActor::applyEffects(const InputEffects& effects) {
-  if (effects.quit) {
-    quit_pub_->publish(*effects.quit);
+void InputActor::applyEffects(std::optional<DirectionMsg> direction, std::optional<PauseToggleMsg> pause,
+                              std::optional<QuitMsg> quit) {
+  if (quit) {
+    quit_pub_->publish(*quit);
     quit_requested_ = true;
   }
 
-  if (effects.pause) {
-    pause_pub_->publish(*effects.pause);
+  if (pause) {
+    pause_pub_->publish(*pause);
   }
 
-  if (effects.direction) {
-    direction_pub_->publish(*effects.direction);
+  if (direction) {
+    direction_pub_->publish(*direction);
   }
 }
 
 // ============================================================================
-// Key Conversion Functions - Pure, Testable
+// Stage 2: Key Interpretation - Game-Specific Mapping
 // ============================================================================
 
-std::optional<DirectionMsg> InputActor::tryConvertKeyToDirectionMsg(char key) const {
-  // Determine player and direction from key
+std::optional<DirectionMsg> InputActor::tryConvertKeyToDirectionMsg(const Key& key) const {
+  // Stage 2: Map logical keys to game actions
+  // Both alphanumeric keys AND arrow keys are interpreted
+
   PlayerId player_id;
-  Direction direction;
+  Direction direction{Direction::UP};  // Initialize to silence warning
+  bool matched = false;
 
-  // Player A: w/a/s/d - Player B: i/j/k/l
-  switch (key) {
-    // Player A keys
-    case 'w':
-    case 'W':
-      player_id = PLAYER_A;
-      direction = Direction::UP;
-      break;
-    case 's':
-    case 'S':
-      player_id = PLAYER_A;
-      direction = Direction::DOWN;
-      break;
-    case 'a':
-    case 'A':
-      player_id = PLAYER_A;
-      direction = Direction::LEFT;
-      break;
-    case 'd':
-    case 'D':
-      player_id = PLAYER_A;
-      direction = Direction::RIGHT;
-      break;
+  // Handle both char and SpecialKey variants
+  std::visit(
+      [&](auto&& k) {
+        using T = std::decay_t<decltype(k)>;
+        if constexpr (std::is_same_v<T, char>) {
+          // Player A: w/a/s/d - Player B: i/j/k/l
+          switch (k) {
+            // Player A keys
+            case 'w':
+            case 'W':
+              player_id = PLAYER_A;
+              direction = Direction::UP;
+              matched = true;
+              break;
+            case 's':
+            case 'S':
+              player_id = PLAYER_A;
+              direction = Direction::DOWN;
+              matched = true;
+              break;
+            case 'a':
+            case 'A':
+              player_id = PLAYER_A;
+              direction = Direction::LEFT;
+              matched = true;
+              break;
+            case 'd':
+            case 'D':
+              player_id = PLAYER_A;
+              direction = Direction::RIGHT;
+              matched = true;
+              break;
 
-    // Player B keys
-    case 'i':
-    case 'I':
-      player_id = PLAYER_B;
-      direction = Direction::UP;
-      break;
-    case 'k':
-    case 'K':
-      player_id = PLAYER_B;
-      direction = Direction::DOWN;
-      break;
-    case 'j':
-    case 'J':
-      player_id = PLAYER_B;
-      direction = Direction::LEFT;
-      break;
-    case 'l':
-    case 'L':
-      player_id = PLAYER_B;
-      direction = Direction::RIGHT;
-      break;
+            // Player B keys
+            case 'i':
+            case 'I':
+              player_id = PLAYER_B;
+              direction = Direction::UP;
+              matched = true;
+              break;
+            case 'k':
+            case 'K':
+              player_id = PLAYER_B;
+              direction = Direction::DOWN;
+              matched = true;
+              break;
+            case 'j':
+            case 'J':
+              player_id = PLAYER_B;
+              direction = Direction::LEFT;
+              matched = true;
+              break;
+            case 'l':
+            case 'L':
+              player_id = PLAYER_B;
+              direction = Direction::RIGHT;
+              matched = true;
+              break;
+          }
+        } else if constexpr (std::is_same_v<T, SpecialKey>) {
+          // Arrow keys map to Player B
+          player_id = PLAYER_B;
+          matched = true;
+          switch (k) {
+            case SpecialKey::ArrowUp:
+              direction = Direction::UP;
+              break;
+            case SpecialKey::ArrowDown:
+              direction = Direction::DOWN;
+              break;
+            case SpecialKey::ArrowLeft:
+              direction = Direction::LEFT;
+              break;
+            case SpecialKey::ArrowRight:
+              direction = Direction::RIGHT;
+              break;
+          }
+        }
+      },
+      key);
 
-    default:
-      return std::nullopt;  // Unknown key
+  if (!matched) {
+    return std::nullopt;
   }
 
   // Build and return DirectionMsg
@@ -187,20 +211,36 @@ std::optional<DirectionMsg> InputActor::tryConvertKeyToDirectionMsg(char key) co
   return msg;
 }
 
-std::optional<PauseToggleMsg> InputActor::tryConvertKeyToPauseToggle(char key) const {
-  if (key == 'p' || key == 'P') {
-    PauseToggleMsg msg;
-    msg.game_id = game_id_;
-    return msg;
-  }
-  return std::nullopt;
+std::optional<PauseToggleMsg> InputActor::tryConvertKeyToPauseToggle(const Key& key) const {
+  // Only char 'p'/'P' toggles pause
+  return std::visit(
+      [&](auto&& k) -> std::optional<PauseToggleMsg> {
+        using T = std::decay_t<decltype(k)>;
+        if constexpr (std::is_same_v<T, char>) {
+          if (k == 'p' || k == 'P') {
+            PauseToggleMsg msg;
+            msg.game_id = game_id_;
+            return msg;
+          }
+        }
+        return std::nullopt;
+      },
+      key);
 }
 
-std::optional<QuitMsg> InputActor::tryConvertKeyToQuit(char key) const {
-  if (key == 'q' || key == 'Q') {
-    return QuitMsg{};
-  }
-  return std::nullopt;
+std::optional<QuitMsg> InputActor::tryConvertKeyToQuit(const Key& key) const {
+  // Only char 'q'/'Q' quits
+  return std::visit(
+      [&](auto&& k) -> std::optional<QuitMsg> {
+        using T = std::decay_t<decltype(k)>;
+        if constexpr (std::is_same_v<T, char>) {
+          if (k == 'q' || k == 'Q') {
+            return QuitMsg{};
+          }
+        }
+        return std::nullopt;
+      },
+      key);
 }
 
 }  // namespace snake
