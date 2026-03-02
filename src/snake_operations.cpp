@@ -175,6 +175,8 @@ PerPlayerSnakes moveSnakes(PerPlayerSnakes snakes, const Board& board, const Foo
   return snakes;
 }
 
+namespace {
+
 /**
  * @brief Handle self-bite collisions for all snakes
  *
@@ -185,7 +187,7 @@ PerPlayerSnakes moveSnakes(PerPlayerSnakes snakes, const Board& board, const Foo
  * @param scores Scores (by value)
  * @return Tuple of (updated snakes, updated scores)
  */
-static std::tuple<PerPlayerSnakes, PerPlayerScores> handleSelfBites(PerPlayerSnakes snakes, PerPlayerScores scores) {
+std::tuple<PerPlayerSnakes, PerPlayerScores> handleSelfBites(PerPlayerSnakes snakes, PerPlayerScores scores) {
   for (auto& [player_id, snake] : snakes) {
     if (snake.alive && snakeBitesItself(snake)) {
       snake.alive = false;
@@ -194,6 +196,8 @@ static std::tuple<PerPlayerSnakes, PerPlayerScores> handleSelfBites(PerPlayerSna
   }
   return {snakes, scores};
 }
+
+}  // namespace
 
 std::tuple<PerPlayerSnakes, PerPlayerScores, std::vector<Point>> handleCollisions(PerPlayerSnakes snakes,
                                                                                   PerPlayerScores scores) {

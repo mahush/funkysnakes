@@ -69,13 +69,13 @@ std::pair<std::optional<Key>, InputActor::KeyParseState> InputActor::tryParseKey
       // Arrow key code - return special key
       switch (ch) {
         case 'A':
-          return {Key{SpecialKey::ArrowUp}, KeyParseState::NORMAL};
+          return {Key{SpecialKey::ARROW_UP}, KeyParseState::NORMAL};
         case 'B':
-          return {Key{SpecialKey::ArrowDown}, KeyParseState::NORMAL};
+          return {Key{SpecialKey::ARROW_DOWN}, KeyParseState::NORMAL};
         case 'C':
-          return {Key{SpecialKey::ArrowRight}, KeyParseState::NORMAL};
+          return {Key{SpecialKey::ARROW_RIGHT}, KeyParseState::NORMAL};
         case 'D':
-          return {Key{SpecialKey::ArrowLeft}, KeyParseState::NORMAL};
+          return {Key{SpecialKey::ARROW_LEFT}, KeyParseState::NORMAL};
         default:
           // Unknown escape sequence - ignore, reset state
           return {std::nullopt, KeyParseState::NORMAL};
@@ -182,16 +182,16 @@ std::optional<DirectionMsg> InputActor::tryConvertKeyToDirectionMsg(const Key& k
           player_id = PLAYER_B;
           matched = true;
           switch (k) {
-            case SpecialKey::ArrowUp:
+            case SpecialKey::ARROW_UP:
               direction = Direction::UP;
               break;
-            case SpecialKey::ArrowDown:
+            case SpecialKey::ARROW_DOWN:
               direction = Direction::DOWN;
               break;
-            case SpecialKey::ArrowLeft:
+            case SpecialKey::ARROW_LEFT:
               direction = Direction::LEFT;
               break;
-            case SpecialKey::ArrowRight:
+            case SpecialKey::ARROW_RIGHT:
               direction = Direction::RIGHT;
               break;
           }

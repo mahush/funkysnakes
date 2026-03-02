@@ -240,23 +240,23 @@ inline GameEffect combine(const GameEffect& a, const GameEffect& b) {
  * Each subsystem operates on state and produces effects, which are automatically
  * combined through the update pipeline.
  *
- * @tparam State The state type (e.g., Snake, GameState)
- * @tparam Effect The effect type (e.g., ScoreDelta)
+ * @tparam TState The state type (e.g., Snake, GameState)
+ * @tparam TEffect The effect type (e.g., ScoreDelta)
  */
-template <typename State, typename Effect>
+template <typename TState, typename TEffect>
 struct StateWithEffect {
-  const State state;
-  Effect effect;
+  const TState state;
+  TEffect effect;
 
   /**
    * @brief Create from state with empty effect
    */
-  static StateWithEffect fromState(State s) { return {s, Effect::empty()}; }
+  static StateWithEffect fromState(TState s) { return {s, TEffect::empty()}; }
 
   /**
    * @brief Create from state with a specific effect
    */
-  static StateWithEffect create(State s, Effect e) { return {s, e}; }
+  static StateWithEffect create(TState s, TEffect e) { return {s, e}; }
 };
 
 /**
@@ -268,19 +268,19 @@ struct StateWithEffect {
  *
  * Usage pattern:
  *   auto result = with_combining_effects(x, f);
- * where f :: State -> StateWithEffect<State, Effect>
+ * where f :: TState -> StateWithEffect<TState, TEffect>
  *
- * @tparam State The state type
- * @tparam Effect The effect type
- * @tparam F Function type: State -> StateWithEffect<State, Effect>
+ * @tparam TState The state type
+ * @tparam TEffect The effect type
+ * @tparam TF Function type: TState -> StateWithEffect<TState, TEffect>
  * @param x Current state with accumulated effects
  * @param f Function to apply to the state
  * @return New state with combined effects
  */
-template <typename State, typename Effect, typename F>
-auto with_combining_effects(StateWithEffect<State, Effect> x, F f) -> StateWithEffect<State, Effect> {
+template <typename TState, typename TEffect, typename TF>
+auto with_combining_effects(StateWithEffect<TState, TEffect> x, TF f) -> StateWithEffect<TState, TEffect> {
   auto res = f(x.state);
-  return StateWithEffect<State, Effect>{res.state, combine(x.effect, res.effect)};
+  return StateWithEffect<TState, TEffect>{res.state, combine(x.effect, res.effect)};
 }
 
 // Common type aliases for this domain

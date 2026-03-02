@@ -17,19 +17,19 @@ namespace actor_core {
  * - EffectHandler → concrete interpreter of what those values mean
  * - dispatch_effect() → executes the "effect" by sending each value to handler
  *
- * @tparam EffectHandler Type with handle() overloads for each effect type
- * @tparam Tuple Tuple type (forwarding reference for flexibility)
+ * @tparam TEffectHandler Type with handle() overloads for each effect type
+ * @tparam TTuple Tuple type (forwarding reference for flexibility)
  * @param handler Effect handler instance
  * @param effects Tuple of effects to dispatch
  */
-template <typename EffectHandler, typename Tuple>
-void dispatch_effect(EffectHandler& handler, Tuple&& effects) {
+template <typename TEffectHandler, typename TTuple>
+void dispatch_effect(TEffectHandler& handler, TTuple&& effects) {
   std::apply(
       [&](auto&&... elems) {
         // C++17 fold expression: expands to handler.handle(elem1), handler.handle(elem2), ...
         (handler.handle(std::forward<decltype(elems)>(elems)), ...);
       },
-      std::forward<Tuple>(effects));
+      std::forward<TTuple>(effects));
 }
 
 }  // namespace actor_core

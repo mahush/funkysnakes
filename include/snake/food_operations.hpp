@@ -64,7 +64,7 @@ FoodItems dropDeadSnakesAsFood(FoodItems food_items, const PerPlayerSnakes& snak
  * @return Tuple of (updated food, updated scores)
  */
 std::tuple<FoodItems, PerPlayerScores> handleFoodEating(FoodItems food_items, PerPlayerScores scores,
-                                                         const PerPlayerSnakes& snakes);
+                                                        const PerPlayerSnakes& snakes);
 
 /**
  * @brief Initialize food items to a target count
@@ -82,7 +82,8 @@ std::tuple<FoodItems, PerPlayerScores> handleFoodEating(FoodItems food_items, Pe
  * @param snakes Snakes (for position generation)
  * @return Food items list with specified count
  */
-FoodItems initializeFood(RandomIntGeneratorFn random_int, int count, FoodItems food_items, const Board& board, const PerPlayerSnakes& snakes);
+FoodItems initializeFood(RandomIntGeneratorFn random_int, int count, FoodItems food_items, const Board& board,
+                         const PerPlayerSnakes& snakes);
 
 /**
  * @brief Replenish food to maintain target count
@@ -114,7 +115,7 @@ FoodItems replenishFood(RandomIntGeneratorFn random_int, int target_count, FoodI
  * @return Updated food with one item repositioned
  */
 FoodItems repositionRandomFood(RandomIntGeneratorFn random_int, FoodItems food_items, const Board& board,
-                                const PerPlayerSnakes& snakes);
+                               const PerPlayerSnakes& snakes);
 
 }  // namespace snake
 

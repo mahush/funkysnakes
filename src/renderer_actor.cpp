@@ -18,11 +18,11 @@ using actor_core::make_periodic_command;
 RendererActor::RendererActor(ActorContext ctx, TopicPtr<RenderableStateMsg> state_topic,
                              TopicPtr<GameOverMsg> gameover_topic, TopicPtr<GameStateMetadataMsg> metadata_topic,
                              TimerFactoryPtr timer_factory)
-    : Actor(ctx),
-      state_sub_(create_sub(state_topic)),
-      gameover_sub_(create_sub(gameover_topic)),
-      metadata_sub_(create_sub(metadata_topic)),
-      flash_timer_(create_timer<FlashTimer>(timer_factory)) {}
+    : Actor{ctx},
+      state_sub_{create_sub(state_topic)},
+      gameover_sub_{create_sub(gameover_topic)},
+      metadata_sub_{create_sub(metadata_topic)},
+      flash_timer_{create_timer<FlashTimer>(timer_factory)} {}
 
 void RendererActor::processInputs() {
   // Process all pending state updates
@@ -41,7 +41,7 @@ void RendererActor::processInputs() {
   }
 
   // Process flash timer events
-  process_event(flash_timer_, [&](const FlashTimerElapsedEvent&) { onFlashTimer(); });
+  processEvent(flash_timer_, [&](const FlashTimerElapsedEvent&) { onFlashTimer(); });
 }
 
 void RendererActor::onRenderableState(const RenderableStateMsg& state) {

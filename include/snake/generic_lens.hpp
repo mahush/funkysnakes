@@ -42,9 +42,9 @@ namespace detail {
 template <typename T>
 struct member_ptr_to_class;
 
-template <typename Class, typename Member>
-struct member_ptr_to_class<Member Class::*> {
-  using type = Class;
+template <typename TClass, typename TMember>
+struct member_ptr_to_class<TMember TClass::*> {
+  using type = TClass;
 };
 
 // Helper: Get member pointer at index I from parameter pack
@@ -129,17 +129,17 @@ inline constexpr bool dependent_true = true;
  * @param op Operation to apply
  * @return State transformer compatible with funkypipes
  */
-template <auto... MutableMembers, auto... ReadMembers, typename Op>
-auto lens(mutate_t<MutableMembers...>, read_t<ReadMembers...>, Op op) {
+template <auto... MutableMembers, auto... ReadMembers, typename TOp>
+auto lens(mutate_t<MutableMembers...>, read_t<ReadMembers...>, TOp op) {
   // Helper struct to deduce State type from first member pointer
   using FirstMemberPtr = decltype(detail::get_member<0>::template value<MutableMembers...>());
-  using State = typename detail::member_ptr_to_class<FirstMemberPtr>::type;
+  using TState = typename detail::member_ptr_to_class<FirstMemberPtr>::type;
 
-  return [op = std::move(op)](State state, auto&&... pipeline_args) mutable {
+  return [op = std::move(op)](TState state, auto&&... pipeline_args) mutable {
     // Extract mutable fields and call operation
-    auto result = std::invoke(op,                                                     // Function/functor
-                              std::move(state.*MutableMembers)...,                    // Mutable fields
-                              std::as_const(state.*ReadMembers)...,                   // Readonly fields
+    auto result = std::invoke(op,                                                        // Function/functor
+                              std::move(state.*MutableMembers)...,                       // Mutable fields
+                              std::as_const(state.*ReadMembers)...,                      // Readonly fields
                               std::forward<decltype(pipeline_args)>(pipeline_args)...);  // Pipeline args
 
     constexpr std::size_t num_mutable = sizeof...(MutableMembers);
@@ -156,12 +156,10 @@ auto lens(mutate_t<MutableMembers...>, read_t<ReadMembers...>, Op op) {
     } else {
       constexpr std::size_t result_size = std::tuple_size_v<std::decay_t<decltype(result)>>;
 
-      static_assert(result_size >= num_mutable,
-                    "Operation must return at least the mutated fields");
+      static_assert(result_size >= num_mutable, "Operation must return at least the mutated fields");
 
       // Write back mutated fields
-      detail::write_back_helper<MutableMembers...>::apply(
-          state, result, std::make_index_sequence<num_mutable>{});
+      detail::write_back_helper<MutableMembers...>::apply(state, result, std::make_index_sequence<num_mutable>{});
 
       if constexpr (result_size == num_mutable) {
         // Simple case: only mutated fields returned

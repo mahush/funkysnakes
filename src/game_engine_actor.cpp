@@ -26,6 +26,8 @@ using funkypipes::makePipe;
 // Game configuration constants
 constexpr int MIN_FOOD_COUNT = 5;
 
+namespace {
+
 // ============================================================================
 // Game Utility Functions
 // ============================================================================
@@ -36,7 +38,7 @@ constexpr int MIN_FOOD_COUNT = 5;
  * @param state Current game state
  * @return true if collision mode is BITE_DROP_FOOD
  */
-static bool isBiteDropFoodMode(const GameState& state) { return state.collision_mode == CollisionMode::BITE_DROP_FOOD; }
+bool isBiteDropFoodMode(const GameState& state) { return state.collision_mode == CollisionMode::BITE_DROP_FOOD; }
 
 /**
  * @brief Check if food should be repositioned this tick
@@ -44,7 +46,7 @@ static bool isBiteDropFoodMode(const GameState& state) { return state.collision_
  * @param state Current game state
  * @return true if food reposition trigger was received
  */
-static bool shouldRepositionFood(const GameState& state) { return state.should_reposition_food; }
+bool shouldRepositionFood(const GameState& state) { return state.should_reposition_food; }
 
 /**
  * @brief Clear the food reposition flag after processing
@@ -52,7 +54,7 @@ static bool shouldRepositionFood(const GameState& state) { return state.should_r
  * @param state Current game state
  * @return Updated game state with reposition flag cleared
  */
-static GameState clearRepositionFlag(GameState state) {
+GameState clearRepositionFlag(GameState state) {
   state.should_reposition_food = false;
   return state;
 }
@@ -66,7 +68,7 @@ static GameState clearRepositionFlag(GameState state) {
  * @param state Current game state
  * @return Tuple of (updated state, optional PlayerAliveStatesMsg message)
  */
-static std::tuple<GameState, std::optional<PlayerAliveStatesMsg>> tryGeneratePlayerAliveStates(GameState state) {
+std::tuple<GameState, std::optional<PlayerAliveStatesMsg>> tryGeneratePlayerAliveStates(GameState state) {
   PerPlayerAliveStates current_alive_states = extractAliveStates(state.snakes);
   std::optional<PlayerAliveStatesMsg> msg;
 
@@ -93,7 +95,7 @@ static std::tuple<GameState, std::optional<PlayerAliveStatesMsg>> tryGeneratePla
  * @param event Timer elapsed event (unused, required for signature)
  * @return Tuple of (new GameState, RenderableStateMsg, optional PlayerAliveStatesMsg)
  */
-static std::tuple<GameState, RenderableStateMsg, std::optional<PlayerAliveStatesMsg>> handleTick(
+std::tuple<GameState, RenderableStateMsg, std::optional<PlayerAliveStatesMsg>> handleTick(
     GameState state, const GameTimerElapsedEvent& /* event */) {
   // ============================================================================
   // GAME LOGIC PIPELINE - Functional Composition with funkypipes
@@ -143,8 +145,8 @@ static std::tuple<GameState, RenderableStateMsg, std::optional<PlayerAliveStates
  * @param msg Clock command message
  * @return Tuple of (state, timer command effect, log message effect)
  */
-static std::tuple<GameState, GameTimerCommand, LogMsg> handleGameClockCommand(GameState state,
-                                                                              const GameClockCommandMsg& msg) {
+std::tuple<GameState, GameTimerCommand, LogMsg> handleGameClockCommand(GameState state,
+                                                                       const GameClockCommandMsg& msg) {
   GameTimerCommand timer_cmd;
   LogMsg log_msg;
 
@@ -182,8 +184,7 @@ static std::tuple<GameState, GameTimerCommand, LogMsg> handleGameClockCommand(Ga
  * @param msg TickMsg rate change message
  * @return Tuple of (updated state, timer command effect, log message effect)
  */
-static std::tuple<GameState, GameTimerCommand, LogMsg> handleTickRateChange(GameState state,
-                                                                            const TickRateChangeMsg& msg) {
+std::tuple<GameState, GameTimerCommand, LogMsg> handleTickRateChange(GameState state, const TickRateChangeMsg& msg) {
   state.interval_ms = msg.interval_ms;
 
   // Return periodic command to restart timer with new interval
@@ -201,7 +202,7 @@ static std::tuple<GameState, GameTimerCommand, LogMsg> handleTickRateChange(Game
  * @param trigger Food reposition trigger (contains game_id for validation)
  * @return Updated game state with reposition flag set if game_id matches
  */
-static GameState setFoodRepositionFlag(GameState state, const FoodRepositionTriggerMsg& trigger) {
+GameState setFoodRepositionFlag(GameState state, const FoodRepositionTriggerMsg& trigger) {
   // Only set flag if trigger is for current game (ignore stale triggers)
   if (trigger.game_id == state.game_id) {
     state.should_reposition_food = true;
@@ -219,7 +220,7 @@ static GameState setFoodRepositionFlag(GameState state, const FoodRepositionTrig
  * @param request Summary request (unused, required for signature)
  * @return Tuple of (unchanged state, summary response)
  */
-static std::tuple<GameState, GameStateSummaryResponseMsg> handleSummaryRequest(
+std::tuple<GameState, GameStateSummaryResponseMsg> handleSummaryRequest(
     GameState state, const GameStateSummaryRequestMsg& /* request */) {
   GameStateSummaryResponseMsg response;
   response.scores = state.scores;
@@ -273,6 +274,8 @@ class GameEngineEffectHandler {
   GameTimerPtr timer_;
 };
 
+}  // namespace
+
 // ============================================================================
 // GameEngineActor implementation
 // ============================================================================
@@ -285,55 +288,55 @@ GameEngineActor::GameEngineActor(ActorContext ctx, TopicPtr<DirectionMsg> direct
                                  TopicPtr<GameStateSummaryRequestMsg> summary_req_topic,
                                  TopicPtr<GameStateSummaryResponseMsg> summary_resp_topic,
                                  TimerFactoryPtr timer_factory)
-    : Actor(ctx),
-      renderable_state_pub_(create_pub(state_topic)),
-      alive_states_pub_(create_pub(alivests_topic)),
-      summary_resp_pub_(create_pub(summary_resp_topic)),
-      direction_sub_(create_sub(direction_topic)),
-      clock_sub_(create_sub(clock_topic)),
-      tickrate_sub_(create_sub(tickrate_topic)),
-      reposition_sub_(create_sub(reposition_topic)),
-      summary_req_sub_(create_sub(summary_req_topic)),
-      game_loop_timer_(create_timer<GameTimer>(timer_factory)) {
+    : Actor{ctx},
+      renderable_state_pub_{create_pub(state_topic)},
+      alive_states_pub_{create_pub(alivests_topic)},
+      summary_resp_pub_{create_pub(summary_resp_topic)},
+      direction_sub_{create_sub(direction_topic)},
+      clock_sub_{create_sub(clock_topic)},
+      tickrate_sub_{create_sub(tickrate_topic)},
+      reposition_sub_{create_sub(reposition_topic)},
+      summary_req_sub_{create_sub(summary_req_topic)},
+      game_loop_timer_{create_timer<GameTimer>(timer_factory)} {
   game_state_.game_id = "game_001";
   game_state_.board.width = 60;
   game_state_.board.height = 20;
 
   // Initialize players
-  apply_to_state(game_state_,
-                 over_snakes_and_scores(bindFront(addPlayer, PlayerId{PLAYER_A}, Point{5, 10}, Direction::RIGHT, 7)));
-  apply_to_state(game_state_,
-                 over_snakes_and_scores(bindFront(addPlayer, PlayerId{PLAYER_B}, Point{5, 15}, Direction::RIGHT, 7)));
+  applyToState(game_state_,
+               over_snakes_and_scores(bindFront(addPlayer, PlayerId{PLAYER_A}, Point{5, 10}, Direction::RIGHT, 7)));
+  applyToState(game_state_,
+               over_snakes_and_scores(bindFront(addPlayer, PlayerId{PLAYER_B}, Point{5, 15}, Direction::RIGHT, 7)));
 
   // Initialize food items
-  apply_to_state(game_state_, over_food_viewing_board_and_snakes(
-                                  bindFront(initializeFood, makeRandomIntGenerator(), MIN_FOOD_COUNT)));
+  applyToState(game_state_,
+               over_food_viewing_board_and_snakes(bindFront(initializeFood, makeRandomIntGenerator(), MIN_FOOD_COUNT)));
 
   Logger::log("[GameEngineActor] Initialized " + std::to_string(game_state_.food_items.size()) + " food items\n");
 }
 
 void GameEngineActor::processInputs() {
   // Drain direction commands into filtered queues
-  process_message_with_state(direction_sub_, game_state_,
-                             over_direction_command_filter_state_viewing_snakes(direction_command_filter::try_add));
+  processMessageWithState(direction_sub_, game_state_,
+                          over_direction_command_filter_state_viewing_snakes(direction_command_filter::try_add));
 
   // Create effect handler for messages that produce effects
   GameEngineEffectHandler effect_handler(renderable_state_pub_, alive_states_pub_, summary_resp_pub_, game_loop_timer_);
 
   // Process timer events with effect handler pattern
-  process_event_with_state(game_loop_timer_, game_state_, handleTick, effect_handler);
+  processEventWithState(game_loop_timer_, game_state_, handleTick, effect_handler);
 
   // Process clock commands with effect handler pattern
-  process_message_with_state(clock_sub_, game_state_, handleGameClockCommand, effect_handler);
+  processMessageWithState(clock_sub_, game_state_, handleGameClockCommand, effect_handler);
 
   // Process tick rate changes with effect handler pattern
-  process_message_with_state(tickrate_sub_, game_state_, handleTickRateChange, effect_handler);
+  processMessageWithState(tickrate_sub_, game_state_, handleTickRateChange, effect_handler);
 
   // Process food reposition triggers (pure, no effects)
-  process_message_with_state(reposition_sub_, game_state_, setFoodRepositionFlag);
+  processMessageWithState(reposition_sub_, game_state_, setFoodRepositionFlag);
 
   // Process game state summary requests with effect handler pattern
-  process_message_with_state(summary_req_sub_, game_state_, handleSummaryRequest, effect_handler);
+  processMessageWithState(summary_req_sub_, game_state_, handleSummaryRequest, effect_handler);
 }
 
 }  // namespace snake

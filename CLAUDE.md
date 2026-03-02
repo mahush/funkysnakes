@@ -453,14 +453,14 @@ The `with_` prefix for decorators is a well-established convention in many langu
 ```cpp
 // Correct: template parameters prefixed with T
 template <typename TTimer, typename TState, typename TProcessFn>
-void process_event_with_state(const std::shared_ptr<TTimer>& timer, TState& state, TProcessFn&& process_fn);
+void processEventWithState(const std::shared_ptr<TTimer>& timer, TState& state, TProcessFn&& process_fn);
 
 template <typename TState, typename TTransformerFn>
-void apply_to_state(TState& state, TTransformerFn&& transformer);
+void applyToState(TState& state, TTransformerFn&& transformer);
 
 // Incorrect: no T prefix
 template <typename State, typename TransformerFn>  // ❌
-void apply_to_state(State& state, TransformerFn&& transformer);
+void applyToState(State& state, TransformerFn&& transformer);
 ```
 
 **Variable Naming:** Avoid generic names like `handler`. Use descriptive names like `process_fn`, `transformer`, `mapper`:
@@ -468,11 +468,11 @@ void apply_to_state(State& state, TransformerFn&& transformer);
 ```cpp
 // Correct: descriptive variable names
 template <typename TMsg, typename TProcessFn>
-void process_message(const Subscription<TMsg>& sub, TProcessFn&& process_fn);
+void processMessage(const Subscription<TMsg>& sub, TProcessFn&& process_fn);
 
 // Incorrect: generic "handler" name
 template <typename TMsg, typename THandlerFn>
-void process_message(const Subscription<TMsg>& sub, THandlerFn&& handler);  // ❌
+void processMessage(const Subscription<TMsg>& sub, THandlerFn&& handler);  // ❌
 ```
 
 This convention makes template parameters easily identifiable and clarifies the purpose of callable parameters.
