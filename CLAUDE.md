@@ -49,9 +49,281 @@ clang-tidy src/*.cpp -- -I include
 
 ### Coding Style
 
+#### Naming Conventions
+
+**Types** (classes, structs, enums, type aliases): `CamelCase`
+```cpp
+class GameEngineActor { };
+struct Point { };
+enum class Direction { UP, DOWN, LEFT, RIGHT };
+using GameTimer = Timer<GameTimerElapsedEvent, GameTimerCommand>;
+```
+
+**Template Parameters**: `TCamelCase` - prefix with `T`, append `Fn` for callables
+```cpp
+template <typename TState, typename TTransformFn>
+void transform(TState& state, TTransformFn&& fn);
+```
+
+**Functions/Methods**: `camelCase`
+```cpp
+void processInputs();
+Point getHead(const Snake& snake);
+std::optional<Message> tryTakeMessage();
+```
+
+**Member Variables**: `snake_case_` - lowercase with trailing underscore
+```cpp
+class Actor {
+  asio::strand<...> strand_;
+  GameState game_state_;
+  PublisherPtr<Msg> state_pub_;
+};
+```
+
+**Local Variables & Parameters**: `snake_case` - lowercase, no trailing underscore
+```cpp
+void moveSnake(const Snake& snake, Direction new_dir) {
+  Point next_pos = calculateNextPosition(snake.head, new_dir);
+}
+```
+
+**Constants & Enum Values**: `SCREAMING_SNAKE_CASE`
+```cpp
+constexpr size_t MAX_QUEUE_SIZE = 2;
+constexpr int MIN_FOOD_COUNT = 5;
+inline constexpr const char* PLAYER_A = "Player A";
+
+enum class Direction { UP, DOWN, LEFT, RIGHT };  // Enum values: all caps
+```
+
+**Namespaces**: `snake_case`
+```cpp
+namespace actor_core { }
+namespace snake { }
+```
+
+**Files**: `snake_case.hpp` / `snake_case.cpp`
+```
+game_engine_actor.hpp
+snake_operations.cpp
+```
+
+**Include Guards**: `SCREAMING_SNAKE_CASE` with full path
+```cpp
+#ifndef SNAKE_GAME_TYPES_HPP
+#define SNAKE_GAME_TYPES_HPP
+// ... or use #pragma once
+```
+
+#### Initialization
+
 **Constructor Initializer Lists:** Always use curly braces `{}` for member initialization in constructor initializer lists. This prevents narrowing conversions.
 
 **Variable Initialization:** For regular variable declarations, use assignment `=` or curly braces `{}`.
+
+#### Documentation
+
+**Doxygen-style comments** for public APIs:
+```cpp
+/**
+ * @brief Brief description of what the function does
+ *
+ * More detailed explanation if needed (optional).
+ *
+ * @param param_name Description of parameter
+ * @return Description of return value
+ */
+int doSomething(int param_name);
+```
+
+**Inline comments** for implementation details:
+```cpp
+// Single-line comment for explanation
+void processInputs() {
+  // Pull all pending messages
+  while (auto msg = sub_->tryTakeMessage()) {
+    handleMessage(*msg);
+  }
+}
+```
+
+#### Header Organization
+
+**Include Order**: Standard library → Third-party → Local headers
+```cpp
+#include <memory>      // Standard library
+#include <vector>
+
+#include "asio.hpp"    // Third-party
+
+#include "actor-core/actor.hpp"    // Local headers
+#include "snake/game_types.hpp"
+```
+
+**Include Guards**: Use either `#pragma once` (preferred for new files) or traditional include guards:
+```cpp
+// Option 1: pragma once (simpler)
+#pragma once
+
+// Option 2: traditional guards (full path in SCREAMING_SNAKE_CASE)
+#ifndef SNAKE_GAME_TYPES_HPP
+#define SNAKE_GAME_TYPES_HPP
+// ...
+#endif  // SNAKE_GAME_TYPES_HPP
+```
+
+**Namespace Closing**: Add comment for clarity
+```cpp
+namespace snake {
+// ...
+}  // namespace snake
+```
+
+#### Class Organization
+
+**Member Access Order**: `public` → `protected` → `private`
+```cpp
+class MyClass {
+ public:
+  // Public interface first
+
+ protected:
+  // Protected members for derived classes
+
+ private:
+  // Private implementation last
+};
+```
+
+**Group Related Members** with comments:
+```cpp
+class GameEngineActor {
+ private:
+  // Publishers for sending messages
+  PublisherPtr<StateMsg> state_pub_;
+  PublisherPtr<EventMsg> event_pub_;
+
+  // Subscriptions for pulling messages
+  SubscriptionPtr<DirectionMsg> direction_sub_;
+  SubscriptionPtr<TickMsg> tick_sub_;
+
+  // Game state
+  GameState game_state_;
+};
+```
+
+#### Type Aliases
+
+**Define type aliases** for commonly used pointer types to reduce verbosity:
+```cpp
+using GameTimerPtr = std::shared_ptr<GameTimer>;
+template <typename T>
+using TopicPtr = std::shared_ptr<Topic<T>>;
+template <typename T>
+using PublisherPtr = std::shared_ptr<Publisher<T>>;
+template <typename T>
+using SubscriptionPtr = std::shared_ptr<Subscription<T>>;
+```
+
+#### Parameter Passing
+
+**Pass by const reference** for read-only complex types:
+```cpp
+Point getNextHeadPosition(const Snake& snake);
+bool isBiteDropFoodMode(const GameState& state);
+```
+
+**Pass by value** for:
+- Small POD types (int, bool, enum)
+- When taking ownership and modifying (functional style)
+```cpp
+Point wrapPoint(Point p, const Board& board);
+Snake moveSnake(Snake snake, const Board& board, bool is_eating);
+```
+
+**Forward references** for template perfect forwarding:
+```cpp
+template <typename TFn>
+void process(TFn&& fn);
+```
+
+#### const Correctness
+
+**Mark read-only parameters** as `const&`:
+```cpp
+void processState(const GameState& state);
+```
+
+**Mark non-mutating methods** as `const`:
+```cpp
+bool operator==(const Point& other) const;
+size_t length() const;
+```
+
+**Mark const member variables** when they never change after construction:
+```cpp
+class Board {
+  const int width_;
+  const int height_;
+};
+```
+
+#### auto Usage
+
+**Use auto** for:
+- Complex template return types
+- Structured bindings
+- Iterator types
+- Lambda captures
+
+```cpp
+// Complex template return types
+auto result = makePipe(transform1, transform2, transform3);
+auto pipeline = with_effect_handling(process_fn, effect_handler);
+
+// Structured bindings
+auto [new_state, score_delta, food_effect] = processTick(state, tick);
+auto [snakes, scores, directions] = extractGameData(state);
+
+// Iterators
+for (auto it = container.begin(); it != container.end(); ++it) { }
+// Or better: range-based for
+for (const auto& item : container) { }
+```
+
+**Avoid auto** when type clarity is important:
+```cpp
+// Prefer explicit type for clarity
+int score = calculateScore();  // Better than: auto score = calculateScore();
+bool is_alive = checkAlive();  // Better than: auto is_alive = checkAlive();
+```
+
+#### Internal Linkage in .cpp Files
+
+**Use unnamed (anonymous) namespace** for internal helpers in `.cpp` files:
+```cpp
+// In game_engine_actor.cpp
+namespace {
+
+// Internal helper function
+bool isBiteDropFoodMode(const GameState& state) {
+  return state.collision_mode == CollisionMode::BITE_DROP_FOOD;
+}
+
+// Internal helper types
+struct CollisionResult {
+  PerPlayerSnakes snakes;
+  std::vector<Point> dropped_food;
+};
+
+}  // namespace
+
+// Public functions from .hpp follow below
+void GameEngineActor::processInputs() { ... }
+```
+
+This prevents name collisions and keeps internal implementation details from leaking to other translation units.
 
 ## Architecture Overview
 
