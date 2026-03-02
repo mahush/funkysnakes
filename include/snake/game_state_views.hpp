@@ -32,12 +32,12 @@ struct GameState;
  *   auto extractor = view_board_and_snakes(generateRandomFoodPosition);
  *   Point pos = extractor(state, random_int);
  *
- * @tparam Op Function type: (Board, snakes, args...) -> Result
+ * @tparam TOp Function type: (Board, snakes, args...) -> Result
  * @param op Operation to apply
  * @return View transformer: (GameState, args...) -> Result
  */
-template <typename Op>
-auto view_board_and_snakes(Op op) {
+template <typename TOp>
+auto view_board_and_snakes(TOp op) {
   return view(read<&GameState::board, &GameState::snakes>, std::move(op));
 }
 

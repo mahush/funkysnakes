@@ -6,9 +6,9 @@
 #include <mutex>
 #include <vector>
 
-#include "asio.hpp"
 #include "actor-core/processor_interface.hpp"
 #include "actor-core/subscription.hpp"
+#include "asio.hpp"
 
 namespace actor_core {
 
@@ -16,7 +16,7 @@ namespace actor_core {
 template <typename TMessage>
 class Publisher;
 
-template <typename Derived>
+template <typename TDerived>
 class Actor;
 
 // Topic implements a typed pub-sub channel for a specific message type
@@ -32,7 +32,7 @@ class Topic {
   friend class Publisher<TMessage>;
 
   // Grant access to Actor for subscribe() in create_sub()
-  template <typename Derived>
+  template <typename TDerived>
   friend class Actor;
 
   // Subscribe to this topic
@@ -96,7 +96,7 @@ class Topic {
 };
 
 // Convenience type alias for shared_ptr<Topic<TMessage>>
-template<typename TMessage>
+template <typename TMessage>
 using TopicPtr = std::shared_ptr<Topic<TMessage>>;
 
 }  // namespace actor_core

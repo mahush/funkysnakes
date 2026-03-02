@@ -27,7 +27,7 @@ namespace snake {
  * - Take state directly (not returned)
  *
  * @tparam ReadMembers Member pointers to fields to extract
- * @tparam Op Operation type
+ * @tparam TOp Operation type
  *
  * Operation signature:
  *   (readonly_fields..., additional_args...) -> Result
@@ -42,13 +42,13 @@ namespace snake {
  * @param op Operation to apply
  * @return Function that extracts fields and applies operation
  */
-template <auto... ReadMembers, typename Op>
-auto view(read_t<ReadMembers...>, Op op) {
+template <auto... ReadMembers, typename TOp>
+auto view(read_t<ReadMembers...>, TOp op) {
   // Deduce State type from first readonly member pointer
   using FirstMemberPtr = decltype(detail::get_member<0>::template value<ReadMembers...>());
-  using State = typename detail::member_ptr_to_class<FirstMemberPtr>::type;
+  using TState = typename detail::member_ptr_to_class<FirstMemberPtr>::type;
 
-  return [op = std::move(op)](const State& state, auto&&... args) {
+  return [op = std::move(op)](const TState& state, auto&&... args) {
     return op(std::as_const(state.*ReadMembers)..., std::forward<decltype(args)>(args)...);
   };
 }

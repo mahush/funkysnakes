@@ -1,26 +1,24 @@
 #ifndef ACTOR_CORE_ACTOR_HPP
 #define ACTOR_CORE_ACTOR_HPP
 
-#include "actor-core/processor_interface.hpp"
-#include "actor-core/topic.hpp"
-#include "actor-core/publisher.hpp"
-#include "actor-core/subscription.hpp"
-#include "actor-core/timer/timer_factory.hpp"
-
 #include <functional>
 #include <memory>
 #include <utility>
 #include <vector>
 
+#include "actor-core/processor_interface.hpp"
+#include "actor-core/publisher.hpp"
+#include "actor-core/subscription.hpp"
+#include "actor-core/timer/timer_factory.hpp"
+#include "actor-core/topic.hpp"
 #include "asio.hpp"
 
 namespace actor_core {
 
 // CRTP base class for all actors
 // Provides factory pattern, strand management, and subscription lifecycle
-template<typename Derived>
-class Actor : public ProcessorInterface,
-              public std::enable_shared_from_this<Derived> {
+template <typename TDerived>
+class Actor : public ProcessorInterface, public std::enable_shared_from_this<TDerived> {
  public:
   // Execution context wrapper - can only be constructed by factory
   // Abstracts away asio implementation details from actor constructors
@@ -31,15 +29,15 @@ class Actor : public ProcessorInterface,
    private:
     asio::io_context& io_;
     explicit ActorContext(asio::io_context& io) : io_(io) {}
-    friend class Actor<Derived>;  // Only Actor can construct
+    friend class Actor<TDerived>;  // Only Actor can construct
   };
 
   // Factory method - creates actor and finalizes subscriptions
-  template<typename... Args>
-  static std::shared_ptr<Derived> create(asio::io_context& io, Args&&... args) {
+  template <typename... Args>
+  static std::shared_ptr<TDerived> create(asio::io_context& io, Args&&... args) {
     // Wrap io_context in ActorContext (only factory can do this)
     ActorContext ctx{io};
-    auto actor = std::make_shared<Derived>(ctx, std::forward<Args>(args)...);
+    auto actor = std::make_shared<TDerived>(ctx, std::forward<Args>(args)...);
 
     // Finalize deferred subscriptions (now shared_from_this() works)
     actor->finalize();
@@ -54,9 +52,9 @@ class Actor : public ProcessorInterface,
   // Helper for derived classes to create subscriptions
   // Returns shared_ptr that can be initialized in initializer list
   // Defers actual registration until finalize() is called by factory
-  template<typename Msg>
-  SubscriptionPtr<Msg> create_sub(TopicPtr<Msg> topic) {
-    auto sub = std::make_shared<Subscription<Msg>>();
+  template <typename TMsg>
+  SubscriptionPtr<TMsg> create_sub(TopicPtr<TMsg> topic) {
+    auto sub = std::make_shared<Subscription<TMsg>>();
 
     // Defer registration - will be completed in finalize()
     deferred_.push_back([this, topic, sub]() {
@@ -70,14 +68,14 @@ class Actor : public ProcessorInterface,
 
   // Helper for derived classes to create publishers
   // Returns shared_ptr for symmetric API with create_sub
-  template<typename Msg>
-  PublisherPtr<Msg> create_pub(TopicPtr<Msg> topic) {
-    return std::make_shared<Publisher<Msg>>(topic);
+  template <typename TMsg>
+  PublisherPtr<TMsg> create_pub(TopicPtr<TMsg> topic) {
+    return std::make_shared<Publisher<TMsg>>(topic);
   }
 
   // Helper for derived classes to create timers
   // Creates timer immediately but defers subscription until finalize()
-  template<typename TTimer>
+  template <typename TTimer>
   std::shared_ptr<TTimer> create_timer(TimerFactoryPtr factory) {
     auto timer = factory->create<TTimer>(strand_);
 
@@ -91,9 +89,7 @@ class Actor : public ProcessorInterface,
   }
 
   // Helper for async callbacks - use weak_ptr to avoid keeping actor alive
-  std::weak_ptr<Derived> weak_from_this() {
-    return this->shared_from_this();
-  }
+  std::weak_ptr<TDerived> weak_from_this() { return this->shared_from_this(); }
 
   asio::strand<asio::io_context::executor_type> strand_;
 

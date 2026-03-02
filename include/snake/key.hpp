@@ -5,7 +5,7 @@
 namespace snake {
 
 // Special keys that aren't regular characters
-enum class SpecialKey { ArrowUp, ArrowDown, ArrowLeft, ArrowRight };
+enum class SpecialKey { ARROW_UP, ARROW_DOWN, ARROW_LEFT, ARROW_RIGHT };
 
 // A key is either a regular character or a special key
 // Represents a logical key after parsing escape sequences

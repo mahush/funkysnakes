@@ -34,8 +34,8 @@ struct GetArgAt {
  * - when<N>():   (aN -> Bool) -> (a... -> a0) -> a... -> a0
  *
  * @tparam ArgIndex Optional: which argument to test with predicate (default: all args)
- * @tparam Predicate Function type: (a) -> bool or (a...) -> bool
- * @tparam Fn Function type: (a...) -> a0
+ * @tparam TPredicate Function type: (a) -> bool or (a...) -> bool
+ * @tparam TFn Function type: (a...) -> a0
  * @param pred Predicate to test the value(s)
  * @param fn Function to apply if predicate is true
  * @return Function that conditionally applies fn
@@ -53,13 +53,11 @@ struct GetArgAt {
  *   processIfFirstEven(2, 3);  // returns 5
  *   processIfFirstEven(3, 2);  // returns 3 (first arg)
  */
-template <std::size_t ArgIndex = std::size_t(-1), typename Predicate, typename Fn>
-auto when(Predicate pred, Fn fn) {
+template <std::size_t ArgIndex = std::size_t(-1), typename TPredicate, typename TFn>
+auto when(TPredicate pred, TFn fn) {
   return [pred = std::move(pred), fn = std::move(fn)](auto&&... args) mutable {
     // Get first argument for return value when predicate is false
-    auto getFirst = [](auto&& first, auto&&...) -> decltype(auto) {
-      return std::forward<decltype(first)>(first);
-    };
+    auto getFirst = [](auto&& first, auto&&...) -> decltype(auto) { return std::forward<decltype(first)>(first); };
 
     // Check the predicate
     bool condition;
@@ -84,14 +82,14 @@ auto when(Predicate pred, Fn fn) {
  * Composes two functions where the second function takes two arguments
  * and its result is passed as the second argument to the first function.
  *
- * @tparam F Function type for f
- * @tparam G Function type for g
+ * @tparam TF Function type for f
+ * @tparam TG Function type for g
  * @param f First function
  * @param g Second function
  * @return Composed function
  */
-template <typename F, typename G>
-auto compose2(F f, G g) {
+template <typename TF, typename TG>
+auto compose2(TF f, TG g) {
   return [=](auto&& a, auto&& b) { return f(a, g(a, b)); };
 }
 
@@ -113,14 +111,14 @@ using Case = std::pair<std::function<bool(const T&)>,  // predicate
  * Returns a function that applies the first matching case's transformer,
  * or the otherwise function if no cases match.
  *
- * @tparam OtherwiseFn Type of default function
- * @tparam Cases Variadic case types
+ * @tparam TOtherwiseFn Type of default function
+ * @tparam TCases Variadic case types
  * @param otherwiseFn Default transformation when no cases match
  * @param cases Variadic list of predicate-action pairs
  * @return Function that applies conditional logic
  */
-template <typename OtherwiseFn, typename... Cases>
-auto cond(OtherwiseFn&& otherwiseFn, Cases&&... cases) {
+template <typename TOtherwiseFn, typename... TCases>
+auto cond(TOtherwiseFn&& otherwiseFn, TCases&&... cases) {
   return [=](auto&& x) {
     for (auto&& [predicateFn, action] : {cases...}) {
       if (predicateFn(x)) {

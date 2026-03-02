@@ -41,9 +41,7 @@ bool firstBitesSecond(const Snake& first, const Snake& second) {
   return std::find(second.tail.begin(), second.tail.end(), attackerHead) != second.tail.end();
 }
 
-bool bothBiteEachOther(const Snake& a, const Snake& b) {
-  return firstBitesSecond(a, b) && firstBitesSecond(b, a);
-}
+bool bothBiteEachOther(const Snake& a, const Snake& b) { return firstBitesSecond(a, b) && firstBitesSecond(b, a); }
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wpragmas"

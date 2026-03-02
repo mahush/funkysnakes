@@ -3,7 +3,11 @@
     "allow": [
       "Bash(cmake --build build)",
       "Bash(./build/test_snake)",
-      "Bash(git mv:*)"
+      "Bash(git mv:*)",
+      "Bash(clang-format:*)",
+      "Bash(find:*)",
+      "Bash(grep:*)",
+      "Bash(cmake:*)"
     ]
   }
 }

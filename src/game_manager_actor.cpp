@@ -11,24 +11,24 @@ GameManagerActor::GameManagerActor(
     TopicPtr<TickRateChangeMsg> tickrate_topic, TopicPtr<PlayerAliveStatesMsg> alivests_topic,
     TopicPtr<GameStateSummaryRequestMsg> summary_req_topic, TopicPtr<GameStateSummaryResponseMsg> summary_resp_topic,
     TopicPtr<GameOverMsg> gameover_topic, TopicPtr<PauseToggleMsg> pause_topic, TimerFactoryPtr timer_factory)
-    : Actor(ctx),
-      clock_pub_(create_pub(clock_topic)),
-      reposition_pub_(create_pub(reposition_topic)),
-      metadata_pub_(create_pub(metadata_topic)),
-      tickrate_pub_(create_pub(tickrate_topic)),
-      summary_req_pub_(create_pub(summary_req_topic)),
-      gameover_pub_(create_pub(gameover_topic)),
-      startgame_sub_(create_sub(startgame_topic)),
-      alive_states_sub_(create_sub(alivests_topic)),
-      summary_resp_sub_(create_sub(summary_resp_topic)),
-      pause_sub_(create_sub(pause_topic)),
-      reposition_timer_(create_timer<RepositionTimer>(timer_factory)),
-      level_timer_(create_timer<LevelTimer>(timer_factory)) {}
+    : Actor{ctx},
+      clock_pub_{create_pub(clock_topic)},
+      reposition_pub_{create_pub(reposition_topic)},
+      metadata_pub_{create_pub(metadata_topic)},
+      tickrate_pub_{create_pub(tickrate_topic)},
+      summary_req_pub_{create_pub(summary_req_topic)},
+      gameover_pub_{create_pub(gameover_topic)},
+      startgame_sub_{create_sub(startgame_topic)},
+      alive_states_sub_{create_sub(alivests_topic)},
+      summary_resp_sub_{create_sub(summary_resp_topic)},
+      pause_sub_{create_sub(pause_topic)},
+      reposition_timer_{create_timer<RepositionTimer>(timer_factory)},
+      level_timer_{create_timer<LevelTimer>(timer_factory)} {}
 
 void GameManagerActor::processInputs() {
   // Timer events
-  process_event(reposition_timer_, [&](const RepositionTimerElapsedEvent&) { onRepositionTimer(); });
-  process_event(level_timer_, [&](const LevelTimerElapsedEvent&) { onLevelTimer(); });
+  processEvent(reposition_timer_, [&](const RepositionTimerElapsedEvent&) { onRepositionTimer(); });
+  processEvent(level_timer_, [&](const LevelTimerElapsedEvent&) { onLevelTimer(); });
 
   // Game lifecycle
   while (auto msg = startgame_sub_->tryTakeMessage()) {
