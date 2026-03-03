@@ -157,7 +157,7 @@ void processInputs() {
 
 #include "asio.hpp"    // Third-party
 
-#include "actor-core/actor.hpp"    // Local headers
+#include <funkyactors/actor.hpp"    // Local headers
 #include "snake/game_types.hpp"
 ```
 

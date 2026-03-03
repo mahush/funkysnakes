@@ -1,10 +1,10 @@
 #pragma once
 
+#include <funkyactors/actor.hpp>
+#include <funkyactors/topic.hpp>
 #include <memory>
 #include <optional>
 
-#include "actor-core/actor.hpp"
-#include "actor-core/topic.hpp"
 #include "snake/game_messages.hpp"
 #include "snake/key.hpp"
 #include "snake/stdin_reader.hpp"
@@ -12,9 +12,9 @@
 namespace snake {
 
 // Import actor_core types into snake namespace for convenience
-using actor_core::Actor;
-using actor_core::PublisherPtr;
-using actor_core::TopicPtr;
+using funkyactors::Actor;
+using funkyactors::PublisherPtr;
+using funkyactors::TopicPtr;
 
 /**
  * @brief Captures and processes user input

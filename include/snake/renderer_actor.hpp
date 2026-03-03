@@ -1,24 +1,24 @@
 #pragma once
 
 #include <asio.hpp>
+#include <funkyactors/actor.hpp>
+#include <funkyactors/subscription.hpp>
+#include <funkyactors/timer/timer.hpp>
+#include <funkyactors/topic.hpp>
 #include <memory>
 
-#include "actor-core/actor.hpp"
-#include "actor-core/subscription.hpp"
-#include "actor-core/timer/timer.hpp"
-#include "actor-core/topic.hpp"
 #include "snake/game_messages.hpp"
 
 namespace snake {
 
 // Import actor_core types into snake namespace for convenience
-using actor_core::Actor;
-using actor_core::SubscriptionPtr;
-using actor_core::Timer;
-using actor_core::TimerCommand;
-using actor_core::TimerElapsedEvent;
-using actor_core::TimerFactoryPtr;
-using actor_core::TopicPtr;
+using funkyactors::Actor;
+using funkyactors::SubscriptionPtr;
+using funkyactors::Timer;
+using funkyactors::TimerCommand;
+using funkyactors::TimerElapsedEvent;
+using funkyactors::TimerFactoryPtr;
+using funkyactors::TopicPtr;
 
 // Timer type definitions for RendererActor
 struct FlashTimerTag {};

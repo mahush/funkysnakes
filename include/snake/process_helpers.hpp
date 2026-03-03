@@ -1,19 +1,19 @@
 #pragma once
 
+#include <funkyactors/effect_handler.hpp>
+#include <funkyactors/input_source.hpp>
+#include <funkyactors/subscription.hpp>
 #include <memory>
 #include <tuple>
 #include <vector>
 
-#include "actor-core/effect_handler.hpp"
-#include "actor-core/input_source.hpp"
-#include "actor-core/subscription.hpp"
 #include "funkypipes/details/tuple/separate_tuple_elements.hpp"
 
 namespace snake {
 
 // Import actor_core types into snake namespace for convenience
-using actor_core::InputSource;
-using actor_core::Subscription;
+using funkyactors::InputSource;
+using funkyactors::Subscription;
 
 /**
  * @brief Higher-order function to process all messages from a subscription
@@ -92,7 +92,7 @@ auto with_effect_handling(TProcessFn&& process_fn, TEffectHandler& effect_handle
     auto [state_tuple, effects_tuple] = funkypipes::details::separateTupleElements<0>(std::move(result));
 
     // Dispatch effects through effect handler
-    actor_core::dispatch_effect(effect_handler, effects_tuple);
+    funkyactors::dispatch_effect(effect_handler, effects_tuple);
 
     // Return new state
     return std::move(std::get<0>(state_tuple));

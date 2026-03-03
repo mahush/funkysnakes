@@ -1,19 +1,19 @@
 #include "snake/renderer_actor.hpp"
 
 #include <chrono>
+#include <funkyactors/timer/timer.hpp>
 #include <iomanip>
 #include <iostream>
 #include <string>
 #include <vector>
 
-#include "actor-core/timer/timer.hpp"
 #include "snake/control_messages.hpp"
 #include "snake/process_helpers.hpp"
 
 namespace snake {
 
-using actor_core::make_cancel_command;
-using actor_core::make_periodic_command;
+using funkyactors::make_cancel_command;
+using funkyactors::make_periodic_command;
 
 RendererActor::RendererActor(ActorContext ctx,
                              TopicPtr<RenderableStateMsg> state_topic,

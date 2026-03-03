@@ -1,8 +1,9 @@
 #include <gtest/gtest.h>
 
-#include "actor-core/publisher.hpp"
-#include "actor-core/timer/timer_factory.hpp"
-#include "actor-core/topic.hpp"
+#include <funkyactors/publisher.hpp>
+#include <funkyactors/timer/timer_factory.hpp>
+#include <funkyactors/topic.hpp>
+
 #include "mock_actors.hpp"
 #include "snake/game_engine_actor.hpp"
 #include "snake/game_manager_actor.hpp"
@@ -11,9 +12,9 @@
 #include "snake/renderer_actor.hpp"
 #include "snake/stdin_reader.hpp"
 
-using actor_core::Publisher;
-using actor_core::TimerFactory;
-using actor_core::Topic;
+using funkyactors::Publisher;
+using funkyactors::TimerFactory;
+using funkyactors::Topic;
 using snake::StdinReader;
 
 namespace snake {
@@ -71,9 +72,18 @@ TEST(ActorTest, GameManagerActor_CoordinatesStartGame) {
   auto pause_topic = std::make_shared<Topic<PauseToggleMsg>>();
 
   // Create GameManagerActor
-  auto manager = GameManagerActor::create(io, clock_topic, startgame_topic, reposition_topic, metadata_topic,
-                                          tickrate_topic, alivests_topic, summary_req_topic, summary_resp_topic,
-                                          gameover_topic, pause_topic, timer_factory);
+  auto manager = GameManagerActor::create(io,
+                                          clock_topic,
+                                          startgame_topic,
+                                          reposition_topic,
+                                          metadata_topic,
+                                          tickrate_topic,
+                                          alivests_topic,
+                                          summary_req_topic,
+                                          summary_resp_topic,
+                                          gameover_topic,
+                                          pause_topic,
+                                          timer_factory);
 
   // Verify GameManagerActor was created successfully
   SUCCEED();
@@ -97,8 +107,16 @@ TEST(ActorTest, GameEngineActor_HandlesClockCommands) {
   auto summary_resp_topic = std::make_shared<Topic<GameStateSummaryResponseMsg>>();
 
   // Create GameEngineActor
-  auto engine = GameEngineActor::create(io, direction_topic, state_topic, clock_topic, tickrate_topic, reposition_topic,
-                                        alivests_topic, summary_req_topic, summary_resp_topic, timer_factory);
+  auto engine = GameEngineActor::create(io,
+                                        direction_topic,
+                                        state_topic,
+                                        clock_topic,
+                                        tickrate_topic,
+                                        reposition_topic,
+                                        alivests_topic,
+                                        summary_req_topic,
+                                        summary_resp_topic,
+                                        timer_factory);
 
   // Create publisher to send clock commands
   Publisher<GameClockCommandMsg> clock_pub{clock_topic};
@@ -143,9 +161,18 @@ TEST(ActorTest, GameManagerActor_HandlesPauseToggle) {
   auto mock_clock_subscriber = MockClockCommandSubscriber::create(io, clock_topic);
 
   // Create GameManagerActor
-  auto manager = GameManagerActor::create(io, clock_topic, startgame_topic, reposition_topic, metadata_topic,
-                                          tickrate_topic, alivests_topic, summary_req_topic, summary_resp_topic,
-                                          gameover_topic, pause_topic, timer_factory);
+  auto manager = GameManagerActor::create(io,
+                                          clock_topic,
+                                          startgame_topic,
+                                          reposition_topic,
+                                          metadata_topic,
+                                          tickrate_topic,
+                                          alivests_topic,
+                                          summary_req_topic,
+                                          summary_resp_topic,
+                                          gameover_topic,
+                                          pause_topic,
+                                          timer_factory);
 
   // Create publisher for pause toggle
   Publisher<PauseToggleMsg> pause_pub{pause_topic};
@@ -211,9 +238,18 @@ TEST(ActorTest, GameManagerActor_SendsClockCommands) {
   auto mock_clock_subscriber = MockClockCommandSubscriber::create(io, clock_topic);
 
   // Create GameManagerActor
-  auto manager = GameManagerActor::create(io, clock_topic, startgame_topic, reposition_topic, metadata_topic,
-                                          tickrate_topic, alivests_topic, summary_req_topic, summary_resp_topic,
-                                          gameover_topic, pause_topic, timer_factory);
+  auto manager = GameManagerActor::create(io,
+                                          clock_topic,
+                                          startgame_topic,
+                                          reposition_topic,
+                                          metadata_topic,
+                                          tickrate_topic,
+                                          alivests_topic,
+                                          summary_req_topic,
+                                          summary_resp_topic,
+                                          gameover_topic,
+                                          pause_topic,
+                                          timer_factory);
 
   // Create publisher for start game
   Publisher<StartGameMsg> startgame_pub{startgame_topic};

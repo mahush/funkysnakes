@@ -1,9 +1,9 @@
 #include "snake/game_engine_actor.hpp"
 
+#include <funkyactors/effect_handler.hpp>
 #include <optional>
 #include <tuple>
 
-#include "actor-core/effect_handler.hpp"
 #include "funkypipes/bind_front.hpp"
 #include "funkypipes/details/tuple/separate_tuple_elements.hpp"
 #include "funkypipes/make_pipe.hpp"

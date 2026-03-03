@@ -4,13 +4,12 @@
 
 #include <asio.hpp>
 #include <deque>
+#include <funkyactors/input_source.hpp>
+#include <funkyactors/processor_interface.hpp>
 #include <memory>
 #include <mutex>
 #include <optional>
 #include <vector>
-
-#include "actor-core/input_source.hpp"
-#include "actor-core/processor_interface.hpp"
 
 namespace snake {
 
@@ -25,7 +24,7 @@ namespace snake {
  *
  * Implements InputSource<char> for unified processing.
  */
-class StdinReader : public actor_core::InputSource<char> {
+class StdinReader : public funkyactors::InputSource<char> {
  public:
   explicit StdinReader(asio::io_context& io);
   ~StdinReader();
@@ -41,7 +40,7 @@ class StdinReader : public actor_core::InputSource<char> {
    * @param processor The processor to notify (weak_ptr for automatic cleanup)
    * @param strand The strand to post notifications on
    */
-  void subscribe(std::weak_ptr<actor_core::ProcessorInterface> processor,
+  void subscribe(std::weak_ptr<funkyactors::ProcessorInterface> processor,
                  asio::strand<asio::io_context::executor_type> strand);
 
   /**
@@ -92,7 +91,7 @@ class StdinReader : public actor_core::InputSource<char> {
   static constexpr size_t MAX_QUEUE_SIZE = 100;
 
   // Processor notification (like Topic)
-  std::weak_ptr<actor_core::ProcessorInterface> processor_;
+  std::weak_ptr<funkyactors::ProcessorInterface> processor_;
   asio::strand<asio::io_context::executor_type> strand_;
 
   // State
