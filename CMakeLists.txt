@@ -14,26 +14,15 @@ message(STATUS "C++ Compiler: ${CMAKE_CXX_COMPILER}")
 message(STATUS "C++ Compiler Version: ${CMAKE_CXX_COMPILER_VERSION}")
 message(STATUS "C++ Standard: C++${CMAKE_CXX_STANDARD}")
 
-# Fetch standalone Asio via FetchContent
-message(STATUS "Downloading standalone Asio via FetchContent")
+# Fetch funkyactors via FetchContent
 include(FetchContent)
+message(STATUS "Downloading funkyactors via FetchContent")
 FetchContent_Declare(
-  asio
-  GIT_REPOSITORY https://github.com/chriskohlhoff/asio.git
-  GIT_TAG asio-1-30-2
+  funkyactors
+  GIT_REPOSITORY https://github.com/mahush/funkyactors.git
+  GIT_TAG main
 )
-FetchContent_MakeAvailable(asio)
-
-# Create an interface library for asio
-add_library(asio INTERFACE)
-target_include_directories(asio INTERFACE ${asio_SOURCE_DIR}/asio/include)
-target_compile_definitions(asio INTERFACE ASIO_STANDALONE ASIO_NO_DEPRECATED)
-
-# Link with pthread on Unix systems
-if(UNIX)
-  find_package(Threads REQUIRED)
-  target_link_libraries(asio INTERFACE Threads::Threads)
-endif()
+FetchContent_MakeAvailable(funkyactors)
 
 # Fetch funkypipes via FetchContent
 message(STATUS "Downloading funkypipes via FetchContent")
@@ -60,7 +49,6 @@ add_executable(snake_actors
   src/renderer_actor.cpp
   src/snake_model.cpp
   src/snake_operations.cpp
-  src/actor-core/timer/asio_timer_core.cpp
   src/utility.cpp
   src/logger.cpp
 )
@@ -69,7 +57,7 @@ target_include_directories(snake_actors PRIVATE
   ${PROJECT_SOURCE_DIR}/include
 )
 
-target_link_libraries(snake_actors PRIVATE asio funkypipes)
+target_link_libraries(snake_actors PRIVATE funkyactors funkypipes)
 
 target_compile_options(snake_actors PRIVATE
   -Wall -Wextra -Wpedantic -Werror
@@ -108,12 +96,11 @@ if(SNAKE_BUILD_TESTS)
     src/renderer_actor.cpp
     src/snake_model.cpp
     src/snake_operations.cpp
-    src/actor-core/timer/asio_timer_core.cpp
     src/utility.cpp
     src/logger.cpp
   )
 
-  target_link_libraries(test_snake PRIVATE gtest_main gmock_main asio funkypipes)
+  target_link_libraries(test_snake PRIVATE gtest_main gmock_main funkyactors funkypipes)
   target_include_directories(test_snake PRIVATE
     ${PROJECT_SOURCE_DIR}/include
     ${PROJECT_SOURCE_DIR}/tests

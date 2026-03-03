@@ -1,20 +1,20 @@
 #pragma once
 
+#include <funkyactors/actor.hpp>
+#include <funkyactors/subscription.hpp>
+#include <funkyactors/topic.hpp>
 #include <memory>
 #include <vector>
 
-#include "actor-core/actor.hpp"
-#include "actor-core/subscription.hpp"
-#include "actor-core/topic.hpp"
 #include "snake/control_messages.hpp"
 #include "snake/game_messages.hpp"
 
 namespace snake {
 
 // Import actor_core types into snake namespace for convenience
-using actor_core::Actor;
-using actor_core::SubscriptionPtr;
-using actor_core::TopicPtr;
+using funkyactors::Actor;
+using funkyactors::SubscriptionPtr;
+using funkyactors::TopicPtr;
 
 /**
  * @brief Mock subscriber for TickMsg messages

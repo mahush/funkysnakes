@@ -81,10 +81,6 @@ This separation enables testing game logic without I/O while keeping effects exp
 ```
 snake/
 ├── include/
-│   ├── actor-core/              # Generic actor framework
-│   │   ├── actor.hpp            # CRTP actor base class
-│   │   ├── topic.hpp            # Pub/sub messaging
-│   │   └── timer/               # Timer infrastructure
 │   └── snake/                   # Game-specific code
 │       ├── game_engine_actor.hpp      # Core game logic (functional)
 │       ├── game_manager.hpp     # Lifecycle coordinator (imperative)
@@ -101,7 +97,9 @@ snake/
 
 - **CMake 3.12+**
 - **C++17 compiler** (GCC 11+, Clang 14+)
-- **Standalone Asio 1.30.2** (auto-downloaded via FetchContent)
+- **Funkyactors** (auto-downloaded via FetchContent from [github.com/mahush/funkyactors](https://github.com/mahush/funkyactors))
+- **Funkypipes** (auto-downloaded via FetchContent from [github.com/mahush/funkypipes](https://github.com/mahush/funkypipes))
+- **Standalone Asio 1.30.2** (bundled with funkyactors)
 - **GoogleTest 1.15.2** (optional, for tests, auto-downloaded)
 
 ## Build and Run

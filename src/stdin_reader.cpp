@@ -11,7 +11,7 @@ StdinReader::StdinReader(asio::io_context& io)
 
 StdinReader::~StdinReader() { stopReading(); }
 
-void StdinReader::subscribe(std::weak_ptr<actor_core::ProcessorInterface> processor,
+void StdinReader::subscribe(std::weak_ptr<funkyactors::ProcessorInterface> processor,
                             asio::strand<asio::io_context::executor_type> strand) {
   processor_ = processor;
   strand_ = strand;

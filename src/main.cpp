@@ -1,10 +1,10 @@
 #include <chrono>
+#include <funkyactors/publisher.hpp>
+#include <funkyactors/timer/timer_factory.hpp>
+#include <funkyactors/topic.hpp>
 #include <iostream>
 #include <thread>
 
-#include "actor-core/publisher.hpp"
-#include "actor-core/timer/timer_factory.hpp"
-#include "actor-core/topic.hpp"
 #include "snake/game_engine_actor.hpp"
 #include "snake/game_manager_actor.hpp"
 #include "snake/input_actor.hpp"
@@ -12,9 +12,9 @@
 #include "snake/renderer_actor.hpp"
 #include "snake/stdin_reader.hpp"
 
-using actor_core::Publisher;
-using actor_core::TimerFactory;
-using actor_core::Topic;
+using funkyactors::Publisher;
+using funkyactors::TimerFactory;
+using funkyactors::Topic;
 
 int main() {
   std::cout << "=== Snake Game - Interactive Demo ===\n\n";
