@@ -11,8 +11,10 @@ namespace snake {
 
 PerPlayerAliveStates extractAliveStates(const PerPlayerSnakes& snakes) {
   PerPlayerAliveStates alive_states;
-  std::transform(snakes.begin(), snakes.end(), std::inserter(alive_states, alive_states.begin()),
-                 [](const auto& entry) { return std::make_pair(entry.first, entry.second.alive); });
+  std::transform(
+      snakes.begin(), snakes.end(), std::inserter(alive_states, alive_states.begin()), [](const auto& entry) {
+        return std::make_pair(entry.first, entry.second.alive);
+      });
   return alive_states;
 }
 
@@ -107,9 +109,12 @@ std::tuple<Snake, std::vector<Point>> cutSnakeTailAt(Snake snake, Point cut_poin
 // Player Initialization
 // ============================================================================
 
-std::tuple<PerPlayerSnakes, PerPlayerScores> addPlayer(PlayerId player_id, Point start_position,
-                                                       Direction initial_direction, int snake_length,
-                                                       PerPlayerSnakes snakes, PerPlayerScores scores) {
+std::tuple<PerPlayerSnakes, PerPlayerScores> addPlayer(PlayerId player_id,
+                                                       Point start_position,
+                                                       Direction initial_direction,
+                                                       int snake_length,
+                                                       PerPlayerSnakes snakes,
+                                                       PerPlayerScores scores) {
   // Create snake tail extending backwards from start position
   Point head = start_position;
   std::vector<Point> tail;

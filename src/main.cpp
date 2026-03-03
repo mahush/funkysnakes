@@ -46,13 +46,29 @@ int main() {
   // Create actors using factory methods - clean single-stage construction!
   auto renderer = snake::RendererActor::create(io, state_topic, gameover_topic, metadata_topic, timer_factory);
 
-  auto engine =
-      snake::GameEngineActor::create(io, direction_topic, state_topic, clock_topic, tickrate_topic, reposition_topic,
-                                     alivests_topic, summary_req_topic, summary_resp_topic, timer_factory);
+  auto engine = snake::GameEngineActor::create(io,
+                                               direction_topic,
+                                               state_topic,
+                                               clock_topic,
+                                               tickrate_topic,
+                                               reposition_topic,
+                                               alivests_topic,
+                                               summary_req_topic,
+                                               summary_resp_topic,
+                                               timer_factory);
 
-  auto manager = snake::GameManagerActor::create(io, clock_topic, startgame_topic, reposition_topic, metadata_topic,
-                                                 tickrate_topic, alivests_topic, summary_req_topic, summary_resp_topic,
-                                                 gameover_topic, pause_topic, timer_factory);
+  auto manager = snake::GameManagerActor::create(io,
+                                                 clock_topic,
+                                                 startgame_topic,
+                                                 reposition_topic,
+                                                 metadata_topic,
+                                                 tickrate_topic,
+                                                 alivests_topic,
+                                                 summary_req_topic,
+                                                 summary_resp_topic,
+                                                 gameover_topic,
+                                                 pause_topic,
+                                                 timer_factory);
 
   // Create shared stdin reader (like a topic)
   auto stdin_reader = std::make_shared<snake::StdinReader>(io);

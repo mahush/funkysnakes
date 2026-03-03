@@ -91,9 +91,12 @@ std::tuple<Snake, std::vector<Point>> cutSnakeTailAt(Snake snake, Point cut_poin
  * @param scores Current scores map (by value)
  * @return Tuple of (updated snakes, updated scores)
  */
-std::tuple<PerPlayerSnakes, PerPlayerScores> addPlayer(PlayerId player_id, Point start_position,
-                                                       Direction initial_direction, int snake_length,
-                                                       PerPlayerSnakes snakes, PerPlayerScores scores);
+std::tuple<PerPlayerSnakes, PerPlayerScores> addPlayer(PlayerId player_id,
+                                                       Point start_position,
+                                                       Direction initial_direction,
+                                                       int snake_length,
+                                                       PerPlayerSnakes snakes,
+                                                       PerPlayerScores scores);
 
 // ============================================================================
 // Game Logic Operations on Snakes

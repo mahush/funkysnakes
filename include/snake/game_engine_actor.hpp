@@ -53,11 +53,16 @@ class GameEngineActor : public Actor<GameEngineActor> {
    * @param summary_resp_topic Topic to publish game state summary responses
    * @param timer_factory Factory for creating timers
    */
-  GameEngineActor(ActorContext ctx, TopicPtr<DirectionMsg> direction_topic, TopicPtr<RenderableStateMsg> state_topic,
-                  TopicPtr<GameClockCommandMsg> clock_topic, TopicPtr<TickRateChangeMsg> tickrate_topic,
-                  TopicPtr<FoodRepositionTriggerMsg> reposition_topic, TopicPtr<PlayerAliveStatesMsg> alivests_topic,
+  GameEngineActor(ActorContext ctx,
+                  TopicPtr<DirectionMsg> direction_topic,
+                  TopicPtr<RenderableStateMsg> state_topic,
+                  TopicPtr<GameClockCommandMsg> clock_topic,
+                  TopicPtr<TickRateChangeMsg> tickrate_topic,
+                  TopicPtr<FoodRepositionTriggerMsg> reposition_topic,
+                  TopicPtr<PlayerAliveStatesMsg> alivests_topic,
                   TopicPtr<GameStateSummaryRequestMsg> summary_req_topic,
-                  TopicPtr<GameStateSummaryResponseMsg> summary_resp_topic, TimerFactoryPtr timer_factory);
+                  TopicPtr<GameStateSummaryResponseMsg> summary_resp_topic,
+                  TimerFactoryPtr timer_factory);
 
   // Process messages from subscribed topics
   void processInputs() override;

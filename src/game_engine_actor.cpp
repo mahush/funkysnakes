@@ -244,8 +244,10 @@ std::tuple<GameState, GameStateSummaryResponseMsg> handleSummaryRequest(
  */
 class GameEngineEffectHandler {
  public:
-  GameEngineEffectHandler(PublisherPtr<RenderableStateMsg> renderable_pub, PublisherPtr<PlayerAliveStatesMsg> alive_pub,
-                          PublisherPtr<GameStateSummaryResponseMsg> summary_resp_pub, GameTimerPtr timer)
+  GameEngineEffectHandler(PublisherPtr<RenderableStateMsg> renderable_pub,
+                          PublisherPtr<PlayerAliveStatesMsg> alive_pub,
+                          PublisherPtr<GameStateSummaryResponseMsg> summary_resp_pub,
+                          GameTimerPtr timer)
       : renderable_pub_(renderable_pub), alive_pub_(alive_pub), summary_resp_pub_(summary_resp_pub), timer_(timer) {}
 
   // Handle RenderableStateMsg effect: publish to renderer
@@ -280,8 +282,10 @@ class GameEngineEffectHandler {
 // GameEngineActor implementation
 // ============================================================================
 
-GameEngineActor::GameEngineActor(ActorContext ctx, TopicPtr<DirectionMsg> direction_topic,
-                                 TopicPtr<RenderableStateMsg> state_topic, TopicPtr<GameClockCommandMsg> clock_topic,
+GameEngineActor::GameEngineActor(ActorContext ctx,
+                                 TopicPtr<DirectionMsg> direction_topic,
+                                 TopicPtr<RenderableStateMsg> state_topic,
+                                 TopicPtr<GameClockCommandMsg> clock_topic,
                                  TopicPtr<TickRateChangeMsg> tickrate_topic,
                                  TopicPtr<FoodRepositionTriggerMsg> reposition_topic,
                                  TopicPtr<PlayerAliveStatesMsg> alivests_topic,
@@ -317,7 +321,8 @@ GameEngineActor::GameEngineActor(ActorContext ctx, TopicPtr<DirectionMsg> direct
 
 void GameEngineActor::processInputs() {
   // Drain direction commands into filtered queues
-  processMessageWithState(direction_sub_, game_state_,
+  processMessageWithState(direction_sub_,
+                          game_state_,
                           over_direction_command_filter_state_viewing_snakes(direction_command_filter::try_add));
 
   // Create effect handler for messages that produce effects

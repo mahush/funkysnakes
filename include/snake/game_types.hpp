@@ -47,7 +47,9 @@ struct Snake {
   /**
    * @brief Create snake from head and optional tail
    */
-  static Snake create(Point head, std::vector<Point> tail = {}, Direction dir = Direction::RIGHT,
+  static Snake create(Point head,
+                      std::vector<Point> tail = {},
+                      Direction dir = Direction::RIGHT,
                       bool is_alive = true) {
     return Snake{head, tail, dir, is_alive};
   }

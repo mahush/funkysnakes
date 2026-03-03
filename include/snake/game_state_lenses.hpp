@@ -123,8 +123,8 @@ auto over_food_and_scores_viewing_snakes(TOp op) {
  */
 template <typename TOp>
 auto over_food_and_scores_viewing_snakes_and_board(TOp op) {
-  return lens(mutate<&GameState::food_items, &GameState::scores>, read<&GameState::snakes, &GameState::board>,
-              std::move(op));
+  return lens(
+      mutate<&GameState::food_items, &GameState::scores>, read<&GameState::snakes, &GameState::board>, std::move(op));
 }
 
 /**

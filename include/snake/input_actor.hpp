@@ -36,8 +36,12 @@ class InputActor : public Actor<InputActor> {
    * @param quit_topic Topic to publish quit requests
    * @param game_id The current game ID
    */
-  InputActor(ActorContext ctx, std::shared_ptr<StdinReader> stdin_reader, TopicPtr<DirectionMsg> direction_topic,
-             TopicPtr<PauseToggleMsg> pause_topic, TopicPtr<QuitMsg> quit_topic, GameId game_id);
+  InputActor(ActorContext ctx,
+             std::shared_ptr<StdinReader> stdin_reader,
+             TopicPtr<DirectionMsg> direction_topic,
+             TopicPtr<PauseToggleMsg> pause_topic,
+             TopicPtr<QuitMsg> quit_topic,
+             GameId game_id);
 
   /**
    * @brief Check if quit was requested
@@ -60,7 +64,8 @@ class InputActor : public Actor<InputActor> {
   };
 
   // Imperative shell: apply effects
-  void applyEffects(std::optional<DirectionMsg> direction, std::optional<PauseToggleMsg> pause,
+  void applyEffects(std::optional<DirectionMsg> direction,
+                    std::optional<PauseToggleMsg> pause,
                     std::optional<QuitMsg> quit);
 
   // Stage 1: Char stream → Keys (context-free parsing)

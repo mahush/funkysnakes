@@ -40,7 +40,7 @@ cmake --build build
 cmake -S . -B build
 # Symlink already exists: compile_commands.json -> build/compile_commands.json
 
-# Format code (uses .clang-format - Google style, 120 cols)
+# Format code (uses .clang-format - Google style, 120 cols, strict one-per-line wrapping)
 clang-format -i src/*.cpp include/**/*.hpp
 
 # Lint (uses .clang-tidy)
