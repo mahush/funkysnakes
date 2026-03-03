@@ -15,8 +15,10 @@ namespace snake {
 using actor_core::make_cancel_command;
 using actor_core::make_periodic_command;
 
-RendererActor::RendererActor(ActorContext ctx, TopicPtr<RenderableStateMsg> state_topic,
-                             TopicPtr<GameOverMsg> gameover_topic, TopicPtr<GameStateMetadataMsg> metadata_topic,
+RendererActor::RendererActor(ActorContext ctx,
+                             TopicPtr<RenderableStateMsg> state_topic,
+                             TopicPtr<GameOverMsg> gameover_topic,
+                             TopicPtr<GameStateMetadataMsg> metadata_topic,
                              TimerFactoryPtr timer_factory)
     : Actor{ctx},
       state_sub_{create_sub(state_topic)},

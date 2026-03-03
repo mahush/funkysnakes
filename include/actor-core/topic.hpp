@@ -39,7 +39,8 @@ class Topic {
   // processor: Actor that will be notified when messages arrive (via weak_ptr)
   // subscription: Actor's subscription queue (raw pointer - actor owns it)
   // strand: Strand to post notifications on
-  void subscribe(std::weak_ptr<ProcessorInterface> processor, Subscription<TMessage>* subscription,
+  void subscribe(std::weak_ptr<ProcessorInterface> processor,
+                 Subscription<TMessage>* subscription,
                  asio::strand<asio::io_context::executor_type> strand) {
     std::lock_guard<std::mutex> lock(mutex_);
     subscriptions_.push_back({processor, subscription, strand});
@@ -49,7 +50,8 @@ class Topic {
   void unsubscribe(Subscription<TMessage>* subscription) {
     std::lock_guard<std::mutex> lock(mutex_);
     subscriptions_.erase(
-        std::remove_if(subscriptions_.begin(), subscriptions_.end(),
+        std::remove_if(subscriptions_.begin(),
+                       subscriptions_.end(),
                        [subscription](const SubscriptionEntry& s) { return s.subscription == subscription; }),
         subscriptions_.end());
   }

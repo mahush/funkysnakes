@@ -5,12 +5,18 @@
 
 namespace snake {
 
-GameManagerActor::GameManagerActor(
-    ActorContext ctx, TopicPtr<GameClockCommandMsg> clock_topic, TopicPtr<StartGameMsg> startgame_topic,
-    TopicPtr<FoodRepositionTriggerMsg> reposition_topic, TopicPtr<GameStateMetadataMsg> metadata_topic,
-    TopicPtr<TickRateChangeMsg> tickrate_topic, TopicPtr<PlayerAliveStatesMsg> alivests_topic,
-    TopicPtr<GameStateSummaryRequestMsg> summary_req_topic, TopicPtr<GameStateSummaryResponseMsg> summary_resp_topic,
-    TopicPtr<GameOverMsg> gameover_topic, TopicPtr<PauseToggleMsg> pause_topic, TimerFactoryPtr timer_factory)
+GameManagerActor::GameManagerActor(ActorContext ctx,
+                                   TopicPtr<GameClockCommandMsg> clock_topic,
+                                   TopicPtr<StartGameMsg> startgame_topic,
+                                   TopicPtr<FoodRepositionTriggerMsg> reposition_topic,
+                                   TopicPtr<GameStateMetadataMsg> metadata_topic,
+                                   TopicPtr<TickRateChangeMsg> tickrate_topic,
+                                   TopicPtr<PlayerAliveStatesMsg> alivests_topic,
+                                   TopicPtr<GameStateSummaryRequestMsg> summary_req_topic,
+                                   TopicPtr<GameStateSummaryResponseMsg> summary_resp_topic,
+                                   TopicPtr<GameOverMsg> gameover_topic,
+                                   TopicPtr<PauseToggleMsg> pause_topic,
+                                   TimerFactoryPtr timer_factory)
     : Actor{ctx},
       clock_pub_{create_pub(clock_topic)},
       reposition_pub_{create_pub(reposition_topic)},

@@ -4,9 +4,12 @@
 
 namespace snake {
 
-InputActor::InputActor(ActorContext ctx, std::shared_ptr<StdinReader> stdin_reader,
-                       TopicPtr<DirectionMsg> direction_topic, TopicPtr<PauseToggleMsg> pause_topic,
-                       TopicPtr<QuitMsg> quit_topic, GameId game_id)
+InputActor::InputActor(ActorContext ctx,
+                       std::shared_ptr<StdinReader> stdin_reader,
+                       TopicPtr<DirectionMsg> direction_topic,
+                       TopicPtr<PauseToggleMsg> pause_topic,
+                       TopicPtr<QuitMsg> quit_topic,
+                       GameId game_id)
     : Actor{ctx},
       stdin_reader_{std::move(stdin_reader)},
       direction_pub_{create_pub(std::move(direction_topic))},
@@ -90,7 +93,8 @@ std::pair<std::optional<Key>, InputActor::KeyParseState> InputActor::tryParseKey
 // Imperative Shell - Apply Effects
 // ============================================================================
 
-void InputActor::applyEffects(std::optional<DirectionMsg> direction, std::optional<PauseToggleMsg> pause,
+void InputActor::applyEffects(std::optional<DirectionMsg> direction,
+                              std::optional<PauseToggleMsg> pause,
                               std::optional<QuitMsg> quit) {
   if (quit) {
     quit_pub_->publish(*quit);

@@ -63,7 +63,8 @@ FoodItems dropDeadSnakesAsFood(FoodItems food_items, const PerPlayerSnakes& snak
  * @param snakes Snakes (to check head positions)
  * @return Tuple of (updated food, updated scores)
  */
-std::tuple<FoodItems, PerPlayerScores> handleFoodEating(FoodItems food_items, PerPlayerScores scores,
+std::tuple<FoodItems, PerPlayerScores> handleFoodEating(FoodItems food_items,
+                                                        PerPlayerScores scores,
                                                         const PerPlayerSnakes& snakes);
 
 /**
@@ -82,7 +83,10 @@ std::tuple<FoodItems, PerPlayerScores> handleFoodEating(FoodItems food_items, Pe
  * @param snakes Snakes (for position generation)
  * @return Food items list with specified count
  */
-FoodItems initializeFood(RandomIntGeneratorFn random_int, int count, FoodItems food_items, const Board& board,
+FoodItems initializeFood(RandomIntGeneratorFn random_int,
+                         int count,
+                         FoodItems food_items,
+                         const Board& board,
                          const PerPlayerSnakes& snakes);
 
 /**
@@ -97,7 +101,10 @@ FoodItems initializeFood(RandomIntGeneratorFn random_int, int count, FoodItems f
  * @param snakes Snakes (for position generation)
  * @return Updated food with new items added
  */
-FoodItems replenishFood(RandomIntGeneratorFn random_int, int target_count, FoodItems food_items, const Board& board,
+FoodItems replenishFood(RandomIntGeneratorFn random_int,
+                        int target_count,
+                        FoodItems food_items,
+                        const Board& board,
                         const PerPlayerSnakes& snakes);
 
 /**
@@ -114,7 +121,9 @@ FoodItems replenishFood(RandomIntGeneratorFn random_int, int target_count, FoodI
  * @param snakes Snakes (for position generation)
  * @return Updated food with one item repositioned
  */
-FoodItems repositionRandomFood(RandomIntGeneratorFn random_int, FoodItems food_items, const Board& board,
+FoodItems repositionRandomFood(RandomIntGeneratorFn random_int,
+                               FoodItems food_items,
+                               const Board& board,
                                const PerPlayerSnakes& snakes);
 
 }  // namespace snake

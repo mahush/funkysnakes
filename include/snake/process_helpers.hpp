@@ -139,7 +139,9 @@ void processEventWithState(const std::shared_ptr<TTimer>& timer, TState& state, 
  * @param effect_handler Interpreter for effects (publishes messages, etc.)
  */
 template <typename TTimer, typename TState, typename TEffectHandler, typename TProcessFn>
-void processEventWithState(const std::shared_ptr<TTimer>& timer, TState& state, TProcessFn&& process_fn,
+void processEventWithState(const std::shared_ptr<TTimer>& timer,
+                           TState& state,
+                           TProcessFn&& process_fn,
                            TEffectHandler& effect_handler) {
   auto process_with_effect_handling =
       with_effect_handling<TState>(std::forward<TProcessFn>(process_fn), effect_handler);
@@ -164,7 +166,9 @@ void processEventWithState(const std::shared_ptr<TTimer>& timer, TState& state, 
  * @param effect_handler Interpreter for effects
  */
 template <typename TMsg, typename TState, typename TEffectHandler, typename TProcessFn>
-void processMessageWithState(const std::shared_ptr<Subscription<TMsg>>& sub, TState& state, TProcessFn&& process_fn,
+void processMessageWithState(const std::shared_ptr<Subscription<TMsg>>& sub,
+                             TState& state,
+                             TProcessFn&& process_fn,
                              TEffectHandler& effect_handler) {
   auto process_with_effect_handling =
       with_effect_handling<TState>(std::forward<TProcessFn>(process_fn), effect_handler);
@@ -253,7 +257,9 @@ void processWithState(const std::shared_ptr<InputSource<T>>& source, TState& sta
  * @param effect_handler Interpreter for effects
  */
 template <typename T, typename TState, typename TEffectHandler, typename TProcessFn>
-void processWithState(const std::shared_ptr<InputSource<T>>& source, TState& state, TProcessFn&& process_fn,
+void processWithState(const std::shared_ptr<InputSource<T>>& source,
+                      TState& state,
+                      TProcessFn&& process_fn,
                       TEffectHandler& effect_handler) {
   auto process_with_effect_handling =
       with_effect_handling<TState>(std::forward<TProcessFn>(process_fn), effect_handler);
