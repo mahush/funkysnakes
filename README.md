@@ -125,6 +125,10 @@ cmake --build build
 
 See `CLAUDE.md` for detailed architectural documentation and coding conventions.
 
+## Development
+
+This project was developed with the assistance of AI tools (Claude Code) for code generation, refactoring, and documentation.
+
 ## License
 
 See LICENSE file.
