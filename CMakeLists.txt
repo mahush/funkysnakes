@@ -72,7 +72,7 @@ target_include_directories(snake_actors PRIVATE
 target_link_libraries(snake_actors PRIVATE asio funkypipes)
 
 target_compile_options(snake_actors PRIVATE
-  -Wall -Wextra -Wpedantic
+  -Wall -Wextra -Wpedantic -Werror
   $<$<CONFIG:Debug>:-g -O0>
   $<$<CONFIG:Release>:-O3>
 )
@@ -118,7 +118,7 @@ if(SNAKE_BUILD_TESTS)
     ${PROJECT_SOURCE_DIR}/include
     ${PROJECT_SOURCE_DIR}/tests
   )
-  target_compile_options(test_snake PRIVATE -Wall -Wextra -Wpedantic)
+  target_compile_options(test_snake PRIVATE -Wall -Wextra -Wpedantic -Werror)
 
   include(GoogleTest)
   gtest_discover_tests(test_snake)
