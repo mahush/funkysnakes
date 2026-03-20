@@ -118,14 +118,9 @@ cmake --build build
 ./build/test_snake
 ```
 
-### Controls
+## Development
 
-- **Player A (Snake A)**: W (up), A (left), S (down), D (right)
-- **Player B (Snake B)**: Arrow keys (↑ ↓ ← →)
-- **Quit**: Q
-
-
-See `CLAUDE.md` for detailed architectural documentation and coding conventions.
+This project was developed with the assistance of AI tools for code generation, refactoring, and documentation.
 
 ## License
 
