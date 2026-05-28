@@ -46,6 +46,8 @@ Point wrapPoint(Point p, const Board& board) {
 
 }  // namespace
 
+Point nextHead(const Snake& s, const Board& board) { return wrapPoint(getNextHeadPosition(s), board); }
+
 Snake initial(Point head, Direction dir, int length) {
   Snake s;
   s.head_ = head;
@@ -76,27 +78,15 @@ Snake initial(Point head, Direction dir, int length) {
 
 Snake move(Snake s, const Board& board) {
   if (!s.alive_) return s;
-
-  Point new_head = wrapPoint(getNextHeadPosition(s), board);
-
-  std::vector<Point> new_tail;
-  new_tail.reserve(s.tail_.size() + 1);
-  new_tail.push_back(s.head_);
-  new_tail.insert(new_tail.end(), s.tail_.begin(), s.tail_.end());
-
-  if (!new_tail.empty()) {
-    new_tail.pop_back();
-  }
-
-  s.head_ = new_head;
-  s.tail_ = std::move(new_tail);
+  s = grow(std::move(s), board);
+  s.tail_.pop_back();
   return s;
 }
 
 Snake grow(Snake s, const Board& board) {
   if (!s.alive_) return s;
 
-  Point new_head = wrapPoint(getNextHeadPosition(s), board);
+  Point new_head = nextHead(s, board);
 
   std::vector<Point> new_tail;
   new_tail.reserve(s.tail_.size() + 1);

@@ -77,10 +77,7 @@ PerPlayerSnakes moveSnakes(PerPlayerSnakes snakes, const Board& board, const Foo
   for (auto& [player_id, snake] : snakes) {
     if (!snake.alive()) continue;
 
-    // Calculate next head position to check if landing on food
-    Point next_head = snake_model::move(snake, board).head();
-
-    // Check if landing on food
+    Point next_head = snake_model::nextHead(snake, board);
     bool is_eating = std::find(food_items.begin(), food_items.end(), next_head) != food_items.end();
 
     if (is_eating) {

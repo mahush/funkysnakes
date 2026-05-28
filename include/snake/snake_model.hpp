@@ -119,5 +119,17 @@ Snake kill(Snake s);
  */
 Snake setDirection(Snake s, Direction dir);
 
+/**
+ * @brief Query where the head would be after one step
+ *
+ * Returns the next head position without modifying the snake.
+ * Useful for game-level decisions (e.g., checking food before choosing move vs grow).
+ *
+ * @param s Snake to query
+ * @param board Board dimensions for wrapping
+ * @return Next head position
+ */
+Point nextHead(const Snake& s, const Board& board);
+
 }  // namespace snake_model
 }  // namespace snake
