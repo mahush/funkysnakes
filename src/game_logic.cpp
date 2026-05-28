@@ -165,8 +165,8 @@ FoodItems dropCutTailsAsFood(FoodItems food_items, const FoodItems& cut_tails) {
 FoodItems dropDeadSnakesAsFood(FoodItems food_items, const PerPlayerSnakes& snakes) {
   for (const auto& [player_id, snake] : snakes) {
     if (!snake.alive()) {
-      auto body = snake.toBody();
-      food_items.insert(food_items.end(), body.begin(), body.end());
+      food_items.push_back(snake.head());
+      food_items.insert(food_items.end(), snake.tail().begin(), snake.tail().end());
     }
   }
 

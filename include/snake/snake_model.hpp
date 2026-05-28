@@ -30,14 +30,6 @@ class Snake {
   bool alive() const { return alive_; }
   std::size_t length() const { return 1 + tail_.size(); }
 
-  std::vector<Point> toBody() const {
-    std::vector<Point> body;
-    body.reserve(1 + tail_.size());
-    body.push_back(head_);
-    body.insert(body.end(), tail_.begin(), tail_.end());
-    return body;
-  }
-
  private:
   Point head_;
   std::vector<Point> tail_;
