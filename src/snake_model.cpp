@@ -2,72 +2,137 @@
 
 #include <algorithm>
 
-#include "snake/functional_utils.hpp"
-
 namespace snake {
+namespace snake_model {
 
-Point getHead(const Snake& snake) { return snake.head; }
+namespace {
 
-CutResult cutTailAt(const Snake& snake, const Point& hitPoint) {
-  // If hit point is the head, can't cut (would have no snake left)
-  if (snake.head == hitPoint) {
-    return {snake, {}};
+Point getNextHeadPosition(const Snake& snake) {
+  Point next = snake.head();
+
+  switch (snake.currentDirection()) {
+    case Direction::LEFT:
+      next.x = snake.head().x - 1;
+      break;
+    case Direction::RIGHT:
+      next.x = snake.head().x + 1;
+      break;
+    case Direction::UP:
+      next.y = snake.head().y - 1;
+      break;
+    case Direction::DOWN:
+      next.y = snake.head().y + 1;
+      break;
   }
 
-  // Search in tail
-  auto it = std::find(snake.tail.begin(), snake.tail.end(), hitPoint);
-  if (it == snake.tail.end()) {
-    return {snake, {}};  // Point not found in tail, return unchanged
+  return next;
+}
+
+Point wrapPoint(Point p, const Board& board) {
+  if (p.x < 0) {
+    p.x = board.width - 1;
+  } else if (p.x >= board.width) {
+    p.x = 0;
   }
 
-  // Cut tail at this point (everything before it)
-  Snake truncated{snake.head, std::vector<Point>(snake.tail.begin(), it), snake.current_direction, snake.alive};
-
-  // Segments from hit point onwards are cut off
-  std::vector<Point> cut_segments(it, snake.tail.end());
-
-  return {truncated, cut_segments};
-}
-
-bool firstBitesSecond(const Snake& first, const Snake& second) {
-  const Point& attackerHead = first.head;
-
-  // Check if attacker's head hits victim's head
-  if (attackerHead == second.head) {
-    return true;
+  if (p.y < 0) {
+    p.y = board.height - 1;
+  } else if (p.y >= board.height) {
+    p.y = 0;
   }
 
-  // Check if attacker's head hits any point in victim's tail
-  return std::find(second.tail.begin(), second.tail.end(), attackerHead) != second.tail.end();
+  return p;
 }
 
-bool bothBiteEachOther(const Snake& a, const Snake& b) { return firstBitesSecond(a, b) && firstBitesSecond(b, a); }
+}  // namespace
 
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wpragmas"
-#pragma GCC diagnostic ignored "-Wunknown-warning-option"
-#pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
-SnakePair applyBiteRule(SnakePair s) {
-  auto rule = cond(
-      // Otherwise / default case: return unchanged
-      [](SnakePair snakes) { return snakes; },
+Snake initial(Point head, Direction dir, int length) {
+  Snake s;
+  s.head_ = head;
+  s.current_direction_ = dir;
+  s.alive_ = true;
 
-      // Case 1: Snake A bites Snake B → cut B at A's head position
-      Case<SnakePair>{[](const SnakePair& snakes) { return firstBitesSecond(snakes.a, snakes.b); },
-                      [](SnakePair snakes) {
-                        snakes.b = cutTailAt(snakes.b, getHead(snakes.a)).snake;
-                        return snakes;
-                      }},
+  for (int i = 1; i < length; ++i) {
+    Point tail_segment = head;
+    switch (dir) {
+      case Direction::RIGHT:
+        tail_segment.x = head.x - i;
+        break;
+      case Direction::LEFT:
+        tail_segment.x = head.x + i;
+        break;
+      case Direction::DOWN:
+        tail_segment.y = head.y - i;
+        break;
+      case Direction::UP:
+        tail_segment.y = head.y + i;
+        break;
+    }
+    s.tail_.push_back(tail_segment);
+  }
 
-      // Case 2: Snake B bites Snake A → cut A at B's head position
-      Case<SnakePair>{[](const SnakePair& snakes) { return firstBitesSecond(snakes.b, snakes.a); },
-                      [](SnakePair snakes) {
-                        snakes.a = cutTailAt(snakes.a, getHead(snakes.b)).snake;
-                        return snakes;
-                      }});
-
-  return rule(s);
+  return s;
 }
-#pragma GCC diagnostic pop
 
+Snake move(Snake s, const Board& board) {
+  if (!s.alive_) return s;
+
+  Point new_head = wrapPoint(getNextHeadPosition(s), board);
+
+  std::vector<Point> new_tail;
+  new_tail.reserve(s.tail_.size() + 1);
+  new_tail.push_back(s.head_);
+  new_tail.insert(new_tail.end(), s.tail_.begin(), s.tail_.end());
+
+  if (!new_tail.empty()) {
+    new_tail.pop_back();
+  }
+
+  s.head_ = new_head;
+  s.tail_ = std::move(new_tail);
+  return s;
+}
+
+Snake grow(Snake s, const Board& board) {
+  if (!s.alive_) return s;
+
+  Point new_head = wrapPoint(getNextHeadPosition(s), board);
+
+  std::vector<Point> new_tail;
+  new_tail.reserve(s.tail_.size() + 1);
+  new_tail.push_back(s.head_);
+  new_tail.insert(new_tail.end(), s.tail_.begin(), s.tail_.end());
+
+  s.head_ = new_head;
+  s.tail_ = std::move(new_tail);
+  return s;
+}
+
+std::tuple<Snake, std::vector<Point>> cutAt(Snake s, Point cut_point) {
+  std::vector<Point> cut_segments;
+
+  if (s.head_ == cut_point) {
+    return {s, cut_segments};
+  }
+
+  auto it = std::find(s.tail_.begin(), s.tail_.end(), cut_point);
+  if (it != s.tail_.end()) {
+    cut_segments = std::vector<Point>(it, s.tail_.end());
+    s.tail_ = std::vector<Point>(s.tail_.begin(), it);
+  }
+
+  return {s, cut_segments};
+}
+
+Snake kill(Snake s) {
+  s.alive_ = false;
+  return s;
+}
+
+Snake setDirection(Snake s, Direction dir) {
+  s.current_direction_ = dir;
+  return s;
+}
+
+}  // namespace snake_model
 }  // namespace snake

@@ -17,11 +17,11 @@ Point generateRandomFoodPosition(const Board& board, const PerPlayerSnakes& snak
     // Check if position is occupied by any snake
     bool occupied = false;
     for (const auto& [player_id, snake] : snakes) {
-      if (snake.head == candidate) {
+      if (snake.head() == candidate) {
         occupied = true;
         break;
       }
-      for (const Point& segment : snake.tail) {
+      for (const Point& segment : snake.tail()) {
         if (segment == candidate) {
           occupied = true;
           break;
@@ -50,7 +50,7 @@ FoodItems dropCutTailsAsFood(FoodItems food_items, const FoodItems& cut_tails) {
 
 FoodItems dropDeadSnakesAsFood(FoodItems food_items, const PerPlayerSnakes& snakes) {
   for (const auto& [player_id, snake] : snakes) {
-    if (!snake.alive) {
+    if (!snake.alive()) {
       // Add entire snake body as food
       auto body = snake.toBody();
       food_items.insert(food_items.end(), body.begin(), body.end());
@@ -64,10 +64,10 @@ std::tuple<FoodItems, PerPlayerScores> handleFoodEating(FoodItems food_items,
                                                         PerPlayerScores scores,
                                                         const PerPlayerSnakes& snakes) {
   for (const auto& [player_id, snake] : snakes) {
-    if (!snake.alive) continue;
+    if (!snake.alive()) continue;
 
     // Check if snake head is on food
-    auto it = std::find(food_items.begin(), food_items.end(), snake.head);
+    auto it = std::find(food_items.begin(), food_items.end(), snake.head());
 
     if (it != food_items.end()) {
       // Remove eaten food

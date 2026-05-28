@@ -288,7 +288,7 @@ auto with_combining_effects(StateWithEffect<TState, TEffect> x, TF f) -> StateWi
 /**
  * @brief Snake with score effect (for snake-specific operations)
  */
-using SnakeWithScoreEffect = StateWithEffect<Snake, ScoreDelta>;
+using SnakeWithScoreEffect = StateWithEffect<snake_model::Snake, ScoreDelta>;
 
 /**
  * @brief Game state with composite game effect

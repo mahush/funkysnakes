@@ -4,13 +4,14 @@
 #include "snake/game_messages.hpp"
 #include "snake/generic_lens.hpp"
 #include "snake/generic_view.hpp"
+#include "snake/snake_model.hpp"
 
 namespace snake {
 
 // Test: Single mutable field
 TEST(GenericLensTest, SingleMutableField) {
-  auto op = [](std::map<PlayerId, Snake> snakes) {
-    snakes["PLAYER_A"] = Snake{{5, 5}, {}, Direction::UP, true};
+  auto op = [](PerPlayerSnakes snakes) {
+    snakes["PLAYER_A"] = snake_model::initial(Point{5, 5}, Direction::UP, 1);
     return snakes;
   };
 
@@ -20,14 +21,14 @@ TEST(GenericLensTest, SingleMutableField) {
   state = transform(state);
 
   EXPECT_EQ(state.snakes.size(), 1u);
-  EXPECT_EQ(state.snakes["PLAYER_A"].head.x, 5);
-  EXPECT_EQ(state.snakes["PLAYER_A"].head.y, 5);
+  EXPECT_EQ(state.snakes["PLAYER_A"].head().x, 5);
+  EXPECT_EQ(state.snakes["PLAYER_A"].head().y, 5);
 }
 
 // Test: Two mutable fields
 TEST(GenericLensTest, TwoMutableFields) {
-  auto op = [](std::map<PlayerId, Snake> snakes, std::map<PlayerId, int> scores) {
-    snakes["PLAYER_A"] = Snake{{5, 5}, {}, Direction::UP, true};
+  auto op = [](PerPlayerSnakes snakes, std::map<PlayerId, int> scores) {
+    snakes["PLAYER_A"] = snake_model::initial(Point{5, 5}, Direction::UP, 1);
     scores["PLAYER_A"] = 100;
     return std::make_tuple(snakes, scores);
   };
@@ -43,19 +44,17 @@ TEST(GenericLensTest, TwoMutableFields) {
 
 // Test: Mutable + readonly access
 TEST(GenericLensTest, MutableWithReadonly) {
-  auto op = [](std::map<PlayerId, Snake> snakes, const Board& board, const std::vector<Point>& food) {
+  auto op = [](PerPlayerSnakes snakes, const Board& board, const std::vector<Point>& food) {
     // Verify readonly access works
     EXPECT_EQ(board.width, 60);
     EXPECT_EQ(board.height, 20);
     EXPECT_EQ(food.size(), 2u);
 
-    snakes["PLAYER_A"] = Snake{{10, 10}, {}, Direction::RIGHT, true};
+    snakes["PLAYER_A"] = snake_model::initial(Point{10, 10}, Direction::RIGHT, 1);
     return snakes;
   };
 
-  auto transform = lens(mutate<&GameState::snakes>,
-                       read<&GameState::board, &GameState::food_items>,
-                       op);
+  auto transform = lens(mutate<&GameState::snakes>, read<&GameState::board, &GameState::food_items>, op);
 
   GameState state;
   state.board = {60, 20};
@@ -63,12 +62,12 @@ TEST(GenericLensTest, MutableWithReadonly) {
 
   state = transform(state);
 
-  EXPECT_EQ(state.snakes["PLAYER_A"].head.x, 10);
+  EXPECT_EQ(state.snakes["PLAYER_A"].head().x, 10);
 }
 
 // Test: Additional output (threaded to next stage)
 TEST(GenericLensTest, AdditionalOutput) {
-  auto op = [](std::map<PlayerId, Snake> snakes, std::map<PlayerId, int> scores) {
+  auto op = [](PerPlayerSnakes snakes, std::map<PlayerId, int> scores) {
     scores["PLAYER_A"] = 50;
     std::vector<Point> cut_tails = {{1, 1}, {2, 2}};
     return std::make_tuple(snakes, scores, cut_tails);
@@ -107,10 +106,7 @@ TEST(GenericLensTest, PipelineArgumentForwarding) {
 
 // Test: Complex case - all features combined
 TEST(GenericLensTest, ComplexTransformation) {
-  auto op = [](std::map<PlayerId, Snake> snakes,
-               std::map<PlayerId, int> scores,
-               const Board& board,
-               int bonus) {
+  auto op = [](PerPlayerSnakes snakes, std::map<PlayerId, int> scores, const Board& board, int bonus) {
     // Use readonly board
     EXPECT_EQ(board.width, 80);
 
@@ -123,9 +119,7 @@ TEST(GenericLensTest, ComplexTransformation) {
     return std::make_tuple(snakes, scores, result_data);
   };
 
-  auto transform = lens(mutate<&GameState::snakes, &GameState::scores>,
-                       read<&GameState::board>,
-                       op);
+  auto transform = lens(mutate<&GameState::snakes, &GameState::scores>, read<&GameState::board>, op);
 
   GameState state;
   state.board = {80, 30};
@@ -142,8 +136,7 @@ TEST(GenericLensTest, ComplexTransformation) {
 // Test: bindFront with generic lens
 TEST(GenericLensTest, WithBindFront) {
   // Simulate a function like updateFoodPositions that takes extra param first
-  auto updateWithTick = [](int tick, std::vector<Point> food,
-                          const Board& board, const std::map<PlayerId, Snake>&) {
+  auto updateWithTick = [](int tick, std::vector<Point> food, const Board& board, const PerPlayerSnakes&) {
     // Only update on certain ticks
     if (tick % 3 == 0 && !food.empty()) {
       food[0].x = (food[0].x + 1) % board.width;
@@ -155,9 +148,7 @@ TEST(GenericLensTest, WithBindFront) {
   int current_tick = 6;
   auto bound_op = funkypipes::bindFront(updateWithTick, current_tick);
 
-  auto transform = lens(mutate<&GameState::food_items>,
-                       read<&GameState::board, &GameState::snakes>,
-                       bound_op);
+  auto transform = lens(mutate<&GameState::food_items>, read<&GameState::board, &GameState::snakes>, bound_op);
 
   GameState state;
   state.board = {20, 20};
@@ -211,8 +202,9 @@ TEST(GenericViewTest, SingleReadonlyField) {
 }
 
 TEST(GenericViewTest, MultipleReadonlyFields) {
-  auto compute_total = view(read<&GameState::board, &GameState::interval_ms>,
-                            [](const Board& board, int interval_ms) { return board.width * board.height * interval_ms; });
+  auto compute_total = view(read<&GameState::board, &GameState::interval_ms>, [](const Board& board, int interval_ms) {
+    return board.width * board.height * interval_ms;
+  });
 
   GameState state;
   state.board.width = 10;
@@ -225,9 +217,8 @@ TEST(GenericViewTest, MultipleReadonlyFields) {
 }
 
 TEST(GenericViewTest, WithAdditionalArguments) {
-  auto multiply_width = view(read<&GameState::board>, [](const Board& board, int multiplier) {
-    return board.width * multiplier;
-  });
+  auto multiply_width =
+      view(read<&GameState::board>, [](const Board& board, int multiplier) { return board.width * multiplier; });
 
   GameState state;
   state.board.width = 20;

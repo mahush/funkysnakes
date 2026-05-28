@@ -107,15 +107,15 @@ void RendererActor::renderBoard(const RenderableStateMsg& state, bool show_game_
 
   // Draw snakes (drawn after food so snakes appear on top)
   for (const auto& [player_id, snake] : state.snakes) {
-    if (snake.alive) {
+    if (snake.alive()) {
       // Draw head
-      Point head = snake.head;
-      if (head.y >= 0 && head.y < state.board.height && head.x >= 0 && head.x < state.board.width) {
-        board[head.y][head.x] = (player_id == PLAYER_A) ? 'A' : 'B';
+      Point h = snake.head();
+      if (h.y >= 0 && h.y < state.board.height && h.x >= 0 && h.x < state.board.width) {
+        board[h.y][h.x] = (player_id == PLAYER_A) ? 'A' : 'B';
       }
 
       // Draw tail
-      for (const Point& segment : snake.tail) {
+      for (const Point& segment : snake.tail()) {
         if (segment.y >= 0 && segment.y < state.board.height && segment.x >= 0 && segment.x < state.board.width) {
           board[segment.y][segment.x] = (player_id == PLAYER_A) ? 'a' : 'b';
         }
@@ -260,9 +260,9 @@ void RendererActor::renderBoard(const RenderableStateMsg& state, bool show_game_
       score = score_it->second;
     }
     std::cout << "║";
-    std::cout << std::left << std::setw(10) << player_id << " │ " << std::setw(5) << (snake.alive ? "ALIVE" : "DEAD")
+    std::cout << std::left << std::setw(10) << player_id << " │ " << std::setw(5) << (snake.alive() ? "ALIVE" : "DEAD")
               << " │ " << std::right << std::setw(5) << score << " │ " << std::setw(6) << snake.length() << " │ "
-              << std::setw(2) << snake.head.x << "," << std::left << std::setw(2) << snake.head.y
+              << std::setw(2) << snake.head().x << "," << std::left << std::setw(2) << snake.head().y
               << std::string(17, ' ');
     std::cout << "║\n";
   }

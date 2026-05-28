@@ -1,95 +1,128 @@
-#ifndef SNAKE_SNAKE_MODEL_HPP
-#define SNAKE_SNAKE_MODEL_HPP
+#pragma once
 
-#include <array>
-#include <functional>
-#include <utility>
+#include <map>
+#include <tuple>
 #include <vector>
 
-#include "snake/game_messages.hpp"
+#include "snake/game_types.hpp"
 
 namespace snake {
+namespace snake_model {
 
 /**
- * @brief Pair of snakes for collision detection
+ * @brief Snake with guaranteed head and protected body evolution
  *
- * Used for functional collision handling between two snakes.
+ * Represents a snake that always has at least a head.
+ * The tail can be empty (snake of length 1).
+ * This makes illegal states (empty snake) unrepresentable.
+ *
+ * All mutations go through friend functions to protect invariants:
+ * - Head moves exactly one cell per tick
+ * - Body remains a connected chain
+ * - Dead snakes cannot move or grow
+ *
+ * Note: player_id is NOT stored here - it's the key in GameState.snakes map
  */
-struct SnakePair {
-  Snake a;
-  Snake b;
+class Snake {
+ public:
+  const Point& head() const { return head_; }
+  const std::vector<Point>& tail() const { return tail_; }
+  Direction currentDirection() const { return current_direction_; }
+  bool alive() const { return alive_; }
+  std::size_t length() const { return 1 + tail_.size(); }
+
+  std::vector<Point> toBody() const {
+    std::vector<Point> body;
+    body.reserve(1 + tail_.size());
+    body.push_back(head_);
+    body.insert(body.end(), tail_.begin(), tail_.end());
+    return body;
+  }
+
+ private:
+  Point head_;
+  std::vector<Point> tail_;
+  Direction current_direction_;
+  bool alive_{true};
+
+  friend Snake initial(Point head, Direction dir, int length);
+  friend Snake move(Snake s, const Board& board);
+  friend Snake grow(Snake s, const Board& board);
+  friend std::tuple<Snake, std::vector<Point>> cutAt(Snake s, Point cut_point);
+  friend Snake kill(Snake s);
+  friend Snake setDirection(Snake s, Direction dir);
 };
 
 /**
- * @brief Result of cutting a snake's tail
+ * @brief Create a snake with initial body extending backwards from head
  *
- * Contains both the truncated snake and the segments that were cut off.
+ * Builds a connected chain of the specified length, extending in the
+ * opposite direction of the initial movement direction.
+ *
+ * @param head Starting head position
+ * @param dir Initial movement direction
+ * @param length Total snake length (head + tail)
+ * @return Newly constructed Snake
  */
-struct CutResult {
-  Snake snake;                      // Truncated snake
-  std::vector<Point> cut_segments;  // Segments that were removed
-};
+Snake initial(Point head, Direction dir, int length);
 
 /**
- * @brief Get the head position of a snake
+ * @brief Move snake one step in current direction (constant length)
  *
- * Always returns the head position since Snake always has a head.
+ * Head advances one cell (wrapped at board boundaries), tail tip removed.
+ * No-op if dead.
  *
- * @param snake Snake
- * @return Head position
+ * @param s Snake to move
+ * @param board Board dimensions for wrapping
+ * @return Snake after moving
  */
-Point getHead(const Snake& snake);
+Snake move(Snake s, const Board& board);
 
 /**
- * @brief Cut tail of snake starting at a specific point
+ * @brief Grow snake one step in current direction (length increases by one)
  *
- * Returns both the truncated snake and the segments that were cut off.
- * The cut point and everything after it are removed from the snake and
- * returned as cut_segments. If the cut point is the head or not found,
- * returns the original snake with empty cut_segments.
+ * Head advances one cell (wrapped at board boundaries), tail tip kept.
+ * No-op if dead.
  *
- * @param snake Original snake
- * @param hitPoint Point where to start cutting tail (excluded from result)
- * @return CutResult containing truncated snake and cut segments
+ * @param s Snake to grow
+ * @param board Board dimensions for wrapping
+ * @return Snake after growing
  */
-CutResult cutTailAt(const Snake& snake, const Point& hitPoint);
+Snake grow(Snake s, const Board& board);
 
 /**
- * @brief Check if first snake's head bites second snake's body
+ * @brief Cut snake tail at specified point
  *
- * Returns true if the first snake's head is contained anywhere in the
- * second snake's body (head or tail).
+ * Removes all tail segments from the cut point onwards and returns them.
+ * Body stays connected after truncation.
+ * If cut point is the head or not in tail, snake is unchanged and cut is empty.
  *
- * @param first Snake that might be biting
- * @param second Snake that might be bitten
- * @return true if first bites second
+ * @param s Snake to cut
+ * @param cut_point Point where to cut the tail
+ * @return Tuple of (snake with tail cut, cut tail segments)
  */
-bool firstBitesSecond(const Snake& first, const Snake& second);
+std::tuple<Snake, std::vector<Point>> cutAt(Snake s, Point cut_point);
 
 /**
- * @brief Check if both snakes bite each other simultaneously
+ * @brief Kill a snake (alive -> dead, one-way transition)
  *
- * Returns true if both snakes' heads hit each other's bodies at the same time.
- *
- * @param a First snake
- * @param b Second snake
- * @return true if both bite each other
+ * @param s Snake to kill
+ * @return Dead snake
  */
-bool bothBiteEachOther(const Snake& a, const Snake& b);
+Snake kill(Snake s);
 
 /**
- * @brief Apply bite rule to two snakes
+ * @brief Set movement direction
  *
- * Pure functional implementation of collision detection:
- * - If snake A's head hits snake B's body, cut B at the hit point
- * - If snake B's head hits snake A's body, cut A at the hit point
- * - Otherwise, return snakes unchanged
- *
- * @param s Pair of snakes
- * @return New pair of snakes with bite rule applied
+ * @param s Snake to update
+ * @param dir New direction
+ * @return Snake with updated direction
  */
-SnakePair applyBiteRule(SnakePair s);
+Snake setDirection(Snake s, Direction dir);
+
+}  // namespace snake_model
+
+// Type alias at the snake namespace level for per-player snake data
+using PerPlayerSnakes = std::map<PlayerId, snake_model::Snake>;
 
 }  // namespace snake
-
-#endif  // SNAKE_SNAKE_MODEL_HPP

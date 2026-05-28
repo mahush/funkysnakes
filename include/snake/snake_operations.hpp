@@ -9,29 +9,11 @@
 
 namespace snake {
 
+using Snake = snake_model::Snake;
+
 // ============================================================================
-// Basic Snake Utilities
+// Single-Snake Predicates
 // ============================================================================
-
-/**
- * @brief Extract alive states from snakes
- *
- * Transforms per-player snakes into per-player alive states.
- *
- * @param snakes Per-player snakes
- * @return Per-player alive states
- */
-PerPlayerAliveStates extractAliveStates(const PerPlayerSnakes& snakes);
-
-/**
- * @brief Get next head position based on current direction
- */
-Point getNextHeadPosition(const Snake& snake);
-
-/**
- * @brief Wrap a point around board boundaries
- */
-Point wrapPoint(Point p, const Board& board);
 
 /**
  * @brief Check if snake's head collides with its own tail
@@ -42,34 +24,41 @@ Point wrapPoint(Point p, const Board& board);
 bool snakeBitesItself(const Snake& snake);
 
 // ============================================================================
-// Snake Transformations
+// Inter-Snake Predicates
 // ============================================================================
 
 /**
- * @brief Move snake one step in current direction
+ * @brief Check if first snake's head bites second snake's body
  *
- * Calculates new head position, wraps it around board boundaries.
- * If eating, keeps all tail segments (snake grows by one).
- * If not eating, removes the last tail segment (maintains length).
+ * Returns true if the first snake's head is contained anywhere in the
+ * second snake's body (head or tail).
  *
- * @param snake Snake to move
- * @param board Board dimensions for wrapping
- * @param is_eating Whether snake is eating food (grows if true)
- * @return Snake after moving
+ * @param first Snake that might be biting
+ * @param second Snake that might be bitten
+ * @return true if first bites second
  */
-Snake moveSnake(Snake snake, const Board& board, bool is_eating);
+bool firstBitesSecond(const Snake& first, const Snake& second);
 
 /**
- * @brief Cut snake tail at specified point
+ * @brief Check if both snakes bite each other simultaneously
  *
- * Removes all tail segments from the cut point onwards and returns them separately.
- * If cut point is the head or not in tail, snake is unchanged and cut is empty.
- *
- * @param snake Snake to cut
- * @param cut_point Point where to cut the tail
- * @return Tuple of (snake with tail cut, cut tail segments)
+ * @param a First snake
+ * @param b Second snake
+ * @return true if both bite each other
  */
-std::tuple<Snake, std::vector<Point>> cutSnakeTailAt(Snake snake, Point cut_point);
+bool bothBiteEachOther(const Snake& a, const Snake& b);
+
+// ============================================================================
+// Batch Utilities
+// ============================================================================
+
+/**
+ * @brief Extract alive states from snakes
+ *
+ * @param snakes Per-player snakes
+ * @return Per-player alive states
+ */
+PerPlayerAliveStates extractAliveStates(const PerPlayerSnakes& snakes);
 
 // ============================================================================
 // Player Initialization

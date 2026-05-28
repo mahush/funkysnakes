@@ -17,7 +17,7 @@ State try_add(State state, const PerPlayerSnakes& snakes, const DirectionCommand
     return state;  // Player not found, no change
   }
 
-  const Snake& snake = snake_it->second;
+  const snake_model::Snake& snake = snake_it->second;
 
   // Lazy initialization: create queue if player doesn't have one yet
   auto [queue_it, inserted] = state.queues.try_emplace(cmd.player_id, std::deque<Direction>{});
@@ -34,7 +34,7 @@ State try_add(State state, const PerPlayerSnakes& snakes, const DirectionCommand
   }
 
   // Determine effective direction (last queued, or snake's current if queue empty)
-  Direction effective_dir = player_queue.empty() ? snake.current_direction : player_queue.back();
+  Direction effective_dir = player_queue.empty() ? snake.currentDirection() : player_queue.back();
 
   // Rule 2: Reject 180° turn from effective direction
   if (is_opposite(new_dir, effective_dir)) {
