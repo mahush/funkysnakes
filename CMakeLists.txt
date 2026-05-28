@@ -41,14 +41,14 @@ target_include_directories(funkypipes INTERFACE ${funkypipes_SOURCE_DIR}/include
 add_executable(snake_actors
   src/main.cpp
   src/direction_command_filter.cpp
-  src/food_operations.cpp
+  src/game_logic.cpp
+  src/snake_predicates.cpp
   src/game_manager_actor.cpp
   src/game_engine_actor.cpp
   src/input_actor.cpp
   src/stdin_reader.cpp
   src/renderer_actor.cpp
   src/snake_model.cpp
-  src/snake_operations.cpp
   src/utility.cpp
   src/logger.cpp
 )
@@ -88,14 +88,14 @@ if(SNAKE_BUILD_TESTS)
     tests/test_actors.cpp
     tests/test_generic_lens.cpp
     src/direction_command_filter.cpp
-    src/food_operations.cpp
+    src/game_logic.cpp
+    src/snake_predicates.cpp
     src/game_manager_actor.cpp
     src/game_engine_actor.cpp
     src/input_actor.cpp
     src/stdin_reader.cpp
     src/renderer_actor.cpp
     src/snake_model.cpp
-    src/snake_operations.cpp
     src/utility.cpp
     src/logger.cpp
   )

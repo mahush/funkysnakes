@@ -1,35 +1,13 @@
-#include "snake/snake_operations.hpp"
+#include "snake/game_logic.hpp"
 
 #include <algorithm>
 #include <iterator>
 
 #include "snake/control_messages.hpp"
+#include "snake/snake_model.hpp"
+#include "snake/snake_predicates.hpp"
 
 namespace snake {
-
-// ============================================================================
-// Single-Snake Predicates
-// ============================================================================
-
-bool snakeBitesItself(const Snake& snake) {
-  return std::find(snake.tail().begin(), snake.tail().end(), snake.head()) != snake.tail().end();
-}
-
-// ============================================================================
-// Inter-Snake Predicates
-// ============================================================================
-
-bool firstBitesSecond(const Snake& first, const Snake& second) {
-  const Point& attacker_head = first.head();
-
-  if (attacker_head == second.head()) {
-    return true;
-  }
-
-  return std::find(second.tail().begin(), second.tail().end(), attacker_head) != second.tail().end();
-}
-
-bool bothBiteEachOther(const Snake& a, const Snake& b) { return firstBitesSecond(a, b) && firstBitesSecond(b, a); }
 
 // ============================================================================
 // Batch Utilities
@@ -60,7 +38,7 @@ std::tuple<PerPlayerSnakes, PerPlayerScores> addPlayer(PlayerId player_id,
 }
 
 // ============================================================================
-// Game Logic Operations on Snakes
+// Snake Game Logic
 // ============================================================================
 
 PerPlayerSnakes applyDirectionMsgs(PerPlayerSnakes snakes, const PerPlayerDirection& consumed_directions) {
@@ -146,6 +124,109 @@ std::tuple<PerPlayerSnakes, PerPlayerScores, std::vector<Point>> handleCollision
   }
 
   return {snakes, scores, cut_tails};
+}
+
+// ============================================================================
+// Food Logic
+// ============================================================================
+
+Point generateRandomFoodPosition(const Board& board, const PerPlayerSnakes& snakes, RandomIntGeneratorFn random_int) {
+  for (int attempt = 0; attempt < 100; ++attempt) {
+    Point candidate{random_int(0, board.width - 1), random_int(0, board.height - 1)};
+
+    bool occupied = false;
+    for (const auto& [player_id, snake] : snakes) {
+      if (snake.head() == candidate) {
+        occupied = true;
+        break;
+      }
+      for (const Point& segment : snake.tail()) {
+        if (segment == candidate) {
+          occupied = true;
+          break;
+        }
+      }
+      if (occupied) break;
+    }
+
+    if (!occupied) {
+      return candidate;
+    }
+  }
+
+  return {random_int(0, board.width - 1), random_int(0, board.height - 1)};
+}
+
+FoodItems dropCutTailsAsFood(FoodItems food_items, const FoodItems& cut_tails) {
+  food_items.insert(food_items.end(), cut_tails.begin(), cut_tails.end());
+  return food_items;
+}
+
+FoodItems dropDeadSnakesAsFood(FoodItems food_items, const PerPlayerSnakes& snakes) {
+  for (const auto& [player_id, snake] : snakes) {
+    if (!snake.alive()) {
+      auto body = snake.toBody();
+      food_items.insert(food_items.end(), body.begin(), body.end());
+    }
+  }
+
+  return food_items;
+}
+
+std::tuple<FoodItems, PerPlayerScores> handleFoodEating(FoodItems food_items,
+                                                        PerPlayerScores scores,
+                                                        const PerPlayerSnakes& snakes) {
+  for (const auto& [player_id, snake] : snakes) {
+    if (!snake.alive()) continue;
+
+    auto it = std::find(food_items.begin(), food_items.end(), snake.head());
+
+    if (it != food_items.end()) {
+      food_items.erase(it);
+      scores[player_id] += 10;
+    }
+  }
+
+  return {std::move(food_items), std::move(scores)};
+}
+
+FoodItems initializeFood(RandomIntGeneratorFn random_int,
+                         int count,
+                         FoodItems /* food_items */,
+                         const Board& board,
+                         const PerPlayerSnakes& snakes) {
+  return replenishFood(random_int, count, {}, board, snakes);
+}
+
+FoodItems replenishFood(RandomIntGeneratorFn random_int,
+                        int target_count,
+                        FoodItems food_items,
+                        const Board& board,
+                        const PerPlayerSnakes& snakes) {
+  if (food_items.size() >= static_cast<size_t>(target_count)) {
+    return food_items;
+  }
+
+  while (food_items.size() < static_cast<size_t>(target_count)) {
+    Point new_food_pos = generateRandomFoodPosition(board, snakes, random_int);
+    food_items.push_back(new_food_pos);
+  }
+
+  return food_items;
+}
+
+FoodItems repositionRandomFood(RandomIntGeneratorFn random_int,
+                               FoodItems food_items,
+                               const Board& board,
+                               const PerPlayerSnakes& snakes) {
+  if (food_items.empty()) {
+    return food_items;
+  }
+
+  int food_index = random_int(0, food_items.size() - 1);
+  food_items[food_index] = generateRandomFoodPosition(board, snakes, random_int);
+
+  return food_items;
 }
 
 }  // namespace snake

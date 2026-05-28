@@ -1,5 +1,4 @@
-#ifndef SNAKE_FOOD_OPERATIONS_HPP
-#define SNAKE_FOOD_OPERATIONS_HPP
+#pragma once
 
 #include <tuple>
 #include <vector>
@@ -10,7 +9,85 @@
 namespace snake {
 
 // ============================================================================
-// Food Position Generation
+// Batch Utilities
+// ============================================================================
+
+/**
+ * @brief Extract alive states from snakes
+ *
+ * @param snakes Per-player snakes
+ * @return Per-player alive states
+ */
+PerPlayerAliveStates extractAliveStates(const PerPlayerSnakes& snakes);
+
+// ============================================================================
+// Player Initialization
+// ============================================================================
+
+/**
+ * @brief Add a new player to the game
+ *
+ * Creates a snake at the specified position and initializes score to 0.
+ *
+ * Parameter order: bound parameters first (for bindFront compatibility),
+ * then state parameters (snakes, scores).
+ *
+ * @param player_id Player identifier
+ * @param start_position Starting position for snake head
+ * @param initial_direction Initial movement direction
+ * @param snake_length Initial snake length
+ * @param snakes Current snakes map (by value)
+ * @param scores Current scores map (by value)
+ * @return Tuple of (updated snakes, updated scores)
+ */
+std::tuple<PerPlayerSnakes, PerPlayerScores> addPlayer(PlayerId player_id,
+                                                       Point start_position,
+                                                       Direction initial_direction,
+                                                       int snake_length,
+                                                       PerPlayerSnakes snakes,
+                                                       PerPlayerScores scores);
+
+// ============================================================================
+// Snake Game Logic
+// ============================================================================
+
+/**
+ * @brief Apply direction changes to snakes
+ *
+ * @param snakes Snake map (passed by value)
+ * @param consumed_directions Directions consumed from input queues
+ * @return Updated snakes with new directions
+ */
+PerPlayerSnakes applyDirectionMsgs(PerPlayerSnakes snakes, const PerPlayerDirection& consumed_directions);
+
+/**
+ * @brief Move all alive snakes one step
+ *
+ * If snake head will land on food, grow (keep tail).
+ * Otherwise, move (shorten tail).
+ *
+ * @param snakes Snakes to move (by value)
+ * @param board Board dimensions (for wrapping)
+ * @param food_items Food positions (to check if eating)
+ * @return Updated snakes after movement
+ */
+PerPlayerSnakes moveSnakes(PerPlayerSnakes snakes, const Board& board, const FoodItems& food_items);
+
+/**
+ * @brief Handle snake-to-snake collisions
+ *
+ * Updates snakes (kill/cut) and scores based on collision detection.
+ * Returns cut tail segments for potential food conversion.
+ *
+ * @param snakes Snakes (by value)
+ * @param scores Scores (by value)
+ * @return Tuple of (updated snakes, updated scores, cut tail segments)
+ */
+std::tuple<PerPlayerSnakes, PerPlayerScores, std::vector<Point>> handleCollisions(PerPlayerSnakes snakes,
+                                                                                  PerPlayerScores scores);
+
+// ============================================================================
+// Food Logic
 // ============================================================================
 
 /**
@@ -23,15 +100,8 @@ namespace snake {
  */
 Point generateRandomFoodPosition(const Board& board, const PerPlayerSnakes& snakes, RandomIntGeneratorFn random_int);
 
-// ============================================================================
-// Food Transformation Operations
-// ============================================================================
-
 /**
  * @brief Add cut tail segments as food
- *
- * Takes cut tail segments and adds them as food items.
- * Separate stage for modular composition.
  *
  * @param food_items Food (by value)
  * @param cut_tails Cut tail segments to add
@@ -41,9 +111,6 @@ FoodItems dropCutTailsAsFood(FoodItems food_items, const FoodItems& cut_tails);
 
 /**
  * @brief Add dead snake bodies to food (for BITE_DROP_FOOD mode)
- *
- * Checks for dead snakes and adds their body segments as food.
- * Separate from collision detection to maintain sub-state separation.
  *
  * @param food_items Food (by value)
  * @param snakes Snakes (to check for dead ones)
@@ -70,11 +137,7 @@ std::tuple<FoodItems, PerPlayerScores> handleFoodEating(FoodItems food_items,
 /**
  * @brief Initialize food items to a target count
  *
- * Creates food items from scratch (starting with empty list).
- * Thin wrapper around replenishFood for semantic clarity.
- *
- * Parameter order: bound parameters first (for bindFront), then lens parameters (food, board, snakes).
- * Note: food_items parameter is unused since we initialize from scratch.
+ * Parameter order: bound parameters first (for bindFront), then lens parameters.
  *
  * @param random_int Random number generator function
  * @param count Number of food items to create
@@ -92,8 +155,6 @@ FoodItems initializeFood(RandomIntGeneratorFn random_int,
 /**
  * @brief Replenish food to maintain target count
  *
- * Adds new food items until the target count is reached.
- *
  * @param random_int Random number generator function
  * @param target_count Desired number of food items
  * @param food_items Food (by value)
@@ -110,9 +171,6 @@ FoodItems replenishFood(RandomIntGeneratorFn random_int,
 /**
  * @brief Reposition one random food item
  *
- * Moves one randomly selected food item to a new random position.
- * Does nothing if food list is empty.
- *
  * Parameter order: bound parameters first (for bindFront), then lens parameters.
  *
  * @param random_int Random number generator function
@@ -127,5 +185,3 @@ FoodItems repositionRandomFood(RandomIntGeneratorFn random_int,
                                const PerPlayerSnakes& snakes);
 
 }  // namespace snake
-
-#endif  // SNAKE_FOOD_OPERATIONS_HPP

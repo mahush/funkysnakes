@@ -8,14 +8,13 @@
 #include "funkypipes/details/tuple/separate_tuple_elements.hpp"
 #include "funkypipes/make_pipe.hpp"
 #include "snake/direction_command_filter.hpp"
-#include "snake/food_operations.hpp"
 #include "snake/functional_utils.hpp"
+#include "snake/game_logic.hpp"
 #include "snake/game_state_lenses.hpp"
 #include "snake/game_state_views.hpp"
 #include "snake/logger.hpp"
 #include "snake/process_helpers.hpp"
 #include "snake/snake_model.hpp"
-#include "snake/snake_operations.hpp"
 #include "snake/utility.hpp"
 
 namespace snake {
