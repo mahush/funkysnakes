@@ -5,7 +5,6 @@
 #include <optional>
 
 #include "snake/game_types.hpp"
-#include "snake/snake_model.hpp"
 
 namespace snake {
 

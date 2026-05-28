@@ -5,7 +5,6 @@
 #include <vector>
 
 #include "snake/game_types.hpp"
-#include "snake/snake_model.hpp"
 #include "snake/utility.hpp"
 
 namespace snake {

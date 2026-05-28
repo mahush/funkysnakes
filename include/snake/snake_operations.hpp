@@ -5,11 +5,8 @@
 #include <vector>
 
 #include "snake/game_types.hpp"
-#include "snake/snake_model.hpp"
 
 namespace snake {
-
-using Snake = snake_model::Snake;
 
 // ============================================================================
 // Single-Snake Predicates

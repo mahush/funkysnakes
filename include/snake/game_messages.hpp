@@ -3,7 +3,6 @@
 #include "snake/control_messages.hpp"
 #include "snake/direction_command_filter.hpp"
 #include "snake/game_types.hpp"
-#include "snake/snake_model.hpp"
 
 namespace snake {
 

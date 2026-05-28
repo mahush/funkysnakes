@@ -1,10 +1,9 @@
 #pragma once
 
-#include <map>
 #include <tuple>
 #include <vector>
 
-#include "snake/game_types.hpp"
+#include "snake/game_primitives.hpp"
 
 namespace snake {
 namespace snake_model {
@@ -121,8 +120,4 @@ Snake kill(Snake s);
 Snake setDirection(Snake s, Direction dir);
 
 }  // namespace snake_model
-
-// Type alias at the snake namespace level for per-player snake data
-using PerPlayerSnakes = std::map<PlayerId, snake_model::Snake>;
-
 }  // namespace snake
