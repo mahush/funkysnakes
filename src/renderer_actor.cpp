@@ -9,6 +9,7 @@
 
 #include "snake/control_messages.hpp"
 #include "snake/process_helpers.hpp"
+#include "snake/snake_model.hpp"
 
 namespace snake {
 
@@ -107,15 +108,15 @@ void RendererActor::renderBoard(const RenderableStateMsg& state, bool show_game_
 
   // Draw snakes (drawn after food so snakes appear on top)
   for (const auto& [player_id, snake] : state.snakes) {
-    if (snake.alive()) {
+    if (snake_model::alive(snake)) {
       // Draw head
-      Point h = snake.head();
+      Point h = snake_model::head(snake);
       if (h.y >= 0 && h.y < state.board.height && h.x >= 0 && h.x < state.board.width) {
         board[h.y][h.x] = (player_id == PLAYER_A) ? 'A' : 'B';
       }
 
       // Draw tail
-      for (const Point& segment : snake.tail()) {
+      for (const Point& segment : snake_model::tail(snake)) {
         if (segment.y >= 0 && segment.y < state.board.height && segment.x >= 0 && segment.x < state.board.width) {
           board[segment.y][segment.x] = (player_id == PLAYER_A) ? 'a' : 'b';
         }
@@ -260,10 +261,10 @@ void RendererActor::renderBoard(const RenderableStateMsg& state, bool show_game_
       score = score_it->second;
     }
     std::cout << "║";
-    std::cout << std::left << std::setw(10) << player_id << " │ " << std::setw(5) << (snake.alive() ? "ALIVE" : "DEAD")
-              << " │ " << std::right << std::setw(5) << score << " │ " << std::setw(6) << snake.length() << " │ "
-              << std::setw(2) << snake.head().x << "," << std::left << std::setw(2) << snake.head().y
-              << std::string(17, ' ');
+    std::cout << std::left << std::setw(10) << player_id << " │ " << std::setw(5)
+              << (snake_model::alive(snake) ? "ALIVE" : "DEAD") << " │ " << std::right << std::setw(5) << score << " │ "
+              << std::setw(6) << snake_model::length(snake) << " │ " << std::setw(2) << snake_model::head(snake).x
+              << "," << std::left << std::setw(2) << snake_model::head(snake).y << std::string(17, ' ');
     std::cout << "║\n";
   }
   std::cout << "╚" << separator << "╝\n";

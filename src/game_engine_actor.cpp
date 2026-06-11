@@ -14,7 +14,6 @@
 #include "snake/game_state_views.hpp"
 #include "snake/logger.hpp"
 #include "snake/process_helpers.hpp"
-#include "snake/snake_model.hpp"
 #include "snake/utility.hpp"
 
 namespace snake {
@@ -106,7 +105,6 @@ std::tuple<GameState, RenderableStateMsg, std::optional<PlayerAliveStatesMsg>> h
   // clang-format off
   auto tick_pipeline = makePipe(
       over_direction_command_filter_state(direction_command_filter::try_consume_next),                         // → (state, next_directions)
-      over_snakes(applyDirectionMsgs),                                                                      // → state
       over_snakes_viewing_board_and_food(moveSnakes),                                                             // → state
       over_snakes_and_scores(handleCollisions),                                                                // → (state, cut_tails)
       when<0>(isBiteDropFoodMode, over_food(dropCutTailsAsFood)),                                              // → state

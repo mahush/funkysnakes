@@ -1,31 +1,40 @@
-#include "snake/snake_model.hpp"
-
 #include <algorithm>
+
+#include "snake/snake_model_evolve.hpp"
 
 namespace snake {
 namespace snake_model {
 
 namespace {
 
-Point getNextHeadPosition(const Snake& snake) {
-  Point next = snake.head();
+bool isOpposite(Direction a, Direction b) {
+  return (a == Direction::UP && b == Direction::DOWN) || (a == Direction::DOWN && b == Direction::UP) ||
+         (a == Direction::LEFT && b == Direction::RIGHT) || (a == Direction::RIGHT && b == Direction::LEFT);
+}
 
-  switch (snake.currentDirection()) {
+Direction resolveDirection(const Snake& s, Direction requested) {
+  if (length(s) >= 2 && isOpposite(requested, currentDirection(s))) {
+    return currentDirection(s);
+  }
+  return requested;
+}
+
+Point advancePoint(Point p, Direction dir) {
+  switch (dir) {
     case Direction::LEFT:
-      next.x = snake.head().x - 1;
+      p.x -= 1;
       break;
     case Direction::RIGHT:
-      next.x = snake.head().x + 1;
+      p.x += 1;
       break;
     case Direction::UP:
-      next.y = snake.head().y - 1;
+      p.y -= 1;
       break;
     case Direction::DOWN:
-      next.y = snake.head().y + 1;
+      p.y += 1;
       break;
   }
-
-  return next;
+  return p;
 }
 
 Point wrapPoint(Point p, const Board& board) {
@@ -46,7 +55,10 @@ Point wrapPoint(Point p, const Board& board) {
 
 }  // namespace
 
-Point nextHead(const Snake& s, const Board& board) { return wrapPoint(getNextHeadPosition(s), board); }
+Point nextHead(const Snake& s, Direction dir, const Board& board) {
+  Direction effective = resolveDirection(s, dir);
+  return wrapPoint(advancePoint(head(s), effective), board);
+}
 
 Snake initial(Point head, Direction dir, int length) {
   Snake s;
@@ -76,17 +88,18 @@ Snake initial(Point head, Direction dir, int length) {
   return s;
 }
 
-Snake move(Snake s, const Board& board) {
+Snake move(Snake s, Direction dir, const Board& board) {
   if (!s.alive_) return s;
-  s = grow(std::move(s), board);
+  s = grow(std::move(s), dir, board);
   s.tail_.pop_back();
   return s;
 }
 
-Snake grow(Snake s, const Board& board) {
+Snake grow(Snake s, Direction dir, const Board& board) {
   if (!s.alive_) return s;
 
-  Point new_head = nextHead(s, board);
+  Direction effective = resolveDirection(s, dir);
+  Point new_head = wrapPoint(advancePoint(s.head_, effective), board);
 
   std::vector<Point> new_tail;
   new_tail.reserve(s.tail_.size() + 1);
@@ -95,6 +108,7 @@ Snake grow(Snake s, const Board& board) {
 
   s.head_ = new_head;
   s.tail_ = std::move(new_tail);
+  s.current_direction_ = effective;
   return s;
 }
 
@@ -116,11 +130,6 @@ std::tuple<Snake, std::vector<Point>> cutAt(Snake s, Point cut_point) {
 
 Snake kill(Snake s) {
   s.alive_ = false;
-  return s;
-}
-
-Snake setDirection(Snake s, Direction dir) {
-  s.current_direction_ = dir;
   return s;
 }
 

@@ -15,113 +15,43 @@ namespace snake_model {
  * The tail can be empty (snake of length 1).
  * This makes illegal states (empty snake) unrepresentable.
  *
- * All mutations go through friend functions to protect invariants:
- * - Head moves exactly one cell per tick
- * - Body remains a connected chain
- * - Dead snakes cannot move or grow
+ * All access goes through free functions:
+ * - Queries (declared here) provide free read access
+ * - Mutations (declared in snake_model_transitions.hpp) protect invariants
  *
  * Note: player_id is NOT stored here - it's the key in GameState.snakes map
  */
 class Snake {
- public:
-  const Point& head() const { return head_; }
-  const std::vector<Point>& tail() const { return tail_; }
-  Direction currentDirection() const { return current_direction_; }
-  bool alive() const { return alive_; }
-  std::size_t length() const { return 1 + tail_.size(); }
-
  private:
   Point head_;
   std::vector<Point> tail_;
   Direction current_direction_;
   bool alive_{true};
 
+  // Queries
+  friend const Point& head(const Snake& s);
+  friend const std::vector<Point>& tail(const Snake& s);
+  friend Direction currentDirection(const Snake& s);
+  friend bool alive(const Snake& s);
+  friend std::size_t length(const Snake& s);
+
+  // Mutations (declared in snake_model_transitions.hpp)
   friend Snake initial(Point head, Direction dir, int length);
-  friend Snake move(Snake s, const Board& board);
-  friend Snake grow(Snake s, const Board& board);
+  friend Snake move(Snake s, Direction dir, const Board& board);
+  friend Snake grow(Snake s, Direction dir, const Board& board);
   friend std::tuple<Snake, std::vector<Point>> cutAt(Snake s, Point cut_point);
   friend Snake kill(Snake s);
-  friend Snake setDirection(Snake s, Direction dir);
 };
 
-/**
- * @brief Create a snake with initial body extending backwards from head
- *
- * Builds a connected chain of the specified length, extending in the
- * opposite direction of the initial movement direction.
- *
- * @param head Starting head position
- * @param dir Initial movement direction
- * @param length Total snake length (head + tail)
- * @return Newly constructed Snake
- */
-Snake initial(Point head, Direction dir, int length);
+// ============================================================================
+// Queries
+// ============================================================================
 
-/**
- * @brief Move snake one step in current direction (constant length)
- *
- * Head advances one cell (wrapped at board boundaries), tail tip removed.
- * No-op if dead.
- *
- * @param s Snake to move
- * @param board Board dimensions for wrapping
- * @return Snake after moving
- */
-Snake move(Snake s, const Board& board);
-
-/**
- * @brief Grow snake one step in current direction (length increases by one)
- *
- * Head advances one cell (wrapped at board boundaries), tail tip kept.
- * No-op if dead.
- *
- * @param s Snake to grow
- * @param board Board dimensions for wrapping
- * @return Snake after growing
- */
-Snake grow(Snake s, const Board& board);
-
-/**
- * @brief Cut snake tail at specified point
- *
- * Removes all tail segments from the cut point onwards and returns them.
- * Body stays connected after truncation.
- * If cut point is the head or not in tail, snake is unchanged and cut is empty.
- *
- * @param s Snake to cut
- * @param cut_point Point where to cut the tail
- * @return Tuple of (snake with tail cut, cut tail segments)
- */
-std::tuple<Snake, std::vector<Point>> cutAt(Snake s, Point cut_point);
-
-/**
- * @brief Kill a snake (alive -> dead, one-way transition)
- *
- * @param s Snake to kill
- * @return Dead snake
- */
-Snake kill(Snake s);
-
-/**
- * @brief Set movement direction
- *
- * @param s Snake to update
- * @param dir New direction
- * @return Snake with updated direction
- */
-Snake setDirection(Snake s, Direction dir);
-
-/**
- * @brief Query where the head would be after one step
- *
- * Returns the next head position without modifying the snake.
- * Useful for game-level decisions (e.g., checking food before choosing move vs grow).
- *
- * @param s Snake to query
- * @param board Board dimensions for wrapping
- * @return Next head position
- */
-Point nextHead(const Snake& s, const Board& board);
+inline const Point& head(const Snake& s) { return s.head_; }
+inline const std::vector<Point>& tail(const Snake& s) { return s.tail_; }
+inline Direction currentDirection(const Snake& s) { return s.current_direction_; }
+inline bool alive(const Snake& s) { return s.alive_; }
+inline std::size_t length(const Snake& s) { return 1 + s.tail_.size(); }
 
 }  // namespace snake_model
 }  // namespace snake

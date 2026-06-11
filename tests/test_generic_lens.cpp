@@ -4,7 +4,7 @@
 #include "snake/game_messages.hpp"
 #include "snake/generic_lens.hpp"
 #include "snake/generic_view.hpp"
-#include "snake/snake_model.hpp"
+#include "snake/snake_model_evolve.hpp"
 
 namespace snake {
 
@@ -21,8 +21,8 @@ TEST(GenericLensTest, SingleMutableField) {
   state = transform(state);
 
   EXPECT_EQ(state.snakes.size(), 1u);
-  EXPECT_EQ(state.snakes["PLAYER_A"].head().x, 5);
-  EXPECT_EQ(state.snakes["PLAYER_A"].head().y, 5);
+  EXPECT_EQ(snake_model::head(state.snakes["PLAYER_A"]).x, 5);
+  EXPECT_EQ(snake_model::head(state.snakes["PLAYER_A"]).y, 5);
 }
 
 // Test: Two mutable fields
@@ -62,7 +62,7 @@ TEST(GenericLensTest, MutableWithReadonly) {
 
   state = transform(state);
 
-  EXPECT_EQ(state.snakes["PLAYER_A"].head().x, 10);
+  EXPECT_EQ(snake_model::head(state.snakes["PLAYER_A"]).x, 10);
 }
 
 // Test: Additional output (threaded to next stage)

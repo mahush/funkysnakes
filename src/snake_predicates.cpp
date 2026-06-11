@@ -2,20 +2,24 @@
 
 #include <algorithm>
 
+#include "snake/snake_model.hpp"
+
 namespace snake {
 
 bool snakeBitesItself(const Snake& snake) {
-  return std::find(snake.tail().begin(), snake.tail().end(), snake.head()) != snake.tail().end();
+  return std::find(snake_model::tail(snake).begin(), snake_model::tail(snake).end(), snake_model::head(snake)) !=
+         snake_model::tail(snake).end();
 }
 
 bool firstBitesSecond(const Snake& first, const Snake& second) {
-  const Point& attacker_head = first.head();
+  const Point& attacker_head = snake_model::head(first);
 
-  if (attacker_head == second.head()) {
+  if (attacker_head == snake_model::head(second)) {
     return true;
   }
 
-  return std::find(second.tail().begin(), second.tail().end(), attacker_head) != second.tail().end();
+  return std::find(snake_model::tail(second).begin(), snake_model::tail(second).end(), attacker_head) !=
+         snake_model::tail(second).end();
 }
 
 bool bothBiteEachOther(const Snake& a, const Snake& b) { return firstBitesSecond(a, b) && firstBitesSecond(b, a); }
