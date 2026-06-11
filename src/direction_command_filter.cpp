@@ -34,7 +34,7 @@ State try_add(State state, const PerPlayerSnakes& snakes, const DirectionCommand
   }
 
   // Determine effective direction (last queued, or snake's current if queue empty)
-  Direction effective_dir = player_queue.empty() ? snake.currentDirection() : player_queue.back();
+  Direction effective_dir = player_queue.empty() ? snake_model::currentDirection(snake) : player_queue.back();
 
   // Rule 2: Reject 180° turn from effective direction
   if (is_opposite(new_dir, effective_dir)) {

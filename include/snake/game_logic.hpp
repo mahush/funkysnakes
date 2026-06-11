@@ -52,26 +52,24 @@ std::tuple<PerPlayerSnakes, PerPlayerScores> addPlayer(PlayerId player_id,
 // ============================================================================
 
 /**
- * @brief Apply direction changes to snakes
+ * @brief Move all alive snakes one step, applying direction changes
  *
- * @param snakes Snake map (passed by value)
- * @param consumed_directions Directions consumed from input queues
- * @return Updated snakes with new directions
- */
-PerPlayerSnakes applyDirectionMsgs(PerPlayerSnakes snakes, const PerPlayerDirection& consumed_directions);
-
-/**
- * @brief Move all alive snakes one step
- *
- * If snake head will land on food, grow (keep tail).
+ * For each snake, uses the consumed direction if available, otherwise continues
+ * in current direction. If snake head will land on food, grow (keep tail).
  * Otherwise, move (shorten tail).
+ *
+ * Parameter order: lens-provided (snakes, board, food_items) then pipeline-forwarded (directions).
  *
  * @param snakes Snakes to move (by value)
  * @param board Board dimensions (for wrapping)
  * @param food_items Food positions (to check if eating)
+ * @param consumed_directions Directions consumed from input queues
  * @return Updated snakes after movement
  */
-PerPlayerSnakes moveSnakes(PerPlayerSnakes snakes, const Board& board, const FoodItems& food_items);
+PerPlayerSnakes moveSnakes(PerPlayerSnakes snakes,
+                           const Board& board,
+                           const FoodItems& food_items,
+                           const PerPlayerDirection& consumed_directions);
 
 /**
  * @brief Handle snake-to-snake collisions
