@@ -34,7 +34,7 @@ namespace snake {
  *
  * Example usage:
  *   // Extract board and snakes for read-only operation
- *   auto extractor = view(read<&GameState::board, &GameState::snakes>,
+ *   auto extractor = view(read<&State::board, &State::snakes>,
  *                         generateRandomFoodPosition);
  *   Point pos = extractor(state, random_int);
  *
