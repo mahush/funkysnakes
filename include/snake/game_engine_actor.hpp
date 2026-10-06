@@ -9,6 +9,7 @@
 
 #include "snake/control_messages.hpp"
 #include "snake/game_messages.hpp"
+#include "snake/utility.hpp"
 
 namespace snake {
 
@@ -84,6 +85,9 @@ class GameEngineActor : public Actor<GameEngineActor> {
 
   // Timer
   GameTimerPtr game_loop_timer_;
+
+  // Random source for food placement (supplied to the pure core as a fact source)
+  RandomIntGeneratorFn random_int_;
 };
 
 }  // namespace snake
