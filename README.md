@@ -59,7 +59,6 @@ Pure functions eliminate unnecessary interactions with external state: the core 
 ```cpp
 auto tick_pipeline = makePipe(
     over_direction_command_filter_state(direction_command_filter::try_consume_next),
-    over_snakes(applyDirectionMsgs),
     over_snakes_viewing_board_and_food(moveSnakes),
     over_snakes_and_scores(handleCollisions),
     when<0>(isBiteDropFoodMode, over_food(dropCutTailsAsFood)),
@@ -73,7 +72,7 @@ auto tick_pipeline = makePipe(
 state = tick_pipeline(state);  // pure: next state computed from the current state
 ```
 
-Each `over_*` adapter is a lens that focuses one operation on part of `GameState`; `when(...)` runs a stage conditionally. The whole tick stays a single pure function from state to state.
+Each `over_*` adapter is a lens that focuses one operation on part of the arena state; `when(...)` runs a stage conditionally. The whole tick stays a single pure function from state to state. The pipeline lives in [`classic_arena_authority.cpp`](src/classic_arena_authority.cpp), the single owner of the arena step — see [`docs/esa_classic_arena.md`](docs/esa_classic_arena.md) for the ownership map.
 
 > **Why is game logic written this way?**
 > [Bridging Object-Oriented and Functional Thinking](https://funkyposts.dev/posts/bridging-object-oriented-and-functional-thinking-in-modern-cpp) ·
@@ -133,9 +132,10 @@ The files below sit flat under `include/snake/` and `src/`. Grouping them by arc
 
 ```
 Functional core        (pure logic — no I/O, no shared state)
+  classic_arena_authority.*  owner of the arena step and its sequencing
   game_logic.*             rules, movement, collisions, scoring, food
-  game_state_lenses.hpp    focus transformations on parts of GameState
-  game_state_views.hpp     read-only extractors over GameState
+  game_state_lenses.hpp    focus arena transitions on GameState
+  game_state_views.hpp     read-only extractors over arena state
   generic_lens.hpp         reusable lens machinery
   snake_model.*            protected state module: snake bodies
   direction_command_filter.*  encapsulated state module: buffered inputs
