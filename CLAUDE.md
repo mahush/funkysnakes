@@ -32,7 +32,95 @@ cmake --build build
 ./build/test_snake --gtest_filter=TestName.*
 ```
 
-**IMPORTANT:** Always use GoogleTest (gtest) for writing tests. Add new tests to `test/test_actors.cpp` or create new test files in the `test/` directory following the existing patterns.
+**IMPORTANT:** Always use GoogleTest (gtest) for writing tests. Add new tests to `tests/test_actors.cpp` or create new test files in the `tests/` directory following the conventions below.
+
+### Unit Test Conventions
+
+These conventions apply to new tests. Existing tests are brought in line whenever they are modified.
+
+#### Naming tests: what the test ensures
+
+A test name states what the test ensures: the guaranteed behavior, not the steps that exercise it.
+
+```cpp
+TEST(SuiteName, WhatIsEnsured)
+```
+
+- Write it as a short CamelCase statement of the behavior, without an `Ensures` prefix,
+  e.g. `QueuesPerpendicularTurn`, `ReplacesQueuedTurnWithItsOpposite`, `DropsBodyOfDeadSnakeAsFoodOnce`.
+- Name the behavior from the outside: what a caller can rely on, such as the returned value, the
+  resulting state, or for actors what gets published.
+- Mention the situation only when it is part of the guarantee, e.g. `IgnoresPauseWhileGameIsOver`.
+  Don't mention a default or empty starting state.
+- Describe the concrete scenario in the Given / When / Then comments, not in the name.
+
+For example:
+
+```text
+QueuesPerpendicularTurn
+ReplacesQueuedTurnWithItsOpposite
+KeepsHeadingOnReverseTurn
+StepsAtStartingLevelInterval
+```
+
+#### Structuring the test body
+
+Split the body into Given / When / Then blocks. Each block starts with a comment naming the section,
+followed by a colon and a short description of what happens in it:
+
+```cpp
+/// @brief Why this behavior matters, if the name alone does not make it clear
+TEST(SuiteName, WhatIsEnsured) {
+  // Given: [the starting situation]
+  [calls that bring the system into the starting situation]
+
+  // When: [the action under test]
+  [the call under test, result stored in a named variable]
+
+  // Then: [the expected outcome]
+  [assertions]
+}
+```
+
+- A Given block only exists if it performs real setup, such as calling transitions or publishing messages.
+  Plain variable declarations are not setup; they belong to the block that uses them.
+- Declare variables in the block where they are first needed, keeping blocks self-contained.
+- Keep When and Then apart: store the result in the When block and assert on it in the Then block.
+  `EXPECT_THROW` is the only exception, since action and check cannot be separated there; mark it with a
+  single `// When/Then: [description]` comment.
+
+#### Documenting tests
+
+Group tests with Doxygen `@section` headings named after the public function under test, and use
+`@subsection` for finer grouping. An `@brief` is optional: add one when the reason for the behavior is not
+obvious from the test name, for example a pinned behavior or a rule decision.
+
+```cpp
+/// @section direction_command_filter::try_add
+///
+/// Optional description of this group
+
+/// @brief A player can change their mind about a buffered turn
+TEST(SuiteName, ReplacesQueuedTurnWithItsOpposite) {
+  // ...
+}
+```
+
+#### One flow per test
+
+A test exercises exactly one path with one expected outcome, so there is no `if`/`else` in a test body.
+When several inputs share the same structure and outcome, write a parameterized test (`TEST_P`);
+when outcomes differ, write separate tests.
+
+#### Literal values
+
+Arbitrary test values that carry no meaning are written inline rather than stored in helper variables.
+Introduce a named constant only when the value means something or is reused deliberately.
+
+#### Fixtures
+
+Initialize fixture members in the constructor instead of `SetUp()`. This keeps dependent members in the
+right order for construction and destruction.
 
 ### Code Quality
 ```bash
