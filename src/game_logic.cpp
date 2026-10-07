@@ -158,9 +158,13 @@ FoodItems dropCutTailsAsFood(FoodItems food_items, const FoodItems& cut_tails) {
   return food_items;
 }
 
-FoodItems dropDeadSnakesAsFood(FoodItems food_items, const PerPlayerSnakes& snakes) {
+FoodItems dropDeadSnakesAsFood(const PerPlayerAliveStates& alive_before_step,
+                               FoodItems food_items,
+                               const PerPlayerSnakes& snakes) {
   for (const auto& [player_id, snake] : snakes) {
-    if (!snake_model::alive(snake)) {
+    auto before_it = alive_before_step.find(player_id);
+    bool died_this_step = before_it != alive_before_step.end() && before_it->second && !snake_model::alive(snake);
+    if (died_this_step) {
       food_items.push_back(snake_model::head(snake));
       food_items.insert(food_items.end(), snake_model::tail(snake).begin(), snake_model::tail(snake).end());
     }

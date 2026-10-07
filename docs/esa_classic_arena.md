@@ -69,7 +69,7 @@ The order is meaningful and owned by the Authority:
 2. move every alive snake (grow when the next head is on food);
 3. resolve collisions: self-bites first, then snake against snake;
 4. drop cut tail segments as food;
-5. drop the bodies of dead snakes as food;
+5. drop the bodies of snakes that died in this step as food (once, not again in later steps);
 6. eat food under alive snake heads;
 7. replenish food up to `MIN_FOOD_COUNT`;
 8. if requested, reposition one random food item, then clear the request.
@@ -103,7 +103,6 @@ refactor.
 
 | Behavior | Notes |
 |---|---|
-| Dead snakes are dropped as food again on every step | Dead snakes stay in the snakes map, so the food list keeps growing with duplicates while another snake is alive |
 | A biter eats the first cut segment in the same step | An ordering effect (collisions → drops → eating): the victim loses 10 and the biter gains 10, without growing that step |
 | Only the bitten snake loses points; a head-on hit or mutual bite kills both (−10 each) | Snake-against-snake checks are hard-wired to Player A and Player B |
 | New food may be placed on existing food | Only snake cells are avoided, with up to 100 attempts and then an unchecked position |

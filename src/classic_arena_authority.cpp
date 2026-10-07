@@ -99,13 +99,17 @@ State tick(const RandomIntGeneratorFn& random_int, State state) {
   // makePipe automatically unpacks tuples between stages
   // When a function returns tuple<A, B>, the next function receives (A, B) as separate args
 
+  // Captured before collisions so that only snakes dying in this step drop their body as food
+  const PerPlayerAliveStates alive_before_step = extractAliveStates(state.snakes);
+
   // clang-format off
   auto tick_pipeline = makePipe(
       over_direction_command_filter_state(direction_command_filter::try_consume_next),                // → (state, next_directions)
       over_snakes_viewing_board_and_food(moveSnakes),                                                 // → state
       over_snakes_and_scores(handleCollisions),                                                       // → (state, cut_tails)
       when<0>(isBiteDropFoodMode, over_food(dropCutTailsAsFood)),                                     // → state
-      when(isBiteDropFoodMode, over_food_viewing_snakes(dropDeadSnakesAsFood)),                       // → state
+      when(isBiteDropFoodMode,
+           over_food_viewing_snakes(bindFront(dropDeadSnakesAsFood, alive_before_step))),             // → state
       over_food_and_scores_viewing_snakes(handleFoodEating),                                          // → state
       over_food_viewing_board_and_snakes(bindFront(replenishFood, random_int, MIN_FOOD_COUNT)),       // → state
       when(shouldRepositionFood,
