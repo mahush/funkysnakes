@@ -66,40 +66,50 @@ PerPlayerSnakes moveSnakes(PerPlayerSnakes snakes,
 
 namespace {
 
-std::tuple<PerPlayerSnakes, PerPlayerScores> handleSelfBites(PerPlayerSnakes snakes, PerPlayerScores scores) {
+// Appends a snake's complete body (head first) to the dropped segments
+std::vector<Point> appendBody(std::vector<Point> segments, const Snake& snake) {
+  segments.push_back(snake_model::head(snake));
+  segments.insert(segments.end(), snake_model::tail(snake).begin(), snake_model::tail(snake).end());
+  return segments;
+}
+
+std::tuple<PerPlayerSnakes, PerPlayerScores, std::vector<Point>> handleSelfBites(PerPlayerSnakes snakes,
+                                                                                 PerPlayerScores scores) {
+  std::vector<Point> dropped_segments;
   for (auto& [player_id, snake] : snakes) {
     if (snake_model::alive(snake) && snakeBitesItself(snake)) {
       snake = snake_model::kill(snake);
       scores[player_id] -= 10;
+      dropped_segments = appendBody(std::move(dropped_segments), snake);
     }
   }
-  return {snakes, scores};
+  return {snakes, scores, dropped_segments};
 }
 
 }  // namespace
 
 std::tuple<PerPlayerSnakes, PerPlayerScores, std::vector<Point>> handleCollisions(PerPlayerSnakes snakes,
                                                                                   PerPlayerScores scores) {
-  std::vector<Point> cut_tails;
+  std::vector<Point> dropped_segments;
 
-  std::tie(snakes, scores) = handleSelfBites(snakes, scores);
+  std::tie(snakes, scores, dropped_segments) = handleSelfBites(snakes, scores);
 
   if (snakes.size() < 2) {
-    return {snakes, scores, cut_tails};
+    return {snakes, scores, dropped_segments};
   }
 
   auto it1 = snakes.find(PLAYER_A);
   auto it2 = snakes.find(PLAYER_B);
 
   if (it1 == snakes.end() || it2 == snakes.end()) {
-    return {snakes, scores, cut_tails};
+    return {snakes, scores, dropped_segments};
   }
 
   Snake& snake_a = it1->second;
   Snake& snake_b = it2->second;
 
   if (!snake_model::alive(snake_a) || !snake_model::alive(snake_b)) {
-    return {snakes, scores, cut_tails};
+    return {snakes, scores, dropped_segments};
   }
 
   if (bothBiteEachOther(snake_a, snake_b)) {
@@ -107,19 +117,21 @@ std::tuple<PerPlayerSnakes, PerPlayerScores, std::vector<Point>> handleCollision
     snake_b = snake_model::kill(snake_b);
     scores[PLAYER_A] -= 10;
     scores[PLAYER_B] -= 10;
+    dropped_segments = appendBody(std::move(dropped_segments), snake_a);
+    dropped_segments = appendBody(std::move(dropped_segments), snake_b);
   } else if (firstBitesSecond(snake_a, snake_b)) {
     scores[PLAYER_B] -= 10;
     auto [new_snake, cut] = snake_model::cutAt(snake_b, snake_model::head(snake_a));
     snake_b = new_snake;
-    cut_tails.insert(cut_tails.end(), cut.begin(), cut.end());
+    dropped_segments.insert(dropped_segments.end(), cut.begin(), cut.end());
   } else if (firstBitesSecond(snake_b, snake_a)) {
     scores[PLAYER_A] -= 10;
     auto [new_snake, cut] = snake_model::cutAt(snake_a, snake_model::head(snake_b));
     snake_a = new_snake;
-    cut_tails.insert(cut_tails.end(), cut.begin(), cut.end());
+    dropped_segments.insert(dropped_segments.end(), cut.begin(), cut.end());
   }
 
-  return {snakes, scores, cut_tails};
+  return {snakes, scores, dropped_segments};
 }
 
 // ============================================================================
@@ -164,27 +176,10 @@ std::optional<Point> generateRandomFoodPosition(const Board& board,
   return std::nullopt;
 }
 
-FoodItems dropCutTailsAsFood(FoodItems food_items, const FoodItems& cut_tails) {
-  for (const Point& segment : cut_tails) {
+FoodItems dropSegmentsAsFood(FoodItems food_items, const std::vector<Point>& dropped_segments) {
+  for (const Point& segment : dropped_segments) {
     food_items = addFoodIfFree(std::move(food_items), segment);
   }
-  return food_items;
-}
-
-FoodItems dropDeadSnakesAsFood(const PerPlayerAliveStates& alive_before_step,
-                               FoodItems food_items,
-                               const PerPlayerSnakes& snakes) {
-  for (const auto& [player_id, snake] : snakes) {
-    auto before_it = alive_before_step.find(player_id);
-    bool died_this_step = before_it != alive_before_step.end() && before_it->second && !snake_model::alive(snake);
-    if (died_this_step) {
-      food_items = addFoodIfFree(std::move(food_items), snake_model::head(snake));
-      for (const Point& segment : snake_model::tail(snake)) {
-        food_items = addFoodIfFree(std::move(food_items), segment);
-      }
-    }
-  }
-
   return food_items;
 }
 
