@@ -317,7 +317,7 @@ TEST(ClassicArenaAuthority, KeepsRemainingCutSegmentsAsFood) {
   EXPECT_EQ(state.scores, (PerPlayerScores{{PLAYER_A, 10}, {PLAYER_B, -10}}));
 }
 
-/// @brief Ensures that snakes moving into the same cell both die and leave their bodies as food
+/// @brief Ensures that snakes moving into the same cell both die and leave their bodies as food, one item per cell
 TEST(ClassicArenaAuthority, KillsBothSnakesInHeadOnCollision) {
   // When: the arena steps with a head-on approach
   State state =
@@ -330,7 +330,7 @@ TEST(ClassicArenaAuthority, KillsBothSnakesInHeadOnCollision) {
   EXPECT_FALSE(snake_model::alive(state.snakes.at(PLAYER_A)));
   EXPECT_FALSE(snake_model::alive(state.snakes.at(PLAYER_B)));
   EXPECT_EQ(state.scores, (PerPlayerScores{{PLAYER_A, -10}, {PLAYER_B, -10}}));
-  EXPECT_EQ(withoutFiller(state.food_items), (FoodItems{{10, 5}, {9, 5}, {10, 5}, {11, 5}}));
+  EXPECT_EQ(withoutFiller(state.food_items), (FoodItems{{10, 5}, {9, 5}, {11, 5}}));
 }
 
 /// @brief Ensures that mutual tail bites are fatal for both snakes and cut nothing
@@ -403,8 +403,8 @@ TEST(ClassicArenaAuthority, DropsBodyOfDyingSnakeAsFood) {
   state = classic_arena_authority::tick(noRandom(), state);
 
   // Then: its body is dropped as food
-  // Body after the fatal move: head (4,5), tail (4,6) (5,6) (5,5) (4,5); the head shares a cell with its tail
-  EXPECT_EQ(withoutFiller(state.food_items), (FoodItems{{4, 5}, {4, 6}, {5, 6}, {5, 5}, {4, 5}}));
+  // Body after the fatal move: head (4,5), tail (4,6) (5,6) (5,5) (4,5); the shared cell holds one item
+  EXPECT_EQ(withoutFiller(state.food_items), (FoodItems{{4, 5}, {4, 6}, {5, 6}, {5, 5}}));
 }
 
 /// @brief Ensures that a dead snake's body is dropped only once, not again in later steps
@@ -472,24 +472,25 @@ TEST(ClassicArenaAuthority, RetriesFoodPlacementOnSnakeCell) {
   EXPECT_EQ(state.food_items.back(), (Point{1, 1}));
 }
 
-/// @brief Pins that new food may be placed on a cell that already holds food
-TEST(ClassicArenaAuthority, StacksPlacedFoodOnExistingFood) {
+/// @brief Ensures that new food is never placed on a cell that already holds food
+TEST(ClassicArenaAuthority, RetriesFoodPlacementOnFoodCell) {
   // When: the arena steps and a placement candidate is on existing food
+  // First candidate (0,1) already holds food -> retried with (0,5)
   State state = classic_arena_authority::tick(
-      makeScriptedRandom({0, 1}),
+      makeScriptedRandom({0, 1, 0, 5}),
       arenaWithExactFood({{PLAYER_A, snake_model::initial(Point{10, 10}, Direction::RIGHT, 3)}},
                          {{0, 1}, {0, 2}, {0, 3}, {0, 4}}));
 
-  // Then: the food stacks
-  EXPECT_EQ(state.food_items, (FoodItems{{0, 1}, {0, 2}, {0, 3}, {0, 4}, {0, 1}}));
+  // Then: placement is retried
+  EXPECT_EQ(state.food_items, (FoodItems{{0, 1}, {0, 2}, {0, 3}, {0, 4}, {0, 5}}));
 }
 
-/// @brief Pins that placement gives up after 100 occupied candidates and uses an unchecked position
-TEST(ClassicArenaAuthority, FallsBackToUncheckedFoodPositionWhenNoCellIsFree) {
+/// @brief Ensures that no food is placed when no free cell is found within 100 attempts
+TEST(ClassicArenaAuthority, PlacesNoFoodWhenNoCellIsFree) {
   // When: the arena steps and all placement candidates are occupied
-  // 100 attempts on the snake's head cell (11,10) after moving, then the unchecked fallback draw
+  // All 100 attempts hit the snake's head cell (11,10) after moving
   std::vector<int> draws;
-  for (int i = 0; i < 101; ++i) {
+  for (int i = 0; i < 100; ++i) {
     draws.push_back(11);
     draws.push_back(10);
   }
@@ -498,8 +499,27 @@ TEST(ClassicArenaAuthority, FallsBackToUncheckedFoodPositionWhenNoCellIsFree) {
       arenaWithExactFood({{PLAYER_A, snake_model::initial(Point{10, 10}, Direction::RIGHT, 1)}},
                          {{0, 1}, {0, 2}, {0, 3}, {0, 4}}));
 
-  // Then: an unchecked position is used
-  EXPECT_EQ(state.food_items.back(), (Point{11, 10}));
+  // Then: no food is placed
+  EXPECT_EQ(state.food_items, (FoodItems{{0, 1}, {0, 2}, {0, 3}, {0, 4}}));
+}
+
+/// @brief Ensures that a reposition keeps the food item in place when no free cell is found
+TEST(ClassicArenaAuthority, KeepsFoodInPlaceWhenNoCellIsFree) {
+  // Given: a reposition was requested
+  State state = classic_arena_authority::requestFoodReposition(
+      arena({{PLAYER_A, snake_model::initial(Point{10, 10}, Direction::RIGHT, 3)}}, {}));
+
+  // When: the arena steps and all candidates are occupied
+  // Draws: item index 0, then 100 candidates on existing food (51,0)
+  std::vector<int> draws{0};
+  for (int i = 0; i < 100; ++i) {
+    draws.push_back(51);
+    draws.push_back(0);
+  }
+  state = classic_arena_authority::tick(makeScriptedRandom(draws), state);
+
+  // Then: the item stays in place
+  EXPECT_EQ(state.food_items, (FoodItems{{50, 0}, {51, 0}, {52, 0}, {53, 0}, {54, 0}}));
 }
 
 /// @section classic_arena_authority::requestFoodReposition
