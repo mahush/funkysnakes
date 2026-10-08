@@ -128,7 +128,7 @@ Actors reduce interaction complexity by replacing direct shared-state coordinati
 
 ## Project structure
 
-The semantic artifacts of classic snake (its Authorities, Policies, boundary and Domain Application) live under `semantic_artifacts/include/classic/` and `semantic_artifacts/src/classic/` and are included as `classic/...`. Everything else sits flat under `include/snake/` and `src/`. Grouping the files by architectural responsibility is a *logical view* of the code:
+The semantic artifacts of classic snake (its Authorities, Policies, rule helpers, vocabulary, boundary and Domain Application) live under `semantic_artifacts/include/classic/` and `semantic_artifacts/src/classic/` and are included as `classic/...`. Everything else sits flat under `include/snake/` and `src/`. Grouping the files by architectural responsibility is a *logical view* of the code:
 
 ```
 Semantic artifacts     (semantic_artifacts/{include,src}/classic/ — classic snake's meaning)
@@ -141,9 +141,12 @@ Semantic artifacts     (semantic_artifacts/{include,src}/classic/ — classic sn
   classic_game_domain_application.*  the whole game without actors (reference)
   snake_model*.hpp, snake_model.cpp  protected state module: snake bodies
   direction_command_filter.*  encapsulated state module: buffered inputs
+  game_logic.*             rules, movement, collisions, food (reported as events)
+  snake_predicates.*       collision checks between snake bodies
+  game_types.hpp, game_primitives.hpp, players.hpp  arena vocabulary
+  random_source.hpp        random source type (the source itself is an external fact)
 
 Functional core        (pure logic — no I/O, no shared state)
-  game_logic.*             rules, movement, collisions, food (reported as events)
   game_state_lenses.hpp    focus arena transitions on GameState
   game_state_views.hpp     read-only extractors over arena state
   generic_lens.hpp         reusable lens machinery
@@ -168,7 +171,7 @@ Each interaction problem, the design technique that reduces it, the post that de
 
 | Problem | Technique (post) | Implementation |
 |---------|------------------|----------------|
-| Hidden dependencies on external state | Pure functions — [Handling Side Effects](https://funkyposts.dev/posts/handling-side-effects-in-modern-cpp-designing-systems-around-pure-functions) | [`game_logic.hpp`](include/snake/game_logic.hpp) / [`game_logic.cpp`](src/game_logic.cpp) |
+| Hidden dependencies on external state | Pure functions — [Handling Side Effects](https://funkyposts.dev/posts/handling-side-effects-in-modern-cpp-designing-systems-around-pure-functions) | [`game_logic.hpp`](semantic_artifacts/include/classic/game_logic.hpp) / [`game_logic.cpp`](semantic_artifacts/src/classic/game_logic.cpp) |
 | State changes scattered and implicit | Explicit state — [Mastering State: Making It Explicit](https://funkyposts.dev/posts/mastering-state-in-modern-cpp-making-it-explicit) | `GameState` in [`game_messages.hpp`](include/snake/game_messages.hpp) |
 | Updates to nested state tangle callers | Lenses & views — [Mastering State: Making It Explicit](https://funkyposts.dev/posts/mastering-state-in-modern-cpp-making-it-explicit) | [`game_state_lenses.hpp`](include/snake/game_state_lenses.hpp), [`game_state_views.hpp`](include/snake/game_state_views.hpp), [`generic_lens.hpp`](include/snake/generic_lens.hpp) |
 | Implementation details leak across modules | Encapsulated state module — [Mastering State: Making It Encapsulated](https://funkyposts.dev/posts/mastering-state-in-modern-cpp-making-it-encapsulated) | [`direction_command_filter.hpp`](semantic_artifacts/include/classic/direction_command_filter.hpp) |

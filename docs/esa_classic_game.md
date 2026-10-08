@@ -51,9 +51,12 @@ Orbital Orders will be a different arena with partly different rules. It is expe
 the classic arena (snake evolution, geometry, collision checks with equal meaning) while each arena keeps
 its own owner for the rules that differ.
 
-The game-rule helpers in [`game_logic`](../include/snake/game_logic.hpp) and
-[`snake_predicates`](../include/snake/snake_predicates.hpp) are not separate semantic owners. They are
+The game-rule helpers in [`game_logic`](../semantic_artifacts/include/classic/game_logic.hpp) and
+[`snake_predicates`](../semantic_artifacts/include/classic/snake_predicates.hpp) are not separate semantic owners. They are
 reusable building blocks of the arena step, and the Classic Arena Authority decides how they are composed.
+They still contain rules (who loses on a bite, one food item per cell), so they live with the semantic
+artifacts under `semantic_artifacts/` and are part of the reviewed semantic surface. The semantic artifacts
+depend on nothing outside that folder except the generic lens and pipe utilities, which are mechanics.
 
 ### Authority surface
 
