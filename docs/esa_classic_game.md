@@ -16,14 +16,14 @@ Authorities and carries out their intents.
 
 | Artifact | ESA form | Code | Owns |
 |---|---|---|---|
-| [Classic Arena Authority](#classic-arena-authority) | Authority | [`classic_arena_authority`](../include/snake/classic_arena_authority.hpp) | Snakes, scores, food, steering intentions and the complete arena step |
-| Snake Authority | Nested Authority | [`snake_model`](../include/snake/snake_model.hpp) | Evolution of one snake's body and life: move, grow, cut, kill, edge wrapping, ignoring reverse turns |
-| Steering Authority | Nested Authority | [`direction_command_filter`](../include/snake/direction_command_filter.hpp) | Evolution of buffered steering intentions: acceptance, cancellation, queue limit, one turn per step |
-| [Scoring Policy](#scoring-policy) | Policy, used by the arena | [`scoring_policy`](../include/snake/scoring_policy.hpp) | What arena events are worth |
-| [Classic Game Lifecycle Authority](#classic-game-lifecycle-authority) | Authority, beside the arena | [`classic_game_lifecycle_authority`](../include/snake/classic_game_lifecycle_authority.hpp) | Pause, conclusion, level and game-time cadences |
-| [Difficulty Policy](#difficulty-policy) | Policy, used by the lifecycle | [`difficulty_policy`](../include/snake/difficulty_policy.hpp) | Level → step interval |
-| [Domain System Boundary](#domain-system-boundary) | Boundary semantics | [`game_boundary`](../include/snake/game_boundary.hpp) | The game's external interactions, independent of devices |
-| [Domain Application](#domain-application) | Canonical single-process realization | [`classic_game_domain_application`](../include/snake/classic_game_domain_application.hpp) | Nothing of its own: mechanical composition |
+| [Classic Arena Authority](#classic-arena-authority) | Authority | [`classic_arena_authority`](../semantic_artifacts/include/classic/classic_arena_authority.hpp) | Snakes, scores, food, steering intentions and the complete arena step |
+| Snake Authority | Nested Authority | [`snake_model`](../semantic_artifacts/include/classic/snake_model.hpp) | Evolution of one snake's body and life: move, grow, cut, kill, edge wrapping, ignoring reverse turns |
+| Steering Authority | Nested Authority | [`direction_command_filter`](../semantic_artifacts/include/classic/direction_command_filter.hpp) | Evolution of buffered steering intentions: acceptance, cancellation, queue limit, one turn per step |
+| [Scoring Policy](#scoring-policy) | Policy, used by the arena | [`scoring_policy`](../semantic_artifacts/include/classic/scoring_policy.hpp) | What arena events are worth |
+| [Classic Game Lifecycle Authority](#classic-game-lifecycle-authority) | Authority, beside the arena | [`classic_game_lifecycle_authority`](../semantic_artifacts/include/classic/classic_game_lifecycle_authority.hpp) | Pause, conclusion, level and game-time cadences |
+| [Difficulty Policy](#difficulty-policy) | Policy, used by the lifecycle | [`difficulty_policy`](../semantic_artifacts/include/classic/difficulty_policy.hpp) | Level → step interval |
+| [Domain System Boundary](#domain-system-boundary) | Boundary semantics | [`game_boundary`](../semantic_artifacts/include/classic/game_boundary.hpp) | The game's external interactions, independent of devices |
+| [Domain Application](#domain-application) | Canonical single-process realization | [`classic_game_domain_application`](../semantic_artifacts/include/classic/classic_game_domain_application.hpp) | Nothing of its own: mechanical composition |
 
 Not domain semantics: the [player input adapter](#player-input-adapter) and the
 [realization mechanics](#realization-mechanics) between actors.
@@ -70,7 +70,7 @@ which the resulting state cannot otherwise show).
 
 `State` is a plain struct: fields are freely readable, but changes go through these transitions by
 convention. The lenses over its fields are private to the Authority implementation, so the arena step can
-only be composed in [`classic_arena_authority.cpp`](../src/classic_arena_authority.cpp). Stronger
+only be composed in [`classic_arena_authority.cpp`](../semantic_artifacts/src/classic/classic_arena_authority.cpp). Stronger
 protection (opaque state with friend queries, as in `snake_model::Snake`) is a possible later step.
 
 ### Arena step (`tick`)
@@ -95,7 +95,7 @@ food also avoids snake cells.
 
 ### Arena events
 
-Arena rules report what happened as [events](../include/snake/arena_events.hpp) instead of deciding their
+Arena rules report what happened as [events](../semantic_artifacts/include/classic/arena_events.hpp) instead of deciding their
 consequences: `FoodEaten`, `Bitten` (victim and biter), `SelfBitten` and `MutualBite` (head-on or mutual tail
 bites). The [Scoring Policy](#scoring-policy) turns them into score changes, so the collision and eating helpers
 know nothing about points and can be reused by an arena with different scoring.
@@ -169,7 +169,7 @@ interval_ms(level) = max(50, 200 − 15 · (level − 1))
 ## Domain System Boundary
 
 The external view of the classic game, expressed as intents rather than devices. The types are defined in
-[`game_boundary.hpp`](../include/snake/game_boundary.hpp) and shared by both realizations: the Domain
+[`game_boundary.hpp`](../semantic_artifacts/include/classic/game_boundary.hpp) and shared by both realizations: the Domain
 Application uses them as its interface, and production's edge messages carry them as their payload next to
 routing fields such as `game_id`.
 
@@ -189,7 +189,7 @@ realization.
 
 ## Domain Application
 
-[`classic_game_domain_application`](../include/snake/classic_game_domain_application.hpp) is the canonical
+[`classic_game_domain_application`](../semantic_artifacts/include/classic/classic_game_domain_application.hpp) is the canonical
 single-process realization of classic snake. It composes both Authorities and their Policies without actors,
 timers or rendering:
 

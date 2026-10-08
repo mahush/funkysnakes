@@ -5,7 +5,7 @@
 
 #include <gtest/gtest.h>
 
-#include "snake/classic_game_lifecycle_authority.hpp"
+#include "classic/classic_game_lifecycle_authority.hpp"
 
 namespace snake {
 

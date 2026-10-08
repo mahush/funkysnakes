@@ -1,6 +1,6 @@
 #pragma once
 
-#include "snake/arena_events.hpp"
+#include "classic/arena_events.hpp"
 #include "snake/game_types.hpp"
 
 namespace snake {

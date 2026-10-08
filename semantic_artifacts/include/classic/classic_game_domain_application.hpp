@@ -5,9 +5,9 @@
 #include <tuple>
 #include <vector>
 
-#include "snake/classic_arena_authority.hpp"
-#include "snake/classic_game_lifecycle_authority.hpp"
-#include "snake/game_boundary.hpp"
+#include "classic/classic_arena_authority.hpp"
+#include "classic/classic_game_lifecycle_authority.hpp"
+#include "classic/game_boundary.hpp"
 #include "snake/utility.hpp"
 
 namespace snake {

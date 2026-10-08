@@ -5,7 +5,7 @@
 #include <string>
 #include <vector>
 
-#include "snake/snake_model_evolve.hpp"
+#include "classic/snake_model_evolve.hpp"
 #include "test_printers.hpp"
 
 namespace snake {
