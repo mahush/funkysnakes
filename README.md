@@ -133,7 +133,7 @@ The files below sit flat under `include/snake/` and `src/`. Grouping them by arc
 Functional core        (pure logic — no I/O, no shared state)
   classic_arena_authority.*  owner of the arena step and its sequencing
   classic_game_lifecycle_authority.*  owner of phase, level and conclusion
-  difficulty_policy.*      level → step interval
+  difficulty_policy.hpp    level → step interval
   game_logic.*             rules, movement, collisions, scoring, food
   game_state_lenses.hpp    focus arena transitions on GameState
   game_state_views.hpp     read-only extractors over arena state
