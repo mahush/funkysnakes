@@ -44,7 +44,7 @@ struct State {
 /**
  * @brief Intent to start, stop, pause or resume stepping the arena
  */
-using ClockIntent = GameClockState;
+enum class ClockIntent { START, STOP, PAUSE, RESUME };
 
 /**
  * @brief Intent to change the arena's step interval
