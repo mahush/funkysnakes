@@ -7,6 +7,13 @@
 namespace snake {
 namespace classic_game_lifecycle_authority {
 
+namespace {
+
+// Cadence periods only count while the game runs: not while paused, and not once it is over
+bool cadencesCount(const State& state) { return !state.paused && !state.over; }
+
+}  // namespace
+
 std::tuple<State, ClockIntent, StepIntervalIntent, CadenceIntent> start(GameId game_id,
                                                                         int starting_level,
                                                                         State state) {
@@ -18,14 +25,18 @@ std::tuple<State, ClockIntent, StepIntervalIntent, CadenceIntent> start(GameId g
   return {std::move(state), ClockIntent::START, interval, CadenceIntent::START};
 }
 
-std::tuple<State, ClockIntent> togglePause(State state) {
+std::tuple<State, ClockIntent, std::optional<CadenceIntent>> togglePause(State state) {
   state.paused = !state.paused;
   ClockIntent clock = state.paused ? ClockIntent::PAUSE : ClockIntent::RESUME;
-  return {std::move(state), clock};
+  if (state.over) {
+    return {std::move(state), clock, std::nullopt};
+  }
+  CadenceIntent cadence = state.paused ? CadenceIntent::FREEZE : CadenceIntent::RESUME;
+  return {std::move(state), clock, cadence};
 }
 
 std::tuple<State, std::optional<StepIntervalIntent>> levelPeriodElapsed(State state) {
-  if (state.paused) {
+  if (!cadencesCount(state)) {
     return {std::move(state), std::nullopt};
   }
   state.level++;
@@ -34,7 +45,7 @@ std::tuple<State, std::optional<StepIntervalIntent>> levelPeriodElapsed(State st
 }
 
 std::optional<RepositionIntent> repositionPeriodElapsed(const State& state) {
-  if (state.paused) {
+  if (!cadencesCount(state)) {
     return std::nullopt;
   }
   return RepositionIntent{};
