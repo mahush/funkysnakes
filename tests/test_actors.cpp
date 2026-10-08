@@ -254,18 +254,19 @@ TEST(ActorTest, GameManagerActor_SendsClockCommands) {
   // Create publisher for start game
   Publisher<StartGameMsg> startgame_pub{startgame_topic};
 
-  // Start game
+  // Start game at level 3
   StartGameMsg start;
-  start.starting_level = 1;
+  start.starting_level = 3;
   start.players = {PLAYER_A, PLAYER_B};
   startgame_pub.publish(start);
 
   // Run pending operations (use poll to avoid waiting for 20s timer)
   io.poll();
 
-  // Verify GameManagerActor sent START clock command
+  // Verify GameManagerActor sent START with the starting level's step interval
   ASSERT_EQ(mock_clock_subscriber->clock_commands.size(), 1u);
   EXPECT_EQ(mock_clock_subscriber->clock_commands[0].state, GameClockState::START);
+  EXPECT_EQ(mock_clock_subscriber->clock_commands[0].interval_ms, 170);
 }
 
 }  // namespace snake
