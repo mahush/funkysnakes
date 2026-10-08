@@ -21,6 +21,8 @@ are preserved as-is.
 Not domain semantics: the [player input adapter](#player-input-adapter) and the
 [realization mechanics](#realization-mechanics) between actors.
 
+All of them are composed without actors in the [Classic Game Domain Application](#domain-application).
+
 ## Classic Game Lifecycle Authority
 
 Owns the evolution of a game as a whole. Its transitions are `start`, `togglePause`, `levelPeriodElapsed`,
@@ -80,6 +82,37 @@ The external view of the classic game, expressed as intents rather than devices.
 
 **External facts**: elapsed time and randomness (food placement). Both are supplied by the realization.
 
+## Domain Application
+
+[`classic_game_domain_application`](../include/snake/classic_game_domain_application.hpp) is the canonical
+single-process realization of classic snake. It composes both Authorities and their Policies without actors,
+timers or rendering:
+
+- the boundary interactions above are its interface: `apply(state, Start)`, `apply(state, Steer)`,
+  `apply(state, TogglePause)` and `apply(random_int, state, TimeElapsed)`, each returning the new state plus
+  the observations (arena views, statuses, game-over summary);
+- it routes interactions to the Authorities and carries out their intents mechanically: clock, step interval,
+  cadences, reposition and conclusion;
+- the summary round trip between the actors disappears: on conclusion the final scores are read from the arena.
+
+**Game time** comes in as `TimeElapsed`. A virtual clock accumulates it and runs whatever falls due. The clock
+is mechanics: the periods come from the lifecycle Authority, the step interval from the Difficulty Policy, and
+it freezes while the lifecycle Authority has the game paused.
+
+**Same-instant ordering** is the one composition rule the Domain Application states explicitly: when an arena
+step and a cadence period fall due at the same instant, the step happens first. So a step that ends the game
+counts before a level-up at the same moment.
+
+[`test_classic_game_domain_application.cpp`](../tests/test_classic_game_domain_application.cpp) runs complete
+histories of boundary interactions against it (the Domain Harness).
+
+### Known difference to production
+
+Production loses cadence time during a pause: the level and reposition timers keep running on wall-clock time,
+and periods that end while paused are skipped. The Domain Application stops game time during a pause, as the
+lifecycle Authority intends. This is a realization bug in production, found by comparing it with the reference;
+fixing it is a production change for later.
+
 ## Player input adapter
 
 `InputActor` adapts terminal input to the players end of the boundary:
@@ -113,5 +146,5 @@ separate, explicit gameplay decision. The lifecycle-level items are pinned in
 |---|---|
 | Toggling pause twice after game over restarts the step clock | Pause handling does not check for game over; RESUME restarts the step timer. Level-up and reposition stay stopped |
 | `Start.players` is ignored | The arena always creates Player A and Player B |
-| Pause skips cadence periods instead of freezing them | Level and reposition timers keep running on wall-clock time while paused; a period that ends during the pause is lost |
+| Pause skips cadence periods instead of freezing them (production only) | Level and reposition timers keep running on wall-clock time while paused; a period that ends during the pause is lost. A realization bug: the Domain Application freezes game time instead, see [Known difference to production](#known-difference-to-production) |
 | The game ends when zero snakes are alive | The surviving snake keeps playing alone until it dies; the code comment says "last snake standing" |

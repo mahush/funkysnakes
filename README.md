@@ -137,6 +137,7 @@ Functional core        (pure logic — no I/O, no shared state)
   difficulty_policy.hpp    level → step interval
   game_logic.*             rules, movement, collisions, food (reported as events)
   scoring_policy.*         what arena events are worth
+  classic_game_domain_application.*  the whole game without actors (reference)
   game_state_lenses.hpp    focus arena transitions on GameState
   game_state_views.hpp     read-only extractors over arena state
   generic_lens.hpp         reusable lens machinery
