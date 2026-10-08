@@ -14,10 +14,7 @@ bool cadencesCount(const State& state) { return !state.paused && !state.over; }
 
 }  // namespace
 
-std::tuple<State, ClockIntent, StepIntervalIntent, CadenceIntent> start(GameId game_id,
-                                                                        int starting_level,
-                                                                        State state) {
-  state.game_id = std::move(game_id);
+std::tuple<State, ClockIntent, StepIntervalIntent, CadenceIntent> start(int starting_level, State state) {
   state.level = starting_level;
   state.over = false;
   state.paused = false;
@@ -66,10 +63,6 @@ std::tuple<State, std::optional<ConcludeIntent>> observeAliveStates(State state,
 
   state.over = true;
   return {std::move(state), ConcludeIntent{}};
-}
-
-std::tuple<ClockIntent, CadenceIntent> concluded(const State& /* state */) {
-  return {ClockIntent::STOP, CadenceIntent::STOP};
 }
 
 }  // namespace classic_game_lifecycle_authority

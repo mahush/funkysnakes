@@ -14,7 +14,7 @@ namespace {
 namespace lifecycle = classic_game_lifecycle_authority;
 using lifecycle::State;
 
-State runningGame() { return std::get<0>(lifecycle::start("game_001", 1, {})); }
+State runningGame() { return std::get<0>(lifecycle::start(1, {})); }
 
 State pausedGame() { return std::get<0>(lifecycle::togglePause(runningGame())); }
 
@@ -29,10 +29,9 @@ State concludedGame() {
 /// @brief Ensures that starting a game makes it run at the requested level
 TEST(ClassicGameLifecycleAuthority, RunsGameAtStartingLevel) {
   // When: a game is started at level 3
-  auto [state, clock, interval, cadence] = lifecycle::start("game_001", 3, {});
+  auto [state, clock, interval, cadence] = lifecycle::start(3, {});
 
   // Then: it runs at level 3 with clock and cadences started
-  EXPECT_EQ(state.game_id, "game_001");
   EXPECT_EQ(state.level, 3);
   EXPECT_FALSE(state.paused);
   EXPECT_FALSE(state.over);
@@ -43,7 +42,7 @@ TEST(ClassicGameLifecycleAuthority, RunsGameAtStartingLevel) {
 /// @brief Ensures that a game starts at the speed of its starting level
 TEST(ClassicGameLifecycleAuthority, StartsAtSpeedOfStartingLevel) {
   // When: a game is started at level 3
-  auto [state, clock, interval, cadence] = lifecycle::start("game_001", 3, {});
+  auto [state, clock, interval, cadence] = lifecycle::start(3, {});
 
   // Then: the step interval is that of level 3
   EXPECT_EQ(interval.interval_ms, 170);
@@ -55,7 +54,7 @@ TEST(ClassicGameLifecycleAuthority, ResetsPauseAndConclusionOnNewGame) {
   State state = std::get<0>(lifecycle::togglePause(concludedGame()));
 
   // When: a new game is started
-  state = std::get<0>(lifecycle::start("game_001", 1, state));
+  state = std::get<0>(lifecycle::start(1, state));
 
   // Then: it is neither paused nor over
   EXPECT_FALSE(state.paused);
@@ -200,7 +199,9 @@ TEST(ClassicGameLifecycleAuthority, ConcludesGameWhenNoSnakeIsAlive) {
 
   // Then: the game is over and concludes
   EXPECT_TRUE(state.over);
-  EXPECT_TRUE(conclude.has_value());
+  ASSERT_TRUE(conclude.has_value());
+  EXPECT_EQ(conclude->clock, lifecycle::ClockIntent::STOP);
+  EXPECT_EQ(conclude->cadence, lifecycle::CadenceIntent::STOP);
 }
 
 /// @brief Ensures that a game is concluded only once
@@ -210,18 +211,6 @@ TEST(ClassicGameLifecycleAuthority, ConcludesGameOnlyOnce) {
 
   // Then: the game is not concluded again
   EXPECT_FALSE(conclude.has_value());
-}
-
-/// @section lifecycle::concluded
-
-/// @brief Ensures that finishing the conclusion stops stepping and the cadences
-TEST(ClassicGameLifecycleAuthority, StopsClockAndCadencesOnConclusion) {
-  // When: the conclusion is finished
-  auto [clock, cadence] = lifecycle::concluded(concludedGame());
-
-  // Then: the clock and the cadences stop
-  EXPECT_EQ(clock, lifecycle::ClockIntent::STOP);
-  EXPECT_EQ(cadence, lifecycle::CadenceIntent::STOP);
 }
 
 }  // namespace snake
