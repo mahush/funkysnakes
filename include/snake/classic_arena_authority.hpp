@@ -1,5 +1,6 @@
 #pragma once
 
+#include "snake/arena_events.hpp"
 #include "snake/direction_command_filter.hpp"
 #include "snake/game_types.hpp"
 #include "snake/utility.hpp"
@@ -38,6 +39,7 @@ struct State {
   direction_command_filter::State direction_command_filter_state;  // Buffered steering intentions
   CollisionMode collision_mode{CollisionMode::BITE_DROP_FOOD};     // Collision handling mode
   bool should_reposition_food{false};                              // Reposition requested for next step
+  ArenaEvents events;                                              // What happened during the last step
 };
 
 /**
@@ -70,6 +72,9 @@ State requestFoodReposition(State state);
 
 /**
  * @brief Advance the arena by one step
+ *
+ * Arena rules report what happened as events; the Scoring Policy turns them into score
+ * changes at the end of the step. The events stay readable in the resulting state.
  *
  * Parameter order: bound parameters first (for bindFront), then state.
  *

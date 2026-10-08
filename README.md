@@ -60,9 +60,10 @@ Pure functions eliminate unnecessary interactions with external state: the core 
 auto tick_pipeline = makePipe(
     over_direction_command_filter_state(direction_command_filter::try_consume_next),
     over_snakes_viewing_board_and_food(moveSnakes),
-    over_snakes_and_scores(handleCollisions),
+    over_snakes_and_events(handleCollisions),
     when<0>(isBiteDropFoodMode, over_food(dropSegmentsAsFood)),
-    over_food_and_scores_viewing_snakes(handleFoodEating),
+    over_food_and_events_viewing_snakes(handleFoodEating),
+    over_scores_viewing_events(scoring_policy::applyScoring),
     over_food_viewing_board_and_snakes(bindFront(replenishFood, random_int, MIN_FOOD_COUNT)),
     when(shouldRepositionFood,
          over_food_viewing_board_and_snakes(bindFront(repositionRandomFood, random_int))),
@@ -134,7 +135,8 @@ Functional core        (pure logic — no I/O, no shared state)
   classic_arena_authority.*  owner of the arena step and its sequencing
   classic_game_lifecycle_authority.*  owner of phase, level and conclusion
   difficulty_policy.hpp    level → step interval
-  game_logic.*             rules, movement, collisions, scoring, food
+  game_logic.*             rules, movement, collisions, food (reported as events)
+  scoring_policy.*         what arena events are worth
   game_state_lenses.hpp    focus arena transitions on GameState
   game_state_views.hpp     read-only extractors over arena state
   generic_lens.hpp         reusable lens machinery

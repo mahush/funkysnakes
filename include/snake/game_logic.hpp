@@ -4,6 +4,7 @@
 #include <tuple>
 #include <vector>
 
+#include "snake/arena_events.hpp"
 #include "snake/game_types.hpp"
 #include "snake/utility.hpp"
 
@@ -75,16 +76,17 @@ PerPlayerSnakes moveSnakes(PerPlayerSnakes snakes,
 /**
  * @brief Handle snake-to-snake collisions
  *
- * Updates snakes (kill/cut) and scores based on collision detection.
+ * Updates snakes (kill/cut) based on collision detection and reports what happened as
+ * events (SelfBitten, MutualBite, Bitten). Consequences such as scores are decided elsewhere.
  * Returns the segments that leave play: cut tails, and the complete bodies of
  * snakes killed in this call.
  *
  * @param snakes Snakes (by value)
- * @param scores Scores (by value)
- * @return Tuple of (updated snakes, updated scores, dropped segments)
+ * @param events Events of the current step so far (by value)
+ * @return Tuple of (updated snakes, events with collisions appended, dropped segments)
  */
-std::tuple<PerPlayerSnakes, PerPlayerScores, std::vector<Point>> handleCollisions(PerPlayerSnakes snakes,
-                                                                                  PerPlayerScores scores);
+std::tuple<PerPlayerSnakes, ArenaEvents, std::vector<Point>> handleCollisions(PerPlayerSnakes snakes,
+                                                                              ArenaEvents events);
 
 // ============================================================================
 // Food Logic
@@ -121,18 +123,16 @@ FoodItems dropSegmentsAsFood(FoodItems food_items, const std::vector<Point>& dro
 /**
  * @brief Handle snakes eating food
  *
- * If snake head is on food:
- * - Remove eaten food
- * - Award points (+10)
+ * If an alive snake's head is on food, the food is removed and a FoodEaten event is reported.
  *
  * @param food_items Food (by value)
- * @param scores Scores (by value)
+ * @param events Events of the current step so far (by value)
  * @param snakes Snakes (to check head positions)
- * @return Tuple of (updated food, updated scores)
+ * @return Tuple of (updated food, events with eating appended)
  */
-std::tuple<FoodItems, PerPlayerScores> handleFoodEating(FoodItems food_items,
-                                                        PerPlayerScores scores,
-                                                        const PerPlayerSnakes& snakes);
+std::tuple<FoodItems, ArenaEvents> handleFoodEating(FoodItems food_items,
+                                                    ArenaEvents events,
+                                                    const PerPlayerSnakes& snakes);
 
 /**
  * @brief Initialize food items to a target count
