@@ -62,8 +62,7 @@ namespace lifecycle = classic_game_lifecycle_authority;
 void GameManagerActor::publishMetadata() {
   GameStateMetadataMsg metadata;
   metadata.game_id = lifecycle_.game_id;
-  metadata.level = lifecycle_.level;
-  metadata.paused = lifecycle_.paused;
+  metadata.status = game_boundary::Status{lifecycle_.level, lifecycle_.paused};
   metadata_pub_->publish(metadata);
 }
 
@@ -126,25 +125,17 @@ void GameManagerActor::onSummaryResponse(const GameStateSummaryResponseMsg& resp
 
   Logger::log("[GameManagerActor] Received game summary, publishing GameOverMsg\n");
 
-  GameSummaryMsg summary;
-  summary.game_id = lifecycle_.game_id;
-  summary.final_level = lifecycle_.level;
-  for (const auto& [player_id, score] : response.scores) {
-    summary.final_scores.push_back({player_id, score});
-  }
-
-  GameOverMsg gameover;
-  gameover.summary = summary;
+  GameOverMsg gameover{lifecycle_.game_id, game_boundary::GameOver{response.scores, lifecycle_.level}};
   gameover_pub_->publish(gameover);
 
   auto [clock, cadence] = lifecycle::concluded(lifecycle_);
   executeCadenceIntent(cadence);
   executeClockIntent(clock);
 
-  Logger::log("[GameManagerActor] Game '" + summary.game_id + "' ended at level " +
-              std::to_string(summary.final_level) + "\n");
+  Logger::log("[GameManagerActor] Game '" + gameover.game_id + "' ended at level " +
+              std::to_string(gameover.game_over.final_level) + "\n");
   Logger::log("[GameManagerActor] Final scores:\n");
-  for (const auto& [player_id, score] : summary.final_scores) {
+  for (const auto& [player_id, score] : gameover.game_over.final_scores) {
     Logger::log("[GameManagerActor]   " + player_id + ": " + std::to_string(score) + "\n");
   }
 }

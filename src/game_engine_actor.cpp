@@ -70,13 +70,13 @@ std::tuple<GameState, RenderableStateMsg, std::optional<PlayerAliveStatesMsg>> h
   auto [state_with_updated_alive, alive_msg] = tryGeneratePlayerAliveStates(state);
   state = state_with_updated_alive;
 
-  // Build renderable state from game state (visual elements only)
-  RenderableStateMsg renderable{
+  // Project the arena to the boundary's arena view
+  RenderableStateMsg renderable{game_boundary::ArenaView{
       state.arena.board,
-      state.arena.food_items,
       state.arena.snakes,
+      state.arena.food_items,
       state.arena.scores,
-  };
+  }};
 
   return std::make_tuple(state, renderable, alive_msg);
 }
