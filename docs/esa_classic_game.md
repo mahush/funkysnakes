@@ -3,16 +3,18 @@
 This document lists the semantic artifacts of classic funkysnakes beyond the arena, following Executable
 Semantic Architecture (ESA). The arena itself is covered in [`esa_classic_arena.md`](esa_classic_arena.md).
 
-Status: the arena is extracted as the Classic Arena Authority. The artifacts below are identified but not
-yet extracted; their rules still live in `GameManagerActor` and in the clock handling of `GameEngineActor`.
+Status: the Classic Arena Authority, the Classic Game Lifecycle Authority and the Difficulty Policy are
+extracted. `GameManagerActor` feeds messages and cadence timer events into the lifecycle Authority and
+carries out its intents. The behaviors listed under [Behavior to pin](#pinned-behavior)
+are preserved as-is.
 
 ## Overview
 
 | Artifact | ESA form | Owns |
 |---|---|---|
 | [Classic Arena Authority](esa_classic_arena.md) | Authority | Snakes, scores, food, steering intentions and the complete arena step |
-| [Classic Game Lifecycle Authority](#classic-game-lifecycle-authority) | Authority, beside the arena | Game phase, level, conclusion and game-time cadences |
-| [Difficulty Policy](#difficulty-policy) | Policy | Level → step interval |
+| [Classic Game Lifecycle Authority](#classic-game-lifecycle-authority) ([`classic_game_lifecycle_authority`](../include/snake/classic_game_lifecycle_authority.hpp)) | Authority, beside the arena | Game phase, level, conclusion and game-time cadences |
+| [Difficulty Policy](#difficulty-policy) ([`difficulty_policy`](../include/snake/difficulty_policy.hpp)) | Policy | Level → step interval |
 | [Domain System Boundary](#domain-system-boundary) | Boundary semantics | The game's external interactions, independent of devices |
 
 Not domain semantics: the [player input adapter](#player-input-adapter) and the
@@ -20,7 +22,10 @@ Not domain semantics: the [player input adapter](#player-input-adapter) and the
 
 ## Classic Game Lifecycle Authority
 
-Owns the evolution of a game as a whole:
+Owns the evolution of a game as a whole. Its transitions are `start`, `togglePause`, `levelPeriodElapsed`,
+`repositionPeriodElapsed`, `observeAliveStates` and `concluded`; each returns the new state plus intents
+(clock, step interval, cadences, reposition, conclude) only where the state does not already encode them.
+Elapsed cadence periods arrive as events from the actor's timers; the Authority decides what they mean.
 
 - **phase**: running ↔ paused → over;
 - **level**: starts at the requested level and increases over game time;
@@ -97,16 +102,17 @@ Not domain semantics:
 - timer commands, restarting the step timer on a tick-rate change, shutdown and logging;
 - rendering, including the flashing game-over text and dead snakes not being drawn.
 
-## Behavior to pin before extraction
+## Pinned behavior
 
-Current lifecycle behavior that looks unintended or inconsistent. Characterize it before extracting;
-changing it is a separate, explicit gameplay decision.
+Current lifecycle behavior that looks unintended or inconsistent, preserved during extraction. Changing it is a
+separate, explicit gameplay decision. The lifecycle-level items are pinned in
+[`test_classic_game_lifecycle_authority.cpp`](../tests/test_classic_game_lifecycle_authority.cpp).
 
 | Behavior | Notes |
 |---|---|
 | Toggling pause twice after game over restarts the step clock | Pause handling does not check for game over; RESUME restarts the step timer. Level-up and reposition stay stopped |
 | The starting level does not affect the initial speed | START uses the engine's stored 200 ms instead of the Difficulty Policy for `starting_level`. Hidden today because the game always starts at level 1 |
 | `Start.players` is ignored | The arena always creates Player A and Player B |
-| The 200 ms base interval is defined twice | Once as a `GameState` default, once in the level-up formula |
+| The 200 ms base interval is defined twice | Once as a `GameState` default, once in the Difficulty Policy |
 | Pause skips cadence periods instead of freezing them | Level and reposition timers keep running on wall-clock time while paused; a period that ends during the pause is lost |
 | The game ends when zero snakes are alive | The surviving snake keeps playing alone until it dies; the code comment says "last snake standing" |
