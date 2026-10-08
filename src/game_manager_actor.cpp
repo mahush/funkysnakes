@@ -89,10 +89,9 @@ void GameManagerActor::executeCadenceIntent(lifecycle::CadenceIntent cadence) {
 }
 
 void GameManagerActor::onStartGame(const StartGameMsg& msg) {
-  Logger::log("[GameManagerActor] Starting game with level " + std::to_string(msg.starting_level) + " and " +
-              std::to_string(msg.players.size()) + " players\n");
+  Logger::log("[GameManagerActor] Starting game with level " + std::to_string(msg.start.starting_level) + "\n");
 
-  auto [state, clock, interval, cadence] = lifecycle::start("game_001", msg.starting_level, lifecycle_);
+  auto [state, clock, interval, cadence] = lifecycle::start("game_001", msg.start.starting_level, lifecycle_);
   lifecycle_ = state;
 
   executeClockIntent(clock, interval);

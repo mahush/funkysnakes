@@ -259,7 +259,9 @@ GameEngineActor::GameEngineActor(ActorContext ctx,
 
 void GameEngineActor::processInputs() {
   // Drain steering commands into the arena
-  processMessageWithState(direction_sub_, game_state_, over_arena(classic_arena_authority::steer));
+  processMessageWithState(direction_sub_, game_state_, [](GameState state, const DirectionMsg& msg) {
+    return over_arena(classic_arena_authority::steer)(std::move(state), msg.steer);
+  });
 
   // Create effect handler for messages that produce effects
   GameEngineEffectHandler effect_handler(renderable_state_pub_, alive_states_pub_, summary_resp_pub_, game_loop_timer_);

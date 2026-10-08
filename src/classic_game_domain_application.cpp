@@ -153,8 +153,7 @@ std::tuple<State, Observations> apply(State state, const Start& start) {
 }
 
 std::tuple<State, Observations> apply(State state, const Steer& steer) {
-  state.arena = classic_arena_authority::steer(
-      std::move(state.arena), DirectionCommand{state.lifecycle.game_id, steer.player, steer.direction});
+  state.arena = classic_arena_authority::steer(std::move(state.arena), steer);
   return {std::move(state), Observations{}};
 }
 
