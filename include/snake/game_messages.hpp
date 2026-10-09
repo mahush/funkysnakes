@@ -1,9 +1,9 @@
 #pragma once
 
-#include "snake/classic_arena_authority.hpp"
+#include "classic/classic_arena_authority.hpp"
+#include "classic/difficulty_policy.hpp"
+#include "classic/game_boundary.hpp"
 #include "snake/control_messages.hpp"
-#include "snake/difficulty_policy.hpp"
-#include "snake/game_boundary.hpp"
 #include "snake/game_types.hpp"
 
 namespace snake {

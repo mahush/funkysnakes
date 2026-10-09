@@ -1,11 +1,11 @@
-#include "snake/classic_arena_authority.hpp"
+#include "classic/classic_arena_authority.hpp"
 
+#include "classic/scoring_policy.hpp"
 #include "funkypipes/bind_front.hpp"
 #include "funkypipes/make_pipe.hpp"
 #include "snake/functional_utils.hpp"
 #include "snake/game_logic.hpp"
 #include "snake/generic_lens.hpp"
-#include "snake/scoring_policy.hpp"
 
 namespace snake {
 namespace classic_arena_authority {

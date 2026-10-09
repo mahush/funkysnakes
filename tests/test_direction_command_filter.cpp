@@ -4,10 +4,10 @@
 
 #include <vector>
 
-#include "snake/direction_command_filter.hpp"
-#include "snake/game_boundary.hpp"
+#include "classic/direction_command_filter.hpp"
+#include "classic/game_boundary.hpp"
+#include "classic/snake_model_evolve.hpp"
 #include "snake/game_messages.hpp"
-#include "snake/snake_model_evolve.hpp"
 
 namespace snake {
 

@@ -7,9 +7,9 @@
 #include <string>
 #include <vector>
 
+#include "classic/snake_model.hpp"
 #include "snake/control_messages.hpp"
 #include "snake/process_helpers.hpp"
-#include "snake/snake_model.hpp"
 
 namespace snake {
 

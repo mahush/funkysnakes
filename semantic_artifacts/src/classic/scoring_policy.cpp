@@ -1,4 +1,4 @@
-#include "snake/scoring_policy.hpp"
+#include "classic/scoring_policy.hpp"
 
 #include <type_traits>
 

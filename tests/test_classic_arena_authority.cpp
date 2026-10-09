@@ -13,10 +13,10 @@
 #include <memory>
 #include <vector>
 
-#include "snake/classic_arena_authority.hpp"
-#include "snake/game_boundary.hpp"
+#include "classic/classic_arena_authority.hpp"
+#include "classic/game_boundary.hpp"
+#include "classic/snake_model_evolve.hpp"
 #include "snake/game_messages.hpp"
-#include "snake/snake_model_evolve.hpp"
 #include "test_printers.hpp"
 
 namespace snake {

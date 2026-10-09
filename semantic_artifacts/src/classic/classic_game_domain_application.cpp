@@ -1,8 +1,8 @@
-#include "snake/classic_game_domain_application.hpp"
+#include "classic/classic_game_domain_application.hpp"
 
 #include <algorithm>
 
-#include "snake/difficulty_policy.hpp"
+#include "classic/difficulty_policy.hpp"
 #include "snake/game_logic.hpp"
 
 namespace snake {

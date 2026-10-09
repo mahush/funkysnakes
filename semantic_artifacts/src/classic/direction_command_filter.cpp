@@ -1,6 +1,6 @@
-#include "snake/direction_command_filter.hpp"
+#include "classic/direction_command_filter.hpp"
 
-#include "snake/game_boundary.hpp"
+#include "classic/game_boundary.hpp"
 
 namespace snake {
 namespace direction_command_filter {
