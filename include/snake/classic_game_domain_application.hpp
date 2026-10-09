@@ -7,10 +7,21 @@
 
 #include "snake/classic_arena_authority.hpp"
 #include "snake/classic_game_lifecycle_authority.hpp"
+#include "snake/game_boundary.hpp"
 #include "snake/utility.hpp"
 
 namespace snake {
 namespace classic_game_domain_application {
+
+// The Domain System Boundary is this application's interface
+using game_boundary::ArenaView;
+using game_boundary::GameOver;
+using game_boundary::Observations;
+using game_boundary::Start;
+using game_boundary::Status;
+using game_boundary::Steer;
+using game_boundary::TimeElapsed;
+using game_boundary::TogglePause;
 
 /**
  * Classic Game Domain Application - canonical single-process realization of classic snake
@@ -25,80 +36,6 @@ namespace classic_game_domain_application {
  * is mechanics: the periods come from the lifecycle Authority, the step interval from the
  * Difficulty Policy, and pausing freezes it because the lifecycle Authority pauses the game.
  */
-
-// ============================================================================
-// Domain System Boundary - players end, inbound
-// ============================================================================
-
-/**
- * @brief Begin a new game
- */
-struct Start {
-  int starting_level{1};
-};
-
-/**
- * @brief A player's intended turn
- */
-struct Steer {
-  PlayerId player;
-  Direction direction;
-};
-
-/**
- * @brief Pause or resume the game
- */
-struct TogglePause {};
-
-// ============================================================================
-// Domain System Boundary - external facts, inbound
-// ============================================================================
-
-/**
- * @brief Game time has passed
- */
-struct TimeElapsed {
-  std::chrono::milliseconds duration;
-};
-
-// ============================================================================
-// Domain System Boundary - players end, outbound
-// ============================================================================
-
-/**
- * @brief Board, snakes, food and scores after an arena step
- */
-struct ArenaView {
-  Board board;
-  PerPlayerSnakes snakes;
-  FoodItems food_items;
-  PerPlayerScores scores;
-};
-
-/**
- * @brief Current level and whether the game is paused
- */
-struct Status {
-  int level;
-  bool paused;
-};
-
-/**
- * @brief Final result of a concluded game
- */
-struct GameOver {
-  PerPlayerScores final_scores;
-  int final_level;
-};
-
-/**
- * @brief Everything observable at the boundary after one interaction, in order of occurrence
- */
-struct Observations {
-  std::vector<ArenaView> arena_views;
-  std::vector<Status> statuses;
-  std::optional<GameOver> game_over;
-};
 
 // ============================================================================
 // Composition
