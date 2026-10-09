@@ -15,12 +15,12 @@ std::tuple<State, ClockIntent, StepIntervalIntent, CadenceIntent> start(GameId g
   state.over = false;
   state.paused = false;
   StepIntervalIntent interval{difficulty_policy::stepIntervalMs(state.level)};
-  return {std::move(state), GameClockState::START, interval, CadenceIntent::START};
+  return {std::move(state), ClockIntent::START, interval, CadenceIntent::START};
 }
 
 std::tuple<State, ClockIntent> togglePause(State state) {
   state.paused = !state.paused;
-  ClockIntent clock = state.paused ? GameClockState::PAUSE : GameClockState::RESUME;
+  ClockIntent clock = state.paused ? ClockIntent::PAUSE : ClockIntent::RESUME;
   return {std::move(state), clock};
 }
 
@@ -58,7 +58,7 @@ std::tuple<State, std::optional<ConcludeIntent>> observeAliveStates(State state,
 }
 
 std::tuple<ClockIntent, CadenceIntent> concluded(const State& /* state */) {
-  return {GameClockState::STOP, CadenceIntent::STOP};
+  return {ClockIntent::STOP, CadenceIntent::STOP};
 }
 
 }  // namespace classic_game_lifecycle_authority

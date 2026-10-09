@@ -22,13 +22,13 @@ const Board CLASSIC_BOARD{60, 20};
 
 VirtualClock executeClockIntent(VirtualClock clock, lifecycle::ClockIntent intent) {
   switch (intent) {
-    case GameClockState::START:
-    case GameClockState::RESUME:
+    case lifecycle::ClockIntent::START:
+    case lifecycle::ClockIntent::RESUME:
       clock.stepping = true;
       clock.until_step = clock.step_interval;
       break;
-    case GameClockState::STOP:
-    case GameClockState::PAUSE:
+    case lifecycle::ClockIntent::STOP:
+    case lifecycle::ClockIntent::PAUSE:
       clock.stepping = false;
       break;
   }

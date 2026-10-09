@@ -9,6 +9,7 @@
 
 #include "snake/classic_game_lifecycle_authority.hpp"
 #include "snake/control_messages.hpp"
+#include "snake/engine_manager_messages.hpp"
 #include "snake/game_messages.hpp"
 
 namespace snake {

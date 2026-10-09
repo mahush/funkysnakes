@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "snake/control_messages.hpp"
+#include "snake/engine_manager_messages.hpp"
 #include "snake/game_messages.hpp"
 
 namespace snake {
@@ -15,25 +16,6 @@ namespace snake {
 using funkyactors::Actor;
 using funkyactors::SubscriptionPtr;
 using funkyactors::TopicPtr;
-
-/**
- * @brief Mock subscriber for TickMsg messages
- */
-class MockTickSubscriber : public Actor<MockTickSubscriber> {
- public:
-  void processInputs() override {
-    while (auto msg = tick_sub_->tryTakeMessage()) {
-      ticks.push_back(*msg);
-    }
-  }
-
-  std::vector<TickMsg> ticks;
-
-  MockTickSubscriber(ActorContext ctx, TopicPtr<TickMsg> topic) : Actor{ctx}, tick_sub_{create_sub(topic)} {}
-
- private:
-  SubscriptionPtr<TickMsg> tick_sub_;
-};
 
 /**
  * @brief Mock subscriber for DirectionMsg messages
@@ -93,46 +75,6 @@ class MockGameOverSubscriber : public Actor<MockGameOverSubscriber> {
 
  private:
   SubscriptionPtr<GameOverMsg> gameover_sub_;
-};
-
-/**
- * @brief Mock subscriber for StartClockMsg messages
- */
-class MockStartClockSubscriber : public Actor<MockStartClockSubscriber> {
- public:
-  void processInputs() override {
-    while (auto msg = startclock_sub_->tryTakeMessage()) {
-      start_clocks.push_back(*msg);
-    }
-  }
-
-  std::vector<StartClockMsg> start_clocks;
-
-  MockStartClockSubscriber(ActorContext ctx, TopicPtr<StartClockMsg> topic)
-      : Actor{ctx}, startclock_sub_{create_sub(topic)} {}
-
- private:
-  SubscriptionPtr<StartClockMsg> startclock_sub_;
-};
-
-/**
- * @brief Mock subscriber for StopClockMsg messages
- */
-class MockStopClockSubscriber : public Actor<MockStopClockSubscriber> {
- public:
-  void processInputs() override {
-    while (auto msg = stopclock_sub_->tryTakeMessage()) {
-      stop_clocks.push_back(*msg);
-    }
-  }
-
-  std::vector<StopClockMsg> stop_clocks;
-
-  MockStopClockSubscriber(ActorContext ctx, TopicPtr<StopClockMsg> topic)
-      : Actor{ctx}, stopclock_sub_{create_sub(topic)} {}
-
- private:
-  SubscriptionPtr<StopClockMsg> stopclock_sub_;
 };
 
 /**
