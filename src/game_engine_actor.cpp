@@ -89,12 +89,15 @@ std::tuple<GameState, std::optional<PlayerAliveStatesMsg>> tryGeneratePlayerAliv
  * - RenderableStateMsg message to publish
  * - Optional PlayerAliveStatesMsg message (if alive states changed)
  *
+ * Parameter order: bound parameters first (for bindFront), then state and event.
+ *
+ * @param random_int Random number source for food placement
  * @param state Current game state
  * @param event Timer elapsed event (unused, required for signature)
  * @return Tuple of (new GameState, RenderableStateMsg, optional PlayerAliveStatesMsg)
  */
 std::tuple<GameState, RenderableStateMsg, std::optional<PlayerAliveStatesMsg>> handleTick(
-    GameState state, const GameTimerElapsedEvent& /* event */) {
+    const RandomIntGeneratorFn& random_int, GameState state, const GameTimerElapsedEvent& /* event */) {
   // ============================================================================
   // GAME LOGIC PIPELINE - Functional Composition with funkypipes
   // ============================================================================
@@ -110,9 +113,9 @@ std::tuple<GameState, RenderableStateMsg, std::optional<PlayerAliveStatesMsg>> h
       when<0>(isBiteDropFoodMode, over_food(dropCutTailsAsFood)),                                              // → state
       when(isBiteDropFoodMode, over_food_viewing_snakes(dropDeadSnakesAsFood)),                                   // → state
       over_food_and_scores_viewing_snakes(handleFoodEating),                                                      // → state
-      over_food_viewing_board_and_snakes(bindFront(replenishFood, makeRandomIntGenerator(), MIN_FOOD_COUNT)),     // → state
+      over_food_viewing_board_and_snakes(bindFront(replenishFood, random_int, MIN_FOOD_COUNT)),                     // → state
       when(shouldRepositionFood,
-           over_food_viewing_board_and_snakes(bindFront(repositionRandomFood, makeRandomIntGenerator()))),        // → state
+           over_food_viewing_board_and_snakes(bindFront(repositionRandomFood, random_int))),                    // → state
       clearRepositionFlag);                                                                                     // → state (clear flag)
   // clang-format on
 
@@ -298,7 +301,8 @@ GameEngineActor::GameEngineActor(ActorContext ctx,
       tickrate_sub_{create_sub(tickrate_topic)},
       reposition_sub_{create_sub(reposition_topic)},
       summary_req_sub_{create_sub(summary_req_topic)},
-      game_loop_timer_{create_timer<GameTimer>(timer_factory)} {
+      game_loop_timer_{create_timer<GameTimer>(timer_factory)},
+      random_int_{makeRandomIntGenerator()} {
   game_state_.game_id = "game_001";
   game_state_.board.width = 60;
   game_state_.board.height = 20;
@@ -310,8 +314,7 @@ GameEngineActor::GameEngineActor(ActorContext ctx,
                over_snakes_and_scores(bindFront(addPlayer, PlayerId{PLAYER_B}, Point{5, 15}, Direction::RIGHT, 7)));
 
   // Initialize food items
-  applyToState(game_state_,
-               over_food_viewing_board_and_snakes(bindFront(initializeFood, makeRandomIntGenerator(), MIN_FOOD_COUNT)));
+  applyToState(game_state_, over_food_viewing_board_and_snakes(bindFront(initializeFood, random_int_, MIN_FOOD_COUNT)));
 
   Logger::log("[GameEngineActor] Initialized " + std::to_string(game_state_.food_items.size()) + " food items\n");
 }
@@ -326,7 +329,7 @@ void GameEngineActor::processInputs() {
   GameEngineEffectHandler effect_handler(renderable_state_pub_, alive_states_pub_, summary_resp_pub_, game_loop_timer_);
 
   // Process timer events with effect handler pattern
-  processEventWithState(game_loop_timer_, game_state_, handleTick, effect_handler);
+  processEventWithState(game_loop_timer_, game_state_, bindFront(handleTick, random_int_), effect_handler);
 
   // Process clock commands with effect handler pattern
   processMessageWithState(clock_sub_, game_state_, handleGameClockCommand, effect_handler);
