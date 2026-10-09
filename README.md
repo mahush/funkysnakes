@@ -61,12 +61,11 @@ auto tick_pipeline = makePipe(
     over_direction_command_filter_state(direction_command_filter::try_consume_next),
     over_snakes_viewing_board_and_food(moveSnakes),
     over_snakes_and_scores(handleCollisions),
-    when<0>(isBiteDropFoodMode, over_food(dropCutTailsAsFood)),
-    when(isBiteDropFoodMode, over_food_viewing_snakes(dropDeadSnakesAsFood)),
+    when<0>(isBiteDropFoodMode, over_food(dropSegmentsAsFood)),
     over_food_and_scores_viewing_snakes(handleFoodEating),
-    over_food_viewing_board_and_snakes(bindFront(replenishFood, makeRandomIntGenerator(), MIN_FOOD_COUNT)),
+    over_food_viewing_board_and_snakes(bindFront(replenishFood, random_int, MIN_FOOD_COUNT)),
     when(shouldRepositionFood,
-         over_food_viewing_board_and_snakes(bindFront(repositionRandomFood, makeRandomIntGenerator()))),
+         over_food_viewing_board_and_snakes(bindFront(repositionRandomFood, random_int))),
     clearRepositionFlag);
 
 state = tick_pipeline(state);  // pure: next state computed from the current state
