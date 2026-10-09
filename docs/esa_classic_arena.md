@@ -97,8 +97,8 @@ that belongs to the actor's realization, not to arena meaning:
 ## Pinned behavior
 
 Characterized as current behavior in
-[`test_classic_arena_characterization.cpp`](../tests/test_classic_arena_characterization.cpp). Some of
-these look unintended. Changing any of them is a separate, explicit gameplay decision, not part of the
+[`test_classic_arena_authority.cpp`](../tests/test_classic_arena_authority.cpp). Some of these look
+unintended. Changing any of them is a separate, explicit gameplay decision, not part of the
 refactor.
 
 | Behavior | Notes |
@@ -107,7 +107,6 @@ refactor.
 | A biter eats the first cut segment in the same step | An ordering effect (collisions → drops → eating): the victim loses 10 and the biter gains 10, without growing that step |
 | Only the bitten snake loses points; a head-on hit or mutual bite kills both (−10 each) | Snake-against-snake checks are hard-wired to Player A and Player B |
 | New food may be placed on existing food | Only snake cells are avoided, with up to 100 attempts and then an unchecked position |
-| Two heads on one food cell: only Player A scores | Unreachable in a full step (equal heads are a head-on collision first); only visible in `handleFoodEating` alone |
 | Steering cancellation persists even when the new turn is then rejected | Cancellation (opposite of the first queued turn) happens before the other acceptance checks |
 | `BITE_REMOVE_TAIL` is never used | The mode is always `BITE_DROP_FOOD` |
 
@@ -125,14 +124,26 @@ Not extracted in this scope, but recorded:
 - **Scoring** (+10 eat, −10 bitten or dead): currently only meaningful as part of the eating and collision
   transitions, so it stays in the Authority.
 
-## Local execution
+## Tests and local execution
 
-The Classic Arena Authority runs without actors, timers or rendering:
-[`test_classic_arena_characterization.cpp`](../tests/test_classic_arena_characterization.cpp) runs
-complete arena histories directly against `classic_arena_authority`, with a scripted random source.
-`GameEngineActor` calls the same transitions in production, so there is no second interpretation of the
-arena rules.
+Tests target owners through their public transitions only, so they stay valid however the arena step is
+implemented internally:
+
+| Test file | Owner under test |
+|---|---|
+| [`test_classic_arena_authority.cpp`](../tests/test_classic_arena_authority.cpp) | Classic Arena Authority: `initial`, `steer`, `requestFoodReposition`, `tick` |
+| [`test_snake_model.cpp`](../tests/test_snake_model.cpp) | Snake Authority (`snake_model`) |
+| [`test_direction_command_filter.cpp`](../tests/test_direction_command_filter.cpp) | Steering Authority (`direction_command_filter`) |
+
+The game-rule helpers in `game_logic` are not tested directly; their behavior is pinned through complete
+arena steps. Two helper-level cases are unreachable through the Authority and are therefore not pinned:
+a shared food cell under both heads (equal heads are a head-on collision first) and repositioning
+without food (replenishment always runs first).
+
+The Classic Arena Authority runs without actors, timers or rendering: the arena tests run complete arena
+histories directly against `classic_arena_authority`, with a scripted random source. `GameEngineActor`
+calls the same transitions in production, so there is no second interpretation of the arena rules.
 
 ```bash
-./build/test_snake --gtest_filter='ClassicArena*'
+./build/test_snake --gtest_filter='ClassicArenaAuthority.*'
 ```
