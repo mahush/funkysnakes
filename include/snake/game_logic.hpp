@@ -1,5 +1,6 @@
 #pragma once
 
+#include <optional>
 #include <tuple>
 #include <vector>
 
@@ -89,17 +90,26 @@ std::tuple<PerPlayerSnakes, PerPlayerScores, std::vector<Point>> handleCollision
 // ============================================================================
 
 /**
- * @brief Generate a random food position not occupied by snakes
+ * @brief Generate a random free food position
+ *
+ * A cell is free when it holds neither a snake segment nor food. Up to 100 random
+ * candidates are tried.
  *
  * @param board Board dimensions
  * @param snakes Map of player snakes to check for collisions
+ * @param food_items Existing food to avoid
  * @param random_int Function that generates random int in range [min, max]
- * @return Random unoccupied position (or random position if all attempts fail)
+ * @return Random free position, or std::nullopt if no free candidate was found
  */
-Point generateRandomFoodPosition(const Board& board, const PerPlayerSnakes& snakes, RandomIntGeneratorFn random_int);
+std::optional<Point> generateRandomFoodPosition(const Board& board,
+                                                const PerPlayerSnakes& snakes,
+                                                const FoodItems& food_items,
+                                                RandomIntGeneratorFn random_int);
 
 /**
  * @brief Add cut tail segments as food
+ *
+ * Segments on cells that already hold food are skipped (one food item per cell).
  *
  * @param food_items Food (by value)
  * @param cut_tails Cut tail segments to add
@@ -111,6 +121,7 @@ FoodItems dropCutTailsAsFood(FoodItems food_items, const FoodItems& cut_tails);
  * @brief Add bodies of snakes that died this step to food (for BITE_DROP_FOOD mode)
  *
  * A body is dropped only once: snakes that were already dead before the step are skipped.
+ * Segments on cells that already hold food are skipped (one food item per cell).
  *
  * Parameter order: bound parameters first (for bindFront), then lens parameters.
  *
@@ -160,6 +171,8 @@ FoodItems initializeFood(RandomIntGeneratorFn random_int,
 /**
  * @brief Replenish food to maintain target count
  *
+ * New food is placed on free cells only; if no free cell is found, fewer items are added.
+ *
  * @param random_int Random number generator function
  * @param target_count Desired number of food items
  * @param food_items Food (by value)
@@ -175,6 +188,8 @@ FoodItems replenishFood(RandomIntGeneratorFn random_int,
 
 /**
  * @brief Reposition one random food item
+ *
+ * The item stays in place if no free cell is found.
  *
  * Parameter order: bound parameters first (for bindFront), then lens parameters.
  *

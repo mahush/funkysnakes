@@ -126,35 +126,48 @@ std::tuple<PerPlayerSnakes, PerPlayerScores, std::vector<Point>> handleCollision
 // Food Logic
 // ============================================================================
 
-Point generateRandomFoodPosition(const Board& board, const PerPlayerSnakes& snakes, RandomIntGeneratorFn random_int) {
+namespace {
+
+bool containsPoint(const FoodItems& food_items, Point p) {
+  return std::find(food_items.begin(), food_items.end(), p) != food_items.end();
+}
+
+// Enforces one food item per cell
+FoodItems addFoodIfFree(FoodItems food_items, Point p) {
+  if (!containsPoint(food_items, p)) {
+    food_items.push_back(p);
+  }
+  return food_items;
+}
+
+}  // namespace
+
+std::optional<Point> generateRandomFoodPosition(const Board& board,
+                                                const PerPlayerSnakes& snakes,
+                                                const FoodItems& food_items,
+                                                RandomIntGeneratorFn random_int) {
   for (int attempt = 0; attempt < 100; ++attempt) {
     Point candidate{random_int(0, board.width - 1), random_int(0, board.height - 1)};
 
-    bool occupied = false;
-    for (const auto& [player_id, snake] : snakes) {
-      if (snake_model::head(snake) == candidate) {
-        occupied = true;
-        break;
-      }
-      for (const Point& segment : snake_model::tail(snake)) {
-        if (segment == candidate) {
-          occupied = true;
-          break;
-        }
-      }
-      if (occupied) break;
-    }
+    bool occupied_by_snake = std::any_of(snakes.begin(), snakes.end(), [&candidate](const auto& entry) {
+      const Snake& snake = entry.second;
+      const std::vector<Point>& tail = snake_model::tail(snake);
+      return snake_model::head(snake) == candidate || std::find(tail.begin(), tail.end(), candidate) != tail.end();
+    });
+    bool occupied_by_food = containsPoint(food_items, candidate);
 
-    if (!occupied) {
+    if (!occupied_by_snake && !occupied_by_food) {
       return candidate;
     }
   }
 
-  return {random_int(0, board.width - 1), random_int(0, board.height - 1)};
+  return std::nullopt;
 }
 
 FoodItems dropCutTailsAsFood(FoodItems food_items, const FoodItems& cut_tails) {
-  food_items.insert(food_items.end(), cut_tails.begin(), cut_tails.end());
+  for (const Point& segment : cut_tails) {
+    food_items = addFoodIfFree(std::move(food_items), segment);
+  }
   return food_items;
 }
 
@@ -165,8 +178,10 @@ FoodItems dropDeadSnakesAsFood(const PerPlayerAliveStates& alive_before_step,
     auto before_it = alive_before_step.find(player_id);
     bool died_this_step = before_it != alive_before_step.end() && before_it->second && !snake_model::alive(snake);
     if (died_this_step) {
-      food_items.push_back(snake_model::head(snake));
-      food_items.insert(food_items.end(), snake_model::tail(snake).begin(), snake_model::tail(snake).end());
+      food_items = addFoodIfFree(std::move(food_items), snake_model::head(snake));
+      for (const Point& segment : snake_model::tail(snake)) {
+        food_items = addFoodIfFree(std::move(food_items), segment);
+      }
     }
   }
 
@@ -208,8 +223,11 @@ FoodItems replenishFood(RandomIntGeneratorFn random_int,
   }
 
   while (food_items.size() < static_cast<size_t>(target_count)) {
-    Point new_food_pos = generateRandomFoodPosition(board, snakes, random_int);
-    food_items.push_back(new_food_pos);
+    std::optional<Point> new_food_pos = generateRandomFoodPosition(board, snakes, food_items, random_int);
+    if (!new_food_pos) {
+      break;  // Board too crowded: try again next step
+    }
+    food_items.push_back(*new_food_pos);
   }
 
   return food_items;
@@ -224,7 +242,10 @@ FoodItems repositionRandomFood(RandomIntGeneratorFn random_int,
   }
 
   int food_index = random_int(0, food_items.size() - 1);
-  food_items[food_index] = generateRandomFoodPosition(board, snakes, random_int);
+  std::optional<Point> new_position = generateRandomFoodPosition(board, snakes, food_items, random_int);
+  if (new_position) {
+    food_items[food_index] = *new_position;
+  }
 
   return food_items;
 }
