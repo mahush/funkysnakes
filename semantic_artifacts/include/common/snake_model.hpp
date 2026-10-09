@@ -3,7 +3,7 @@
 #include <tuple>
 #include <vector>
 
-#include "classic/game_primitives.hpp"
+#include "common/game_primitives.hpp"
 
 namespace snake {
 namespace snake_model {

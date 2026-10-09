@@ -3,7 +3,7 @@
 #include <tuple>
 #include <vector>
 
-#include "classic/snake_model.hpp"
+#include "common/snake_model.hpp"
 
 namespace snake {
 namespace snake_model {

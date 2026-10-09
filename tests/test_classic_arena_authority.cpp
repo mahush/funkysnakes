@@ -15,7 +15,7 @@
 
 #include "classic/classic_arena_authority.hpp"
 #include "classic/game_boundary.hpp"
-#include "classic/snake_model_evolve.hpp"
+#include "common/snake_model_evolve.hpp"
 #include "snake/game_messages.hpp"
 #include "test_printers.hpp"
 

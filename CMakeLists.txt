@@ -45,14 +45,14 @@ add_executable(snake_actors
   semantic_artifacts/src/classic/scoring_policy.cpp
   semantic_artifacts/src/classic/classic_game_domain_application.cpp
   semantic_artifacts/src/classic/direction_command_filter.cpp
-  semantic_artifacts/src/classic/game_logic.cpp
-  semantic_artifacts/src/classic/snake_predicates.cpp
+  semantic_artifacts/src/common/game_logic.cpp
+  semantic_artifacts/src/common/snake_predicates.cpp
   src/game_manager_actor.cpp
   src/game_engine_actor.cpp
   src/input_actor.cpp
   src/stdin_reader.cpp
   src/renderer_actor.cpp
-  semantic_artifacts/src/classic/snake_model.cpp
+  semantic_artifacts/src/common/snake_model.cpp
   src/utility.cpp
   src/logger.cpp
 )
@@ -104,14 +104,14 @@ if(SNAKE_BUILD_TESTS)
     semantic_artifacts/src/classic/scoring_policy.cpp
     semantic_artifacts/src/classic/classic_game_domain_application.cpp
     semantic_artifacts/src/classic/direction_command_filter.cpp
-    semantic_artifacts/src/classic/game_logic.cpp
-    semantic_artifacts/src/classic/snake_predicates.cpp
+    semantic_artifacts/src/common/game_logic.cpp
+    semantic_artifacts/src/common/snake_predicates.cpp
     src/game_manager_actor.cpp
     src/game_engine_actor.cpp
     src/input_actor.cpp
     src/stdin_reader.cpp
     src/renderer_actor.cpp
-    semantic_artifacts/src/classic/snake_model.cpp
+    semantic_artifacts/src/common/snake_model.cpp
     src/utility.cpp
     src/logger.cpp
   )

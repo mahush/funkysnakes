@@ -1,6 +1,6 @@
 #pragma once
 
-#include "classic/game_types.hpp"
+#include "common/game_types.hpp"
 
 namespace snake {
 

@@ -1,7 +1,7 @@
 #include "classic/classic_arena_authority.hpp"
 
-#include "classic/game_logic.hpp"
 #include "classic/scoring_policy.hpp"
+#include "common/game_logic.hpp"
 #include "funkypipes/bind_front.hpp"
 #include "funkypipes/make_pipe.hpp"
 #include "snake/functional_utils.hpp"

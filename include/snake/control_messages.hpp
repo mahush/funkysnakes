@@ -2,7 +2,7 @@
 
 #include <string>
 
-#include "classic/players.hpp"
+#include "common/players.hpp"
 
 namespace snake {
 

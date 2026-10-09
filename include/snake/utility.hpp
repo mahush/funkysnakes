@@ -1,7 +1,7 @@
 #ifndef SNAKE_UTILITY_HPP
 #define SNAKE_UTILITY_HPP
 
-#include "classic/random_source.hpp"
+#include "common/random_source.hpp"
 
 namespace snake {
 

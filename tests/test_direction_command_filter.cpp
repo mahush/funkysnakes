@@ -6,7 +6,7 @@
 
 #include "classic/direction_command_filter.hpp"
 #include "classic/game_boundary.hpp"
-#include "classic/snake_model_evolve.hpp"
+#include "common/snake_model_evolve.hpp"
 #include "snake/game_messages.hpp"
 
 namespace snake {

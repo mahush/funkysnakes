@@ -5,7 +5,7 @@
 #include <tuple>
 
 #include "classic/classic_arena_authority.hpp"
-#include "classic/game_logic.hpp"
+#include "common/game_logic.hpp"
 #include "funkypipes/bind_front.hpp"
 #include "snake/game_state_lenses.hpp"
 #include "snake/logger.hpp"

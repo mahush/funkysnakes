@@ -4,8 +4,8 @@
 #include <optional>
 #include <vector>
 
-#include "classic/game_types.hpp"
-#include "classic/players.hpp"
+#include "common/game_types.hpp"
+#include "common/players.hpp"
 
 namespace snake {
 namespace game_boundary {

@@ -4,9 +4,9 @@
 #include <map>
 #include <vector>
 
-#include "classic/game_primitives.hpp"
-#include "classic/players.hpp"
-#include "classic/snake_model.hpp"
+#include "common/game_primitives.hpp"
+#include "common/players.hpp"
+#include "common/snake_model.hpp"
 
 namespace snake {
 

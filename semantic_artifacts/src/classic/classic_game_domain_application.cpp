@@ -3,7 +3,7 @@
 #include <algorithm>
 
 #include "classic/difficulty_policy.hpp"
-#include "classic/game_logic.hpp"
+#include "common/game_logic.hpp"
 
 namespace snake {
 namespace classic_game_domain_application {

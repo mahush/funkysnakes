@@ -2,7 +2,7 @@
 
 #include <optional>
 
-#include "classic/game_types.hpp"
+#include "common/game_types.hpp"
 #include "snake/control_messages.hpp"
 
 namespace snake {
