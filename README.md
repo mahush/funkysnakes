@@ -72,7 +72,7 @@ auto tick_pipeline = makePipe(
 state = tick_pipeline(state);  // pure: next state computed from the current state
 ```
 
-Each `over_*` adapter is a lens that focuses one operation on part of the arena state; `when(...)` runs a stage conditionally. The whole tick stays a single pure function from state to state. The pipeline lives in [`classic_arena_authority.cpp`](src/classic_arena_authority.cpp), the single owner of the arena step — see [`docs/esa_classic_arena.md`](docs/esa_classic_arena.md) for the ownership map.
+Each `over_*` adapter is a lens that focuses one operation on part of the arena state; `when(...)` runs a stage conditionally. The whole tick stays a single pure function from state to state. The pipeline lives in [`classic_arena_authority.cpp`](src/classic_arena_authority.cpp), the single owner of the arena step — see [`docs/esa_classic_game.md`](docs/esa_classic_game.md) for the ownership map.
 
 > **Why is game logic written this way?**
 > [Bridging Object-Oriented and Functional Thinking](https://funkyposts.dev/posts/bridging-object-oriented-and-functional-thinking-in-modern-cpp) ·
