@@ -15,6 +15,7 @@ are preserved as-is.
 | [Classic Arena Authority](esa_classic_arena.md) | Authority | Snakes, scores, food, steering intentions and the complete arena step |
 | [Classic Game Lifecycle Authority](#classic-game-lifecycle-authority) ([`classic_game_lifecycle_authority`](../include/snake/classic_game_lifecycle_authority.hpp)) | Authority, beside the arena | Game phase, level, conclusion and game-time cadences |
 | [Difficulty Policy](#difficulty-policy) ([`difficulty_policy`](../include/snake/difficulty_policy.hpp)) | Policy | Level → step interval |
+| [Scoring Policy](esa_classic_arena.md#ownership-map) ([`scoring_policy`](../include/snake/scoring_policy.hpp)) | Policy, used by the arena | What arena events are worth |
 | [Domain System Boundary](#domain-system-boundary) | Boundary semantics | The game's external interactions, independent of devices |
 
 Not domain semantics: the [player input adapter](#player-input-adapter) and the
