@@ -4,7 +4,7 @@
 #include <map>
 #include <optional>
 
-#include "snake/game_types.hpp"
+#include "classic/game_types.hpp"
 
 namespace snake {
 

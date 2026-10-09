@@ -1,11 +1,11 @@
-#include "snake/game_logic.hpp"
+#include "classic/game_logic.hpp"
 
 #include <algorithm>
 #include <iterator>
 
+#include "classic/players.hpp"
 #include "classic/snake_model_evolve.hpp"
-#include "snake/control_messages.hpp"
-#include "snake/snake_predicates.hpp"
+#include "classic/snake_predicates.hpp"
 
 namespace snake {
 

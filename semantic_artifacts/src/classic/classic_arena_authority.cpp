@@ -1,10 +1,10 @@
 #include "classic/classic_arena_authority.hpp"
 
+#include "classic/game_logic.hpp"
 #include "classic/scoring_policy.hpp"
 #include "funkypipes/bind_front.hpp"
 #include "funkypipes/make_pipe.hpp"
 #include "snake/functional_utils.hpp"
-#include "snake/game_logic.hpp"
 #include "snake/generic_lens.hpp"
 
 namespace snake {
