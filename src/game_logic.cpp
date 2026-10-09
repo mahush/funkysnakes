@@ -73,65 +73,64 @@ std::vector<Point> appendBody(std::vector<Point> segments, const Snake& snake) {
   return segments;
 }
 
-std::tuple<PerPlayerSnakes, PerPlayerScores, std::vector<Point>> handleSelfBites(PerPlayerSnakes snakes,
-                                                                                 PerPlayerScores scores) {
+std::tuple<PerPlayerSnakes, ArenaEvents, std::vector<Point>> handleSelfBites(PerPlayerSnakes snakes,
+                                                                             ArenaEvents events) {
   std::vector<Point> dropped_segments;
   for (auto& [player_id, snake] : snakes) {
     if (snake_model::alive(snake) && snakeBitesItself(snake)) {
       snake = snake_model::kill(snake);
-      scores[player_id] -= 10;
+      events.push_back(SelfBitten{player_id});
       dropped_segments = appendBody(std::move(dropped_segments), snake);
     }
   }
-  return {snakes, scores, dropped_segments};
+  return {snakes, events, dropped_segments};
 }
 
 }  // namespace
 
-std::tuple<PerPlayerSnakes, PerPlayerScores, std::vector<Point>> handleCollisions(PerPlayerSnakes snakes,
-                                                                                  PerPlayerScores scores) {
+std::tuple<PerPlayerSnakes, ArenaEvents, std::vector<Point>> handleCollisions(PerPlayerSnakes snakes,
+                                                                              ArenaEvents events) {
   std::vector<Point> dropped_segments;
 
-  std::tie(snakes, scores, dropped_segments) = handleSelfBites(snakes, scores);
+  std::tie(snakes, events, dropped_segments) = handleSelfBites(snakes, events);
 
   if (snakes.size() < 2) {
-    return {snakes, scores, dropped_segments};
+    return {snakes, events, dropped_segments};
   }
 
   auto it1 = snakes.find(PLAYER_A);
   auto it2 = snakes.find(PLAYER_B);
 
   if (it1 == snakes.end() || it2 == snakes.end()) {
-    return {snakes, scores, dropped_segments};
+    return {snakes, events, dropped_segments};
   }
 
   Snake& snake_a = it1->second;
   Snake& snake_b = it2->second;
 
   if (!snake_model::alive(snake_a) || !snake_model::alive(snake_b)) {
-    return {snakes, scores, dropped_segments};
+    return {snakes, events, dropped_segments};
   }
 
   if (bothBiteEachOther(snake_a, snake_b)) {
     snake_a = snake_model::kill(snake_a);
     snake_b = snake_model::kill(snake_b);
-    scores[PLAYER_A] -= 10;
-    scores[PLAYER_B] -= 10;
+    events.push_back(MutualBite{PLAYER_A, PLAYER_B});
     dropped_segments = appendBody(std::move(dropped_segments), snake_a);
     dropped_segments = appendBody(std::move(dropped_segments), snake_b);
   } else if (firstBitesSecond(snake_a, snake_b)) {
-    scores[PLAYER_B] -= 10;
+    events.push_back(Bitten{PLAYER_B, PLAYER_A});
     auto [new_snake, cut] = snake_model::cutAt(snake_b, snake_model::head(snake_a));
     snake_b = new_snake;
     dropped_segments.insert(dropped_segments.end(), cut.begin(), cut.end());
   } else if (firstBitesSecond(snake_b, snake_a)) {
-    scores[PLAYER_A] -= 10;
+    events.push_back(Bitten{PLAYER_A, PLAYER_B});
     auto [new_snake, cut] = snake_model::cutAt(snake_a, snake_model::head(snake_b));
     snake_a = new_snake;
     dropped_segments.insert(dropped_segments.end(), cut.begin(), cut.end());
   }
 
-  return {snakes, scores, dropped_segments};
+  return {snakes, events, dropped_segments};
 }
 
 // ============================================================================
@@ -183,9 +182,9 @@ FoodItems dropSegmentsAsFood(FoodItems food_items, const std::vector<Point>& dro
   return food_items;
 }
 
-std::tuple<FoodItems, PerPlayerScores> handleFoodEating(FoodItems food_items,
-                                                        PerPlayerScores scores,
-                                                        const PerPlayerSnakes& snakes) {
+std::tuple<FoodItems, ArenaEvents> handleFoodEating(FoodItems food_items,
+                                                    ArenaEvents events,
+                                                    const PerPlayerSnakes& snakes) {
   for (const auto& [player_id, snake] : snakes) {
     if (!snake_model::alive(snake)) continue;
 
@@ -193,11 +192,11 @@ std::tuple<FoodItems, PerPlayerScores> handleFoodEating(FoodItems food_items,
 
     if (it != food_items.end()) {
       food_items.erase(it);
-      scores[player_id] += 10;
+      events.push_back(FoodEaten{player_id});
     }
   }
 
-  return {std::move(food_items), std::move(scores)};
+  return {std::move(food_items), std::move(events)};
 }
 
 FoodItems initializeFood(RandomIntGeneratorFn random_int,

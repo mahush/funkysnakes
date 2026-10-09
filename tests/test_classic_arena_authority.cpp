@@ -522,6 +522,41 @@ TEST(ClassicArenaAuthority, KeepsFoodInPlaceWhenNoCellIsFree) {
   EXPECT_EQ(state.food_items, (FoodItems{{50, 0}, {51, 0}, {52, 0}, {53, 0}, {54, 0}}));
 }
 
+/// @subsection Events
+
+/// @brief Ensures that a step reports what happened as events, in the order they occurred
+TEST(ClassicArenaAuthority, ReportsBiteBeforeEating) {
+  // When: the arena steps with a bite on another tail
+  // A bites B's tail and eats the first cut segment in the same step
+  State state =
+      classic_arena_authority::tick(noRandom(),
+                                    arena({{PLAYER_A, snake_model::initial(Point{7, 4}, Direction::DOWN, 3)},
+                                           {PLAYER_B, snake_model::initial(Point{10, 5}, Direction::RIGHT, 5)}},
+                                          {}));
+
+  // Then: the bite is reported before the eaten food
+  ASSERT_EQ(state.events.size(), 2u);
+  ASSERT_TRUE(std::holds_alternative<Bitten>(state.events[0]));
+  EXPECT_EQ(std::get<Bitten>(state.events[0]).victim, PLAYER_B);
+  EXPECT_EQ(std::get<Bitten>(state.events[0]).biter, PLAYER_A);
+  ASSERT_TRUE(std::holds_alternative<FoodEaten>(state.events[1]));
+  EXPECT_EQ(std::get<FoodEaten>(state.events[1]).player, PLAYER_A);
+}
+
+/// @brief Ensures that events describe only the latest step
+TEST(ClassicArenaAuthority, ReportsOnlyEventsOfLastStep) {
+  // Given: a step with events was done
+  State state = classic_arena_authority::tick(
+      makeScriptedRandom({20, 3}),
+      arena({{PLAYER_A, snake_model::initial(Point{10, 10}, Direction::RIGHT, 3)}}, {{11, 10}}));
+
+  // When: the arena steps without incident
+  state = classic_arena_authority::tick(noRandom(), state);
+
+  // Then: no events are reported
+  EXPECT_TRUE(state.events.empty());
+}
+
 /// @section classic_arena_authority::requestFoodReposition
 ///
 /// A reposition request is applied once, on the next step.

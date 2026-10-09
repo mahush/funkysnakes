@@ -34,14 +34,21 @@ its own owner for the rules that differ.
 
 | ESA role | Code | Owns |
 |---|---|---|
-| **Classic Arena Authority** | [`classic_arena_authority`](../include/snake/classic_arena_authority.hpp) | The complete arena step and its meaningful sequencing; how collisions and eating change scores; initial arena setup |
+| **Classic Arena Authority** | [`classic_arena_authority`](../include/snake/classic_arena_authority.hpp) | The complete arena step and its meaningful sequencing; the scores; initial arena setup |
 | Snake Authority (nested) | [`snake_model`](../include/snake/snake_model.hpp) | Evolution of one snake's body and life: move, grow, cut, kill, edge wrapping, ignoring reverse turns |
 | Steering Authority (nested) | [`direction_command_filter`](../include/snake/direction_command_filter.hpp) | Evolution of buffered steering intentions: acceptance, cancellation, queue limit, one turn per step |
-| Policies | — | None in this scope yet (see [Candidates](#policy-candidates)) |
+| Scoring Policy | [`scoring_policy`](../include/snake/scoring_policy.hpp) | What arena events are worth: +10 for eating; −10 for the victim of a bite, a self-bite, or each snake in a mutual bite |
 
 The game-rule helpers in [`game_logic`](../include/snake/game_logic.hpp) and
 [`snake_predicates`](../include/snake/snake_predicates.hpp) are not separate semantic owners. They are
 building blocks of the arena step, and the Classic Arena Authority decides how they are composed.
+
+### Arena events
+
+Arena rules report what happened as [events](../include/snake/arena_events.hpp) instead of deciding their
+consequences: `FoodEaten`, `Bitten` (victim and biter), `SelfBitten` and `MutualBite` (head-on or mutual tail
+bites). The Scoring Policy turns them into score changes, so the collision and eating helpers know nothing
+about points and can be reused by an arena with different scoring.
 
 ### Authority surface
 
@@ -53,7 +60,8 @@ State tick(const RandomIntGeneratorFn& random_int, State state);
 ```
 
 All transitions return the resulting state only (no echo outputs). Consumers read results from the state
-(snakes, scores, food; alive states via `extractAliveStates`).
+(snakes, scores, food; alive states via `extractAliveStates`; `events` for what happened in the last step,
+which the resulting state cannot otherwise show).
 
 `State` is a plain struct: fields are freely readable, but changes go through these transitions by
 convention. The lenses over its fields are private to the Authority implementation, so the arena step can
@@ -64,15 +72,16 @@ protection (opaque state with friend queries, as in `snake_model::Snake`) is a p
 
 The order is meaningful and owned by the Authority:
 
-1. consume at most one buffered turn per player;
+1. start with no events, then consume at most one buffered turn per player;
 2. move every alive snake (grow when the next head is on food);
-3. resolve collisions: self-bites first, then snake against snake; collect the segments leaving play
-   (cut tails and the complete bodies of snakes killed in this step);
+3. resolve collisions: self-bites first, then snake against snake; report them as events and collect the
+   segments leaving play (cut tails and the complete bodies of snakes killed in this step);
 4. drop those segments as food;
-5. eat food under alive snake heads;
-6. replenish food up to `MIN_FOOD_COUNT` on free cells (up to 100 random attempts per item; if none is free,
+5. eat food under alive snake heads and report it as events;
+6. apply the Scoring Policy to the step's events;
+7. replenish food up to `MIN_FOOD_COUNT` on free cells (up to 100 random attempts per item; if none is free,
    fewer items are placed this step);
-7. if requested, reposition one random food item, then clear the request.
+8. if requested, reposition one random food item, then clear the request.
 
 Step 4 only runs in `BITE_DROP_FOOD` mode, which is currently the only mode ever used.
 
@@ -122,8 +131,6 @@ Not extracted in this scope, but recorded:
   [`esa_classic_game.md`](esa_classic_game.md#difficulty-policy).
 - **Food placement**: where new food goes and which item gets repositioned. It could become a Policy once
   random draws are explicit facts rather than a generator function.
-- **Scoring** (+10 eat, −10 bitten or dead): currently only meaningful as part of the eating and collision
-  transitions, so it stays in the Authority.
 
 ## Tests and local execution
 
@@ -135,6 +142,7 @@ implemented internally:
 | [`test_classic_arena_authority.cpp`](../tests/test_classic_arena_authority.cpp) | Classic Arena Authority: `initial`, `steer`, `requestFoodReposition`, `tick` |
 | [`test_snake_model.cpp`](../tests/test_snake_model.cpp) | Snake Authority (`snake_model`) |
 | [`test_direction_command_filter.cpp`](../tests/test_direction_command_filter.cpp) | Steering Authority (`direction_command_filter`) |
+| [`test_scoring_policy.cpp`](../tests/test_scoring_policy.cpp) | Scoring Policy |
 
 The game-rule helpers in `game_logic` are not tested directly; their behavior is pinned through complete
 arena steps. Two helper-level cases are unreachable through the Authority and are therefore not pinned:

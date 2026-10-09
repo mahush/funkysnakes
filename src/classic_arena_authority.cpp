@@ -5,6 +5,7 @@
 #include "snake/functional_utils.hpp"
 #include "snake/game_logic.hpp"
 #include "snake/generic_lens.hpp"
+#include "snake/scoring_policy.hpp"
 
 namespace snake {
 namespace classic_arena_authority {
@@ -41,13 +42,23 @@ auto over_snakes_and_scores(TOp op) {
 }
 
 template <typename TOp>
-auto over_food(TOp op) {
-  return lens(mutate<&State::food_items>, read<>, std::move(op));
+auto over_snakes_and_events(TOp op) {
+  return lens(mutate<&State::snakes, &State::events>, read<>, std::move(op));
 }
 
 template <typename TOp>
-auto over_food_and_scores_viewing_snakes(TOp op) {
-  return lens(mutate<&State::food_items, &State::scores>, read<&State::snakes>, std::move(op));
+auto over_food_and_events_viewing_snakes(TOp op) {
+  return lens(mutate<&State::food_items, &State::events>, read<&State::snakes>, std::move(op));
+}
+
+template <typename TOp>
+auto over_scores_viewing_events(TOp op) {
+  return lens(mutate<&State::scores>, read<&State::events>, std::move(op));
+}
+
+template <typename TOp>
+auto over_food(TOp op) {
+  return lens(mutate<&State::food_items>, read<>, std::move(op));
 }
 
 template <typename TOp>
@@ -65,6 +76,11 @@ bool shouldRepositionFood(const State& state) { return state.should_reposition_f
 
 State clearRepositionFlag(State state) {
   state.should_reposition_food = false;
+  return state;
+}
+
+State clearEvents(State state) {
+  state.events.clear();
   return state;
 }
 
@@ -96,11 +112,13 @@ State tick(const RandomIntGeneratorFn& random_int, State state) {
 
   // clang-format off
   auto tick_pipeline = makePipe(
+      clearEvents,                                                                                    // → state
       over_direction_command_filter_state(direction_command_filter::try_consume_next),                // → (state, next_directions)
       over_snakes_viewing_board_and_food(moveSnakes),                                                 // → state
-      over_snakes_and_scores(handleCollisions),                                                       // → (state, dropped_segments)
+      over_snakes_and_events(handleCollisions),                                                       // → (state, dropped_segments)
       when<0>(isBiteDropFoodMode, over_food(dropSegmentsAsFood)),                                     // → state
-      over_food_and_scores_viewing_snakes(handleFoodEating),                                          // → state
+      over_food_and_events_viewing_snakes(handleFoodEating),                                          // → state
+      over_scores_viewing_events(scoring_policy::applyScoring),                                       // → state
       over_food_viewing_board_and_snakes(bindFront(replenishFood, random_int, MIN_FOOD_COUNT)),       // → state
       when(shouldRepositionFood,
            over_food_viewing_board_and_snakes(bindFront(repositionRandomFood, random_int))),          // → state
