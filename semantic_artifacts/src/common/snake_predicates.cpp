@@ -1,8 +1,8 @@
-#include "snake/snake_predicates.hpp"
+#include "common/snake_predicates.hpp"
 
 #include <algorithm>
 
-#include "snake/snake_model.hpp"
+#include "common/snake_model.hpp"
 
 namespace snake {
 

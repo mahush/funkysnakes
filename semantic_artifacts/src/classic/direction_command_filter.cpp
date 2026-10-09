@@ -1,6 +1,6 @@
-#include "snake/direction_command_filter.hpp"
+#include "classic/direction_command_filter.hpp"
 
-#include "snake/game_messages.hpp"
+#include "classic/game_boundary.hpp"
 
 namespace snake {
 namespace direction_command_filter {
@@ -12,7 +12,7 @@ bool is_opposite(Direction a, Direction b) {
 
 State try_add(State state, const PerPlayerSnakes& snakes, const DirectionCommand& cmd) {
   // Look up player's snake
-  auto snake_it = snakes.find(cmd.player_id);
+  auto snake_it = snakes.find(cmd.player);
   if (snake_it == snakes.end()) {
     return state;  // Player not found, no change
   }
@@ -20,9 +20,9 @@ State try_add(State state, const PerPlayerSnakes& snakes, const DirectionCommand
   const snake_model::Snake& snake = snake_it->second;
 
   // Lazy initialization: create queue if player doesn't have one yet
-  auto [queue_it, inserted] = state.queues.try_emplace(cmd.player_id, std::deque<Direction>{});
+  auto [queue_it, inserted] = state.queues.try_emplace(cmd.player, std::deque<Direction>{});
   std::deque<Direction>& player_queue = queue_it->second;
-  Direction new_dir = cmd.new_direction;
+  Direction new_dir = cmd.direction;
 
   // Rule 1: Undo rule - if opposite of first queued direction, clear queue
   if (!player_queue.empty()) {

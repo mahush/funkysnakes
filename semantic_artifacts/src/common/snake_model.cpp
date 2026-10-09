@@ -1,6 +1,6 @@
 #include <algorithm>
 
-#include "snake/snake_model_evolve.hpp"
+#include "common/snake_model_evolve.hpp"
 
 namespace snake {
 namespace snake_model {

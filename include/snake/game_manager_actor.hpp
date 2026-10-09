@@ -1,13 +1,17 @@
 #pragma once
 
 #include <asio.hpp>
+#include <chrono>
 #include <funkyactors/actor.hpp>
 #include <funkyactors/subscription.hpp>
 #include <funkyactors/timer/timer.hpp>
 #include <funkyactors/topic.hpp>
 #include <memory>
+#include <optional>
 
+#include "classic/classic_game_lifecycle_authority.hpp"
 #include "snake/control_messages.hpp"
+#include "snake/engine_manager_messages.hpp"
 #include "snake/game_messages.hpp"
 
 namespace snake {
@@ -16,6 +20,7 @@ namespace snake {
 using funkyactors::Actor;
 using funkyactors::make_cancel_command;
 using funkyactors::make_periodic_command;
+using funkyactors::make_single_shot_command;
 using funkyactors::PublisherPtr;
 using funkyactors::SubscriptionPtr;
 using funkyactors::Timer;
@@ -40,9 +45,9 @@ using LevelTimerPtr = std::shared_ptr<LevelTimer>;
 /**
  * @brief Coordinates game lifecycle and sessions
  *
- * GameManagerActor supervises game sessions and handles high-level
- * game control (start, stop).
- * Sends game clock control commands to GameEngineActor.
+ * GameManagerActor realizes the Classic Game Lifecycle Authority: it feeds messages and
+ * cadence timer events into the Authority's transitions and carries out the returned
+ * intents (clock commands, tick rate changes, reposition triggers, game over).
  */
 class GameManagerActor : public Actor<GameManagerActor> {
  public:
@@ -85,6 +90,11 @@ class GameManagerActor : public Actor<GameManagerActor> {
   void onRepositionTimer();
   void onLevelTimer();
   void publishMetadata();
+  void executeClockIntent(classic_game_lifecycle_authority::ClockIntent clock,
+                          std::optional<classic_game_lifecycle_authority::StepIntervalIntent> interval = std::nullopt);
+  void executeCadenceIntent(classic_game_lifecycle_authority::CadenceIntent cadence);
+  void freezeCadences();
+  void resumeCadences();
 
   // Publishers for sending messages
   PublisherPtr<GameClockCommandMsg> clock_pub_;
@@ -104,10 +114,20 @@ class GameManagerActor : public Actor<GameManagerActor> {
   RepositionTimerPtr reposition_timer_;
   LevelTimerPtr level_timer_;
 
-  GameId current_game_id_;
-  int current_level_{1};
-  bool game_over_detected_{false};
-  bool paused_{false};
+  // Cadence bookkeeping: game time stops while paused, so the remaining part of each
+  // period is kept across a pause (the timers cannot report it themselves)
+  using Clock = std::chrono::steady_clock;
+  Clock::time_point level_period_start_;
+  Clock::time_point reposition_period_start_;
+  std::chrono::milliseconds level_period_remaining_{0};
+  std::chrono::milliseconds reposition_period_remaining_{0};
+
+  // Lifecycle state owned by the Classic Game Lifecycle Authority
+  classic_game_lifecycle_authority::State lifecycle_;
+
+  // Realization state: message routing and the conclusion awaiting the engine's final scores
+  GameId game_id_;
+  std::optional<classic_game_lifecycle_authority::ConcludeIntent> pending_conclusion_;
 };
 
 }  // namespace snake

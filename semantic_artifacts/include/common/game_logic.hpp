@@ -1,10 +1,12 @@
 #pragma once
 
+#include <optional>
 #include <tuple>
 #include <vector>
 
-#include "snake/game_types.hpp"
-#include "snake/utility.hpp"
+#include "common/arena_events.hpp"
+#include "common/game_types.hpp"
+#include "common/random_source.hpp"
 
 namespace snake {
 
@@ -74,63 +76,58 @@ PerPlayerSnakes moveSnakes(PerPlayerSnakes snakes,
 /**
  * @brief Handle snake-to-snake collisions
  *
- * Updates snakes (kill/cut) and scores based on collision detection.
- * Returns cut tail segments for potential food conversion.
+ * Updates snakes (kill/cut) based on collision detection and reports what happened as
+ * collision events (SelfBitten, MutualBite, Bitten). Consequences such as scores are decided elsewhere.
+ * Returns the segments that leave play: cut tails, and the complete bodies of
+ * snakes killed in this call.
  *
  * @param snakes Snakes (by value)
- * @param scores Scores (by value)
- * @return Tuple of (updated snakes, updated scores, cut tail segments)
+ * @return Tuple of (updated snakes, collision events in order, dropped segments)
  */
-std::tuple<PerPlayerSnakes, PerPlayerScores, std::vector<Point>> handleCollisions(PerPlayerSnakes snakes,
-                                                                                  PerPlayerScores scores);
+std::tuple<PerPlayerSnakes, CollisionEvents, std::vector<Point>> handleCollisions(PerPlayerSnakes snakes);
 
 // ============================================================================
 // Food Logic
 // ============================================================================
 
 /**
- * @brief Generate a random food position not occupied by snakes
+ * @brief Generate a random free food position
+ *
+ * A cell is free when it holds neither a snake segment nor food. Up to 100 random
+ * candidates are tried.
  *
  * @param board Board dimensions
  * @param snakes Map of player snakes to check for collisions
+ * @param food_items Existing food to avoid
  * @param random_int Function that generates random int in range [min, max]
- * @return Random unoccupied position (or random position if all attempts fail)
+ * @return Random free position, or std::nullopt if no free candidate was found
  */
-Point generateRandomFoodPosition(const Board& board, const PerPlayerSnakes& snakes, RandomIntGeneratorFn random_int);
+std::optional<Point> generateRandomFoodPosition(const Board& board,
+                                                const PerPlayerSnakes& snakes,
+                                                const FoodItems& food_items,
+                                                RandomIntGeneratorFn random_int);
 
 /**
- * @brief Add cut tail segments as food
+ * @brief Add segments that left play as food
+ *
+ * Segments on cells that already hold food are skipped (one food item per cell).
  *
  * @param food_items Food (by value)
- * @param cut_tails Cut tail segments to add
- * @return Updated food with cut tails added
+ * @param dropped_segments Segments to add (cut tails and bodies of killed snakes)
+ * @return Updated food with the dropped segments added
  */
-FoodItems dropCutTailsAsFood(FoodItems food_items, const FoodItems& cut_tails);
-
-/**
- * @brief Add dead snake bodies to food (for BITE_DROP_FOOD mode)
- *
- * @param food_items Food (by value)
- * @param snakes Snakes (to check for dead ones)
- * @return Updated food with dead snake bodies added
- */
-FoodItems dropDeadSnakesAsFood(FoodItems food_items, const PerPlayerSnakes& snakes);
+FoodItems dropSegmentsAsFood(FoodItems food_items, const std::vector<Point>& dropped_segments);
 
 /**
  * @brief Handle snakes eating food
  *
- * If snake head is on food:
- * - Remove eaten food
- * - Award points (+10)
+ * If an alive snake's head is on food, the food is removed and a FoodEaten event is reported.
  *
  * @param food_items Food (by value)
- * @param scores Scores (by value)
  * @param snakes Snakes (to check head positions)
- * @return Tuple of (updated food, updated scores)
+ * @return Tuple of (updated food, eating events in order)
  */
-std::tuple<FoodItems, PerPlayerScores> handleFoodEating(FoodItems food_items,
-                                                        PerPlayerScores scores,
-                                                        const PerPlayerSnakes& snakes);
+std::tuple<FoodItems, std::vector<FoodEaten>> handleFoodEating(FoodItems food_items, const PerPlayerSnakes& snakes);
 
 /**
  * @brief Initialize food items to a target count
@@ -153,6 +150,8 @@ FoodItems initializeFood(RandomIntGeneratorFn random_int,
 /**
  * @brief Replenish food to maintain target count
  *
+ * New food is placed on free cells only; if no free cell is found, fewer items are added.
+ *
  * @param random_int Random number generator function
  * @param target_count Desired number of food items
  * @param food_items Food (by value)
@@ -168,6 +167,8 @@ FoodItems replenishFood(RandomIntGeneratorFn random_int,
 
 /**
  * @brief Reposition one random food item
+ *
+ * The item stays in place if no free cell is found.
  *
  * Parameter order: bound parameters first (for bindFront), then lens parameters.
  *

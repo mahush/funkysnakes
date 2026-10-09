@@ -7,9 +7,9 @@
 #include <string>
 #include <vector>
 
+#include "common/snake_model.hpp"
 #include "snake/control_messages.hpp"
 #include "snake/process_helpers.hpp"
-#include "snake/snake_model.hpp"
 
 namespace snake {
 
@@ -47,20 +47,21 @@ void RendererActor::processInputs() {
   processEvent(flash_timer_, [&](const FlashTimerElapsedEvent&) { onFlashTimer(); });
 }
 
-void RendererActor::onRenderableState(const RenderableStateMsg& state) {
-  last_state_ = state;
-  renderBoard(state, false, metadata_.paused);
+void RendererActor::onRenderableState(const RenderableStateMsg& msg) {
+  last_state_ = msg.view;
+  renderBoard(last_state_, false, status_.paused);
 }
 
 void RendererActor::onGameStateMetadata(const GameStateMetadataMsg& msg) {
-  metadata_ = msg;
+  game_id_ = msg.game_id;
+  status_ = msg.status;
   // Re-render if we have state (to show updated level/pause state)
   if (!last_state_.snakes.empty()) {
-    renderBoard(last_state_, game_over_active_, metadata_.paused);
+    renderBoard(last_state_, game_over_active_, status_.paused);
   }
 }
 
-void RendererActor::renderBoard(const RenderableStateMsg& state, bool show_game_over, bool show_paused) {
+void RendererActor::renderBoard(const game_boundary::ArenaView& state, bool show_game_over, bool show_paused) {
   // Clear screen (simple version - just add newlines)
   std::cout << "\n\n";
 
@@ -89,8 +90,8 @@ void RendererActor::renderBoard(const RenderableStateMsg& state, bool show_game_
   std::cout << "╔" << title_padding_left << title << title_padding_right << "╗\n";
 
   // Create info line with left-aligned game ID and right-aligned level
-  std::string game_text = "Game: " + metadata_.game_id;
-  std::string level_text = "Level: " + std::to_string(metadata_.level);
+  std::string game_text = "Game: " + game_id_;
+  std::string level_text = "Level: " + std::to_string(status_.level);
   int padding = separator_width - game_text.length() - level_text.length();
 
   std::cout << "║" << game_text << std::string(padding, ' ') << level_text << "║\n";
@@ -278,7 +279,7 @@ void RendererActor::onGameOver(const GameOverMsg& /* msg */) {
   flash_timer_->execute_command(make_periodic_command<FlashTimerTag>(std::chrono::milliseconds(750)));
 
   // Re-render the last state with "GAME OVER" overlay
-  renderBoard(last_state_, true, metadata_.paused);
+  renderBoard(last_state_, true, status_.paused);
 }
 
 void RendererActor::onFlashTimer() {
@@ -290,7 +291,7 @@ void RendererActor::onFlashTimer() {
   flash_visible_ = !flash_visible_;
 
   // Re-render with current flash state
-  renderBoard(last_state_, true, metadata_.paused);
+  renderBoard(last_state_, true, status_.paused);
 }
 
 }  // namespace snake

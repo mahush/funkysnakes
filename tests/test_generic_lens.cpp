@@ -1,12 +1,15 @@
 #include <gtest/gtest.h>
 
+#include "classic/classic_arena_authority.hpp"
+#include "common/snake_model_evolve.hpp"
 #include "funkypipes/bind_front.hpp"
-#include "snake/game_messages.hpp"
 #include "snake/generic_lens.hpp"
 #include "snake/generic_view.hpp"
-#include "snake/snake_model_evolve.hpp"
 
 namespace snake {
+
+// Lens machinery is exercised on the arena state as a representative state type
+using ArenaState = classic_arena_authority::State;
 
 // Test: Single mutable field
 TEST(GenericLensTest, SingleMutableField) {
@@ -15,9 +18,9 @@ TEST(GenericLensTest, SingleMutableField) {
     return snakes;
   };
 
-  auto transform = lens(mutate<&GameState::snakes>, read<>, op);
+  auto transform = lens(mutate<&ArenaState::snakes>, read<>, op);
 
-  GameState state;
+  ArenaState state;
   state = transform(state);
 
   EXPECT_EQ(state.snakes.size(), 1u);
@@ -33,9 +36,9 @@ TEST(GenericLensTest, TwoMutableFields) {
     return std::make_tuple(snakes, scores);
   };
 
-  auto transform = lens(mutate<&GameState::snakes, &GameState::scores>, read<>, op);
+  auto transform = lens(mutate<&ArenaState::snakes, &ArenaState::scores>, read<>, op);
 
-  GameState state;
+  ArenaState state;
   state = transform(state);
 
   EXPECT_EQ(state.snakes.size(), 1u);
@@ -54,9 +57,9 @@ TEST(GenericLensTest, MutableWithReadonly) {
     return snakes;
   };
 
-  auto transform = lens(mutate<&GameState::snakes>, read<&GameState::board, &GameState::food_items>, op);
+  auto transform = lens(mutate<&ArenaState::snakes>, read<&ArenaState::board, &ArenaState::food_items>, op);
 
-  GameState state;
+  ArenaState state;
   state.board = {60, 20};
   state.food_items = {{5, 5}, {10, 10}};
 
@@ -73,9 +76,9 @@ TEST(GenericLensTest, AdditionalOutput) {
     return std::make_tuple(snakes, scores, cut_tails);
   };
 
-  auto transform = lens(mutate<&GameState::snakes, &GameState::scores>, read<>, op);
+  auto transform = lens(mutate<&ArenaState::snakes, &ArenaState::scores>, read<>, op);
 
-  GameState state;
+  ArenaState state;
   auto [new_state, cut_tails] = transform(state);
 
   EXPECT_EQ(new_state.scores["PLAYER_A"], 50);
@@ -91,9 +94,9 @@ TEST(GenericLensTest, PipelineArgumentForwarding) {
     return food;
   };
 
-  auto transform = lens(mutate<&GameState::food_items>, read<>, op);
+  auto transform = lens(mutate<&ArenaState::food_items>, read<>, op);
 
-  GameState state;
+  ArenaState state;
   state.food_items = {{5, 5}};
 
   std::vector<Point> pipeline_arg = {{10, 10}, {15, 15}};
@@ -119,9 +122,9 @@ TEST(GenericLensTest, ComplexTransformation) {
     return std::make_tuple(snakes, scores, result_data);
   };
 
-  auto transform = lens(mutate<&GameState::snakes, &GameState::scores>, read<&GameState::board>, op);
+  auto transform = lens(mutate<&ArenaState::snakes, &ArenaState::scores>, read<&ArenaState::board>, op);
 
-  GameState state;
+  ArenaState state;
   state.board = {80, 30};
 
   int bonus_points = 200;
@@ -148,9 +151,9 @@ TEST(GenericLensTest, WithBindFront) {
   int current_tick = 6;
   auto bound_op = funkypipes::bindFront(updateWithTick, current_tick);
 
-  auto transform = lens(mutate<&GameState::food_items>, read<&GameState::board, &GameState::snakes>, bound_op);
+  auto transform = lens(mutate<&ArenaState::food_items>, read<&ArenaState::board, &ArenaState::snakes>, bound_op);
 
-  GameState state;
+  ArenaState state;
   state.board = {20, 20};
   state.food_items = {{5, 5}, {10, 10}};
 
@@ -175,9 +178,9 @@ TEST(GenericLensTest, WithBindFrontMutableLambda) {
 
   auto bound_op = funkypipes::bindFront(countingOp, 2);
 
-  auto transform = lens(mutate<&GameState::food_items>, read<>, bound_op);
+  auto transform = lens(mutate<&ArenaState::food_items>, read<>, bound_op);
 
-  GameState state;
+  ArenaState state;
   state.food_items = {{5, 5}};
 
   state = transform(state);
@@ -191,9 +194,9 @@ TEST(GenericLensTest, WithBindFrontMutableLambda) {
 // ============================================================================
 
 TEST(GenericViewTest, SingleReadonlyField) {
-  auto get_board_width = view(read<&GameState::board>, [](const Board& board) { return board.width; });
+  auto get_board_width = view(read<&ArenaState::board>, [](const Board& board) { return board.width; });
 
-  GameState state;
+  ArenaState state;
   state.board.width = 42;
 
   int width = get_board_width(state);
@@ -202,25 +205,26 @@ TEST(GenericViewTest, SingleReadonlyField) {
 }
 
 TEST(GenericViewTest, MultipleReadonlyFields) {
-  auto compute_total = view(read<&GameState::board, &GameState::interval_ms>, [](const Board& board, int interval_ms) {
-    return board.width * board.height * interval_ms;
-  });
+  auto count_cells_and_food =
+      view(read<&ArenaState::board, &ArenaState::food_items>, [](const Board& board, const FoodItems& food) {
+        return board.width * board.height + static_cast<int>(food.size());
+      });
 
-  GameState state;
+  ArenaState state;
   state.board.width = 10;
   state.board.height = 5;
-  state.interval_ms = 3;
+  state.food_items = {{1, 1}, {2, 2}, {3, 3}};
 
-  int total = compute_total(state);
+  int total = count_cells_and_food(state);
 
-  EXPECT_EQ(total, 150);  // 10 * 5 * 3
+  EXPECT_EQ(total, 53);  // 10 * 5 + 3
 }
 
 TEST(GenericViewTest, WithAdditionalArguments) {
   auto multiply_width =
-      view(read<&GameState::board>, [](const Board& board, int multiplier) { return board.width * multiplier; });
+      view(read<&ArenaState::board>, [](const Board& board, int multiplier) { return board.width * multiplier; });
 
-  GameState state;
+  ArenaState state;
   state.board.width = 20;
 
   int result = multiply_width(state, 3);
@@ -230,9 +234,9 @@ TEST(GenericViewTest, WithAdditionalArguments) {
 
 TEST(GenericViewTest, ReturningComplexType) {
   auto extract_board_copy =
-      view(read<&GameState::board>, [](const Board& board) { return Board{board.width, board.height}; });
+      view(read<&ArenaState::board>, [](const Board& board) { return Board{board.width, board.height}; });
 
-  GameState state;
+  ArenaState state;
   state.board.width = 30;
   state.board.height = 15;
 

@@ -1,12 +1,9 @@
 #ifndef SNAKE_UTILITY_HPP
 #define SNAKE_UTILITY_HPP
 
-#include <functional>
+#include "common/random_source.hpp"
 
 namespace snake {
-
-// Random integer generator function type
-using RandomIntGeneratorFn = std::function<int(int, int)>;
 
 /**
  * @brief Create a random integer generator function

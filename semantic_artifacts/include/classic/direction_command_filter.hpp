@@ -4,15 +4,16 @@
 #include <map>
 #include <optional>
 
-#include "snake/game_types.hpp"
+#include "common/game_types.hpp"
 
 namespace snake {
 
-// Forward declaration
-struct DirectionMsg;
+namespace game_boundary {
+struct Steer;
+}  // namespace game_boundary
 
-// Type alias for semantic clarity - DirectionMsg represents a command
-using DirectionCommand = DirectionMsg;
+// A player's intended turn, as received at the Domain System Boundary
+using DirectionCommand = game_boundary::Steer;
 
 namespace direction_command_filter {
 
