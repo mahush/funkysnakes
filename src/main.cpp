@@ -87,8 +87,7 @@ int main() {
 
   std::cout << "Starting game...\n";
   snake::StartGameMsg start;
-  start.starting_level = 1;
-  start.players = {snake::PLAYER_A, snake::PLAYER_B};
+  start.start.starting_level = 1;
   startgame_pub.publish(start);
   std::this_thread::sleep_for(std::chrono::milliseconds(200));
 

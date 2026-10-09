@@ -4,14 +4,10 @@
 #include <optional>
 #include <tuple>
 
+#include "classic/classic_arena_authority.hpp"
+#include "classic/game_logic.hpp"
 #include "funkypipes/bind_front.hpp"
-#include "funkypipes/details/tuple/separate_tuple_elements.hpp"
-#include "funkypipes/make_pipe.hpp"
-#include "snake/direction_command_filter.hpp"
-#include "snake/functional_utils.hpp"
-#include "snake/game_logic.hpp"
 #include "snake/game_state_lenses.hpp"
-#include "snake/game_state_views.hpp"
 #include "snake/logger.hpp"
 #include "snake/process_helpers.hpp"
 #include "snake/utility.hpp"
@@ -19,43 +15,12 @@
 namespace snake {
 
 using funkypipes::bindFront;
-using funkypipes::makePipe;
-
-// Game configuration constants
-constexpr int MIN_FOOD_COUNT = 5;
 
 namespace {
 
 // ============================================================================
 // Game Utility Functions
 // ============================================================================
-
-/**
- * @brief Check if game is in bite-drop-food collision mode
- *
- * @param state Current game state
- * @return true if collision mode is BITE_DROP_FOOD
- */
-bool isBiteDropFoodMode(const GameState& state) { return state.collision_mode == CollisionMode::BITE_DROP_FOOD; }
-
-/**
- * @brief Check if food should be repositioned this tick
- *
- * @param state Current game state
- * @return true if food reposition trigger was received
- */
-bool shouldRepositionFood(const GameState& state) { return state.should_reposition_food; }
-
-/**
- * @brief Clear the food reposition flag after processing
- *
- * @param state Current game state
- * @return Updated game state with reposition flag cleared
- */
-GameState clearRepositionFlag(GameState state) {
-  state.should_reposition_food = false;
-  return state;
-}
 
 /**
  * @brief Try to generate PlayerAliveStatesMsg message if alive states changed
@@ -67,7 +32,7 @@ GameState clearRepositionFlag(GameState state) {
  * @return Tuple of (updated state, optional PlayerAliveStatesMsg message)
  */
 std::tuple<GameState, std::optional<PlayerAliveStatesMsg>> tryGeneratePlayerAliveStates(GameState state) {
-  PerPlayerAliveStates current_alive_states = extractAliveStates(state.snakes);
+  PerPlayerAliveStates current_alive_states = extractAliveStates(state.arena.snakes);
   std::optional<PlayerAliveStatesMsg> msg;
 
   if (current_alive_states != state.previous_alive_states) {
@@ -89,46 +54,29 @@ std::tuple<GameState, std::optional<PlayerAliveStatesMsg>> tryGeneratePlayerAliv
  * - RenderableStateMsg message to publish
  * - Optional PlayerAliveStatesMsg message (if alive states changed)
  *
+ * Parameter order: bound parameters first (for bindFront), then state and event.
+ *
+ * @param random_int Random number source for food placement
  * @param state Current game state
  * @param event Timer elapsed event (unused, required for signature)
  * @return Tuple of (new GameState, RenderableStateMsg, optional PlayerAliveStatesMsg)
  */
 std::tuple<GameState, RenderableStateMsg, std::optional<PlayerAliveStatesMsg>> handleTick(
-    GameState state, const GameTimerElapsedEvent& /* event */) {
-  // ============================================================================
-  // GAME LOGIC PIPELINE - Functional Composition with funkypipes
-  // ============================================================================
-  // makePipe automatically unpacks tuples between stages
-  // When a function returns tuple<A, B>, the next function receives (A, B) as separate args
-  // Lenses are decorators that return state transformers
-
-  // clang-format off
-  auto tick_pipeline = makePipe(
-      over_direction_command_filter_state(direction_command_filter::try_consume_next),                         // → (state, next_directions)
-      over_snakes_viewing_board_and_food(moveSnakes),                                                             // → state
-      over_snakes_and_scores(handleCollisions),                                                                // → (state, cut_tails)
-      when<0>(isBiteDropFoodMode, over_food(dropCutTailsAsFood)),                                              // → state
-      when(isBiteDropFoodMode, over_food_viewing_snakes(dropDeadSnakesAsFood)),                                   // → state
-      over_food_and_scores_viewing_snakes(handleFoodEating),                                                      // → state
-      over_food_viewing_board_and_snakes(bindFront(replenishFood, makeRandomIntGenerator(), MIN_FOOD_COUNT)),     // → state
-      when(shouldRepositionFood,
-           over_food_viewing_board_and_snakes(bindFront(repositionRandomFood, makeRandomIntGenerator()))),        // → state
-      clearRepositionFlag);                                                                                     // → state (clear flag)
-  // clang-format on
-
-  state = tick_pipeline(state);
+    const RandomIntGeneratorFn& random_int, GameState state, const GameTimerElapsedEvent& /* event */) {
+  // Advance the arena (owned by the Classic Arena Authority)
+  state.arena = classic_arena_authority::tick(random_int, std::move(state.arena));
 
   // Check if alive states changed and generate message if so
   auto [state_with_updated_alive, alive_msg] = tryGeneratePlayerAliveStates(state);
   state = state_with_updated_alive;
 
-  // Build renderable state from game state (visual elements only)
-  RenderableStateMsg renderable{
-      state.board,
-      state.food_items,
-      state.snakes,
-      state.scores,
-  };
+  // Project the arena to the boundary's arena view
+  RenderableStateMsg renderable{game_boundary::ArenaView{
+      state.arena.board,
+      state.arena.snakes,
+      state.arena.food_items,
+      state.arena.scores,
+  }};
 
   return std::make_tuple(state, renderable, alive_msg);
 }
@@ -149,6 +97,9 @@ std::tuple<GameState, GameTimerCommand, LogMsg> handleGameClockCommand(GameState
 
   switch (msg.state) {
     case GameClockState::START:
+      if (msg.interval_ms) {
+        state.interval_ms = *msg.interval_ms;
+      }
       log_msg = {"[GameEngineActor] Starting internal timer\n"};
       timer_cmd = make_periodic_command<GameTimerTag>(std::chrono::milliseconds(state.interval_ms));
       break;
@@ -193,16 +144,16 @@ std::tuple<GameState, GameTimerCommand, LogMsg> handleTickRateChange(GameState s
 }
 
 /**
- * @brief Set food reposition flag
+ * @brief Forward a food reposition trigger to the arena
  *
  * @param state Current game state
  * @param trigger Food reposition trigger (contains game_id for validation)
- * @return Updated game state with reposition flag set if game_id matches
+ * @return Updated game state with reposition requested if game_id matches
  */
-GameState setFoodRepositionFlag(GameState state, const FoodRepositionTriggerMsg& trigger) {
+GameState handleFoodRepositionTrigger(GameState state, const FoodRepositionTriggerMsg& trigger) {
   // Only set flag if trigger is for current game (ignore stale triggers)
   if (trigger.game_id == state.game_id) {
-    state.should_reposition_food = true;
+    state.arena = classic_arena_authority::requestFoodReposition(std::move(state.arena));
   }
   return state;
 }
@@ -220,8 +171,8 @@ GameState setFoodRepositionFlag(GameState state, const FoodRepositionTriggerMsg&
 std::tuple<GameState, GameStateSummaryResponseMsg> handleSummaryRequest(
     GameState state, const GameStateSummaryRequestMsg& /* request */) {
   GameStateSummaryResponseMsg response;
-  response.scores = state.scores;
-  response.alive_states = extractAliveStates(state.snakes);
+  response.scores = state.arena.scores;
+  response.alive_states = extractAliveStates(state.arena.snakes);
   return {state, response};
 }
 
@@ -298,35 +249,25 @@ GameEngineActor::GameEngineActor(ActorContext ctx,
       tickrate_sub_{create_sub(tickrate_topic)},
       reposition_sub_{create_sub(reposition_topic)},
       summary_req_sub_{create_sub(summary_req_topic)},
-      game_loop_timer_{create_timer<GameTimer>(timer_factory)} {
+      game_loop_timer_{create_timer<GameTimer>(timer_factory)},
+      random_int_{makeRandomIntGenerator()} {
   game_state_.game_id = "game_001";
-  game_state_.board.width = 60;
-  game_state_.board.height = 20;
+  game_state_.arena = classic_arena_authority::initial(random_int_, Board{60, 20});
 
-  // Initialize players
-  applyToState(game_state_,
-               over_snakes_and_scores(bindFront(addPlayer, PlayerId{PLAYER_A}, Point{5, 10}, Direction::RIGHT, 7)));
-  applyToState(game_state_,
-               over_snakes_and_scores(bindFront(addPlayer, PlayerId{PLAYER_B}, Point{5, 15}, Direction::RIGHT, 7)));
-
-  // Initialize food items
-  applyToState(game_state_,
-               over_food_viewing_board_and_snakes(bindFront(initializeFood, makeRandomIntGenerator(), MIN_FOOD_COUNT)));
-
-  Logger::log("[GameEngineActor] Initialized " + std::to_string(game_state_.food_items.size()) + " food items\n");
+  Logger::log("[GameEngineActor] Initialized " + std::to_string(game_state_.arena.food_items.size()) + " food items\n");
 }
 
 void GameEngineActor::processInputs() {
-  // Drain direction commands into filtered queues
-  processMessageWithState(direction_sub_,
-                          game_state_,
-                          over_direction_command_filter_state_viewing_snakes(direction_command_filter::try_add));
+  // Drain steering commands into the arena
+  processMessageWithState(direction_sub_, game_state_, [](GameState state, const DirectionMsg& msg) {
+    return over_arena(classic_arena_authority::steer)(std::move(state), msg.steer);
+  });
 
   // Create effect handler for messages that produce effects
   GameEngineEffectHandler effect_handler(renderable_state_pub_, alive_states_pub_, summary_resp_pub_, game_loop_timer_);
 
   // Process timer events with effect handler pattern
-  processEventWithState(game_loop_timer_, game_state_, handleTick, effect_handler);
+  processEventWithState(game_loop_timer_, game_state_, bindFront(handleTick, random_int_), effect_handler);
 
   // Process clock commands with effect handler pattern
   processMessageWithState(clock_sub_, game_state_, handleGameClockCommand, effect_handler);
@@ -335,7 +276,7 @@ void GameEngineActor::processInputs() {
   processMessageWithState(tickrate_sub_, game_state_, handleTickRateChange, effect_handler);
 
   // Process food reposition triggers (pure, no effects)
-  processMessageWithState(reposition_sub_, game_state_, setFoodRepositionFlag);
+  processMessageWithState(reposition_sub_, game_state_, handleFoodRepositionTrigger);
 
   // Process game state summary requests with effect handler pattern
   processMessageWithState(summary_req_sub_, game_state_, handleSummaryRequest, effect_handler);

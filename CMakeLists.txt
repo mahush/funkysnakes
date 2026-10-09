@@ -40,21 +40,26 @@ target_include_directories(funkypipes INTERFACE ${funkypipes_SOURCE_DIR}/include
 # Main executable
 add_executable(snake_actors
   src/main.cpp
-  src/direction_command_filter.cpp
-  src/game_logic.cpp
-  src/snake_predicates.cpp
+  semantic_artifacts/src/classic/classic_arena_authority.cpp
+  semantic_artifacts/src/classic/classic_game_lifecycle_authority.cpp
+  semantic_artifacts/src/classic/scoring_policy.cpp
+  semantic_artifacts/src/classic/classic_game_domain_application.cpp
+  semantic_artifacts/src/classic/direction_command_filter.cpp
+  semantic_artifacts/src/classic/game_logic.cpp
+  semantic_artifacts/src/classic/snake_predicates.cpp
   src/game_manager_actor.cpp
   src/game_engine_actor.cpp
   src/input_actor.cpp
   src/stdin_reader.cpp
   src/renderer_actor.cpp
-  src/snake_model.cpp
+  semantic_artifacts/src/classic/snake_model.cpp
   src/utility.cpp
   src/logger.cpp
 )
 
 target_include_directories(snake_actors PRIVATE
   ${PROJECT_SOURCE_DIR}/include
+  ${PROJECT_SOURCE_DIR}/semantic_artifacts/include
 )
 
 target_link_libraries(snake_actors PRIVATE funkyactors funkypipes)
@@ -87,15 +92,26 @@ if(SNAKE_BUILD_TESTS)
   add_executable(test_snake
     tests/test_actors.cpp
     tests/test_generic_lens.cpp
-    src/direction_command_filter.cpp
-    src/game_logic.cpp
-    src/snake_predicates.cpp
+    tests/test_classic_arena_authority.cpp
+    tests/test_direction_command_filter.cpp
+    tests/test_snake_model.cpp
+    tests/test_classic_game_lifecycle_authority.cpp
+    tests/test_scoring_policy.cpp
+    tests/test_difficulty_policy.cpp
+    tests/test_classic_game_domain_application.cpp
+    semantic_artifacts/src/classic/classic_arena_authority.cpp
+    semantic_artifacts/src/classic/classic_game_lifecycle_authority.cpp
+    semantic_artifacts/src/classic/scoring_policy.cpp
+    semantic_artifacts/src/classic/classic_game_domain_application.cpp
+    semantic_artifacts/src/classic/direction_command_filter.cpp
+    semantic_artifacts/src/classic/game_logic.cpp
+    semantic_artifacts/src/classic/snake_predicates.cpp
     src/game_manager_actor.cpp
     src/game_engine_actor.cpp
     src/input_actor.cpp
     src/stdin_reader.cpp
     src/renderer_actor.cpp
-    src/snake_model.cpp
+    semantic_artifacts/src/classic/snake_model.cpp
     src/utility.cpp
     src/logger.cpp
   )
@@ -103,6 +119,7 @@ if(SNAKE_BUILD_TESTS)
   target_link_libraries(test_snake PRIVATE gtest_main gmock_main funkyactors funkypipes)
   target_include_directories(test_snake PRIVATE
     ${PROJECT_SOURCE_DIR}/include
+    ${PROJECT_SOURCE_DIR}/semantic_artifacts/include
     ${PROJECT_SOURCE_DIR}/tests
   )
   target_compile_options(test_snake PRIVATE -Wall -Wextra -Wpedantic -Werror)
@@ -112,4 +129,4 @@ if(SNAKE_BUILD_TESTS)
 endif()
 
 # Install target (optional)
-install(DIRECTORY include/ DESTINATION include)
+install(DIRECTORY include/ semantic_artifacts/include/ DESTINATION include)

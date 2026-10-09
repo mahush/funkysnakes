@@ -1,44 +1,48 @@
 #pragma once
 
+#include "classic/classic_arena_authority.hpp"
+#include "classic/difficulty_policy.hpp"
+#include "classic/game_boundary.hpp"
+#include "classic/game_types.hpp"
 #include "snake/control_messages.hpp"
-#include "snake/direction_command_filter.hpp"
-#include "snake/game_types.hpp"
 
 namespace snake {
 
 /**
- * @brief Complete game state snapshot
+ * @brief GameEngineActor state
  *
- * Contains internal game state for GameEngineActor.
- * Does not include level as that is managed by GameManager.
+ * Holds the arena (owned by the Classic Arena Authority) together with the
+ * actor's own realization state: game routing, tick interval and the last
+ * published alive states. Does not include level as that is managed by GameManager.
  */
 struct GameState {
   GameId game_id;
-  PerPlayerSnakes snakes;                                          // Snakes for each player
-  PerPlayerScores scores;                                          // Scores for each player
-  FoodItems food_items;                                            // Food items on the board
-  direction_command_filter::State direction_command_filter_state;  // Direction command filter module state
-  Board board;                                                     // Board dimensions
-  CollisionMode collision_mode{CollisionMode::BITE_DROP_FOOD};     // Collision handling mode
-  int interval_ms{200};                                            // TickMsg interval in milliseconds
-  bool should_reposition_food{false};                              // Flag: reposition food this tick
-  PerPlayerAliveStates previous_alive_states;                      // Previous alive states for change detection
+  classic_arena_authority::State arena;                   // Arena state owned by the Classic Arena Authority
+  int interval_ms{difficulty_policy::stepIntervalMs(1)};  // Step interval in milliseconds, initially for level 1
+  PerPlayerAliveStates previous_alive_states;             // Previous alive states for change detection
 };
 
 /**
- * @brief Game tick event - drives the game loop
+ * @brief Request to start a new game
  */
-struct TickMsg {
-  GameId game_id;
+struct StartGameMsg {
+  game_boundary::Start start;  // Boundary interaction
+};
+
+/**
+ * @brief Request to toggle pause state
+ */
+struct PauseToggleMsg {
+  GameId game_id;                     // Routing
+  game_boundary::TogglePause toggle;  // Boundary interaction
 };
 
 /**
  * @brief Player direction change command
  */
 struct DirectionMsg {
-  GameId game_id;
-  PlayerId player_id;
-  Direction new_direction;
+  GameId game_id;              // Routing
+  game_boundary::Steer steer;  // Boundary interaction
 };
 
 /**
@@ -49,10 +53,7 @@ struct DirectionMsg {
  * by GameManager via GameStateMetadataMsg.
  */
 struct RenderableStateMsg {
-  Board board;
-  FoodItems food_items;
-  PerPlayerSnakes snakes;
-  PerPlayerScores scores;
+  game_boundary::ArenaView view;  // Boundary observation
 };
 
 /**
@@ -63,57 +64,16 @@ struct RenderableStateMsg {
  * This is separate from RenderableStateMsg which contains only visual game elements.
  */
 struct GameStateMetadataMsg {
-  GameId game_id;
-  int level;
-  bool paused;
+  GameId game_id;                // Routing
+  game_boundary::Status status;  // Boundary observation
 };
 
 /**
  * @brief Game over notification
  */
 struct GameOverMsg {
-  GameSummaryMsg summary;
-};
-
-/**
- * @brief TickMsg rate change command
- */
-struct TickRateChangeMsg {
-  GameId game_id;
-  int interval_ms;  // New tick interval in milliseconds
-};
-
-/**
- * @brief Food reposition trigger
- *
- * Signals that food items should be repositioned this tick.
- * Sent by GameManager based on its scheduling logic.
- */
-struct FoodRepositionTriggerMsg {
-  GameId game_id;
-};
-
-/**
- * @brief Start clock command
- */
-struct StartClockMsg {
-  GameId game_id;
-  int interval_ms;
-};
-
-/**
- * @brief Stop clock command
- */
-struct StopClockMsg {
-  GameId game_id;
-};
-
-/**
- * @brief User input event (from keyboard/controller)
- */
-struct UserInputEventMsg {
-  PlayerId player_id;
-  char key;  // For now, simple char input
+  GameId game_id;                     // Routing
+  game_boundary::GameOver game_over;  // Boundary observation
 };
 
 /**
@@ -124,38 +84,6 @@ struct UserInputEventMsg {
  */
 struct LogMsg {
   std::string message;
-};
-
-/**
- * @brief Player alive states - published when any player's alive state changes
- *
- * This message is sent only when at least one player's alive state changes.
- * Used by GameManager to detect game over conditions.
- */
-struct PlayerAliveStatesMsg {
-  GameId game_id;
-  PerPlayerAliveStates alive_states;
-};
-
-/**
- * @brief Request current game state summary
- *
- * Sent by GameManager when it needs complete game state (e.g., on game over).
- */
-struct GameStateSummaryRequestMsg {
-  GameId game_id;
-};
-
-/**
- * @brief Response with current game state summary
- *
- * Sent by GameEngineActor in response to GameStateSummaryRequestMsg.
- * Contains game state data that GameEngineActor manages (scores, alive states).
- * Does not include level or game_id as those are managed by GameManager.
- */
-struct GameStateSummaryResponseMsg {
-  PerPlayerScores scores;
-  PerPlayerAliveStates alive_states;
 };
 
 }  // namespace snake
