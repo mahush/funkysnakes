@@ -108,13 +108,20 @@ Point generateRandomFoodPosition(const Board& board, const PerPlayerSnakes& snak
 FoodItems dropCutTailsAsFood(FoodItems food_items, const FoodItems& cut_tails);
 
 /**
- * @brief Add dead snake bodies to food (for BITE_DROP_FOOD mode)
+ * @brief Add bodies of snakes that died this step to food (for BITE_DROP_FOOD mode)
  *
+ * A body is dropped only once: snakes that were already dead before the step are skipped.
+ *
+ * Parameter order: bound parameters first (for bindFront), then lens parameters.
+ *
+ * @param alive_before_step Alive states captured before the step's collisions
  * @param food_items Food (by value)
  * @param snakes Snakes (to check for dead ones)
- * @return Updated food with dead snake bodies added
+ * @return Updated food with the bodies of newly dead snakes added
  */
-FoodItems dropDeadSnakesAsFood(FoodItems food_items, const PerPlayerSnakes& snakes);
+FoodItems dropDeadSnakesAsFood(const PerPlayerAliveStates& alive_before_step,
+                               FoodItems food_items,
+                               const PerPlayerSnakes& snakes);
 
 /**
  * @brief Handle snakes eating food
