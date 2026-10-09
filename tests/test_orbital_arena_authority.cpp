@@ -2,6 +2,7 @@
 
 #include <gtest/gtest.h>
 
+#include <algorithm>
 #include <deque>
 #include <memory>
 #include <vector>
@@ -54,6 +55,17 @@ State arena(SnakeSetup snake_a, FoodItems food) {
     food.push_back(Point{15 + i, 9});
   }
   return arena_authority::startRound(noRandom(), RoundSetup{ROUND, BOARD, {{PLAYER_A, snake_a}}, food});
+}
+
+/**
+ * @brief Arena with the snakes of Player A and Player B, filled up with food as above
+ */
+State arena(SnakeSetup snake_a, SnakeSetup snake_b, FoodItems food) {
+  for (int i = static_cast<int>(food.size()); i < arena_authority::MIN_FOOD_COUNT; ++i) {
+    food.push_back(Point{15 + i, 9});
+  }
+  return arena_authority::startRound(noRandom(),
+                                     RoundSetup{ROUND, BOARD, {{PLAYER_A, snake_a}, {PLAYER_B, snake_b}}, food});
 }
 
 Order orderOfA(int id, Point target) { return Order{ROUND, OrderId{id}, PLAYER_A, target}; }
@@ -304,6 +316,84 @@ TEST(OrbitalArenaAuthority, RejectsOrderOfAnotherRound) {
 
   // Then: it is rejected because its round has ended
   EXPECT_EQ(outcomes, (std::vector<ActivationOutcome>{OrderRejected{OrderId{1}, RejectionReason::ROUND_ENDED}}));
+}
+
+/// @subsection collisions
+
+/// @brief Classic rule: only the victim of a bite is cut, and its cut segments become food
+TEST(OrbitalArenaAuthority, CutsBittenSnakeAndDropsItsTailAsFood) {
+  // Given: A at (4,4) heads up; B at (6,3) heads right with tail (5,3),(4,3),(3,3)
+  State state = arena(SnakeSetup{Point{4, 4}, Direction::UP, 2}, SnakeSetup{Point{6, 3}, Direction::RIGHT, 4}, {});
+
+  // When: a step passes
+  auto [next, outcomes, facts] = arena_authority::tick(noRandom(), state, {});
+
+  // Then: A bit B at (4,3), B lost its tail from there, and A collected the dropped segment
+  EXPECT_EQ(facts, (ArenaFacts{Bitten{PLAYER_B, PLAYER_A}, FoodCollected{PLAYER_A, Point{4, 3}, std::nullopt}}));
+  EXPECT_EQ(snake_model::length(next.snakes.at(PLAYER_B)), 3U);
+}
+
+/// @brief A nonlethal bite leaves the biter's executing order in place
+TEST(OrbitalArenaAuthority, KeepsOrderOfSnakeInvolvedInNonlethalBite) {
+  // Given: B executes an order to (12,3) and A will bite B's tail on the next step
+  auto [state, outcomes, facts] = arena_authority::tick(
+      noRandom(),
+      arena(SnakeSetup{Point{4, 5}, Direction::UP, 2}, SnakeSetup{Point{5, 3}, Direction::RIGHT, 4}, {}),
+      {Order{ROUND, OrderId{1}, PLAYER_B, Point{12, 3}}});
+
+  // When: the bite happens
+  auto [next, next_outcomes, next_facts] = arena_authority::tick(noRandom(), state, {});
+
+  // Then: B's order still executes
+  EXPECT_EQ(next_facts.front(), (ArenaFact{Bitten{PLAYER_B, PLAYER_A}}));
+  EXPECT_EQ(next.active.at(PLAYER_B).id, OrderId{1});
+}
+
+TEST(OrbitalArenaAuthority, EndsOrderOfSnakeThatDied) {
+  // Given: A executes an order to (12,5); A's and B's heads are next to each other, moving towards each other
+  auto [state, outcomes, facts] = arena_authority::tick(
+      noRandom(),
+      arena(SnakeSetup{Point{4, 5}, Direction::RIGHT, 2}, SnakeSetup{Point{7, 5}, Direction::LEFT, 2}, {}),
+      {orderOfA(1, Point{12, 5})});
+
+  // When: the heads meet
+  auto [next, next_outcomes, next_facts] = arena_authority::tick(noRandom(), state, {});
+
+  // Then: both died, and A's order ended with its elimination right after the collision
+  ASSERT_GE(next_facts.size(), 2U);
+  EXPECT_EQ(next_facts[0], (ArenaFact{MutualBite{PLAYER_A, PLAYER_B}}));
+  EXPECT_EQ(next_facts[1], (ArenaFact{OrderEnded{OrderId{1}, EndReason::ELIMINATED, std::nullopt}}));
+  EXPECT_TRUE(next.active.empty());
+}
+
+/// @brief Reaching the target in a lethal collision fails the order instead of completing it
+TEST(OrbitalArenaAuthority, FailsOrderOnLethalArrival) {
+  // Given: A at (5,5) heading right, B at (6,4) heading down; both heads will enter (6,5)
+  State state = arena(SnakeSetup{Point{5, 5}, Direction::RIGHT, 2}, SnakeSetup{Point{6, 4}, Direction::DOWN, 2}, {});
+
+  // When: an order of A to (6,5) activates on that step
+  auto [next, outcomes, facts] = arena_authority::tick(noRandom(), state, {orderOfA(1, Point{6, 5})});
+
+  // Then: both died head-on and A's order is eliminated, not completed
+  EXPECT_EQ(headOfA(next), (Point{6, 5}));
+  EXPECT_EQ(facts.front(), (ArenaFact{MutualBite{PLAYER_A, PLAYER_B}}));
+  EXPECT_EQ(facts.at(1), (ArenaFact{OrderEnded{OrderId{1}, EndReason::ELIMINATED, std::nullopt}}));
+  EXPECT_EQ(
+      std::count(facts.begin(), facts.end(), ArenaFact{OrderEnded{OrderId{1}, EndReason::COMPLETED, std::nullopt}}), 0);
+}
+
+TEST(OrbitalArenaAuthority, RejectsOrderForDeadSnake) {
+  // Given: A and B died in a head-on collision
+  auto [state, outcomes, facts] = arena_authority::tick(
+      noRandom(),
+      arena(SnakeSetup{Point{5, 5}, Direction::RIGHT, 2}, SnakeSetup{Point{7, 5}, Direction::LEFT, 2}, {}),
+      {});
+
+  // When: an order for A is evaluated
+  auto [next, next_outcomes, next_facts] = arena_authority::tick(noRandom(), state, {orderOfA(1, Point{2, 2})});
+
+  // Then: it is rejected
+  EXPECT_EQ(next_outcomes, (std::vector<ActivationOutcome>{OrderRejected{OrderId{1}, RejectionReason::SNAKE_DEAD}}));
 }
 
 /// @section arena_authority::endRound

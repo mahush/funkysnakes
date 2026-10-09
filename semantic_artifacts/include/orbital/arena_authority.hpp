@@ -21,14 +21,17 @@ namespace arena_authority {
  *
  * Owns the board, the snakes, the food and the executing order of each snake with its route.
  * It decides whether an eligible order actually activates, and owns the complete sequence of one
- * step: activation, movement along routes (or straight on), food collection, order completion and
- * food replenishment. The nested snake_model owns the body and life of one snake.
+ * step: activation, movement along routes (or straight on), collisions with dropped segments,
+ * food collection, order completion and food replenishment. Growth and collision rules are classic's. The nested
+ * snake_model owns the body and life of one snake.
  *
  * Out of scope: pending orders and eligibility (Order Authority), points, round duration and
  * conclusion (Round Authority). The Arena reports facts; it does not value them.
  *
  * Within the facts of one step:
  * - interruption of an executing order precedes collection under its replacement;
+ * - collisions precede collection; an order whose snake died ends ELIMINATED right after them,
+ *   so a lethal arrival at the target does not complete the order;
  * - collection precedes completion of the order that collected;
  * - an order completed at activation (head already at target) precedes collection without order.
  */

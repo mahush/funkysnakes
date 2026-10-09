@@ -17,23 +17,31 @@ namespace snake {
 // A snake's head reached a food item and ate it
 struct FoodEaten {
   PlayerId player;
+
+  bool operator==(const FoodEaten& other) const noexcept { return player == other.player; }
 };
 
 // A snake's head reached another snake's body; the victim was cut at that point
 struct Bitten {
   PlayerId victim;
   PlayerId biter;
+
+  bool operator==(const Bitten& other) const noexcept { return victim == other.victim && biter == other.biter; }
 };
 
 // A snake's head reached its own tail; the snake died
 struct SelfBitten {
   PlayerId player;
+
+  bool operator==(const SelfBitten& other) const noexcept { return player == other.player; }
 };
 
 // Two snakes bit each other in the same step (head-on or mutual tail bites); both died
 struct MutualBite {
   PlayerId first;
   PlayerId second;
+
+  bool operator==(const MutualBite& other) const noexcept { return first == other.first && second == other.second; }
 };
 
 using ArenaEvent = std::variant<FoodEaten, Bitten, SelfBitten, MutualBite>;
