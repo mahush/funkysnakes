@@ -87,6 +87,7 @@ if(SNAKE_BUILD_TESTS)
   add_executable(test_snake
     tests/test_actors.cpp
     tests/test_generic_lens.cpp
+    tests/test_classic_arena_characterization.cpp
     src/direction_command_filter.cpp
     src/game_logic.cpp
     src/snake_predicates.cpp
