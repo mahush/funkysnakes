@@ -8,6 +8,7 @@
 #include <memory>
 
 #include "snake/control_messages.hpp"
+#include "snake/engine_manager_messages.hpp"
 #include "snake/game_messages.hpp"
 #include "snake/utility.hpp"
 

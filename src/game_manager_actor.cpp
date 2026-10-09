@@ -59,6 +59,25 @@ void GameManagerActor::processInputs() {
 
 namespace lifecycle = classic_game_lifecycle_authority;
 
+namespace {
+
+// Maps the lifecycle Authority's clock intent to the engine's clock command
+GameClockState toGameClockState(lifecycle::ClockIntent clock) {
+  switch (clock) {
+    case lifecycle::ClockIntent::START:
+      return GameClockState::START;
+    case lifecycle::ClockIntent::STOP:
+      return GameClockState::STOP;
+    case lifecycle::ClockIntent::PAUSE:
+      return GameClockState::PAUSE;
+    case lifecycle::ClockIntent::RESUME:
+      return GameClockState::RESUME;
+  }
+  return GameClockState::STOP;
+}
+
+}  // namespace
+
 void GameManagerActor::publishMetadata() {
   GameStateMetadataMsg metadata;
   metadata.game_id = lifecycle_.game_id;
@@ -70,7 +89,7 @@ void GameManagerActor::executeClockIntent(lifecycle::ClockIntent clock,
                                           std::optional<lifecycle::StepIntervalIntent> interval) {
   GameClockCommandMsg cmd;
   cmd.game_id = lifecycle_.game_id;
-  cmd.state = clock;
+  cmd.state = toGameClockState(clock);
   if (interval) {
     cmd.interval_ms = interval->interval_ms;
   }

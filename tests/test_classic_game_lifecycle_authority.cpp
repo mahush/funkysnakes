@@ -36,7 +36,7 @@ TEST(ClassicGameLifecycleAuthority, RunsGameAtStartingLevel) {
   EXPECT_EQ(state.level, 3);
   EXPECT_FALSE(state.paused);
   EXPECT_FALSE(state.over);
-  EXPECT_EQ(clock, GameClockState::START);
+  EXPECT_EQ(clock, lifecycle::ClockIntent::START);
   EXPECT_EQ(cadence, lifecycle::CadenceIntent::START);
 }
 
@@ -71,7 +71,7 @@ TEST(ClassicGameLifecycleAuthority, PausesRunningGame) {
 
   // Then: the game is paused and stepping pauses
   EXPECT_TRUE(state.paused);
-  EXPECT_EQ(clock, GameClockState::PAUSE);
+  EXPECT_EQ(clock, lifecycle::ClockIntent::PAUSE);
 }
 
 /// @brief Ensures that toggling a paused game resumes stepping
@@ -81,7 +81,7 @@ TEST(ClassicGameLifecycleAuthority, ResumesPausedGame) {
 
   // Then: the game runs and stepping resumes
   EXPECT_FALSE(state.paused);
-  EXPECT_EQ(clock, GameClockState::RESUME);
+  EXPECT_EQ(clock, lifecycle::ClockIntent::RESUME);
 }
 
 /// @brief Pins that pausing is not blocked after the game is over, so toggling twice resumes stepping
@@ -94,7 +94,7 @@ TEST(ClassicGameLifecycleAuthority, ResumesSteppingWhenUnpausedAfterGameOver) {
 
   // Then: stepping resumes although the game is over
   EXPECT_TRUE(new_state.over);
-  EXPECT_EQ(clock, GameClockState::RESUME);
+  EXPECT_EQ(clock, lifecycle::ClockIntent::RESUME);
 }
 
 /// @section lifecycle::levelPeriodElapsed
@@ -179,7 +179,7 @@ TEST(ClassicGameLifecycleAuthority, StopsClockAndCadencesOnConclusion) {
   auto [clock, cadence] = lifecycle::concluded(concludedGame());
 
   // Then: the clock and the cadences stop
-  EXPECT_EQ(clock, GameClockState::STOP);
+  EXPECT_EQ(clock, lifecycle::ClockIntent::STOP);
   EXPECT_EQ(cadence, lifecycle::CadenceIntent::STOP);
 }
 

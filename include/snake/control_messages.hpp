@@ -25,60 +25,10 @@ inline constexpr const char* PLAYER_A = "Player A";
 inline constexpr const char* PLAYER_B = "Player B";
 
 /**
- * @brief Request to start a game session
- */
-struct StartSessionMsg {
-  GameId game_id;
-  int starting_level;
-  std::vector<PlayerId> players;
-  int board_width{60};
-  int board_height{20};
-};
-
-/**
- * @brief Summary of a completed game
- */
-struct GameSummaryMsg {
-  GameId game_id;
-  std::vector<std::pair<PlayerId, int>> final_scores;  // player_id, score
-  int final_level;
-};
-
-/**
- * @brief Request to end a game session
- */
-struct EndSessionMsg {
-  GameId game_id;
-  GameSummaryMsg summary;
-};
-
-/**
  * @brief Request to quit the application
  */
 struct QuitMsg {
   // Empty - just a signal to initiate shutdown
-};
-
-/**
- * @brief Game clock state for controlling timer
- */
-enum class GameClockState {
-  START,  // Start running the clock
-  STOP,   // Stop and reset
-  PAUSE,  // Pause (can resume)
-  RESUME  // Resume from pause
-};
-
-/**
- * @brief Unified game clock control command
- *
- * Replaces StartClockMsg, StopClockMsg, PauseGame, ResumeGame with single message.
- * START carries the initial step interval; later changes use TickRateChangeMsg.
- */
-struct GameClockCommandMsg {
-  GameId game_id;
-  GameClockState state;
-  std::optional<int> interval_ms;  // Step interval to start with (START only)
 };
 
 }  // namespace snake

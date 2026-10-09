@@ -23,13 +23,6 @@ struct GameState {
 };
 
 /**
- * @brief Game tick event - drives the game loop
- */
-struct TickMsg {
-  GameId game_id;
-};
-
-/**
  * @brief Request to start a new game
  */
 struct StartGameMsg {
@@ -84,47 +77,6 @@ struct GameOverMsg {
 };
 
 /**
- * @brief TickMsg rate change command
- */
-struct TickRateChangeMsg {
-  GameId game_id;
-  int interval_ms;  // New tick interval in milliseconds
-};
-
-/**
- * @brief Food reposition trigger
- *
- * Signals that food items should be repositioned this tick.
- * Sent by GameManager based on its scheduling logic.
- */
-struct FoodRepositionTriggerMsg {
-  GameId game_id;
-};
-
-/**
- * @brief Start clock command
- */
-struct StartClockMsg {
-  GameId game_id;
-  int interval_ms;
-};
-
-/**
- * @brief Stop clock command
- */
-struct StopClockMsg {
-  GameId game_id;
-};
-
-/**
- * @brief User input event (from keyboard/controller)
- */
-struct UserInputEventMsg {
-  PlayerId player_id;
-  char key;  // For now, simple char input
-};
-
-/**
  * @brief Log message effect - represents a message to be logged
  *
  * Used in effect handler pattern to keep logging logic pure.
@@ -132,38 +84,6 @@ struct UserInputEventMsg {
  */
 struct LogMsg {
   std::string message;
-};
-
-/**
- * @brief Player alive states - published when any player's alive state changes
- *
- * This message is sent only when at least one player's alive state changes.
- * Used by GameManager to detect game over conditions.
- */
-struct PlayerAliveStatesMsg {
-  GameId game_id;
-  PerPlayerAliveStates alive_states;
-};
-
-/**
- * @brief Request current game state summary
- *
- * Sent by GameManager when it needs complete game state (e.g., on game over).
- */
-struct GameStateSummaryRequestMsg {
-  GameId game_id;
-};
-
-/**
- * @brief Response with current game state summary
- *
- * Sent by GameEngineActor in response to GameStateSummaryRequestMsg.
- * Contains game state data that GameEngineActor manages (scores, alive states).
- * Does not include level or game_id as those are managed by GameManager.
- */
-struct GameStateSummaryResponseMsg {
-  PerPlayerScores scores;
-  PerPlayerAliveStates alive_states;
 };
 
 }  // namespace snake
