@@ -125,10 +125,9 @@ Lifecycle behavior to pin, such as the zero-alive game over, is listed in
 
 ## Policy candidates
 
-Not extracted in this scope, but recorded:
+Not extracted yet, but recorded (the Difficulty Policy belongs to the lifecycle side, see
+[`esa_classic_game.md`](esa_classic_game.md#difficulty-policy)):
 
-- **Difficulty**: level → step interval; documented as a Policy on the lifecycle side in
-  [`esa_classic_game.md`](esa_classic_game.md#difficulty-policy).
 - **Food placement**: where new food goes and which item gets repositioned. It could become a Policy once
   random draws are explicit facts rather than a generator function.
 
@@ -143,6 +142,7 @@ implemented internally:
 | [`test_snake_model.cpp`](../tests/test_snake_model.cpp) | Snake Authority (`snake_model`) |
 | [`test_direction_command_filter.cpp`](../tests/test_direction_command_filter.cpp) | Steering Authority (`direction_command_filter`) |
 | [`test_scoring_policy.cpp`](../tests/test_scoring_policy.cpp) | Scoring Policy |
+| [`test_difficulty_policy.cpp`](../tests/test_difficulty_policy.cpp) | Difficulty Policy |
 
 The game-rule helpers in `game_logic` are not tested directly; their behavior is pinned through complete
 arena steps. Two helper-level cases are unreachable through the Authority and are therefore not pinned:

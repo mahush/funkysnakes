@@ -1,4 +1,4 @@
-// Characterization tests for the Classic Game Lifecycle Authority and the Difficulty Policy.
+// Characterization tests for the Classic Game Lifecycle Authority.
 //
 // These tests pin the CURRENT lifecycle behavior. A failing test here means gameplay changed,
 // not that a bug was fixed. Intentional rule changes require a separate, explicit decision.
@@ -6,7 +6,6 @@
 #include <gtest/gtest.h>
 
 #include "snake/classic_game_lifecycle_authority.hpp"
-#include "snake/difficulty_policy.hpp"
 
 namespace snake {
 
@@ -183,33 +182,5 @@ TEST(ClassicGameLifecycleAuthority, StopsClockAndCadencesOnConclusion) {
   EXPECT_EQ(clock, GameClockState::STOP);
   EXPECT_EQ(cadence, lifecycle::CadenceIntent::STOP);
 }
-
-/// @section difficulty_policy::stepIntervalMs
-
-namespace {
-
-struct DifficultyCase {
-  int level;
-  int expected_interval_ms;
-};
-
-class DifficultyPolicy : public ::testing::TestWithParam<DifficultyCase> {};
-
-}  // namespace
-
-/// @brief Ensures that each level speeds the game up by 15 ms, down to a minimum of 50 ms
-TEST_P(DifficultyPolicy, MapsLevelToStepInterval) {
-  // When: the step interval of a level is computed
-  int interval_ms = difficulty_policy::stepIntervalMs(GetParam().level);
-
-  // Then: it matches the expected interval
-  EXPECT_EQ(interval_ms, GetParam().expected_interval_ms);
-}
-
-INSTANTIATE_TEST_SUITE_P(
-    Levels,
-    DifficultyPolicy,
-    ::testing::Values(DifficultyCase{1, 200}, DifficultyCase{2, 185}, DifficultyCase{11, 50}, DifficultyCase{20, 50}),
-    [](const ::testing::TestParamInfo<DifficultyCase>& info) { return "Level" + std::to_string(info.param.level); });
 
 }  // namespace snake

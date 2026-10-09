@@ -95,6 +95,7 @@ if(SNAKE_BUILD_TESTS)
     tests/test_snake_model.cpp
     tests/test_classic_game_lifecycle_authority.cpp
     tests/test_scoring_policy.cpp
+    tests/test_difficulty_policy.cpp
     src/classic_arena_authority.cpp
     src/classic_game_lifecycle_authority.cpp
     src/scoring_policy.cpp
