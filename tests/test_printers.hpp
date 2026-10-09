@@ -2,7 +2,7 @@
 
 #include <ostream>
 
-#include "snake/game_primitives.hpp"
+#include "classic/game_primitives.hpp"
 
 namespace snake {
 

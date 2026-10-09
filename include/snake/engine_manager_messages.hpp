@@ -2,8 +2,8 @@
 
 #include <optional>
 
+#include "classic/game_types.hpp"
 #include "snake/control_messages.hpp"
-#include "snake/game_types.hpp"
 
 namespace snake {
 

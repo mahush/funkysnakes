@@ -5,8 +5,8 @@
 #include <optional>
 #include <tuple>
 
+#include "classic/game_types.hpp"
 #include "snake/control_messages.hpp"
-#include "snake/game_types.hpp"
 
 namespace snake {
 namespace classic_game_lifecycle_authority {

@@ -1,7 +1,7 @@
 #pragma once
 
 #include "classic/arena_events.hpp"
-#include "snake/game_types.hpp"
+#include "classic/game_types.hpp"
 
 namespace snake {
 namespace scoring_policy {

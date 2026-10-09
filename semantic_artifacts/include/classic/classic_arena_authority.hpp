@@ -2,8 +2,8 @@
 
 #include "classic/arena_events.hpp"
 #include "classic/direction_command_filter.hpp"
-#include "snake/game_types.hpp"
-#include "snake/utility.hpp"
+#include "classic/game_types.hpp"
+#include "classic/random_source.hpp"
 
 namespace snake {
 namespace classic_arena_authority {
