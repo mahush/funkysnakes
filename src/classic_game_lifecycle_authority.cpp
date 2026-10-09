@@ -7,12 +7,15 @@
 namespace snake {
 namespace classic_game_lifecycle_authority {
 
-std::tuple<State, ClockIntent, CadenceIntent> start(GameId game_id, int starting_level, State state) {
+std::tuple<State, ClockIntent, StepIntervalIntent, CadenceIntent> start(GameId game_id,
+                                                                        int starting_level,
+                                                                        State state) {
   state.game_id = std::move(game_id);
   state.level = starting_level;
   state.over = false;
   state.paused = false;
-  return {std::move(state), GameClockState::START, CadenceIntent::START};
+  StepIntervalIntent interval{difficulty_policy::stepIntervalMs(state.level)};
+  return {std::move(state), GameClockState::START, interval, CadenceIntent::START};
 }
 
 std::tuple<State, ClockIntent> togglePause(State state) {

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -87,11 +88,12 @@ enum class GameClockState {
  * @brief Unified game clock control command
  *
  * Replaces StartClockMsg, StopClockMsg, PauseGame, ResumeGame with single message.
- * TickMsg interval is controlled separately via TickRateChangeMsg message.
+ * START carries the initial step interval; later changes use TickRateChangeMsg.
  */
 struct GameClockCommandMsg {
   GameId game_id;
   GameClockState state;
+  std::optional<int> interval_ms;  // Step interval to start with (START only)
 };
 
 }  // namespace snake

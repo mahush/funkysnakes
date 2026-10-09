@@ -67,10 +67,14 @@ void GameManagerActor::publishMetadata() {
   metadata_pub_->publish(metadata);
 }
 
-void GameManagerActor::executeClockIntent(lifecycle::ClockIntent clock) {
+void GameManagerActor::executeClockIntent(lifecycle::ClockIntent clock,
+                                          std::optional<lifecycle::StepIntervalIntent> interval) {
   GameClockCommandMsg cmd;
   cmd.game_id = lifecycle_.game_id;
   cmd.state = clock;
+  if (interval) {
+    cmd.interval_ms = interval->interval_ms;
+  }
   clock_pub_->publish(cmd);
 }
 
@@ -88,10 +92,10 @@ void GameManagerActor::onStartGame(const StartGameMsg& msg) {
   Logger::log("[GameManagerActor] Starting game with level " + std::to_string(msg.starting_level) + " and " +
               std::to_string(msg.players.size()) + " players\n");
 
-  auto [state, clock, cadence] = lifecycle::start("game_001", msg.starting_level, lifecycle_);
+  auto [state, clock, interval, cadence] = lifecycle::start("game_001", msg.starting_level, lifecycle_);
   lifecycle_ = state;
 
-  executeClockIntent(clock);
+  executeClockIntent(clock, interval);
   publishMetadata();
   executeCadenceIntent(cadence);
 }

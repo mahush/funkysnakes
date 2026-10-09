@@ -30,7 +30,7 @@ State concludedGame() {
 /// @brief Ensures that starting a game makes it run at the requested level
 TEST(ClassicGameLifecycleAuthority, RunsGameAtStartingLevel) {
   // When: a game is started at level 3
-  auto [state, clock, cadence] = lifecycle::start("game_001", 3, {});
+  auto [state, clock, interval, cadence] = lifecycle::start("game_001", 3, {});
 
   // Then: it runs at level 3 with clock and cadences started
   EXPECT_EQ(state.game_id, "game_001");
@@ -39,6 +39,15 @@ TEST(ClassicGameLifecycleAuthority, RunsGameAtStartingLevel) {
   EXPECT_FALSE(state.over);
   EXPECT_EQ(clock, GameClockState::START);
   EXPECT_EQ(cadence, lifecycle::CadenceIntent::START);
+}
+
+/// @brief Ensures that a game starts at the speed of its starting level
+TEST(ClassicGameLifecycleAuthority, StartsAtSpeedOfStartingLevel) {
+  // When: a game is started at level 3
+  auto [state, clock, interval, cadence] = lifecycle::start("game_001", 3, {});
+
+  // Then: the step interval is that of level 3
+  EXPECT_EQ(interval.interval_ms, 170);
 }
 
 /// @brief Ensures that a new game resets a previous game's pause and conclusion

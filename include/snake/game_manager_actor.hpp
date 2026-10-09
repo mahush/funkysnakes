@@ -86,7 +86,8 @@ class GameManagerActor : public Actor<GameManagerActor> {
   void onRepositionTimer();
   void onLevelTimer();
   void publishMetadata();
-  void executeClockIntent(classic_game_lifecycle_authority::ClockIntent clock);
+  void executeClockIntent(classic_game_lifecycle_authority::ClockIntent clock,
+                          std::optional<classic_game_lifecycle_authority::StepIntervalIntent> interval = std::nullopt);
   void executeCadenceIntent(classic_game_lifecycle_authority::CadenceIntent cadence);
 
   // Publishers for sending messages
