@@ -116,7 +116,6 @@ class GameManagerActor : public Actor<GameManagerActor> {
   // Cadence bookkeeping: game time stops while paused, so the remaining part of each
   // period is kept across a pause (the timers cannot report it themselves)
   using Clock = std::chrono::steady_clock;
-  bool cadences_running_{false};
   Clock::time_point level_period_start_;
   Clock::time_point reposition_period_start_;
   std::chrono::milliseconds level_period_remaining_{0};

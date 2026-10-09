@@ -1,5 +1,6 @@
 #pragma once
 
+#include <array>
 #include <chrono>
 #include <optional>
 #include <tuple>
@@ -25,6 +26,19 @@ namespace classic_game_lifecycle_authority {
 // Game-time cadences
 constexpr std::chrono::seconds LEVEL_PERIOD{60};
 constexpr std::chrono::seconds REPOSITION_PERIOD{5};
+
+/**
+ * @brief Game-time work that can fall due: an arena step or the end of a cadence period
+ */
+enum class DueWork { STEP, LEVEL_PERIOD, REPOSITION_PERIOD };
+
+/**
+ * @brief Order in which work falling due at the same instant counts
+ *
+ * The arena step comes first, so a step that ends the game counts before a level-up at the
+ * same moment; periods ending once the game is over are ignored.
+ */
+constexpr std::array<DueWork, 3> SAME_INSTANT_ORDER{DueWork::STEP, DueWork::LEVEL_PERIOD, DueWork::REPOSITION_PERIOD};
 
 /**
  * @brief Lifecycle state owned by the Classic Game Lifecycle Authority
@@ -54,9 +68,12 @@ struct StepIntervalIntent {
 };
 
 /**
- * @brief Intent to start or stop the game-time cadences (level-up and reposition periods)
+ * @brief Intent to start, stop, freeze or resume the game-time cadences (level-up and reposition periods)
+ *
+ * FREEZE keeps the elapsed part of each period; RESUME continues from there, because game time
+ * stops while the game is paused.
  */
-enum class CadenceIntent { START, STOP };
+enum class CadenceIntent { START, STOP, FREEZE, RESUME };
 
 /**
  * @brief Intent to request a food reposition from the arena
@@ -85,17 +102,20 @@ std::tuple<State, ClockIntent, StepIntervalIntent, CadenceIntent> start(GameId g
 /**
  * @brief Toggle between running and paused
  *
+ * Pausing freezes the cadences and resuming continues them. Once the game is over the
+ * cadences stay stopped.
+ *
  * Note: toggling is not blocked after the game is over (see esa_classic_game.md).
  *
  * @param state Current lifecycle state
- * @return Tuple of (toggled state, pause or resume clock intent)
+ * @return Tuple of (toggled state, pause or resume clock intent, optional freeze or resume cadence intent)
  */
-std::tuple<State, ClockIntent> togglePause(State state);
+std::tuple<State, ClockIntent, std::optional<CadenceIntent>> togglePause(State state);
 
 /**
  * @brief React to an elapsed level period
  *
- * Ignored while paused. Otherwise the level increases and the step interval follows
+ * Ignored while paused or once the game is over. Otherwise the level increases and the step interval follows
  * the Difficulty Policy.
  *
  * @param state Current lifecycle state
@@ -106,7 +126,7 @@ std::tuple<State, std::optional<StepIntervalIntent>> levelPeriodElapsed(State st
 /**
  * @brief React to an elapsed reposition period
  *
- * Ignored while paused.
+ * Ignored while paused or once the game is over.
  *
  * @param state Current lifecycle state
  * @return Optional reposition intent (the lifecycle state does not change)

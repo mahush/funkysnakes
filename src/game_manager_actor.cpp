@@ -99,21 +99,26 @@ void GameManagerActor::executeClockIntent(lifecycle::ClockIntent clock,
 }
 
 void GameManagerActor::executeCadenceIntent(lifecycle::CadenceIntent cadence) {
-  cadences_running_ = cadence == lifecycle::CadenceIntent::START;
-  if (cadences_running_) {
-    reposition_timer_->execute_command(make_periodic_command<RepositionTimerTag>(lifecycle::REPOSITION_PERIOD));
-    level_timer_->execute_command(make_periodic_command<LevelTimerTag>(lifecycle::LEVEL_PERIOD));
-    level_period_start_ = reposition_period_start_ = Clock::now();
-  } else {
-    reposition_timer_->execute_command(make_cancel_command<RepositionTimerTag>());
-    level_timer_->execute_command(make_cancel_command<LevelTimerTag>());
+  switch (cadence) {
+    case lifecycle::CadenceIntent::START:
+      reposition_timer_->execute_command(make_periodic_command<RepositionTimerTag>(lifecycle::REPOSITION_PERIOD));
+      level_timer_->execute_command(make_periodic_command<LevelTimerTag>(lifecycle::LEVEL_PERIOD));
+      level_period_start_ = reposition_period_start_ = Clock::now();
+      break;
+    case lifecycle::CadenceIntent::STOP:
+      reposition_timer_->execute_command(make_cancel_command<RepositionTimerTag>());
+      level_timer_->execute_command(make_cancel_command<LevelTimerTag>());
+      break;
+    case lifecycle::CadenceIntent::FREEZE:
+      freezeCadences();
+      break;
+    case lifecycle::CadenceIntent::RESUME:
+      resumeCadences();
+      break;
   }
 }
 
 void GameManagerActor::freezeCadences() {
-  if (!cadences_running_) {
-    return;
-  }
   auto remaining = [now = Clock::now()](Clock::time_point start, std::chrono::milliseconds period) {
     auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(now - start);
     return std::max(std::chrono::milliseconds{0}, period - elapsed);
@@ -125,9 +130,6 @@ void GameManagerActor::freezeCadences() {
 }
 
 void GameManagerActor::resumeCadences() {
-  if (!cadences_running_) {
-    return;
-  }
   // Finish the interrupted periods first; the timer handlers switch back to periodic afterwards
   auto now = Clock::now();
   level_period_start_ = now - (lifecycle::LEVEL_PERIOD - level_period_remaining_);
@@ -229,16 +231,14 @@ void GameManagerActor::onPauseToggle(const PauseToggleMsg& msg) {
     return;
   }
 
-  auto [state, clock] = lifecycle::togglePause(lifecycle_);
+  auto [state, clock, cadence] = lifecycle::togglePause(lifecycle_);
   lifecycle_ = state;
 
   Logger::log("[GameManagerActor] Game " + std::string(lifecycle_.paused ? "PAUSED" : "RESUMED") + "\n");
 
   executeClockIntent(clock);
-  if (lifecycle_.paused) {
-    freezeCadences();
-  } else {
-    resumeCadences();
+  if (cadence) {
+    executeCadenceIntent(*cadence);
   }
   publishMetadata();
 }

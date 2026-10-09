@@ -2,8 +2,8 @@
 
 #include <algorithm>
 
+#include "snake/difficulty_policy.hpp"
 #include "snake/game_logic.hpp"
-#include "snake/game_messages.hpp"
 
 namespace snake {
 namespace classic_game_domain_application {
@@ -42,9 +42,20 @@ VirtualClock executeStepIntervalIntent(VirtualClock clock, lifecycle::StepInterv
 }
 
 VirtualClock executeCadenceIntent(VirtualClock clock, lifecycle::CadenceIntent intent) {
-  clock.cadences = intent == lifecycle::CadenceIntent::START;
-  clock.until_level_period = lifecycle::LEVEL_PERIOD;
-  clock.until_reposition_period = lifecycle::REPOSITION_PERIOD;
+  switch (intent) {
+    case lifecycle::CadenceIntent::START:
+      clock.cadences = true;
+      clock.until_level_period = lifecycle::LEVEL_PERIOD;
+      clock.until_reposition_period = lifecycle::REPOSITION_PERIOD;
+      break;
+    case lifecycle::CadenceIntent::RESUME:
+      clock.cadences = true;
+      break;
+    case lifecycle::CadenceIntent::STOP:
+    case lifecycle::CadenceIntent::FREEZE:
+      clock.cadences = false;
+      break;
+  }
   return clock;
 }
 
@@ -61,9 +72,6 @@ Status viewStatus(const lifecycle::State& state) { return Status{state.level, st
 // ============================================================================
 // Due work
 // ============================================================================
-
-// Cadences only advance while the game is not paused: game time stops during a pause
-bool cadencesAdvance(const State& state) { return state.clock.cadences && !state.lifecycle.paused; }
 
 std::tuple<State, Observations> runStep(const RandomIntGeneratorFn& random_int,
                                         State state,
@@ -112,7 +120,7 @@ std::optional<milliseconds> untilNextDue(const State& state) {
   if (state.clock.stepping) {
     consider(state.clock.until_step);
   }
-  if (cadencesAdvance(state)) {
+  if (state.clock.cadences) {
     consider(state.clock.until_level_period);
     consider(state.clock.until_reposition_period);
   }
@@ -123,7 +131,7 @@ State advanceClock(State state, milliseconds duration) {
   if (state.clock.stepping) {
     state.clock.until_step -= duration;
   }
-  if (cadencesAdvance(state)) {
+  if (state.clock.cadences) {
     state.clock.until_level_period -= duration;
     state.clock.until_reposition_period -= duration;
   }
@@ -135,7 +143,7 @@ State advanceClock(State state, milliseconds duration) {
 State initial(const RandomIntGeneratorFn& random_int) {
   State state;
   state.arena = classic_arena_authority::initial(random_int, CLASSIC_BOARD);
-  state.clock.step_interval = milliseconds{GameState{}.interval_ms};
+  state.clock.step_interval = milliseconds{difficulty_policy::stepIntervalMs(1)};
   return state;
 }
 
@@ -158,9 +166,12 @@ std::tuple<State, Observations> apply(State state, const Steer& steer) {
 }
 
 std::tuple<State, Observations> apply(State state, const TogglePause& /* toggle */) {
-  auto [lifecycle_state, clock_intent] = lifecycle::togglePause(state.lifecycle);
+  auto [lifecycle_state, clock_intent, cadence_intent] = lifecycle::togglePause(state.lifecycle);
   state.lifecycle = lifecycle_state;
   state.clock = executeClockIntent(state.clock, clock_intent);
+  if (cadence_intent) {
+    state.clock = executeCadenceIntent(state.clock, *cadence_intent);
+  }
 
   Observations observations;
   observations.statuses.push_back(viewStatus(state.lifecycle));
@@ -180,15 +191,25 @@ std::tuple<State, Observations> apply(const RandomIntGeneratorFn& random_int, St
     state = advanceClock(std::move(state), *next);
     remaining -= *next;
 
-    // Same-instant ordering: the arena step happens before cadence periods
-    if (state.clock.stepping && state.clock.until_step <= milliseconds{0}) {
-      std::tie(state, observations) = runStep(random_int, std::move(state), std::move(observations));
-    }
-    if (cadencesAdvance(state) && state.clock.until_level_period <= milliseconds{0}) {
-      std::tie(state, observations) = runLevelPeriod(std::move(state), std::move(observations));
-    }
-    if (cadencesAdvance(state) && state.clock.until_reposition_period <= milliseconds{0}) {
-      state = runRepositionPeriod(std::move(state));
+    // Work due at the same instant runs in the order the lifecycle Authority defines
+    for (lifecycle::DueWork work : lifecycle::SAME_INSTANT_ORDER) {
+      switch (work) {
+        case lifecycle::DueWork::STEP:
+          if (state.clock.stepping && state.clock.until_step <= milliseconds{0}) {
+            std::tie(state, observations) = runStep(random_int, std::move(state), std::move(observations));
+          }
+          break;
+        case lifecycle::DueWork::LEVEL_PERIOD:
+          if (state.clock.cadences && state.clock.until_level_period <= milliseconds{0}) {
+            std::tie(state, observations) = runLevelPeriod(std::move(state), std::move(observations));
+          }
+          break;
+        case lifecycle::DueWork::REPOSITION_PERIOD:
+          if (state.clock.cadences && state.clock.until_reposition_period <= milliseconds{0}) {
+            state = runRepositionPeriod(std::move(state));
+          }
+          break;
+      }
     }
   }
 
