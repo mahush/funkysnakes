@@ -13,7 +13,7 @@ namespace {
 struct StepResult {
   State state;
   std::vector<ActivationOutcome> outcomes;
-  ArenaFacts facts;
+  ArenaEvents events;
 };
 
 bool isOnBoard(Point p, const Board& board) { return p.x >= 0 && p.x < board.width && p.y >= 0 && p.y < board.height; }
@@ -47,13 +47,13 @@ StepResult activate(StepResult result, const Order& order) {
   auto active = result.state.active.find(order.player);
   if (active != result.state.active.end()) {
     replaced = active->second.id;
-    result.facts.push_back(OrderEnded{active->second.id, EndReason::INTERRUPTED, order.id});
+    result.events.push_back(OrderEnded{active->second.id, EndReason::INTERRUPTED, order.id});
     result.state.active.erase(active);
   }
   result.outcomes.push_back(OrderActivated{order.id, replaced, route});
 
   if (route.empty()) {
-    result.facts.push_back(OrderEnded{order.id, EndReason::COMPLETED, std::nullopt});
+    result.events.push_back(OrderEnded{order.id, EndReason::COMPLETED, std::nullopt});
   } else {
     result.state.active.emplace(order.player, ActiveOrder{order.id, order.target, std::move(route)});
   }
@@ -73,24 +73,24 @@ PerPlayerDirection takeNextMoves(std::map<PlayerId, ActiveOrder>& active) {
 }
 
 // Collision handling reports only collision events; eating is reported by collectFood
-void appendCollisionFact(ArenaFacts& facts, const Bitten& event) { facts.push_back(event); }
-void appendCollisionFact(ArenaFacts& facts, const SelfBitten& event) { facts.push_back(event); }
-void appendCollisionFact(ArenaFacts& facts, const MutualBite& event) { facts.push_back(event); }
-void appendCollisionFact(ArenaFacts& /*facts*/, const FoodEaten& /*event*/) {}
+void appendCollisionEvent(ArenaEvents& events, const Bitten& event) { events.push_back(event); }
+void appendCollisionEvent(ArenaEvents& events, const SelfBitten& event) { events.push_back(event); }
+void appendCollisionEvent(ArenaEvents& events, const MutualBite& event) { events.push_back(event); }
+void appendCollisionEvent(ArenaEvents& /*events*/, const FoodEaten& /*event*/) {}
 
 // Classic collision rules: bites cut or kill, cut and dead segments are dropped as food.
 // An order of a snake that died ends here, before collection, so it can neither collect nor complete.
 StepResult resolveCollisions(StepResult result) {
-  auto [snakes, events, dropped] = handleCollisions(std::move(result.state.snakes), {});
+  auto [snakes, collision_events, dropped] = handleCollisions(std::move(result.state.snakes), {});
   result.state.snakes = std::move(snakes);
-  for (const ArenaEvent& event : events) {
-    std::visit([&result](const auto& item) { appendCollisionFact(result.facts, item); }, event);
+  for (const snake::ArenaEvent& event : collision_events) {
+    std::visit([&result](const auto& item) { appendCollisionEvent(result.events, item); }, event);
   }
   result.state.food = dropSegmentsAsFood(std::move(result.state.food), dropped);
 
   for (auto it = result.state.active.begin(); it != result.state.active.end();) {
     if (!snake_model::alive(result.state.snakes.at(it->first))) {
-      result.facts.push_back(OrderEnded{it->second.id, EndReason::ELIMINATED, std::nullopt});
+      result.events.push_back(OrderEnded{it->second.id, EndReason::ELIMINATED, std::nullopt});
       it = result.state.active.erase(it);
     } else {
       ++it;
@@ -101,14 +101,14 @@ StepResult resolveCollisions(StepResult result) {
 
 // Collection is attributed to the order executing during the move
 StepResult collectFood(StepResult result) {
-  auto [food, events] = handleFoodEating(std::move(result.state.food), {}, result.state.snakes);
+  auto [food, eating_events] = handleFoodEating(std::move(result.state.food), {}, result.state.snakes);
   result.state.food = std::move(food);
-  for (const ArenaEvent& event : events) {
+  for (const snake::ArenaEvent& event : eating_events) {
     const PlayerId& player = std::get<FoodEaten>(event).player;
     auto active = result.state.active.find(player);
     std::optional<OrderId> during =
         active != result.state.active.end() ? std::optional<OrderId>{active->second.id} : std::nullopt;
-    result.facts.push_back(FoodCollected{player, snake_model::head(result.state.snakes.at(player)), during});
+    result.events.push_back(FoodCollected{player, snake_model::head(result.state.snakes.at(player)), during});
   }
   return result;
 }
@@ -118,7 +118,7 @@ StepResult completeArrivedOrders(StepResult result) {
   for (auto it = result.state.active.begin(); it != result.state.active.end();) {
     const Snake& snake = result.state.snakes.at(it->first);
     if (snake_model::alive(snake) && snake_model::head(snake) == it->second.target) {
-      result.facts.push_back(OrderEnded{it->second.id, EndReason::COMPLETED, std::nullopt});
+      result.events.push_back(OrderEnded{it->second.id, EndReason::COMPLETED, std::nullopt});
       it = result.state.active.erase(it);
     } else {
       ++it;
@@ -148,16 +148,16 @@ State startRound(const RandomIntGeneratorFn& random_int, const RoundSetup& setup
   return state;
 }
 
-std::tuple<State, std::vector<ActivationOutcome>, ArenaFacts> tick(const RandomIntGeneratorFn& random_int,
-                                                                   State state,
-                                                                   const std::vector<Order>& eligible) {
+std::tuple<State, std::vector<ActivationOutcome>, ArenaEvents> tick(const RandomIntGeneratorFn& random_int,
+                                                                    State state,
+                                                                    const std::vector<Order>& eligible) {
   StepResult result{std::move(state), {}, {}};
 
   for (const Order& order : eligible) {
     result = activate(std::move(result), order);
   }
   if (result.state.ended) {
-    return {std::move(result.state), std::move(result.outcomes), std::move(result.facts)};
+    return {std::move(result.state), std::move(result.outcomes), std::move(result.events)};
   }
 
   PerPlayerDirection moves = takeNextMoves(result.state.active);
@@ -169,17 +169,17 @@ std::tuple<State, std::vector<ActivationOutcome>, ArenaFacts> tick(const RandomI
       replenishFood(random_int, MIN_FOOD_COUNT, std::move(result.state.food), result.state.board, result.state.snakes);
   ++result.state.step.value;
 
-  return {std::move(result.state), std::move(result.outcomes), std::move(result.facts)};
+  return {std::move(result.state), std::move(result.outcomes), std::move(result.events)};
 }
 
-std::tuple<State, ArenaFacts> endRound(State state) {
-  ArenaFacts facts;
+std::tuple<State, ArenaEvents> endRound(State state) {
+  ArenaEvents events;
   for (const auto& [player, order] : state.active) {
-    facts.push_back(OrderEnded{order.id, EndReason::ROUND_ENDED, std::nullopt});
+    events.push_back(OrderEnded{order.id, EndReason::ROUND_ENDED, std::nullopt});
   }
   state.active.clear();
   state.ended = true;
-  return {std::move(state), std::move(facts)};
+  return {std::move(state), std::move(events)};
 }
 
 View view(const State& state) {

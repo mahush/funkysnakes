@@ -6,7 +6,7 @@
 #include <vector>
 
 #include "common/game_time.hpp"
-#include "orbital/arena_facts.hpp"
+#include "orbital/arena_events.hpp"
 #include "orbital/order.hpp"
 
 namespace snake {
@@ -114,10 +114,10 @@ std::vector<Order> eligible(const State& state, GameTime now);
  *
  * @param state Current order state
  * @param outcomes Activation outcomes of the step
- * @param facts Arena facts of the step
+ * @param events Arena events of the step
  * @return Updated order state
  */
-State observe(State state, const std::vector<ActivationOutcome>& outcomes, const ArenaFacts& facts);
+State observe(State state, const std::vector<ActivationOutcome>& outcomes, const ArenaEvents& events);
 
 /**
  * @brief Cancel all pending orders because the round concluded
