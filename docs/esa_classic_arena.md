@@ -12,8 +12,8 @@ see [Pinned behavior](#pinned-behavior).
 **In scope: the classic arena.** Snakes, scores, food and buffered steering intentions on a board, and the
 complete arena step.
 
-**Out of scope (for now): game lifecycle, pause, level progression, tick cadence and game conclusion.**
-These currently live in `GameManagerActor` and `GameEngineActor`'s clock handling.
+**Out of scope: game lifecycle, pause, level progression, tick cadence and game conclusion.** These belong
+to the Classic Game Lifecycle Authority beside the arena; see [`esa_classic_game.md`](esa_classic_game.md).
 
 Why the arena is its own ownership scope rather than a part of a larger game owner:
 
@@ -24,8 +24,7 @@ Why the arena is its own ownership scope rather than a part of a larger game own
 - lifecycle reads exactly one arena outcome: which snakes are alive.
 
 The current actor split is consistent with this, but it is not the evidence: actor boundaries do not
-determine Authority boundaries. A higher Game Authority that owns lifecycle and includes the arena
-remains possible later (Authorities are recursive).
+determine Authority boundaries.
 
 Orbital Orders will be a different arena with partly different rules. It is expected to share code with
 the classic arena (snake evolution, geometry, collision checks with equal meaning) while each arena keeps
@@ -112,15 +111,15 @@ refactor.
 | Steering cancellation persists even when the new turn is then rejected | Cancellation (opposite of the first queued turn) happens before the other acceptance checks |
 | `BITE_REMOVE_TAIL` is never used | The mode is always `BITE_DROP_FOOD` |
 
-Out of scope, but known: the manager ends the game when **zero** snakes are alive, while its comment
-says "last snake standing".
+Lifecycle behavior to pin, such as the zero-alive game over, is listed in
+[`esa_classic_game.md`](esa_classic_game.md#behavior-to-pin-before-extraction).
 
 ## Policy candidates
 
 Not extracted in this scope, but recorded:
 
-- **Difficulty**: level → step interval (`max(50, 200 − 15·(level − 1))` ms). A clear stateless Policy,
-  but owned on the lifecycle side.
+- **Difficulty**: level → step interval; documented as a Policy on the lifecycle side in
+  [`esa_classic_game.md`](esa_classic_game.md#difficulty-policy).
 - **Food placement**: where new food goes and which item gets repositioned. It could become a Policy once
   random draws are explicit facts rather than a generator function.
 - **Scoring** (+10 eat, −10 bitten or dead): currently only meaningful as part of the eating and collision
