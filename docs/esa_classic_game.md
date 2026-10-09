@@ -113,6 +113,5 @@ separate, explicit gameplay decision. The lifecycle-level items are pinned in
 | Toggling pause twice after game over restarts the step clock | Pause handling does not check for game over; RESUME restarts the step timer. Level-up and reposition stay stopped |
 | The starting level does not affect the initial speed | START uses the engine's stored 200 ms instead of the Difficulty Policy for `starting_level`. Hidden today because the game always starts at level 1 |
 | `Start.players` is ignored | The arena always creates Player A and Player B |
-| The 200 ms base interval is defined twice | Once as a `GameState` default, once in the Difficulty Policy |
 | Pause skips cadence periods instead of freezing them | Level and reposition timers keep running on wall-clock time while paused; a period that ends during the pause is lost |
 | The game ends when zero snakes are alive | The surviving snake keeps playing alone until it dies; the code comment says "last snake standing" |

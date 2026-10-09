@@ -2,6 +2,7 @@
 
 #include "snake/classic_arena_authority.hpp"
 #include "snake/control_messages.hpp"
+#include "snake/difficulty_policy.hpp"
 #include "snake/game_types.hpp"
 
 namespace snake {
@@ -15,9 +16,9 @@ namespace snake {
  */
 struct GameState {
   GameId game_id;
-  classic_arena_authority::State arena;        // Arena state owned by the Classic Arena Authority
-  int interval_ms{200};                        // TickMsg interval in milliseconds
-  PerPlayerAliveStates previous_alive_states;  // Previous alive states for change detection
+  classic_arena_authority::State arena;                   // Arena state owned by the Classic Arena Authority
+  int interval_ms{difficulty_policy::stepIntervalMs(1)};  // Step interval in milliseconds, initially for level 1
+  PerPlayerAliveStates previous_alive_states;             // Previous alive states for change detection
 };
 
 /**

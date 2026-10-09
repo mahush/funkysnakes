@@ -1,5 +1,7 @@
 #pragma once
 
+#include <algorithm>
+
 namespace snake {
 namespace difficulty_policy {
 
@@ -19,7 +21,9 @@ constexpr int MIN_INTERVAL_MS = 50;
  * @param level Current level (1 or higher)
  * @return Step interval in milliseconds: max(50, 200 - 15 * (level - 1))
  */
-int stepIntervalMs(int level);
+constexpr int stepIntervalMs(int level) {
+  return std::max(MIN_INTERVAL_MS, BASE_INTERVAL_MS - ((level - 1) * REDUCTION_PER_LEVEL_MS));
+}
 
 }  // namespace difficulty_policy
 }  // namespace snake
