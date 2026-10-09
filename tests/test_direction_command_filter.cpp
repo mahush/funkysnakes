@@ -5,6 +5,7 @@
 #include <vector>
 
 #include "snake/direction_command_filter.hpp"
+#include "snake/game_boundary.hpp"
 #include "snake/game_messages.hpp"
 #include "snake/snake_model_evolve.hpp"
 
@@ -12,9 +13,7 @@ namespace snake {
 
 namespace {
 
-DirectionCommand steer(const PlayerId& player_id, Direction dir) {
-  return DirectionCommand{"game_001", player_id, dir};
-}
+DirectionCommand steer(const PlayerId& player_id, Direction dir) { return DirectionCommand{player_id, dir}; }
 
 PerPlayerSnakes oneSnake(Direction heading) { return {{PLAYER_A, snake_model::initial(Point{10, 10}, heading, 5)}}; }
 

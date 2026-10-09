@@ -208,11 +208,7 @@ std::optional<DirectionMsg> InputActor::tryConvertKeyToDirectionMsg(const Key& k
   }
 
   // Build and return DirectionMsg
-  DirectionMsg msg;
-  msg.game_id = game_id_;
-  msg.player_id = player_id;
-  msg.new_direction = direction;
-  return msg;
+  return DirectionMsg{game_id_, game_boundary::Steer{player_id, direction}};
 }
 
 std::optional<PauseToggleMsg> InputActor::tryConvertKeyToPauseToggle(const Key& key) const {
@@ -222,9 +218,7 @@ std::optional<PauseToggleMsg> InputActor::tryConvertKeyToPauseToggle(const Key& 
         using T = std::decay_t<decltype(k)>;
         if constexpr (std::is_same_v<T, char>) {
           if (k == 'p' || k == 'P') {
-            PauseToggleMsg msg;
-            msg.game_id = game_id_;
-            return msg;
+            return PauseToggleMsg{game_id_, game_boundary::TogglePause{}};
           }
         }
         return std::nullopt;

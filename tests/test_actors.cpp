@@ -179,8 +179,7 @@ TEST(ActorTest, GameManagerActor_HandlesPauseToggle) {
 
   // Start game first
   StartGameMsg start;
-  start.starting_level = 1;
-  start.players = {PLAYER_A, PLAYER_B};
+  start.start.starting_level = 1;
   Publisher<StartGameMsg> startgame_pub{startgame_topic};
   startgame_pub.publish(start);
 
@@ -256,8 +255,7 @@ TEST(ActorTest, GameManagerActor_SendsClockCommands) {
 
   // Start game at level 3
   StartGameMsg start;
-  start.starting_level = 3;
-  start.players = {PLAYER_A, PLAYER_B};
+  start.start.starting_level = 3;
   startgame_pub.publish(start);
 
   // Run pending operations (use poll to avoid waiting for 20s timer)

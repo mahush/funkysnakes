@@ -14,6 +14,7 @@
 #include <vector>
 
 #include "snake/classic_arena_authority.hpp"
+#include "snake/game_boundary.hpp"
 #include "snake/game_messages.hpp"
 #include "snake/snake_model_evolve.hpp"
 #include "test_printers.hpp"
@@ -50,9 +51,7 @@ RandomIntGeneratorFn noRandom() {
   };
 }
 
-DirectionCommand steer(const PlayerId& player_id, Direction dir) {
-  return DirectionCommand{"game_001", player_id, dir};
-}
+DirectionCommand steer(const PlayerId& player_id, Direction dir) { return DirectionCommand{player_id, dir}; }
 
 /**
  * @brief Arena with explicit snakes and food, scores at zero

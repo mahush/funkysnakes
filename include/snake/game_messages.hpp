@@ -3,6 +3,7 @@
 #include "snake/classic_arena_authority.hpp"
 #include "snake/control_messages.hpp"
 #include "snake/difficulty_policy.hpp"
+#include "snake/game_boundary.hpp"
 #include "snake/game_types.hpp"
 
 namespace snake {
@@ -29,12 +30,26 @@ struct TickMsg {
 };
 
 /**
+ * @brief Request to start a new game
+ */
+struct StartGameMsg {
+  game_boundary::Start start;  // Boundary interaction
+};
+
+/**
+ * @brief Request to toggle pause state
+ */
+struct PauseToggleMsg {
+  GameId game_id;                     // Routing
+  game_boundary::TogglePause toggle;  // Boundary interaction
+};
+
+/**
  * @brief Player direction change command
  */
 struct DirectionMsg {
-  GameId game_id;
-  PlayerId player_id;
-  Direction new_direction;
+  GameId game_id;              // Routing
+  game_boundary::Steer steer;  // Boundary interaction
 };
 
 /**

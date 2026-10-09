@@ -25,14 +25,6 @@ inline constexpr const char* PLAYER_A = "Player A";
 inline constexpr const char* PLAYER_B = "Player B";
 
 /**
- * @brief Request to start a new game
- */
-struct StartGameMsg {
-  int starting_level{1};
-  std::vector<PlayerId> players;
-};
-
-/**
  * @brief Request to start a game session
  */
 struct StartSessionMsg {
@@ -58,13 +50,6 @@ struct GameSummaryMsg {
 struct EndSessionMsg {
   GameId game_id;
   GameSummaryMsg summary;
-};
-
-/**
- * @brief Request to toggle pause state
- */
-struct PauseToggleMsg {
-  GameId game_id;
 };
 
 /**
