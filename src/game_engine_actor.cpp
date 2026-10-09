@@ -7,6 +7,7 @@
 #include "funkypipes/bind_front.hpp"
 #include "snake/classic_arena_authority.hpp"
 #include "snake/game_logic.hpp"
+#include "snake/game_state_lenses.hpp"
 #include "snake/logger.hpp"
 #include "snake/process_helpers.hpp"
 #include "snake/utility.hpp"
@@ -31,7 +32,7 @@ namespace {
  * @return Tuple of (updated state, optional PlayerAliveStatesMsg message)
  */
 std::tuple<GameState, std::optional<PlayerAliveStatesMsg>> tryGeneratePlayerAliveStates(GameState state) {
-  PerPlayerAliveStates current_alive_states = extractAliveStates(state.snakes);
+  PerPlayerAliveStates current_alive_states = extractAliveStates(state.arena.snakes);
   std::optional<PlayerAliveStatesMsg> msg;
 
   if (current_alive_states != state.previous_alive_states) {
@@ -63,7 +64,7 @@ std::tuple<GameState, std::optional<PlayerAliveStatesMsg>> tryGeneratePlayerAliv
 std::tuple<GameState, RenderableStateMsg, std::optional<PlayerAliveStatesMsg>> handleTick(
     const RandomIntGeneratorFn& random_int, GameState state, const GameTimerElapsedEvent& /* event */) {
   // Advance the arena (owned by the Classic Arena Authority)
-  state = classic_arena_authority::tick(random_int, std::move(state));
+  state.arena = classic_arena_authority::tick(random_int, std::move(state.arena));
 
   // Check if alive states changed and generate message if so
   auto [state_with_updated_alive, alive_msg] = tryGeneratePlayerAliveStates(state);
@@ -71,10 +72,10 @@ std::tuple<GameState, RenderableStateMsg, std::optional<PlayerAliveStatesMsg>> h
 
   // Build renderable state from game state (visual elements only)
   RenderableStateMsg renderable{
-      state.board,
-      state.food_items,
-      state.snakes,
-      state.scores,
+      state.arena.board,
+      state.arena.food_items,
+      state.arena.snakes,
+      state.arena.scores,
   };
 
   return std::make_tuple(state, renderable, alive_msg);
@@ -149,7 +150,7 @@ std::tuple<GameState, GameTimerCommand, LogMsg> handleTickRateChange(GameState s
 GameState handleFoodRepositionTrigger(GameState state, const FoodRepositionTriggerMsg& trigger) {
   // Only set flag if trigger is for current game (ignore stale triggers)
   if (trigger.game_id == state.game_id) {
-    state = classic_arena_authority::requestFoodReposition(std::move(state));
+    state.arena = classic_arena_authority::requestFoodReposition(std::move(state.arena));
   }
   return state;
 }
@@ -167,8 +168,8 @@ GameState handleFoodRepositionTrigger(GameState state, const FoodRepositionTrigg
 std::tuple<GameState, GameStateSummaryResponseMsg> handleSummaryRequest(
     GameState state, const GameStateSummaryRequestMsg& /* request */) {
   GameStateSummaryResponseMsg response;
-  response.scores = state.scores;
-  response.alive_states = extractAliveStates(state.snakes);
+  response.scores = state.arena.scores;
+  response.alive_states = extractAliveStates(state.arena.snakes);
   return {state, response};
 }
 
@@ -248,17 +249,14 @@ GameEngineActor::GameEngineActor(ActorContext ctx,
       game_loop_timer_{create_timer<GameTimer>(timer_factory)},
       random_int_{makeRandomIntGenerator()} {
   game_state_.game_id = "game_001";
-  game_state_.board.width = 60;
-  game_state_.board.height = 20;
+  game_state_.arena = classic_arena_authority::initial(random_int_, Board{60, 20});
 
-  game_state_ = classic_arena_authority::initial(random_int_, std::move(game_state_));
-
-  Logger::log("[GameEngineActor] Initialized " + std::to_string(game_state_.food_items.size()) + " food items\n");
+  Logger::log("[GameEngineActor] Initialized " + std::to_string(game_state_.arena.food_items.size()) + " food items\n");
 }
 
 void GameEngineActor::processInputs() {
   // Drain steering commands into the arena
-  processMessageWithState(direction_sub_, game_state_, classic_arena_authority::steer);
+  processMessageWithState(direction_sub_, game_state_, over_arena(classic_arena_authority::steer));
 
   // Create effect handler for messages that produce effects
   GameEngineEffectHandler effect_handler(renderable_state_pub_, alive_states_pub_, summary_resp_pub_, game_loop_timer_);

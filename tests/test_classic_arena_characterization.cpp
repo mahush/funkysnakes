@@ -445,8 +445,8 @@ RandomIntGeneratorFn noRandom() {
 }
 
 // Arena with explicit snakes and food; enough food far away so replenish does not draw
-GameState arena(PerPlayerSnakes snakes, FoodItems food) {
-  GameState state;
+classic_arena_authority::State arena(PerPlayerSnakes snakes, FoodItems food) {
+  classic_arena_authority::State state;
   state.board = BOARD;
   state.snakes = std::move(snakes);
   for (const auto& entry : state.snakes) {
@@ -473,9 +473,7 @@ TEST(ClassicArenaTick, InitialPlacesBothPlayersAndMinimumFood) {
     values.push_back(30 + i);
     values.push_back(1);
   }
-  GameState state;
-  state.board = BOARD;
-  state = classic_arena_authority::initial(makeScriptedRandom(values), state);
+  classic_arena_authority::State state = classic_arena_authority::initial(makeScriptedRandom(values), BOARD);
   EXPECT_EQ(snake_model::head(state.snakes.at(PLAYER_A)), (Point{5, 10}));
   EXPECT_EQ(snake_model::head(state.snakes.at(PLAYER_B)), (Point{5, 15}));
   EXPECT_EQ(snake_model::length(state.snakes.at(PLAYER_A)), 7u);
@@ -485,7 +483,8 @@ TEST(ClassicArenaTick, InitialPlacesBothPlayersAndMinimumFood) {
 }
 
 TEST(ClassicArenaTick, SteeringIsAppliedOneTurnPerTick) {
-  GameState state = arena({{PLAYER_A, snake_model::initial(Point{10, 10}, Direction::RIGHT, 3)}}, {});
+  classic_arena_authority::State state =
+      arena({{PLAYER_A, snake_model::initial(Point{10, 10}, Direction::RIGHT, 3)}}, {});
   state = classic_arena_authority::steer(state, steer(PLAYER_A, Direction::UP));
   state = classic_arena_authority::steer(state, steer(PLAYER_A, Direction::LEFT));
   state = classic_arena_authority::tick(noRandom(), state);
@@ -497,7 +496,8 @@ TEST(ClassicArenaTick, SteeringIsAppliedOneTurnPerTick) {
 }
 
 TEST(ClassicArenaTick, EatingGrowsScoresAndReplenishesInSameTick) {
-  GameState state = arena({{PLAYER_A, snake_model::initial(Point{10, 10}, Direction::RIGHT, 3)}}, {{11, 10}});
+  classic_arena_authority::State state =
+      arena({{PLAYER_A, snake_model::initial(Point{10, 10}, Direction::RIGHT, 3)}}, {{11, 10}});
   state = classic_arena_authority::tick(makeScriptedRandom({20, 3}), state);
   EXPECT_EQ(snake_model::length(state.snakes.at(PLAYER_A)), 4u);
   EXPECT_EQ(state.scores.at(PLAYER_A), 10);
@@ -507,9 +507,9 @@ TEST(ClassicArenaTick, EatingGrowsScoresAndReplenishesInSameTick) {
 
 TEST(ClassicArenaTick, BiterEatsFirstCutSegmentInSameTick) {
   // A moves DOWN from (7,4) to (7,5); B moves RIGHT to body (11,5) (10,5) (9,5) (8,5) (7,5)
-  GameState state = arena({{PLAYER_A, snake_model::initial(Point{7, 4}, Direction::DOWN, 3)},
-                           {PLAYER_B, snake_model::initial(Point{10, 5}, Direction::RIGHT, 5)}},
-                          {});
+  classic_arena_authority::State state = arena({{PLAYER_A, snake_model::initial(Point{7, 4}, Direction::DOWN, 3)},
+                                                {PLAYER_B, snake_model::initial(Point{10, 5}, Direction::RIGHT, 5)}},
+                                               {});
   state = classic_arena_authority::tick(noRandom(), state);
   // B is cut at A's head
   EXPECT_EQ(snake_model::tail(state.snakes.at(PLAYER_B)), (std::vector<Point>{{10, 5}, {9, 5}, {8, 5}}));
@@ -522,9 +522,9 @@ TEST(ClassicArenaTick, BiterEatsFirstCutSegmentInSameTick) {
 
 TEST(ClassicArenaTick, RemainingCutSegmentsStayAsFood) {
   // A moves LEFT from (11,6) to (10,6); B moves UP
-  GameState state = arena({{PLAYER_A, snake_model::initial(Point{11, 6}, Direction::LEFT, 3)},
-                           {PLAYER_B, snake_model::initial(Point{10, 5}, Direction::UP, 5)}},
-                          {});
+  classic_arena_authority::State state = arena({{PLAYER_A, snake_model::initial(Point{11, 6}, Direction::LEFT, 3)},
+                                                {PLAYER_B, snake_model::initial(Point{10, 5}, Direction::UP, 5)}},
+                                               {});
   state = classic_arena_authority::tick(noRandom(), state);
   // B body after move: (10,4) (10,5) (10,6) (10,7) (10,8); A head (10,6) cuts (10,6) (10,7) (10,8)
   EXPECT_EQ(snake_model::tail(state.snakes.at(PLAYER_B)), (std::vector<Point>{{10, 5}}));
@@ -534,9 +534,9 @@ TEST(ClassicArenaTick, RemainingCutSegmentsStayAsFood) {
 }
 
 TEST(ClassicArenaTick, HeadOnKillsBothAndDropsBodiesAsFood) {
-  GameState state = arena({{PLAYER_A, snake_model::initial(Point{9, 5}, Direction::RIGHT, 2)},
-                           {PLAYER_B, snake_model::initial(Point{11, 5}, Direction::LEFT, 2)}},
-                          {});
+  classic_arena_authority::State state = arena({{PLAYER_A, snake_model::initial(Point{9, 5}, Direction::RIGHT, 2)},
+                                                {PLAYER_B, snake_model::initial(Point{11, 5}, Direction::LEFT, 2)}},
+                                               {});
   state = classic_arena_authority::tick(noRandom(), state);
   EXPECT_FALSE(snake_model::alive(state.snakes.at(PLAYER_A)));
   EXPECT_FALSE(snake_model::alive(state.snakes.at(PLAYER_B)));
@@ -545,9 +545,10 @@ TEST(ClassicArenaTick, HeadOnKillsBothAndDropsBodiesAsFood) {
 }
 
 TEST(ClassicArenaTick, DeadSnakeBodyIsDroppedAgainOnEveryTick) {
-  GameState state = arena({{PLAYER_A, snake_model::kill(snake_model::initial(Point{10, 10}, Direction::RIGHT, 2))},
-                           {PLAYER_B, snake_model::initial(Point{30, 15}, Direction::RIGHT, 3)}},
-                          {});
+  classic_arena_authority::State state =
+      arena({{PLAYER_A, snake_model::kill(snake_model::initial(Point{10, 10}, Direction::RIGHT, 2))},
+             {PLAYER_B, snake_model::initial(Point{30, 15}, Direction::RIGHT, 3)}},
+            {});
   state = classic_arena_authority::tick(noRandom(), state);
   EXPECT_EQ(withoutFiller(state.food_items), (FoodItems{{10, 10}, {9, 10}}));
   state = classic_arena_authority::tick(noRandom(), state);
@@ -555,7 +556,8 @@ TEST(ClassicArenaTick, DeadSnakeBodyIsDroppedAgainOnEveryTick) {
 }
 
 TEST(ClassicArenaTick, RepositionRequestAppliesOnceOnNextTick) {
-  GameState state = arena({{PLAYER_A, snake_model::initial(Point{10, 10}, Direction::RIGHT, 3)}}, {});
+  classic_arena_authority::State state =
+      arena({{PLAYER_A, snake_model::initial(Point{10, 10}, Direction::RIGHT, 3)}}, {});
   state = classic_arena_authority::requestFoodReposition(state);
   // Reposition draws the item index and then a new position
   state = classic_arena_authority::tick(makeScriptedRandom({0, 40, 7}), state);
@@ -566,7 +568,8 @@ TEST(ClassicArenaTick, RepositionRequestAppliesOnceOnNextTick) {
 }
 
 TEST(ClassicArenaTick, FoodIsRepositionedAfterEatingAndReplenishing) {
-  GameState state = arena({{PLAYER_A, snake_model::initial(Point{10, 10}, Direction::RIGHT, 3)}}, {{11, 10}});
+  classic_arena_authority::State state =
+      arena({{PLAYER_A, snake_model::initial(Point{10, 10}, Direction::RIGHT, 3)}}, {{11, 10}});
   state = classic_arena_authority::requestFoodReposition(state);
   // Draws: replenish one item (20,3), then reposition index 4 (the replenished item) to (21,4)
   state = classic_arena_authority::tick(makeScriptedRandom({20, 3, 4, 21, 4}), state);

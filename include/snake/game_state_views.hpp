@@ -6,9 +6,6 @@
 
 namespace snake {
 
-// Forward declarations
-struct GameState;
-
 // ============================================================================
 // View Decorators - Read-only field extractors
 // ============================================================================
@@ -25,7 +22,7 @@ struct GameState;
 /**
  * @brief View decorator: Extract board and snakes for read-only access
  *
- * Returns a decorator that extracts board and snakes from GameState and passes
+ * Returns a decorator that extracts board and snakes from the arena state and passes
  * them to the operation along with any additional arguments. Does not mutate state.
  *
  * Example usage:
@@ -34,11 +31,11 @@ struct GameState;
  *
  * @tparam TOp Function type: (Board, snakes, args...) -> Result
  * @param op Operation to apply
- * @return View transformer: (GameState, args...) -> Result
+ * @return View transformer: (classic_arena_authority::State, args...) -> Result
  */
 template <typename TOp>
 auto view_board_and_snakes(TOp op) {
-  return view(read<&GameState::board, &GameState::snakes>, std::move(op));
+  return view(read<&classic_arena_authority::State::board, &classic_arena_authority::State::snakes>, std::move(op));
 }
 
 }  // namespace snake

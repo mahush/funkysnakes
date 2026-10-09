@@ -2,10 +2,9 @@
 
 #include "funkypipes/bind_front.hpp"
 #include "funkypipes/make_pipe.hpp"
-#include "snake/direction_command_filter.hpp"
 #include "snake/functional_utils.hpp"
 #include "snake/game_logic.hpp"
-#include "snake/game_state_lenses.hpp"
+#include "snake/generic_lens.hpp"
 
 namespace snake {
 namespace classic_arena_authority {
@@ -15,18 +14,71 @@ using funkypipes::makePipe;
 
 namespace {
 
-bool isBiteDropFoodMode(const GameState& state) { return state.collision_mode == CollisionMode::BITE_DROP_FOOD; }
+// ============================================================================
+// Arena Lenses - internal to the Authority
+// ============================================================================
+// Each lens focuses one game-rule helper on part of the arena state.
+// They are kept private so the arena transition can only be composed here.
 
-bool shouldRepositionFood(const GameState& state) { return state.should_reposition_food; }
+template <typename TOp>
+auto over_direction_command_filter_state(TOp op) {
+  return lens(mutate<&State::direction_command_filter_state>, read<>, std::move(op));
+}
 
-GameState clearRepositionFlag(GameState state) {
+template <typename TOp>
+auto over_direction_command_filter_state_viewing_snakes(TOp op) {
+  return lens(mutate<&State::direction_command_filter_state>, read<&State::snakes>, std::move(op));
+}
+
+template <typename TOp>
+auto over_snakes_viewing_board_and_food(TOp op) {
+  return lens(mutate<&State::snakes>, read<&State::board, &State::food_items>, std::move(op));
+}
+
+template <typename TOp>
+auto over_snakes_and_scores(TOp op) {
+  return lens(mutate<&State::snakes, &State::scores>, read<>, std::move(op));
+}
+
+template <typename TOp>
+auto over_food(TOp op) {
+  return lens(mutate<&State::food_items>, read<>, std::move(op));
+}
+
+template <typename TOp>
+auto over_food_viewing_snakes(TOp op) {
+  return lens(mutate<&State::food_items>, read<&State::snakes>, std::move(op));
+}
+
+template <typename TOp>
+auto over_food_and_scores_viewing_snakes(TOp op) {
+  return lens(mutate<&State::food_items, &State::scores>, read<&State::snakes>, std::move(op));
+}
+
+template <typename TOp>
+auto over_food_viewing_board_and_snakes(TOp op) {
+  return lens(mutate<&State::food_items>, read<&State::board, &State::snakes>, std::move(op));
+}
+
+// ============================================================================
+// Step Helpers
+// ============================================================================
+
+bool isBiteDropFoodMode(const State& state) { return state.collision_mode == CollisionMode::BITE_DROP_FOOD; }
+
+bool shouldRepositionFood(const State& state) { return state.should_reposition_food; }
+
+State clearRepositionFlag(State state) {
   state.should_reposition_food = false;
   return state;
 }
 
 }  // namespace
 
-GameState initial(const RandomIntGeneratorFn& random_int, GameState state) {
+State initial(const RandomIntGeneratorFn& random_int, Board board) {
+  State state;
+  state.board = board;
+
   auto setup =
       makePipe(over_snakes_and_scores(bindFront(addPlayer, PlayerId{PLAYER_A}, Point{5, 10}, Direction::RIGHT, 7)),
                over_snakes_and_scores(bindFront(addPlayer, PlayerId{PLAYER_B}, Point{5, 15}, Direction::RIGHT, 7)),
@@ -34,16 +86,16 @@ GameState initial(const RandomIntGeneratorFn& random_int, GameState state) {
   return setup(std::move(state));
 }
 
-GameState steer(GameState state, const DirectionCommand& cmd) {
+State steer(State state, const DirectionCommand& cmd) {
   return over_direction_command_filter_state_viewing_snakes(direction_command_filter::try_add)(std::move(state), cmd);
 }
 
-GameState requestFoodReposition(GameState state) {
+State requestFoodReposition(State state) {
   state.should_reposition_food = true;
   return state;
 }
 
-GameState tick(const RandomIntGeneratorFn& random_int, GameState state) {
+State tick(const RandomIntGeneratorFn& random_int, State state) {
   // makePipe automatically unpacks tuples between stages
   // When a function returns tuple<A, B>, the next function receives (A, B) as separate args
 

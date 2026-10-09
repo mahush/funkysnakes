@@ -1,28 +1,23 @@
 #pragma once
 
+#include "snake/classic_arena_authority.hpp"
 #include "snake/control_messages.hpp"
-#include "snake/direction_command_filter.hpp"
 #include "snake/game_types.hpp"
 
 namespace snake {
 
 /**
- * @brief Complete game state snapshot
+ * @brief GameEngineActor state
  *
- * Contains internal game state for GameEngineActor.
- * Does not include level as that is managed by GameManager.
+ * Holds the arena (owned by the Classic Arena Authority) together with the
+ * actor's own realization state: game routing, tick interval and the last
+ * published alive states. Does not include level as that is managed by GameManager.
  */
 struct GameState {
   GameId game_id;
-  PerPlayerSnakes snakes;                                          // Snakes for each player
-  PerPlayerScores scores;                                          // Scores for each player
-  FoodItems food_items;                                            // Food items on the board
-  direction_command_filter::State direction_command_filter_state;  // Direction command filter module state
-  Board board;                                                     // Board dimensions
-  CollisionMode collision_mode{CollisionMode::BITE_DROP_FOOD};     // Collision handling mode
-  int interval_ms{200};                                            // TickMsg interval in milliseconds
-  bool should_reposition_food{false};                              // Flag: reposition food this tick
-  PerPlayerAliveStates previous_alive_states;                      // Previous alive states for change detection
+  classic_arena_authority::State arena;        // Arena state owned by the Classic Arena Authority
+  int interval_ms{200};                        // TickMsg interval in milliseconds
+  PerPlayerAliveStates previous_alive_states;  // Previous alive states for change detection
 };
 
 /**
