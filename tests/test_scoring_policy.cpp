@@ -2,7 +2,7 @@
 
 #include <gtest/gtest.h>
 
-#include "snake/scoring_policy.hpp"
+#include "classic/scoring_policy.hpp"
 
 namespace snake {
 

@@ -3,8 +3,8 @@
 #include <algorithm>
 #include <iterator>
 
+#include "classic/snake_model_evolve.hpp"
 #include "snake/control_messages.hpp"
-#include "snake/snake_model_evolve.hpp"
 #include "snake/snake_predicates.hpp"
 
 namespace snake {

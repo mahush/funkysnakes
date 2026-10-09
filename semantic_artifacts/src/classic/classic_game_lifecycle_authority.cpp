@@ -1,8 +1,8 @@
-#include "snake/classic_game_lifecycle_authority.hpp"
+#include "classic/classic_game_lifecycle_authority.hpp"
 
 #include <algorithm>
 
-#include "snake/difficulty_policy.hpp"
+#include "classic/difficulty_policy.hpp"
 
 namespace snake {
 namespace classic_game_lifecycle_authority {

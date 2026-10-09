@@ -4,8 +4,8 @@
 #include <optional>
 #include <tuple>
 
+#include "classic/classic_arena_authority.hpp"
 #include "funkypipes/bind_front.hpp"
-#include "snake/classic_arena_authority.hpp"
 #include "snake/game_logic.hpp"
 #include "snake/game_state_lenses.hpp"
 #include "snake/logger.hpp"

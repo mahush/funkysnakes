@@ -1,7 +1,7 @@
 #pragma once
 
-#include "snake/arena_events.hpp"
-#include "snake/direction_command_filter.hpp"
+#include "classic/arena_events.hpp"
+#include "classic/direction_command_filter.hpp"
 #include "snake/game_types.hpp"
 #include "snake/utility.hpp"
 

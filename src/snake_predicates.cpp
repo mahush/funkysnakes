@@ -2,7 +2,7 @@
 
 #include <algorithm>
 
-#include "snake/snake_model.hpp"
+#include "classic/snake_model.hpp"
 
 namespace snake {
 
