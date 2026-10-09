@@ -71,12 +71,16 @@ struct ConcludeIntent {};
 /**
  * @brief Start a new game
  *
+ * The arena is stepped at the Difficulty Policy's interval for the starting level.
+ *
  * @param game_id Identifier of the new game
  * @param starting_level Level the game starts at
  * @param state Current lifecycle state
- * @return Tuple of (running state, start-clock intent, start-cadences intent)
+ * @return Tuple of (running state, start-clock intent, initial step interval intent, start-cadences intent)
  */
-std::tuple<State, ClockIntent, CadenceIntent> start(GameId game_id, int starting_level, State state);
+std::tuple<State, ClockIntent, StepIntervalIntent, CadenceIntent> start(GameId game_id,
+                                                                        int starting_level,
+                                                                        State state);
 
 /**
  * @brief Toggle between running and paused

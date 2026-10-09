@@ -97,6 +97,9 @@ std::tuple<GameState, GameTimerCommand, LogMsg> handleGameClockCommand(GameState
 
   switch (msg.state) {
     case GameClockState::START:
+      if (msg.interval_ms) {
+        state.interval_ms = *msg.interval_ms;
+      }
       log_msg = {"[GameEngineActor] Starting internal timer\n"};
       timer_cmd = make_periodic_command<GameTimerTag>(std::chrono::milliseconds(state.interval_ms));
       break;
