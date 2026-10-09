@@ -60,10 +60,7 @@ struct DirectionMsg {
  * by GameManager via GameStateMetadataMsg.
  */
 struct RenderableStateMsg {
-  Board board;
-  FoodItems food_items;
-  PerPlayerSnakes snakes;
-  PerPlayerScores scores;
+  game_boundary::ArenaView view;  // Boundary observation
 };
 
 /**
@@ -74,16 +71,16 @@ struct RenderableStateMsg {
  * This is separate from RenderableStateMsg which contains only visual game elements.
  */
 struct GameStateMetadataMsg {
-  GameId game_id;
-  int level;
-  bool paused;
+  GameId game_id;                // Routing
+  game_boundary::Status status;  // Boundary observation
 };
 
 /**
  * @brief Game over notification
  */
 struct GameOverMsg {
-  GameSummaryMsg summary;
+  GameId game_id;                     // Routing
+  game_boundary::GameOver game_over;  // Boundary observation
 };
 
 /**

@@ -54,11 +54,11 @@ class RendererActor : public Actor<RendererActor> {
   void processInputs() override;
 
  private:
-  void onRenderableState(const RenderableStateMsg& state);
+  void onRenderableState(const RenderableStateMsg& msg);
   void onGameOver(const GameOverMsg& msg);
   void onGameStateMetadata(const GameStateMetadataMsg& msg);
   void onFlashTimer();
-  void renderBoard(const RenderableStateMsg& state, bool show_game_over = false, bool show_paused = false);
+  void renderBoard(const game_boundary::ArenaView& state, bool show_game_over = false, bool show_paused = false);
 
   // Subscriptions for pulling messages
   SubscriptionPtr<RenderableStateMsg> state_sub_;
@@ -68,11 +68,12 @@ class RendererActor : public Actor<RendererActor> {
   // Timer for flashing game over overlay
   FlashTimerPtr flash_timer_;
 
-  // Last rendered state (for game over overlay)
-  RenderableStateMsg last_state_;
+  // Last rendered arena view (for game over overlay)
+  game_boundary::ArenaView last_state_;
 
-  // Game metadata (from GameManager)
-  GameStateMetadataMsg metadata_;
+  // Game routing and status (from GameManager)
+  GameId game_id_;
+  game_boundary::Status status_{1, false};
 
   // Game over state tracking
   bool game_over_active_{false};
