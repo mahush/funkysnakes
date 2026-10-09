@@ -112,7 +112,7 @@ refactor.
 | `BITE_REMOVE_TAIL` is never used | The mode is always `BITE_DROP_FOOD` |
 
 Lifecycle behavior to pin, such as the zero-alive game over, is listed in
-[`esa_classic_game.md`](esa_classic_game.md#behavior-to-pin-before-extraction).
+[`esa_classic_game.md`](esa_classic_game.md#pinned-behavior).
 
 ## Policy candidates
 
