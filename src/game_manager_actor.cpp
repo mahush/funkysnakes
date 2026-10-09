@@ -82,7 +82,7 @@ GameClockState toGameClockState(lifecycle::ClockIntent clock) {
 
 void GameManagerActor::publishMetadata() {
   GameStateMetadataMsg metadata;
-  metadata.game_id = lifecycle_.game_id;
+  metadata.game_id = game_id_;
   metadata.status = game_boundary::Status{lifecycle_.level, lifecycle_.paused};
   metadata_pub_->publish(metadata);
 }
@@ -90,7 +90,7 @@ void GameManagerActor::publishMetadata() {
 void GameManagerActor::executeClockIntent(lifecycle::ClockIntent clock,
                                           std::optional<lifecycle::StepIntervalIntent> interval) {
   GameClockCommandMsg cmd;
-  cmd.game_id = lifecycle_.game_id;
+  cmd.game_id = game_id_;
   cmd.state = toGameClockState(clock);
   if (interval) {
     cmd.interval_ms = interval->interval_ms;
@@ -141,8 +141,10 @@ void GameManagerActor::resumeCadences() {
 void GameManagerActor::onStartGame(const StartGameMsg& msg) {
   Logger::log("[GameManagerActor] Starting game with level " + std::to_string(msg.start.starting_level) + "\n");
 
-  auto [state, clock, interval, cadence] = lifecycle::start("game_001", msg.start.starting_level, lifecycle_);
+  auto [state, clock, interval, cadence] = lifecycle::start(msg.start.starting_level, lifecycle_);
   lifecycle_ = state;
+  game_id_ = "game_001";
+  pending_conclusion_.reset();
 
   executeClockIntent(clock, interval);
   publishMetadata();
@@ -151,7 +153,7 @@ void GameManagerActor::onStartGame(const StartGameMsg& msg) {
 
 void GameManagerActor::onPlayerAliveStates(const PlayerAliveStatesMsg& msg) {
   // Ignore messages for another game
-  if (msg.game_id != lifecycle_.game_id) {
+  if (msg.game_id != game_id_) {
     return;
   }
 
@@ -159,29 +161,32 @@ void GameManagerActor::onPlayerAliveStates(const PlayerAliveStatesMsg& msg) {
   lifecycle_ = state;
 
   if (conclude) {
+    // The final scores are held by the engine: the conclusion is carried out once they arrive
+    pending_conclusion_ = conclude;
     Logger::log("[GameManagerActor] Game over condition detected: all snakes dead\n");
 
     // Request game state summary to build GameSummaryMsg
     GameStateSummaryRequestMsg request;
-    request.game_id = lifecycle_.game_id;
+    request.game_id = game_id_;
     summary_req_pub_->publish(request);
   }
 }
 
 void GameManagerActor::onSummaryResponse(const GameStateSummaryResponseMsg& response) {
   // Ignore if not expecting response
-  if (!lifecycle_.over) {
+  if (!pending_conclusion_) {
     return;
   }
+  lifecycle::ConcludeIntent conclusion = *pending_conclusion_;
+  pending_conclusion_.reset();
 
   Logger::log("[GameManagerActor] Received game summary, publishing GameOverMsg\n");
 
-  GameOverMsg gameover{lifecycle_.game_id, game_boundary::GameOver{response.scores, lifecycle_.level}};
+  GameOverMsg gameover{game_id_, game_boundary::GameOver{response.scores, lifecycle_.level}};
   gameover_pub_->publish(gameover);
 
-  auto [clock, cadence] = lifecycle::concluded(lifecycle_);
-  executeCadenceIntent(cadence);
-  executeClockIntent(clock);
+  executeCadenceIntent(conclusion.cadence);
+  executeClockIntent(conclusion.clock);
 
   Logger::log("[GameManagerActor] Game '" + gameover.game_id + "' ended at level " +
               std::to_string(gameover.game_over.final_level) + "\n");
@@ -197,7 +202,7 @@ void GameManagerActor::onRepositionTimer() {
   reposition_timer_->execute_command(make_periodic_command<RepositionTimerTag>(lifecycle::REPOSITION_PERIOD));
 
   if (lifecycle::repositionPeriodElapsed(lifecycle_)) {
-    FoodRepositionTriggerMsg trigger{lifecycle_.game_id};
+    FoodRepositionTriggerMsg trigger{game_id_};
     reposition_pub_->publish(trigger);
   }
 }
@@ -220,14 +225,14 @@ void GameManagerActor::onLevelTimer() {
   publishMetadata();
 
   TickRateChangeMsg tickrate_change;
-  tickrate_change.game_id = lifecycle_.game_id;
+  tickrate_change.game_id = game_id_;
   tickrate_change.interval_ms = interval->interval_ms;
   tickrate_pub_->publish(tickrate_change);
 }
 
 void GameManagerActor::onPauseToggle(const PauseToggleMsg& msg) {
   // Ignore messages for another game
-  if (msg.game_id != lifecycle_.game_id) {
+  if (msg.game_id != game_id_) {
     return;
   }
 

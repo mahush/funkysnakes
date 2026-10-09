@@ -7,6 +7,7 @@
 #include <funkyactors/timer/timer.hpp>
 #include <funkyactors/topic.hpp>
 #include <memory>
+#include <optional>
 
 #include "classic/classic_game_lifecycle_authority.hpp"
 #include "snake/control_messages.hpp"
@@ -123,6 +124,10 @@ class GameManagerActor : public Actor<GameManagerActor> {
 
   // Lifecycle state owned by the Classic Game Lifecycle Authority
   classic_game_lifecycle_authority::State lifecycle_;
+
+  // Realization state: message routing and the conclusion awaiting the engine's final scores
+  GameId game_id_;
+  std::optional<classic_game_lifecycle_authority::ConcludeIntent> pending_conclusion_;
 };
 
 }  // namespace snake
