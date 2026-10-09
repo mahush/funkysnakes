@@ -28,13 +28,12 @@ using game_boundary::TogglePause;
  *
  * Composes the Classic Arena Authority, the Classic Game Lifecycle Authority and their Policies
  * without actors, timers or rendering. It routes boundary interactions to the Authorities and
- * carries out their intents mechanically. It makes no gameplay decisions of its own, with one
- * documented exception: when an arena step and a cadence period fall due at the same instant,
- * the step happens first.
+ * carries out their intents mechanically. It makes no gameplay decisions of its own.
  *
  * Game time is supplied from outside as elapsed durations and kept by a virtual clock. The clock
- * is mechanics: the periods come from the lifecycle Authority, the step interval from the
- * Difficulty Policy, and pausing freezes it because the lifecycle Authority pauses the game.
+ * is mechanics: the periods and the order of work due at the same instant come from the lifecycle
+ * Authority, the step interval from the Difficulty Policy, and it freezes and resumes the cadences
+ * when the lifecycle Authority says so.
  */
 
 // ============================================================================
@@ -48,7 +47,7 @@ using game_boundary::TogglePause;
  */
 struct VirtualClock {
   bool stepping{false};  // Arena is stepped (between clock START and STOP, unless paused)
-  bool cadences{false};  // Cadences run (between cadence START and STOP)
+  bool cadences{false};  // Cadences run (after cadence START or RESUME, until STOP or FREEZE)
   std::chrono::milliseconds step_interval{0};
   std::chrono::milliseconds until_step{0};
   std::chrono::milliseconds until_level_period{0};

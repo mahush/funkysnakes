@@ -64,24 +64,35 @@ TEST(ClassicGameLifecycleAuthority, ResetsPauseAndConclusionOnNewGame) {
 
 /// @section lifecycle::togglePause
 
-/// @brief Ensures that toggling a running game pauses stepping
-TEST(ClassicGameLifecycleAuthority, PausesRunningGame) {
+/// @brief Ensures that toggling a running game pauses stepping and freezes game time
+TEST(ClassicGameLifecycleAuthority, PausesRunningGameAndFreezesCadences) {
   // When: pause is toggled
-  auto [state, clock] = lifecycle::togglePause(runningGame());
+  auto [state, clock, cadence] = lifecycle::togglePause(runningGame());
 
-  // Then: the game is paused and stepping pauses
+  // Then: the game is paused, stepping pauses and the cadences freeze
   EXPECT_TRUE(state.paused);
   EXPECT_EQ(clock, lifecycle::ClockIntent::PAUSE);
+  EXPECT_EQ(cadence, lifecycle::CadenceIntent::FREEZE);
 }
 
-/// @brief Ensures that toggling a paused game resumes stepping
-TEST(ClassicGameLifecycleAuthority, ResumesPausedGame) {
+/// @brief Ensures that toggling a paused game resumes stepping and continues game time
+TEST(ClassicGameLifecycleAuthority, ResumesPausedGameAndItsCadences) {
   // When: pause is toggled
-  auto [state, clock] = lifecycle::togglePause(pausedGame());
+  auto [state, clock, cadence] = lifecycle::togglePause(pausedGame());
 
-  // Then: the game runs and stepping resumes
+  // Then: the game runs, stepping and cadences resume
   EXPECT_FALSE(state.paused);
   EXPECT_EQ(clock, lifecycle::ClockIntent::RESUME);
+  EXPECT_EQ(cadence, lifecycle::CadenceIntent::RESUME);
+}
+
+/// @brief Ensures that the stopped cadences of a finished game are not resumed by pausing
+TEST(ClassicGameLifecycleAuthority, LeavesCadencesStoppedWhenPausedAfterGameOver) {
+  // When: pause is toggled
+  auto [state, clock, cadence] = lifecycle::togglePause(concludedGame());
+
+  // Then: the cadences are neither frozen nor resumed
+  EXPECT_FALSE(cadence.has_value());
 }
 
 /// @brief Pins that pausing is not blocked after the game is over, so toggling twice resumes stepping
@@ -90,7 +101,7 @@ TEST(ClassicGameLifecycleAuthority, ResumesSteppingWhenUnpausedAfterGameOver) {
   State state = std::get<0>(lifecycle::togglePause(concludedGame()));
 
   // When: pause is toggled again
-  auto [new_state, clock] = lifecycle::togglePause(state);
+  auto [new_state, clock, cadence] = lifecycle::togglePause(state);
 
   // Then: stepping resumes although the game is over
   EXPECT_TRUE(new_state.over);
@@ -120,6 +131,16 @@ TEST(ClassicGameLifecycleAuthority, IgnoresLevelPeriodsWhilePaused) {
   EXPECT_FALSE(interval.has_value());
 }
 
+/// @brief Ensures that the final level of a finished game does not change
+TEST(ClassicGameLifecycleAuthority, IgnoresLevelPeriodsAfterGameOver) {
+  // When: a level period elapses
+  auto [state, interval] = lifecycle::levelPeriodElapsed(concludedGame());
+
+  // Then: the level stays and no interval change is requested
+  EXPECT_EQ(state.level, 1);
+  EXPECT_FALSE(interval.has_value());
+}
+
 /// @section lifecycle::repositionPeriodElapsed
 
 /// @brief Ensures that an elapsed reposition period requests a food reposition
@@ -138,6 +159,26 @@ TEST(ClassicGameLifecycleAuthority, IgnoresRepositionPeriodsWhilePaused) {
 
   // Then: no reposition is requested
   EXPECT_FALSE(reposition.has_value());
+}
+
+/// @brief Ensures that food of a finished game is not repositioned
+TEST(ClassicGameLifecycleAuthority, IgnoresRepositionPeriodsAfterGameOver) {
+  // When: a reposition period elapses
+  std::optional<lifecycle::RepositionIntent> reposition = lifecycle::repositionPeriodElapsed(concludedGame());
+
+  // Then: no reposition is requested
+  EXPECT_FALSE(reposition.has_value());
+}
+
+/// @section SAME_INSTANT_ORDER
+
+/// @brief Ensures that a step ending the game counts before cadence periods ending at the same instant
+TEST(ClassicGameLifecycleAuthority, CountsStepBeforeCadencesAtSameInstant) {
+  // When: the same-instant order is read
+  lifecycle::DueWork first = lifecycle::SAME_INSTANT_ORDER.front();
+
+  // Then: the step comes first
+  EXPECT_EQ(first, lifecycle::DueWork::STEP);
 }
 
 /// @section lifecycle::observeAliveStates
