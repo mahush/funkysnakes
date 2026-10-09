@@ -124,9 +124,11 @@ A stateless mapping from the arena events of one step to score changes:
 ## Classic Game Lifecycle Authority
 
 Owns the evolution of a game as a whole. Its transitions are `start`, `togglePause`, `levelPeriodElapsed`,
-`repositionPeriodElapsed`, `observeAliveStates` and `concluded`; each returns the new state plus intents
+`repositionPeriodElapsed` and `observeAliveStates`; each returns the new state plus intents
 (clock, step interval, cadences, reposition, conclude) only where the state does not already encode them.
 Elapsed cadence periods arrive as events from the realization; the Authority decides what they mean.
+The conclude intent carries the stop-clock and stop-cadence intents, so ending a game is one decision; the
+Authority's surface does not depend on how a realization collects the final scores.
 
 - **pause and conclusion** are two independent flags, `paused` and `over`, not one phase. The game can
   therefore still be paused and resumed once it is over (see [Pinned behavior](#pinned-behavior));
@@ -240,7 +242,9 @@ defined it.
 
 Not domain semantics:
 
-- game ID routing (`game_id`, hard-coded as `"game_001"`) and filtering of stale messages;
+- game ID routing (`game_id`, hard-coded as `"game_001"` in `GameManagerActor`) and filtering of stale
+  messages. The lifecycle Authority knows no game ID;
+- carrying out the conclude intent only once the engine's summary response with the final scores arrives;
 - `GameState` in [`game_messages.hpp`](../include/snake/game_messages.hpp), which holds the arena next to
   realization state of `GameEngineActor`: `game_id`, `interval_ms` (timer configuration, set from the lifecycle
   Authority's step interval intents) and `previous_alive_states` (decides *when* to publish alive states);

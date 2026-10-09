@@ -6,7 +6,6 @@
 #include <tuple>
 
 #include "classic/game_types.hpp"
-#include "snake/control_messages.hpp"
 
 namespace snake {
 namespace classic_game_lifecycle_authority {
@@ -49,7 +48,6 @@ constexpr std::array<DueWork, 3> SAME_INSTANT_ORDER{DueWork::STEP, DueWork::LEVE
  * blocked once the game is over (see esa_classic_game.md, behavior to pin).
  */
 struct State {
-  GameId game_id;      // Empty until a game is started
   int level{1};        // Current level
   bool paused{false};  // Stepping and cadences are suspended
   bool over{false};    // Conclusion was detected
@@ -81,23 +79,23 @@ enum class CadenceIntent { START, STOP, FREEZE, RESUME };
 struct RepositionIntent {};
 
 /**
- * @brief Intent to conclude the game: collect the final summary and announce game over
+ * @brief Intent to conclude the game: announce game over, stop stepping and stop the cadences
  */
-struct ConcludeIntent {};
+struct ConcludeIntent {
+  ClockIntent clock{ClockIntent::STOP};
+  CadenceIntent cadence{CadenceIntent::STOP};
+};
 
 /**
  * @brief Start a new game
  *
  * The arena is stepped at the Difficulty Policy's interval for the starting level.
  *
- * @param game_id Identifier of the new game
  * @param starting_level Level the game starts at
  * @param state Current lifecycle state
  * @return Tuple of (running state, start-clock intent, initial step interval intent, start-cadences intent)
  */
-std::tuple<State, ClockIntent, StepIntervalIntent, CadenceIntent> start(GameId game_id,
-                                                                        int starting_level,
-                                                                        State state);
+std::tuple<State, ClockIntent, StepIntervalIntent, CadenceIntent> start(int starting_level, State state);
 
 /**
  * @brief Toggle between running and paused
@@ -144,14 +142,6 @@ std::optional<RepositionIntent> repositionPeriodElapsed(const State& state);
  */
 std::tuple<State, std::optional<ConcludeIntent>> observeAliveStates(State state,
                                                                     const PerPlayerAliveStates& alive_states);
-
-/**
- * @brief Finish concluding the game once the final summary is available
- *
- * @param state Current lifecycle state (must be over)
- * @return Tuple of (stop-clock intent, stop-cadences intent)
- */
-std::tuple<ClockIntent, CadenceIntent> concluded(const State& state);
 
 }  // namespace classic_game_lifecycle_authority
 }  // namespace snake

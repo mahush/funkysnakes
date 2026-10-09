@@ -86,8 +86,7 @@ std::tuple<State, Observations> runStep(const RandomIntGeneratorFn& random_int,
 
   if (conclude) {
     observations.game_over = GameOver{state.arena.scores, state.lifecycle.level};
-    auto [clock_intent, cadence_intent] = lifecycle::concluded(state.lifecycle);
-    state.clock = executeCadenceIntent(executeClockIntent(state.clock, clock_intent), cadence_intent);
+    state.clock = executeCadenceIntent(executeClockIntent(state.clock, conclude->clock), conclude->cadence);
   }
 
   state.clock.until_step = state.clock.step_interval;
@@ -149,7 +148,7 @@ State initial(const RandomIntGeneratorFn& random_int) {
 
 std::tuple<State, Observations> apply(State state, const Start& start) {
   auto [lifecycle_state, clock_intent, interval, cadence_intent] =
-      lifecycle::start("game_001", start.starting_level, state.lifecycle);
+      lifecycle::start(start.starting_level, state.lifecycle);
   state.lifecycle = lifecycle_state;
   state.clock = executeStepIntervalIntent(state.clock, interval);
   state.clock = executeClockIntent(state.clock, clock_intent);
