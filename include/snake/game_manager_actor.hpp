@@ -1,6 +1,7 @@
 #pragma once
 
 #include <asio.hpp>
+#include <chrono>
 #include <funkyactors/actor.hpp>
 #include <funkyactors/subscription.hpp>
 #include <funkyactors/timer/timer.hpp>
@@ -18,6 +19,7 @@ namespace snake {
 using funkyactors::Actor;
 using funkyactors::make_cancel_command;
 using funkyactors::make_periodic_command;
+using funkyactors::make_single_shot_command;
 using funkyactors::PublisherPtr;
 using funkyactors::SubscriptionPtr;
 using funkyactors::Timer;
@@ -90,6 +92,8 @@ class GameManagerActor : public Actor<GameManagerActor> {
   void executeClockIntent(classic_game_lifecycle_authority::ClockIntent clock,
                           std::optional<classic_game_lifecycle_authority::StepIntervalIntent> interval = std::nullopt);
   void executeCadenceIntent(classic_game_lifecycle_authority::CadenceIntent cadence);
+  void freezeCadences();
+  void resumeCadences();
 
   // Publishers for sending messages
   PublisherPtr<GameClockCommandMsg> clock_pub_;
@@ -108,6 +112,15 @@ class GameManagerActor : public Actor<GameManagerActor> {
   // Timers
   RepositionTimerPtr reposition_timer_;
   LevelTimerPtr level_timer_;
+
+  // Cadence bookkeeping: game time stops while paused, so the remaining part of each
+  // period is kept across a pause (the timers cannot report it themselves)
+  using Clock = std::chrono::steady_clock;
+  bool cadences_running_{false};
+  Clock::time_point level_period_start_;
+  Clock::time_point reposition_period_start_;
+  std::chrono::milliseconds level_period_remaining_{0};
+  std::chrono::milliseconds reposition_period_remaining_{0};
 
   // Lifecycle state owned by the Classic Game Lifecycle Authority
   classic_game_lifecycle_authority::State lifecycle_;

@@ -67,13 +67,16 @@ interval_ms(level) = max(50, 200 − 15 · (level − 1))
 
 ## Domain System Boundary
 
-The external view of the classic game, expressed as intents rather than devices.
+The external view of the classic game, expressed as intents rather than devices. The types are defined in
+[`game_boundary.hpp`](../include/snake/game_boundary.hpp) and shared by both realizations: the Domain
+Application uses them as its interface, and production's edge messages carry them as their payload next to
+routing fields such as `game_id`.
 
 **Players end**
 
 | Direction | Interaction | Meaning |
 |---|---|---|
-| inbound | `Start(starting_level, players)` | Begin a new game |
+| inbound | `Start(starting_level)` | Begin a new game |
 | inbound | `Steer(player, direction)` | A player's intended turn |
 | inbound | `TogglePause` | Pause or resume the game |
 | outbound | arena view | Board, snakes, food and scores after each step |
@@ -106,12 +109,13 @@ counts before a level-up at the same moment.
 [`test_classic_game_domain_application.cpp`](../tests/test_classic_game_domain_application.cpp) runs complete
 histories of boundary interactions against it (the Domain Harness).
 
-### Known difference to production
+### Comparison with production
 
-Production loses cadence time during a pause: the level and reposition timers keep running on wall-clock time,
-and periods that end while paused are skipped. The Domain Application stops game time during a pause, as the
-lifecycle Authority intends. This is a realization bug in production, found by comparing it with the reference;
-fixing it is a production change for later.
+Production used to lose cadence time during a pause: the level and reposition timers kept running on wall-clock
+time, so periods that ended while paused were skipped. Comparing it with the Domain Application, which stops
+game time during a pause, exposed this as a realization bug. `GameManagerActor` now cancels the cadence timers
+on pause and resumes them with the remaining part of each period. The fix is covered by a manual run only,
+since a test would have to wait for real cadence periods.
 
 ## Player input adapter
 
@@ -131,8 +135,10 @@ defined it.
 Not domain semantics:
 
 - game ID routing (`game_id`, hard-coded as `"game_001"`) and filtering of stale messages;
+- the messages between the manager and the engine, kept separately in
+  [`engine_manager_messages.hpp`](../include/snake/engine_manager_messages.hpp): clock commands, step
+  interval changes, reposition triggers, alive states and the summary request/response;
 - publishing alive states only when they change;
-- the summary request/response between the manager and the engine;
 - timer commands, restarting the step timer on a tick-rate change, shutdown and logging;
 - rendering, including the flashing game-over text and dead snakes not being drawn.
 
@@ -145,6 +151,4 @@ separate, explicit gameplay decision. The lifecycle-level items are pinned in
 | Behavior | Notes |
 |---|---|
 | Toggling pause twice after game over restarts the step clock | Pause handling does not check for game over; RESUME restarts the step timer. Level-up and reposition stay stopped |
-| `Start.players` is ignored | The arena always creates Player A and Player B |
-| Pause skips cadence periods instead of freezing them (production only) | Level and reposition timers keep running on wall-clock time while paused; a period that ends during the pause is lost. A realization bug: the Domain Application freezes game time instead, see [Known difference to production](#known-difference-to-production) |
 | The game ends when zero snakes are alive | The surviving snake keeps playing alone until it dies; the code comment says "last snake standing" |

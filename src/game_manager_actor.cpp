@@ -1,5 +1,7 @@
 #include "snake/game_manager_actor.hpp"
 
+#include <algorithm>
+
 #include "snake/logger.hpp"
 #include "snake/process_helpers.hpp"
 
@@ -97,13 +99,41 @@ void GameManagerActor::executeClockIntent(lifecycle::ClockIntent clock,
 }
 
 void GameManagerActor::executeCadenceIntent(lifecycle::CadenceIntent cadence) {
-  if (cadence == lifecycle::CadenceIntent::START) {
+  cadences_running_ = cadence == lifecycle::CadenceIntent::START;
+  if (cadences_running_) {
     reposition_timer_->execute_command(make_periodic_command<RepositionTimerTag>(lifecycle::REPOSITION_PERIOD));
     level_timer_->execute_command(make_periodic_command<LevelTimerTag>(lifecycle::LEVEL_PERIOD));
+    level_period_start_ = reposition_period_start_ = Clock::now();
   } else {
     reposition_timer_->execute_command(make_cancel_command<RepositionTimerTag>());
     level_timer_->execute_command(make_cancel_command<LevelTimerTag>());
   }
+}
+
+void GameManagerActor::freezeCadences() {
+  if (!cadences_running_) {
+    return;
+  }
+  auto remaining = [now = Clock::now()](Clock::time_point start, std::chrono::milliseconds period) {
+    auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(now - start);
+    return std::max(std::chrono::milliseconds{0}, period - elapsed);
+  };
+  level_period_remaining_ = remaining(level_period_start_, lifecycle::LEVEL_PERIOD);
+  reposition_period_remaining_ = remaining(reposition_period_start_, lifecycle::REPOSITION_PERIOD);
+  reposition_timer_->execute_command(make_cancel_command<RepositionTimerTag>());
+  level_timer_->execute_command(make_cancel_command<LevelTimerTag>());
+}
+
+void GameManagerActor::resumeCadences() {
+  if (!cadences_running_) {
+    return;
+  }
+  // Finish the interrupted periods first; the timer handlers switch back to periodic afterwards
+  auto now = Clock::now();
+  level_period_start_ = now - (lifecycle::LEVEL_PERIOD - level_period_remaining_);
+  reposition_period_start_ = now - (lifecycle::REPOSITION_PERIOD - reposition_period_remaining_);
+  level_timer_->execute_command(make_single_shot_command<LevelTimerTag>(level_period_remaining_));
+  reposition_timer_->execute_command(make_single_shot_command<RepositionTimerTag>(reposition_period_remaining_));
 }
 
 void GameManagerActor::onStartGame(const StartGameMsg& msg) {
@@ -160,6 +190,10 @@ void GameManagerActor::onSummaryResponse(const GameStateSummaryResponseMsg& resp
 }
 
 void GameManagerActor::onRepositionTimer() {
+  // Restart the period (also switches back to periodic after a resumed, shortened period)
+  reposition_period_start_ = Clock::now();
+  reposition_timer_->execute_command(make_periodic_command<RepositionTimerTag>(lifecycle::REPOSITION_PERIOD));
+
   if (lifecycle::repositionPeriodElapsed(lifecycle_)) {
     FoodRepositionTriggerMsg trigger{lifecycle_.game_id};
     reposition_pub_->publish(trigger);
@@ -167,6 +201,10 @@ void GameManagerActor::onRepositionTimer() {
 }
 
 void GameManagerActor::onLevelTimer() {
+  // Restart the period (also switches back to periodic after a resumed, shortened period)
+  level_period_start_ = Clock::now();
+  level_timer_->execute_command(make_periodic_command<LevelTimerTag>(lifecycle::LEVEL_PERIOD));
+
   auto [state, interval] = lifecycle::levelPeriodElapsed(lifecycle_);
   lifecycle_ = state;
 
@@ -197,6 +235,11 @@ void GameManagerActor::onPauseToggle(const PauseToggleMsg& msg) {
   Logger::log("[GameManagerActor] Game " + std::string(lifecycle_.paused ? "PAUSED" : "RESUMED") + "\n");
 
   executeClockIntent(clock);
+  if (lifecycle_.paused) {
+    freezeCadences();
+  } else {
+    resumeCadences();
+  }
   publishMetadata();
 }
 
