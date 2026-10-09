@@ -114,7 +114,7 @@ inline constexpr bool dependent_true = true;
  *     -> (new_mutable_fields...) or (new_mutable_fields..., additional_outputs...)
  *
  * Example usage:
- *   // Updates snakes & scores, reads board, threads cut_tails output
+ *   // Updates snakes & scores, reads board, threads dropped_segments output
  *   auto op = lens(mutate<&State::snakes, &State::scores>,
  *                  read<>,
  *                  handleCollisions);

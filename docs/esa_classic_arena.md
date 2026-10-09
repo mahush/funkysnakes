@@ -67,15 +67,15 @@ The order is meaningful and owned by the Authority:
 
 1. consume at most one buffered turn per player;
 2. move every alive snake (grow when the next head is on food);
-3. resolve collisions: self-bites first, then snake against snake;
-4. drop cut tail segments as food;
-5. drop the bodies of snakes that died in this step as food (once, not again in later steps);
-6. eat food under alive snake heads;
-7. replenish food up to `MIN_FOOD_COUNT` on free cells (up to 100 random attempts per item; if none is free,
+3. resolve collisions: self-bites first, then snake against snake; collect the segments leaving play
+   (cut tails and the complete bodies of snakes killed in this step);
+4. drop those segments as food;
+5. eat food under alive snake heads;
+6. replenish food up to `MIN_FOOD_COUNT` on free cells (up to 100 random attempts per item; if none is free,
    fewer items are placed this step);
-8. if requested, reposition one random food item, then clear the request.
+7. if requested, reposition one random food item, then clear the request.
 
-Steps 4 and 5 only run in `BITE_DROP_FOOD` mode, which is currently the only mode ever used.
+Step 4 only runs in `BITE_DROP_FOOD` mode, which is currently the only mode ever used.
 
 A cell holds at most one food item: placed and dropped food skips cells that already hold food, and placed
 food also avoids snake cells.

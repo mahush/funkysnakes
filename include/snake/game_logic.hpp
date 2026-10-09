@@ -76,11 +76,12 @@ PerPlayerSnakes moveSnakes(PerPlayerSnakes snakes,
  * @brief Handle snake-to-snake collisions
  *
  * Updates snakes (kill/cut) and scores based on collision detection.
- * Returns cut tail segments for potential food conversion.
+ * Returns the segments that leave play: cut tails, and the complete bodies of
+ * snakes killed in this call.
  *
  * @param snakes Snakes (by value)
  * @param scores Scores (by value)
- * @return Tuple of (updated snakes, updated scores, cut tail segments)
+ * @return Tuple of (updated snakes, updated scores, dropped segments)
  */
 std::tuple<PerPlayerSnakes, PerPlayerScores, std::vector<Point>> handleCollisions(PerPlayerSnakes snakes,
                                                                                   PerPlayerScores scores);
@@ -107,32 +108,15 @@ std::optional<Point> generateRandomFoodPosition(const Board& board,
                                                 RandomIntGeneratorFn random_int);
 
 /**
- * @brief Add cut tail segments as food
+ * @brief Add segments that left play as food
  *
  * Segments on cells that already hold food are skipped (one food item per cell).
  *
  * @param food_items Food (by value)
- * @param cut_tails Cut tail segments to add
- * @return Updated food with cut tails added
+ * @param dropped_segments Segments to add (cut tails and bodies of killed snakes)
+ * @return Updated food with the dropped segments added
  */
-FoodItems dropCutTailsAsFood(FoodItems food_items, const FoodItems& cut_tails);
-
-/**
- * @brief Add bodies of snakes that died this step to food (for BITE_DROP_FOOD mode)
- *
- * A body is dropped only once: snakes that were already dead before the step are skipped.
- * Segments on cells that already hold food are skipped (one food item per cell).
- *
- * Parameter order: bound parameters first (for bindFront), then lens parameters.
- *
- * @param alive_before_step Alive states captured before the step's collisions
- * @param food_items Food (by value)
- * @param snakes Snakes (to check for dead ones)
- * @return Updated food with the bodies of newly dead snakes added
- */
-FoodItems dropDeadSnakesAsFood(const PerPlayerAliveStates& alive_before_step,
-                               FoodItems food_items,
-                               const PerPlayerSnakes& snakes);
+FoodItems dropSegmentsAsFood(FoodItems food_items, const std::vector<Point>& dropped_segments);
 
 /**
  * @brief Handle snakes eating food
