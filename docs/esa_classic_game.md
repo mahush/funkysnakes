@@ -220,10 +220,15 @@ as a realization bug. `GameManagerActor` now carries out the lifecycle Authority
 cadence intents: it cancels the cadence timers and later resumes them with the remaining part of each period.
 This is covered by a manual run only, since a test would have to wait for real cadence periods.
 
-Production does not enforce the same-instant order: independent asio timers in two actors fire in whichever
-order they happen to run, and the game over reaches the manager only after an alive-states message. A level
-period ending between the deciding step and that message can still raise the final level. This is a known
-realization gap, visible only at millisecond coincidences.
+Production does not enforce the same-instant order yet: independent asio timers in two actors fire in
+whichever order they happen to run, and the game over reaches the manager only after an alive-states message.
+A level period ending between the deciding step and that message can still raise the final level, and the
+engine keeps publishing arena views until the stop arrives.
+
+This is a realization bug, not a tolerance. Snake time is discrete: the game advances in steps, and cadence
+periods are measured on the same game timeline. That timeline needs a single clock, as in the Domain
+Application, which runs due work in `SAME_INSTANT_ORDER`. Fixing production means giving it one game clock
+instead of independent timers per actor; this is open and tied to the decision on the actor topology.
 
 ## Player input adapter
 
