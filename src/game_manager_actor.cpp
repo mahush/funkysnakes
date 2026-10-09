@@ -57,95 +57,86 @@ void GameManagerActor::processInputs() {
   }
 }
 
+namespace lifecycle = classic_game_lifecycle_authority;
+
 void GameManagerActor::publishMetadata() {
   GameStateMetadataMsg metadata;
-  metadata.game_id = current_game_id_;
-  metadata.level = current_level_;
-  metadata.paused = paused_;
+  metadata.game_id = lifecycle_.game_id;
+  metadata.level = lifecycle_.level;
+  metadata.paused = lifecycle_.paused;
   metadata_pub_->publish(metadata);
+}
+
+void GameManagerActor::executeClockIntent(lifecycle::ClockIntent clock) {
+  GameClockCommandMsg cmd;
+  cmd.game_id = lifecycle_.game_id;
+  cmd.state = clock;
+  clock_pub_->publish(cmd);
+}
+
+void GameManagerActor::executeCadenceIntent(lifecycle::CadenceIntent cadence) {
+  if (cadence == lifecycle::CadenceIntent::START) {
+    reposition_timer_->execute_command(make_periodic_command<RepositionTimerTag>(lifecycle::REPOSITION_PERIOD));
+    level_timer_->execute_command(make_periodic_command<LevelTimerTag>(lifecycle::LEVEL_PERIOD));
+  } else {
+    reposition_timer_->execute_command(make_cancel_command<RepositionTimerTag>());
+    level_timer_->execute_command(make_cancel_command<LevelTimerTag>());
+  }
 }
 
 void GameManagerActor::onStartGame(const StartGameMsg& msg) {
   Logger::log("[GameManagerActor] Starting game with level " + std::to_string(msg.starting_level) + " and " +
               std::to_string(msg.players.size()) + " players\n");
 
-  current_game_id_ = "game_001";
-  current_level_ = msg.starting_level;
-  game_over_detected_ = false;
-  paused_ = false;
+  auto [state, clock, cadence] = lifecycle::start("game_001", msg.starting_level, lifecycle_);
+  lifecycle_ = state;
 
-  // Send START command to GameEngineActor (will use default 200ms interval)
-  GameClockCommandMsg cmd;
-  cmd.game_id = current_game_id_;
-  cmd.state = GameClockState::START;
-  clock_pub_->publish(cmd);
-
-  // Publish initial metadata
+  executeClockIntent(clock);
   publishMetadata();
-
-  // Start food reposition timer (every 5 seconds)
-  reposition_timer_->execute_command(make_periodic_command<RepositionTimerTag>(std::chrono::seconds(5)));
-
-  // Start level timer (every 60 seconds)
-  level_timer_->execute_command(make_periodic_command<LevelTimerTag>(std::chrono::seconds(60)));
+  executeCadenceIntent(cadence);
 }
 
 void GameManagerActor::onPlayerAliveStates(const PlayerAliveStatesMsg& msg) {
-  // Ignore if game already over or message is for wrong game
-  if (game_over_detected_ || msg.game_id != current_game_id_) {
+  // Ignore messages for another game
+  if (msg.game_id != lifecycle_.game_id) {
     return;
   }
 
-  // Count alive players
-  int alive_count = 0;
-  for (const auto& [player_id, alive] : msg.alive_states) {
-    if (alive) {
-      alive_count++;
-    }
-  }
+  auto [state, conclude] = lifecycle::observeAliveStates(lifecycle_, msg.alive_states);
+  lifecycle_ = state;
 
-  // Game over condition: 0 players alive (last snake standing wins)
-  if (alive_count == 0) {
+  if (conclude) {
     Logger::log("[GameManagerActor] Game over condition detected: all snakes dead\n");
-    game_over_detected_ = true;
 
     // Request game state summary to build GameSummaryMsg
     GameStateSummaryRequestMsg request;
-    request.game_id = current_game_id_;
+    request.game_id = lifecycle_.game_id;
     summary_req_pub_->publish(request);
   }
 }
 
 void GameManagerActor::onSummaryResponse(const GameStateSummaryResponseMsg& response) {
   // Ignore if not expecting response
-  if (!game_over_detected_) {
+  if (!lifecycle_.over) {
     return;
   }
 
   Logger::log("[GameManagerActor] Received game summary, publishing GameOverMsg\n");
 
-  // Build GameSummaryMsg using GameManagerActor's own state for level/game_id
   GameSummaryMsg summary;
-  summary.game_id = current_game_id_;
-  summary.final_level = current_level_;
+  summary.game_id = lifecycle_.game_id;
+  summary.final_level = lifecycle_.level;
   for (const auto& [player_id, score] : response.scores) {
     summary.final_scores.push_back({player_id, score});
   }
 
-  // Publish GameOverMsg
   GameOverMsg gameover;
   gameover.summary = summary;
   gameover_pub_->publish(gameover);
 
-  // Stop timers
-  reposition_timer_->execute_command(make_cancel_command<RepositionTimerTag>());
-  level_timer_->execute_command(make_cancel_command<LevelTimerTag>());
-
-  // Send STOP command to GameEngineActor
-  GameClockCommandMsg cmd;
-  cmd.game_id = current_game_id_;
-  cmd.state = GameClockState::STOP;
-  clock_pub_->publish(cmd);
+  auto [clock, cadence] = lifecycle::concluded(lifecycle_);
+  executeCadenceIntent(cadence);
+  executeClockIntent(clock);
 
   Logger::log("[GameManagerActor] Game '" + summary.game_id + "' ended at level " +
               std::to_string(summary.final_level) + "\n");
@@ -156,64 +147,43 @@ void GameManagerActor::onSummaryResponse(const GameStateSummaryResponseMsg& resp
 }
 
 void GameManagerActor::onRepositionTimer() {
-  // Don't reposition food while paused
-  if (paused_) {
-    return;
+  if (lifecycle::repositionPeriodElapsed(lifecycle_)) {
+    FoodRepositionTriggerMsg trigger{lifecycle_.game_id};
+    reposition_pub_->publish(trigger);
   }
-
-  FoodRepositionTriggerMsg trigger{current_game_id_};
-  reposition_pub_->publish(trigger);
 }
 
 void GameManagerActor::onLevelTimer() {
-  // Don't level up while paused
-  if (paused_) {
+  auto [state, interval] = lifecycle::levelPeriodElapsed(lifecycle_);
+  lifecycle_ = state;
+
+  if (!interval) {
     return;
   }
 
-  // Increment level
-  current_level_++;
+  Logger::log("[GameManagerActor] Level up! Now at level " + std::to_string(lifecycle_.level) + "\n");
+  Logger::log("[GameManagerActor] New tick interval: " + std::to_string(interval->interval_ms) + "ms\n");
 
-  Logger::log("[GameManagerActor] Level up! Now at level " + std::to_string(current_level_) + "\n");
-
-  // Calculate new tick rate: faster with each level
-  // Base interval: 200ms, reduce by 15ms per level, minimum 50ms
-  constexpr int BASE_INTERVAL_MS = 200;
-  constexpr int REDUCTION_PER_LEVEL_MS = 15;
-  constexpr int MIN_INTERVAL_MS = 50;
-
-  int new_interval_ms = std::max(MIN_INTERVAL_MS, BASE_INTERVAL_MS - ((current_level_ - 1) * REDUCTION_PER_LEVEL_MS));
-
-  Logger::log("[GameManagerActor] New tick interval: " + std::to_string(new_interval_ms) + "ms\n");
-
-  // Publish updated metadata (level changed)
   publishMetadata();
 
-  // Publish tick rate change to speed up the game
   TickRateChangeMsg tickrate_change;
-  tickrate_change.game_id = current_game_id_;
-  tickrate_change.interval_ms = new_interval_ms;
+  tickrate_change.game_id = lifecycle_.game_id;
+  tickrate_change.interval_ms = interval->interval_ms;
   tickrate_pub_->publish(tickrate_change);
 }
 
 void GameManagerActor::onPauseToggle(const PauseToggleMsg& msg) {
-  // Ignore if message is for wrong game
-  if (msg.game_id != current_game_id_) {
+  // Ignore messages for another game
+  if (msg.game_id != lifecycle_.game_id) {
     return;
   }
 
-  // Toggle pause state
-  paused_ = !paused_;
+  auto [state, clock] = lifecycle::togglePause(lifecycle_);
+  lifecycle_ = state;
 
-  Logger::log("[GameManagerActor] Game " + std::string(paused_ ? "PAUSED" : "RESUMED") + "\n");
+  Logger::log("[GameManagerActor] Game " + std::string(lifecycle_.paused ? "PAUSED" : "RESUMED") + "\n");
 
-  // Send clock command to GameEngineActor
-  GameClockCommandMsg cmd;
-  cmd.game_id = current_game_id_;
-  cmd.state = paused_ ? GameClockState::PAUSE : GameClockState::RESUME;
-  clock_pub_->publish(cmd);
-
-  // Publish updated metadata (pause state changed)
+  executeClockIntent(clock);
   publishMetadata();
 }
 
