@@ -40,6 +40,7 @@ target_include_directories(funkypipes INTERFACE ${funkypipes_SOURCE_DIR}/include
 # Main executable
 add_executable(snake_actors
   src/main.cpp
+  src/classic_arena_authority.cpp
   src/direction_command_filter.cpp
   src/game_logic.cpp
   src/snake_predicates.cpp
@@ -88,7 +89,8 @@ if(SNAKE_BUILD_TESTS)
     tests/test_actors.cpp
     tests/test_generic_lens.cpp
     tests/test_classic_arena_characterization.cpp
-    src/direction_command_filter.cpp
+    src/classic_arena_authority.cpp
+  src/direction_command_filter.cpp
     src/game_logic.cpp
     src/snake_predicates.cpp
     src/game_manager_actor.cpp
