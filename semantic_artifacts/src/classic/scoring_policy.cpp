@@ -5,8 +5,8 @@
 namespace snake {
 namespace scoring_policy {
 
-PerPlayerScores applyScoring(PerPlayerScores scores, const ArenaEvents& events) {
-  for (const ArenaEvent& event : events) {
+PerPlayerScores applyScoring(PerPlayerScores scores, const classic_arena_authority::ArenaEvents& events) {
+  for (const classic_arena_authority::ArenaEvent& event : events) {
     std::visit(
         [&scores](const auto& e) {
           using TEvent = std::decay_t<decltype(e)>;

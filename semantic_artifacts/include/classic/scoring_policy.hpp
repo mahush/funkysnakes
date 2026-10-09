@@ -1,6 +1,6 @@
 #pragma once
 
-#include "common/arena_events.hpp"
+#include "classic/classic_arena_events.hpp"
 #include "common/game_types.hpp"
 
 namespace snake {
@@ -26,7 +26,7 @@ constexpr int COLLISION_PENALTY = 10;
  * @param events Events of one arena step
  * @return Scores after the events
  */
-PerPlayerScores applyScoring(PerPlayerScores scores, const ArenaEvents& events);
+PerPlayerScores applyScoring(PerPlayerScores scores, const classic_arena_authority::ArenaEvents& events);
 
 }  // namespace scoring_policy
 }  // namespace snake

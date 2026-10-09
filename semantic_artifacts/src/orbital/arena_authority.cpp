@@ -74,19 +74,13 @@ PerPlayerDirection takeNextMoves(std::map<PlayerId, ActiveOrder>& active) {
   return moves;
 }
 
-// Collision handling reports only collision events; eating is reported by collectFood
-void appendCollisionEvent(ArenaEvents& events, const Bitten& event) { events.push_back(event); }
-void appendCollisionEvent(ArenaEvents& events, const SelfBitten& event) { events.push_back(event); }
-void appendCollisionEvent(ArenaEvents& events, const MutualBite& event) { events.push_back(event); }
-void appendCollisionEvent(ArenaEvents& /*events*/, const FoodEaten& /*event*/) {}
-
 // Classic collision rules: bites cut or kill, cut and dead segments are dropped as food.
 // An order of a snake that died ends here, before collection, so it can neither collect nor complete.
 StepResult resolveCollisions(StepResult result) {
-  auto [snakes, collision_events, dropped] = handleCollisions(std::move(result.state.snakes), {});
+  auto [snakes, collision_events, dropped] = handleCollisions(std::move(result.state.snakes));
   result.state.snakes = std::move(snakes);
-  for (const snake::ArenaEvent& event : collision_events) {
-    std::visit([&result](const auto& item) { appendCollisionEvent(result.events, item); }, event);
+  for (const CollisionEvent& event : collision_events) {
+    std::visit([&result](const auto& item) { result.events.push_back(item); }, event);
   }
   result.state.food = dropSegmentsAsFood(std::move(result.state.food), dropped);
 
@@ -103,10 +97,10 @@ StepResult resolveCollisions(StepResult result) {
 
 // Collection is attributed to the order executing during the move
 StepResult collectFood(StepResult result) {
-  auto [food, eating_events] = handleFoodEating(std::move(result.state.food), {}, result.state.snakes);
+  auto [food, eating_events] = handleFoodEating(std::move(result.state.food), result.state.snakes);
   result.state.food = std::move(food);
-  for (const snake::ArenaEvent& event : eating_events) {
-    const PlayerId& player = std::get<FoodEaten>(event).player;
+  for (const FoodEaten& eaten : eating_events) {
+    const PlayerId& player = eaten.player;
     auto active = result.state.active.find(player);
     std::optional<OrderId> during =
         active != result.state.active.end() ? std::optional<OrderId>{active->second.id} : std::nullopt;

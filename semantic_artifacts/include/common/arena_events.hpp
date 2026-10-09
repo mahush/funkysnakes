@@ -8,10 +8,11 @@
 namespace snake {
 
 /**
- * Arena events - facts about what happened during an arena step
+ * Arena events shared by the game variants - what the shared arena rules report
  *
  * Arena rules report these instead of deciding their consequences (such as scores).
- * Each event kind is a deliberate distinction of the arena's vocabulary.
+ * Each event kind is a deliberate distinction of the arena's vocabulary. Each game variant
+ * collects the events of its arena step in its own event list.
  */
 
 // A snake's head reached a food item and ate it
@@ -44,7 +45,8 @@ struct MutualBite {
   bool operator==(const MutualBite& other) const noexcept { return first == other.first && second == other.second; }
 };
 
-using ArenaEvent = std::variant<FoodEaten, Bitten, SelfBitten, MutualBite>;
-using ArenaEvents = std::vector<ArenaEvent>;
+// What collision handling reports
+using CollisionEvent = std::variant<Bitten, SelfBitten, MutualBite>;
+using CollisionEvents = std::vector<CollisionEvent>;
 
 }  // namespace snake

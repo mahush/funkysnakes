@@ -136,6 +136,7 @@ Semantic artifacts     (semantic_artifacts/{include,src}/classic/ — classic sn
   classic_game_lifecycle_authority.*  owner of pause, level, conclusion and cadences
   difficulty_policy.hpp    level → step interval
   scoring_policy.*         what arena events are worth
+  classic_arena_events.hpp  what happened in a classic arena step
   game_boundary.hpp        the game's external interactions
   classic_game_domain_application.*  the whole game without actors (reference)
   direction_command_filter.*  encapsulated state module: buffered inputs
@@ -146,7 +147,7 @@ Shared semantic blocks (semantic_artifacts/{include,src}/common/ — used by the
   snake_predicates.*       collision checks between snake bodies
   game_types.hpp, game_primitives.hpp, players.hpp  arena vocabulary
   random_source.hpp        random source type (the source itself is an external fact)
-  arena_events.hpp         what happened in an arena step
+  arena_events.hpp         events the shared arena rules report
 
 Functional core        (pure logic — no I/O, no shared state)
   game_state_lenses.hpp    focus arena transitions on GameState

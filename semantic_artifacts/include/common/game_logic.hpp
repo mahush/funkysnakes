@@ -77,16 +77,14 @@ PerPlayerSnakes moveSnakes(PerPlayerSnakes snakes,
  * @brief Handle snake-to-snake collisions
  *
  * Updates snakes (kill/cut) based on collision detection and reports what happened as
- * events (SelfBitten, MutualBite, Bitten). Consequences such as scores are decided elsewhere.
+ * collision events (SelfBitten, MutualBite, Bitten). Consequences such as scores are decided elsewhere.
  * Returns the segments that leave play: cut tails, and the complete bodies of
  * snakes killed in this call.
  *
  * @param snakes Snakes (by value)
- * @param events Events of the current step so far (by value)
- * @return Tuple of (updated snakes, events with collisions appended, dropped segments)
+ * @return Tuple of (updated snakes, collision events in order, dropped segments)
  */
-std::tuple<PerPlayerSnakes, ArenaEvents, std::vector<Point>> handleCollisions(PerPlayerSnakes snakes,
-                                                                              ArenaEvents events);
+std::tuple<PerPlayerSnakes, CollisionEvents, std::vector<Point>> handleCollisions(PerPlayerSnakes snakes);
 
 // ============================================================================
 // Food Logic
@@ -126,13 +124,10 @@ FoodItems dropSegmentsAsFood(FoodItems food_items, const std::vector<Point>& dro
  * If an alive snake's head is on food, the food is removed and a FoodEaten event is reported.
  *
  * @param food_items Food (by value)
- * @param events Events of the current step so far (by value)
  * @param snakes Snakes (to check head positions)
- * @return Tuple of (updated food, events with eating appended)
+ * @return Tuple of (updated food, eating events in order)
  */
-std::tuple<FoodItems, ArenaEvents> handleFoodEating(FoodItems food_items,
-                                                    ArenaEvents events,
-                                                    const PerPlayerSnakes& snakes);
+std::tuple<FoodItems, std::vector<FoodEaten>> handleFoodEating(FoodItems food_items, const PerPlayerSnakes& snakes);
 
 /**
  * @brief Initialize food items to a target count

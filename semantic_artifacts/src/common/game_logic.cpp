@@ -73,8 +73,8 @@ std::vector<Point> appendBody(std::vector<Point> segments, const Snake& snake) {
   return segments;
 }
 
-std::tuple<PerPlayerSnakes, ArenaEvents, std::vector<Point>> handleSelfBites(PerPlayerSnakes snakes,
-                                                                             ArenaEvents events) {
+std::tuple<PerPlayerSnakes, CollisionEvents, std::vector<Point>> handleSelfBites(PerPlayerSnakes snakes) {
+  CollisionEvents events;
   std::vector<Point> dropped_segments;
   for (auto& [player_id, snake] : snakes) {
     if (snake_model::alive(snake) && snakeBitesItself(snake)) {
@@ -88,11 +88,11 @@ std::tuple<PerPlayerSnakes, ArenaEvents, std::vector<Point>> handleSelfBites(Per
 
 }  // namespace
 
-std::tuple<PerPlayerSnakes, ArenaEvents, std::vector<Point>> handleCollisions(PerPlayerSnakes snakes,
-                                                                              ArenaEvents events) {
+std::tuple<PerPlayerSnakes, CollisionEvents, std::vector<Point>> handleCollisions(PerPlayerSnakes snakes) {
+  CollisionEvents events;
   std::vector<Point> dropped_segments;
 
-  std::tie(snakes, events, dropped_segments) = handleSelfBites(snakes, events);
+  std::tie(snakes, events, dropped_segments) = handleSelfBites(snakes);
 
   if (snakes.size() < 2) {
     return {snakes, events, dropped_segments};
@@ -182,9 +182,8 @@ FoodItems dropSegmentsAsFood(FoodItems food_items, const std::vector<Point>& dro
   return food_items;
 }
 
-std::tuple<FoodItems, ArenaEvents> handleFoodEating(FoodItems food_items,
-                                                    ArenaEvents events,
-                                                    const PerPlayerSnakes& snakes) {
+std::tuple<FoodItems, std::vector<FoodEaten>> handleFoodEating(FoodItems food_items, const PerPlayerSnakes& snakes) {
+  std::vector<FoodEaten> events;
   for (const auto& [player_id, snake] : snakes) {
     if (!snake_model::alive(snake)) continue;
 
