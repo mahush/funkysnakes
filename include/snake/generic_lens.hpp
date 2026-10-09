@@ -115,13 +115,13 @@ inline constexpr bool dependent_true = true;
  *
  * Example usage:
  *   // Updates snakes & scores, reads board, threads cut_tails output
- *   auto op = lens(mutate<&GameState::snakes, &GameState::scores>,
+ *   auto op = lens(mutate<&State::snakes, &State::scores>,
  *                  read<>,
  *                  handleCollisions);
  *
  *   // Updates snakes, reads board & food
- *   auto op = lens(mutate<&GameState::snakes>,
- *                  read<&GameState::board, &GameState::food_items>,
+ *   auto op = lens(mutate<&State::snakes>,
+ *                  read<&State::board, &State::food_items>,
  *                  moveSnakes);
  *
  * @param mutate_tag Tag specifying mutable fields
