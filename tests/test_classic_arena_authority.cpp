@@ -386,33 +386,52 @@ TEST(ClassicArenaAuthority, ResolvesSelfBiteBeforeSnakeVsSnake) {
 
 namespace {
 
-State arenaWithDeadSnake() {
-  return arena({{PLAYER_A, snake_model::kill(snake_model::initial(Point{10, 10}, Direction::RIGHT, 2))},
-                {PLAYER_B, snake_model::initial(Point{30, 15}, Direction::RIGHT, 3)}},
-               {});
+// A dies in its next step by moving into its own tail; B stays far away
+State arenaWithSnakeAboutToDie() {
+  return arena(
+      {{PLAYER_A, snakeAboutToBiteItself()}, {PLAYER_B, snake_model::initial(Point{30, 15}, Direction::RIGHT, 3)}}, {});
 }
 
 }  // namespace
 
-/// @brief Ensures that a dead snake's body is dropped as food in a step
-TEST(ClassicArenaAuthority, DropsDeadSnakeBodyAsFood) {
-  // When: the arena steps with a dead snake
-  State state = classic_arena_authority::tick(noRandom(), arenaWithDeadSnake());
+/// @brief Ensures that a snake's body becomes food in the step it dies
+TEST(ClassicArenaAuthority, DropsBodyOfDyingSnakeAsFood) {
+  // Given: player A is steered into its own tail
+  State state = classic_arena_authority::steer(arenaWithSnakeAboutToDie(), steer(PLAYER_A, Direction::UP));
+
+  // When: the arena steps
+  state = classic_arena_authority::tick(noRandom(), state);
 
   // Then: its body is dropped as food
-  EXPECT_EQ(withoutFiller(state.food_items), (FoodItems{{10, 10}, {9, 10}}));
+  // Body after the fatal move: head (4,5), tail (4,6) (5,6) (5,5) (4,5); the head shares a cell with its tail
+  EXPECT_EQ(withoutFiller(state.food_items), (FoodItems{{4, 5}, {4, 6}, {5, 6}, {5, 5}, {4, 5}}));
 }
 
-/// @brief Pins that a dead snake's body is dropped again on every step
-TEST(ClassicArenaAuthority, DropsDeadSnakeBodyAsFoodOnEveryStep) {
-  // Given: a dead snake's body was dropped as food
-  State state = classic_arena_authority::tick(noRandom(), arenaWithDeadSnake());
+/// @brief Ensures that a dead snake's body is dropped only once, not again in later steps
+TEST(ClassicArenaAuthority, DropsDeadSnakeBodyAsFoodOnlyOnce) {
+  // Given: a snake died in the previous step
+  State state = classic_arena_authority::steer(arenaWithSnakeAboutToDie(), steer(PLAYER_A, Direction::UP));
+  state = classic_arena_authority::tick(noRandom(), state);
+  FoodItems food_after_death = state.food_items;
 
   // When: the arena steps again
   state = classic_arena_authority::tick(noRandom(), state);
 
-  // Then: the body is dropped as food again
-  EXPECT_EQ(withoutFiller(state.food_items), (FoodItems{{10, 10}, {9, 10}, {10, 10}, {9, 10}}));
+  // Then: its body is not dropped again
+  EXPECT_EQ(state.food_items, food_after_death);
+}
+
+/// @brief Ensures that a snake that is already dead when the arena step starts drops nothing
+TEST(ClassicArenaAuthority, DropsNothingForAlreadyDeadSnake) {
+  // When: the arena steps with an already dead snake
+  State state = classic_arena_authority::tick(
+      noRandom(),
+      arena({{PLAYER_A, snake_model::kill(snake_model::initial(Point{10, 10}, Direction::RIGHT, 2))},
+             {PLAYER_B, snake_model::initial(Point{30, 15}, Direction::RIGHT, 3)}},
+            {}));
+
+  // Then: nothing is dropped
+  EXPECT_EQ(withoutFiller(state.food_items), (FoodItems{}));
 }
 
 /// @subsection Replenishment
