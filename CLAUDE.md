@@ -19,6 +19,7 @@ cmake --build build
 ```bash
 ./build/snake_actors      # Run main application
 ./build/test_snake        # Run tests
+./build/orbital_domain_runner  # Print Orbital Orders domain traces
 ```
 
 ### Testing
