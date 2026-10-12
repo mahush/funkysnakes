@@ -18,7 +18,7 @@ namespace order_authority {
  *
  * Owns submitted orders, the latest pending order per player, its fixed eligibility deadline,
  * supersession, eligibility and the status of every order interpreted from what the Arena
- * reports. It does not own the actual executing route (Arena) or any points (Round).
+ * reports. It does not own the actual executing route (Arena) or any points (Game).
  *
  * - The Orbital Latency Policy calculates a submission's deadline; this Authority stores it.
  * - A new submission supersedes the player's pending order; the superseded order never activates.
@@ -141,9 +141,9 @@ std::tuple<State, OrderId> submit(State state, const Submission& submission);
 State observe(State state, const std::vector<ActivationOutcome>& outcomes, const ArenaEvents& events);
 
 /**
- * @brief Cancel all pending orders because the round concluded
+ * @brief Cancel all pending orders
  *
- * Executing orders are left alone: their ending is reported by the Arena.
+ * Executing orders are left unchanged; their ending still counts when it is observed.
  *
  * @param state Current order state
  * @return Order state without pending orders

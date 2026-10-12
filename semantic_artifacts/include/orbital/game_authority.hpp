@@ -104,7 +104,7 @@ State startRound(RoundId round, const std::vector<PlayerId>& players);
  * @param state Current game state
  * @param now Time of the step on the round's timeline
  * @param events Arena events of the step, in order
- * @param any_snake_alive Whether a snake is still alive after the step (Arena projection)
+ * @param any_snake_alive Whether a snake is still alive after the step
  * @return Tuple of (updated state, conclusion intent if the game concluded with this step)
  */
 std::tuple<State, std::optional<GameConcluded>> observeStep(State state,
