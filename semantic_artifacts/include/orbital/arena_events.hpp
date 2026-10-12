@@ -14,9 +14,9 @@ namespace snake {
 namespace orbital {
 
 /**
- * Arena facts - what happened in the Orbital arena during a step, in order
+ * Arena events - what happened in the Orbital arena during a step, in order
  *
- * The Arena reports physical and execution facts only; what they are worth is decided by the
+ * The Arena reports physical and execution events only; what they are worth is decided by the
  * Scoring Policy, and their effect on order status by the Order Authority.
  *
  * Collisions use the shared arena event vocabulary (Bitten, SelfBitten, MutualBite), since the
@@ -38,8 +38,8 @@ struct FoodCollected {
   }
 };
 
-using ArenaFact = std::variant<OrderEnded, FoodCollected, Bitten, SelfBitten, MutualBite>;
-using ArenaFacts = std::vector<ArenaFact>;
+using ArenaEvent = std::variant<OrderEnded, FoodCollected, Bitten, SelfBitten, MutualBite>;
+using ArenaEvents = std::vector<ArenaEvent>;
 
 }  // namespace orbital
 }  // namespace snake
