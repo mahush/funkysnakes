@@ -1,22 +1,87 @@
 #include "orbital/arena_authority.hpp"
 
 #include <algorithm>
+#include <type_traits>
 
 #include "common/game_logic.hpp"
 #include "common/snake_model_evolve.hpp"
+#include "funkypipes/bind_front.hpp"
+#include "funkypipes/make_pipe.hpp"
 #include "orbital/pursuit_policy.hpp"
+#include "snake/generic_lens.hpp"
 
 namespace snake {
 namespace orbital {
 namespace arena_authority {
 
+using funkypipes::bindFront;
+using funkypipes::makePipe;
+
 namespace {
 
-struct StepResult {
-  State state;
-  std::vector<ActivationOutcome> outcomes;
-  ArenaEvents events;
-};
+using ActiveOrders = std::map<PlayerId, ActiveOrder>;
+
+// ============================================================================
+// Arena Lenses - internal to the Authority
+// ============================================================================
+
+template <typename TOp>
+auto over_active(TOp op_fn) {
+  return lens(mutate<&State::active>, read<>, std::move(op_fn));
+}
+
+template <typename TOp>
+auto over_active_viewing_snakes(TOp op_fn) {
+  return lens(mutate<&State::active>, read<&State::snakes>, std::move(op_fn));
+}
+
+template <typename TOp>
+auto over_snakes_viewing_board_and_food(TOp op_fn) {
+  return lens(mutate<&State::snakes>, read<&State::board, &State::food>, std::move(op_fn));
+}
+
+template <typename TOp>
+auto over_snakes_and_food(TOp op_fn) {
+  return lens(mutate<&State::snakes, &State::food>, read<>, std::move(op_fn));
+}
+
+template <typename TOp>
+auto over_food_viewing_snakes_and_active(TOp op_fn) {
+  return lens(mutate<&State::food>, read<&State::snakes, &State::active>, std::move(op_fn));
+}
+
+template <typename TOp>
+auto over_food_viewing_board_and_snakes(TOp op_fn) {
+  return lens(mutate<&State::food>, read<&State::board, &State::snakes>, std::move(op_fn));
+}
+
+// ============================================================================
+// Event accumulation - each stage reports only its own events
+// ============================================================================
+
+ArenaEvents appendEvents(ArenaEvents events, const ArenaEvents& more) {
+  events.insert(events.end(), more.begin(), more.end());
+  return events;
+}
+
+// Lifts a stage State -> State or State -> (State, its events) to (State, events so far) -> (State, events so far
+// followed by the stage's events)
+template <typename TStageFn>
+auto with_event_accumulation(TStageFn stage_fn) {
+  return [stage_fn = std::move(stage_fn)](State state, ArenaEvents events) mutable {
+    auto result = stage_fn(std::move(state));
+    if constexpr (std::is_same_v<decltype(result), State>) {
+      return std::make_tuple(std::move(result), std::move(events));
+    } else {
+      auto [next, stage_events] = std::move(result);
+      return std::make_tuple(std::move(next), appendEvents(std::move(events), stage_events));
+    }
+  };
+}
+
+// ============================================================================
+// Activation
+// ============================================================================
 
 bool isOnBoard(Point p, const Board& board) { return p.x >= 0 && p.x < board.width && p.y >= 0 && p.y < board.height; }
 
@@ -35,35 +100,53 @@ std::optional<RejectionReason> rejectionOf(const State& state, const Order& orde
 }
 
 // A valid order replaces the executing one; a head already at the target completes at once
-StepResult tryActivate(StepResult result, const Order& order) {
-  if (std::optional<RejectionReason> reason = rejectionOf(result.state, order)) {
-    result.outcomes.push_back(OrderRejected{order.id, *reason});
-    return result;
+std::tuple<State, ActivationOutcome, ArenaEvents> tryActivate(State state, const Order& order) {
+  if (std::optional<RejectionReason> reason = rejectionOf(state, order)) {
+    return {std::move(state), OrderRejected{order.id, *reason}, {}};
   }
 
-  const Snake& snake = result.state.snakes.at(order.player);
+  const Snake& snake = state.snakes.at(order.player);
   std::vector<Direction> route = pursuit_policy::planRoute(
-      snake_model::head(snake), snake_model::currentDirection(snake), order.target, result.state.board);
+      snake_model::head(snake), snake_model::currentDirection(snake), order.target, state.board);
 
+  ArenaEvents events;
   std::optional<OrderId> replaced;
-  auto active = result.state.active.find(order.player);
-  if (active != result.state.active.end()) {
+  auto active = state.active.find(order.player);
+  if (active != state.active.end()) {
     replaced = active->second.id;
-    result.events.push_back(OrderEnded{active->second.id, EndReason::INTERRUPTED, order.id});
-    result.state.active.erase(active);
+    events.push_back(OrderEnded{active->second.id, EndReason::INTERRUPTED, order.id});
+    state.active.erase(active);
   }
-  result.outcomes.push_back(OrderActivated{order.id, replaced, route});
+  OrderActivated activated{order.id, replaced, route};
 
   if (route.empty()) {
-    result.events.push_back(OrderEnded{order.id, EndReason::COMPLETED, std::nullopt});
+    events.push_back(OrderEnded{order.id, EndReason::COMPLETED, std::nullopt});
   } else {
-    result.state.active.emplace(order.player, ActiveOrder{order.id, order.target, std::move(route)});
+    state.active.emplace(order.player, ActiveOrder{order.id, order.target, std::move(route)});
   }
-  return result;
+  return {std::move(state), std::move(activated), std::move(events)};
 }
 
+// Eligible orders are tried in the order supplied; each sees the world the previous one left
+std::tuple<State, std::vector<ActivationOutcome>, ArenaEvents> tryActivateEach(State state,
+                                                                               const std::vector<Order>& eligible) {
+  std::vector<ActivationOutcome> outcomes;
+  ArenaEvents events;
+  for (const Order& order : eligible) {
+    auto [next, outcome, activation_events] = tryActivate(std::move(state), order);
+    state = std::move(next);
+    outcomes.push_back(std::move(outcome));
+    events = appendEvents(std::move(events), activation_events);
+  }
+  return {std::move(state), std::move(outcomes), std::move(events)};
+}
+
+// ============================================================================
+// Step stages
+// ============================================================================
+
 // Each executing order supplies its next move; snakes without one keep their heading
-PerPlayerDirection takeNextMoves(std::map<PlayerId, ActiveOrder>& active) {
+std::tuple<ActiveOrders, PerPlayerDirection> takeNextMoves(ActiveOrders active) {
   PerPlayerDirection moves;
   for (auto& [player, order] : active) {
     if (!order.remaining_route.empty()) {
@@ -71,56 +154,67 @@ PerPlayerDirection takeNextMoves(std::map<PlayerId, ActiveOrder>& active) {
       order.remaining_route.erase(order.remaining_route.begin());
     }
   }
-  return moves;
+  return {std::move(active), std::move(moves)};
 }
 
-// Classic collision rules: bites cut or kill, cut and dead segments are dropped as food.
-// An order of a snake that died ends here, before collection, so it can neither collect nor complete.
-StepResult resolveCollisions(StepResult result) {
-  auto [snakes, collision_events, dropped] = handleCollisions(std::move(result.state.snakes));
-  result.state.snakes = std::move(snakes);
+// Classic collision rules: bites cut or kill, cut and dead segments are dropped as food
+std::tuple<PerPlayerSnakes, FoodItems, ArenaEvents> resolveCollisions(PerPlayerSnakes snakes, FoodItems food) {
+  auto [new_snakes, collision_events, dropped] = handleCollisions(std::move(snakes));
+  ArenaEvents events;
   for (const CollisionEvent& event : collision_events) {
-    std::visit([&result](const auto& item) { result.events.push_back(item); }, event);
+    std::visit([&events](const auto& item) { events.push_back(item); }, event);
   }
-  result.state.food = dropSegmentsAsFood(std::move(result.state.food), dropped);
+  return {std::move(new_snakes), dropSegmentsAsFood(std::move(food), dropped), std::move(events)};
+}
 
-  for (auto it = result.state.active.begin(); it != result.state.active.end();) {
-    if (!snake_model::alive(result.state.snakes.at(it->first))) {
-      result.events.push_back(OrderEnded{it->second.id, EndReason::ELIMINATED, std::nullopt});
-      it = result.state.active.erase(it);
+// An order of a snake that died ends right after collisions, so it can neither collect nor complete
+std::tuple<ActiveOrders, ArenaEvents> endOrdersOfDeadSnakes(ActiveOrders active, const PerPlayerSnakes& snakes) {
+  ArenaEvents events;
+  for (auto it = active.begin(); it != active.end();) {
+    if (!snake_model::alive(snakes.at(it->first))) {
+      events.push_back(OrderEnded{it->second.id, EndReason::ELIMINATED, std::nullopt});
+      it = active.erase(it);
     } else {
       ++it;
     }
   }
-  return result;
+  return {std::move(active), std::move(events)};
 }
 
 // Collection is attributed to the order executing during the move
-StepResult collectFood(StepResult result) {
-  auto [food, eating_events] = handleFoodEating(std::move(result.state.food), result.state.snakes);
-  result.state.food = std::move(food);
+std::tuple<FoodItems, ArenaEvents> collectFood(FoodItems food,
+                                               const PerPlayerSnakes& snakes,
+                                               const ActiveOrders& active) {
+  auto [new_food, eating_events] = handleFoodEating(std::move(food), snakes);
+  ArenaEvents events;
   for (const FoodEaten& eaten : eating_events) {
     const PlayerId& player = eaten.player;
-    auto active = result.state.active.find(player);
+    auto executing = active.find(player);
     std::optional<OrderId> during =
-        active != result.state.active.end() ? std::optional<OrderId>{active->second.id} : std::nullopt;
-    result.events.push_back(FoodCollected{player, snake_model::head(result.state.snakes.at(player)), during});
+        executing != active.end() ? std::optional<OrderId>{executing->second.id} : std::nullopt;
+    events.push_back(FoodCollected{player, snake_model::head(snakes.at(player)), during});
   }
-  return result;
+  return {std::move(new_food), std::move(events)};
 }
 
 // Completion is positional: the head reached the target and the snake is alive after the step
-StepResult completeFulfilledOrders(StepResult result) {
-  for (auto it = result.state.active.begin(); it != result.state.active.end();) {
-    const Snake& snake = result.state.snakes.at(it->first);
+std::tuple<ActiveOrders, ArenaEvents> completeFulfilledOrders(ActiveOrders active, const PerPlayerSnakes& snakes) {
+  ArenaEvents events;
+  for (auto it = active.begin(); it != active.end();) {
+    const Snake& snake = snakes.at(it->first);
     if (snake_model::alive(snake) && snake_model::head(snake) == it->second.target) {
-      result.events.push_back(OrderEnded{it->second.id, EndReason::COMPLETED, std::nullopt});
-      it = result.state.active.erase(it);
+      events.push_back(OrderEnded{it->second.id, EndReason::COMPLETED, std::nullopt});
+      it = active.erase(it);
     } else {
       ++it;
     }
   }
-  return result;
+  return {std::move(active), std::move(events)};
+}
+
+State advanceStep(State state) {
+  ++state.step.value;
+  return state;
 }
 
 }  // namespace
@@ -147,25 +241,27 @@ State startRound(const RandomIntGeneratorFn& random_int_fn, const RoundSetup& se
 std::tuple<State, std::vector<ActivationOutcome>, ArenaEvents> tick(const RandomIntGeneratorFn& random_int_fn,
                                                                     State state,
                                                                     const std::vector<Order>& eligible) {
-  StepResult result{std::move(state), {}, {}};
-
-  for (const Order& order : eligible) {
-    result = tryActivate(std::move(result), order);
-  }
-  if (result.state.ended) {
-    return {std::move(result.state), std::move(result.outcomes), std::move(result.events)};
+  auto [activated, outcomes, activation_events] = tryActivateEach(std::move(state), eligible);
+  if (activated.ended) {
+    return {std::move(activated), std::move(outcomes), std::move(activation_events)};
   }
 
-  PerPlayerDirection moves = takeNextMoves(result.state.active);
-  result.state.snakes = moveSnakes(std::move(result.state.snakes), result.state.board, result.state.food, moves);
-  result = resolveCollisions(std::move(result));
-  result = collectFood(std::move(result));
-  result = completeFulfilledOrders(std::move(result));
-  result.state.food = replenishFood(
-      random_int_fn, MIN_FOOD_COUNT, std::move(result.state.food), result.state.board, result.state.snakes);
-  ++result.state.step.value;
+  // clang-format off
+  auto step_pipeline_fn = makePipe(
+      with_event_accumulation(makePipe(
+          over_active(takeNextMoves),                                                                  // → (state, moves)
+          over_snakes_viewing_board_and_food(moveSnakes))),                                            // → state
+      with_event_accumulation(over_snakes_and_food(resolveCollisions)),                                // → (state, events)
+      with_event_accumulation(over_active_viewing_snakes(endOrdersOfDeadSnakes)),                      // → (state, events)
+      with_event_accumulation(over_food_viewing_snakes_and_active(collectFood)),                       // → (state, events)
+      with_event_accumulation(over_active_viewing_snakes(completeFulfilledOrders)),                    // → (state, events)
+      with_event_accumulation(
+          over_food_viewing_board_and_snakes(bindFront(replenishFood, random_int_fn, MIN_FOOD_COUNT))),
+      with_event_accumulation(advanceStep));
+  // clang-format on
 
-  return {std::move(result.state), std::move(result.outcomes), std::move(result.events)};
+  auto [stepped, step_events] = step_pipeline_fn(std::move(activated), activation_events);
+  return {std::move(stepped), std::move(outcomes), std::move(step_events)};
 }
 
 std::tuple<State, ArenaEvents> endRound(State state) {

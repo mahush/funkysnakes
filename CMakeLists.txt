@@ -84,7 +84,12 @@ add_executable(orbital_domain_runner
   semantic_artifacts/src/common/snake_predicates.cpp
 )
 
-target_include_directories(orbital_domain_runner PRIVATE ${PROJECT_SOURCE_DIR}/semantic_artifacts/include)
+target_include_directories(orbital_domain_runner PRIVATE
+  ${PROJECT_SOURCE_DIR}/include
+  ${PROJECT_SOURCE_DIR}/semantic_artifacts/include
+)
+
+target_link_libraries(orbital_domain_runner PRIVATE funkypipes)
 
 target_compile_options(orbital_domain_runner PRIVATE
   -Wall -Wextra -Wpedantic -Werror
