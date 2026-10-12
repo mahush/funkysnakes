@@ -54,16 +54,28 @@ struct OrderRecord {
   std::optional<RejectionReason> rejection;
 };
 
+namespace detail {
+struct Access;
+}  // namespace detail
+
 /**
  * @brief Order state owned by the Order Authority
  *
- * Fields may be read freely. Changes must go through the transitions below only.
+ * A value that callers store, pass and replace with the results of the transitions below. Its
+ * representation is private: orders are read through the queries and evolve only through the
+ * transitions.
  */
-struct State {
-  RoundId round;
-  int next_order_id{1};
-  std::map<OrderId, OrderRecord> orders;  // Every order of the round by identity
-  std::map<PlayerId, OrderId> pending;    // The latest pending order per player
+class State {
+ private:
+  struct Representation {
+    RoundId round;
+    int next_order_id{1};
+    std::map<OrderId, OrderRecord> orders;  // Every order of the round by identity
+    std::map<PlayerId, OrderId> pending;    // The latest pending order per player
+  };
+  Representation rep_;
+
+  friend struct detail::Access;
 };
 
 /**

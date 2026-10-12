@@ -48,17 +48,29 @@ struct GameConcluded {
   Result result;
 };
 
+namespace detail {
+struct Access;
+}  // namespace detail
+
 /**
  * @brief Game state owned by the Orbital Game Authority
  *
- * Fields may be read freely. Changes must go through the transitions below only.
+ * A value that callers store, pass and replace with the results of the transitions below. Its
+ * representation is private: the game is read through the queries and evolves only through the
+ * transitions.
  */
-struct State {
-  RoundId round;
-  GameTime duration{GAME_DURATION};
-  GameTime now{0};                // Time of the last observed step
-  scoring_policy::Scores scores;  // Credited points per player, unbanked points per order
-  std::optional<Result> result;   // Set once the game concluded
+class State {
+ private:
+  struct Representation {
+    RoundId round;
+    GameTime duration{GAME_DURATION};
+    GameTime now{0};                // Time of the last observed step
+    scoring_policy::Scores scores;  // Credited points per player, unbanked points per order
+    std::optional<Result> result;   // Set once the game concluded
+  };
+  Representation rep_;
+
+  friend struct detail::Access;
 };
 
 // ============================================================================
