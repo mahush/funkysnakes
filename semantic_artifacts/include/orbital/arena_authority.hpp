@@ -8,7 +8,7 @@
 #include "common/game_time.hpp"
 #include "common/game_types.hpp"
 #include "common/random_source.hpp"
-#include "orbital/arena_facts.hpp"
+#include "orbital/arena_events.hpp"
 #include "orbital/identities.hpp"
 #include "orbital/order.hpp"
 
@@ -26,9 +26,9 @@ namespace arena_authority {
  * snake_model owns the body and life of one snake.
  *
  * Out of scope: pending orders and eligibility (Order Authority), points, round duration and
- * conclusion (Round Authority). The Arena reports facts; it does not value them.
+ * conclusion (Round Authority). The Arena reports events; it does not value them.
  *
- * Within the facts of one step:
+ * Within the events of one step:
  * - interruption of an executing order precedes collection under its replacement;
  * - collisions precede collection; an order whose snake died ends ELIMINATED right after them,
  *   so a lethal arrival at the target does not complete the order;
@@ -113,11 +113,11 @@ State startRound(const RandomIntGeneratorFn& random_int, const RoundSetup& setup
  * @param random_int Random number source for food placement
  * @param state Current world
  * @param eligible Eligible orders supplied by the Order Authority
- * @return Tuple of (world after the step, activation outcomes, facts of the step in order)
+ * @return Tuple of (world after the step, activation outcomes, events of the step in order)
  */
-std::tuple<State, std::vector<ActivationOutcome>, ArenaFacts> tick(const RandomIntGeneratorFn& random_int,
-                                                                   State state,
-                                                                   const std::vector<Order>& eligible);
+std::tuple<State, std::vector<ActivationOutcome>, ArenaEvents> tick(const RandomIntGeneratorFn& random_int,
+                                                                    State state,
+                                                                    const std::vector<Order>& eligible);
 
 /**
  * @brief End execution of the round after the Round Authority concluded it
@@ -125,9 +125,9 @@ std::tuple<State, std::vector<ActivationOutcome>, ArenaFacts> tick(const RandomI
  * Executing orders end with ROUND_ENDED; the world stays as it is. No movement, no collection.
  *
  * @param state Current world
- * @return Tuple of (ended world, OrderEnded facts for orders that were still executing)
+ * @return Tuple of (ended world, OrderEnded events for orders that were still executing)
  */
-std::tuple<State, ArenaFacts> endRound(State state);
+std::tuple<State, ArenaEvents> endRound(State state);
 
 /**
  * @brief Projection of the world for presentation

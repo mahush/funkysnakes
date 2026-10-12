@@ -53,7 +53,7 @@ State applyOutcome(State state, const OrderRejected& rejected) {
   return state;
 }
 
-State applyFact(State state, const OrderEnded& ended) {
+State applyEvent(State state, const OrderEnded& ended) {
   auto it = state.orders.find(ended.order);
   if (it == state.orders.end()) {
     return state;
@@ -62,9 +62,9 @@ State applyFact(State state, const OrderEnded& ended) {
   return state;
 }
 
-// World facts (collection, collisions) carry no order status; eliminations arrive as OrderEnded
-template <typename TWorldFact>
-State applyFact(State state, const TWorldFact& /*fact*/) {
+// World events (collection, collisions) carry no order status; eliminations arrive as OrderEnded
+template <typename TWorldEvent>
+State applyEvent(State state, const TWorldEvent& /*event*/) {
   return state;
 }
 
@@ -103,12 +103,12 @@ std::vector<Order> eligible(const State& state, GameTime now) {
   return result;
 }
 
-State observe(State state, const std::vector<ActivationOutcome>& outcomes, const ArenaFacts& facts) {
+State observe(State state, const std::vector<ActivationOutcome>& outcomes, const ArenaEvents& events) {
   for (const ActivationOutcome& outcome : outcomes) {
     state = std::visit([&state](const auto& item) { return applyOutcome(std::move(state), item); }, outcome);
   }
-  for (const ArenaFact& fact : facts) {
-    state = std::visit([&state](const auto& item) { return applyFact(std::move(state), item); }, fact);
+  for (const ArenaEvent& event : events) {
+    state = std::visit([&state](const auto& item) { return applyEvent(std::move(state), item); }, event);
   }
   return state;
 }
