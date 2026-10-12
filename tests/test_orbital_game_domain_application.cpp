@@ -270,29 +270,54 @@ TEST(OrbitalGameDomainApplication, ReportsEveryStepOfOneTimeAdvance) {
 
 namespace {
 
-// Every step report of the given time advances, in order
-std::vector<game_boundary::StepReport> stepsOfAdvances(app::State state, const std::vector<int>& advances_ms) {
+// Every step report of the given time advances, in order, and the state they lead to
+std::tuple<std::vector<game_boundary::StepReport>, app::State> advance(app::State state,
+                                                                       const std::vector<int>& advances_ms) {
   std::vector<game_boundary::StepReport> steps;
   for (int ms : advances_ms) {
     auto [next, observations] = app::apply(makeCornerRandom(), std::move(state), app::TimeElapsed{milliseconds{ms}});
     state = std::move(next);
     steps.insert(steps.end(), observations.steps.begin(), observations.steps.end());
   }
-  return steps;
+  return {std::move(steps), std::move(state)};
+}
+
+// The comparable content of the three views: heads, food, executing targets and step; order statuses; points and
+// remaining time
+auto viewedOutcome(const app::State& state) {
+  arena_authority::View arena = arena_authority::view(*state.arena);
+  std::map<PlayerId, Point> heads;
+  for (const auto& [player, snake] : arena.snakes) {
+    heads[player] = snake_model::head(snake);
+  }
+  std::map<PlayerId, Point> targets;
+  for (const auto& [player, active] : arena.active) {
+    targets[player] = active.target;
+  }
+  std::vector<Status> statuses;
+  for (const order_authority::OrderRecord& record : order_authority::view(*state.orders).orders) {
+    statuses.push_back(record.status);
+  }
+  game_authority::View game = game_authority::view(*state.game);
+  std::map<PlayerId, std::pair<int, int>> points;
+  for (const auto& [player, score] : game.players) {
+    points[player] = {score.credited, score.unbanked};
+  }
+  return std::make_tuple(heads, arena.food, targets, arena.step, statuses, points, game.remaining);
 }
 
 }  // namespace
 
 /// @brief Cutting the same game time into smaller advances does not change what happens
-TEST(OrbitalGameDomainApplication, ReportsSameStepsForOneAdvanceAndItsParts) {
+TEST(OrbitalGameDomainApplication, ReportsSameStepsAndViewsForOneAdvanceAndItsParts) {
   // Given: A's order to (7,2) is pending; it activates at 400 ms and collects the food at (6,2) on its way
   auto [state, order] = submit(started(makeLanes({Point{6, 2}})), PLAYER_A, Point{7, 2});
 
   // When: one second passes once at once and once in five parts
-  std::vector<game_boundary::StepReport> at_once = stepsOfAdvances(state, {1000});
-  std::vector<game_boundary::StepReport> in_parts = stepsOfAdvances(state, {200, 200, 200, 200, 200});
+  auto [at_once, at_once_state] = advance(state, {1000});
+  auto [in_parts, in_parts_state] = advance(state, {200, 200, 200, 200, 200});
 
-  // Then: both report the same steps with the same activations and events
+  // Then: both report the same steps with the same activations and events, and lead to the same views
   ASSERT_EQ(at_once.size(), 5U);
   ASSERT_EQ(at_once[1].activations.size(), 1U);
   ASSERT_FALSE(at_once[3].events.empty());
@@ -303,6 +328,7 @@ TEST(OrbitalGameDomainApplication, ReportsSameStepsForOneAdvanceAndItsParts) {
     EXPECT_EQ(in_parts[i].activations, at_once[i].activations);
     EXPECT_EQ(in_parts[i].events, at_once[i].events);
   }
+  EXPECT_EQ(viewedOutcome(in_parts_state), viewedOutcome(at_once_state));
 }
 
 /// @brief A submission's issue time is the current time of the game clock
