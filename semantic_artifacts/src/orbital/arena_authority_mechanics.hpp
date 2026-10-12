@@ -15,40 +15,84 @@
 namespace snake {
 namespace orbital {
 namespace arena_authority {
+
+namespace detail {
+
+// The Authority's own access to the private representation of its state
+struct Access {
+  using Representation = State::Representation;
+
+  static Representation& rep(State& state) { return state.rep_; }
+  static const Representation& rep(const State& state) { return state.rep_; }
+
+  // Applies a transformation of the representation to the state, forwarding additional outputs
+  template <typename TOp>
+  static auto over_representation(TOp op_fn) {
+    return [op_fn = std::move(op_fn)](State state, auto&&... args) mutable {
+      auto result = op_fn(std::move(state.rep_), std::forward<decltype(args)>(args)...);
+      if constexpr (std::is_same_v<decltype(result), Representation>) {
+        state.rep_ = std::move(result);
+        return state;
+      } else {
+        state.rep_ = std::move(std::get<0>(result));
+        return std::tuple_cat(std::make_tuple(std::move(state)), tailOf(std::move(result)));
+      }
+    };
+  }
+
+ private:
+  template <typename TFirst, typename... TRest>
+  static std::tuple<TRest...> tailOf(std::tuple<TFirst, TRest...> tuple) {
+    return std::apply([](TFirst&&, TRest&&... rest) { return std::make_tuple(std::move(rest)...); }, std::move(tuple));
+  }
+};
+
+}  // namespace detail
+
 namespace mechanics {
+
+using Rep = detail::Access::Representation;
+
+inline Rep& rep(State& state) { return detail::Access::rep(state); }
+inline const Rep& rep(const State& state) { return detail::Access::rep(state); }
 
 // ============================================================================
 // Arena Lenses
 // ============================================================================
 
+template <auto... TMutate, auto... TRead, typename TOp>
+auto over_state(mutate_t<TMutate...> mutate_tag, read_t<TRead...> read_tag, TOp op_fn) {
+  return detail::Access::over_representation(lens(mutate_tag, read_tag, std::move(op_fn)));
+}
+
 template <typename TOp>
 auto over_active(TOp op_fn) {
-  return lens(mutate<&State::active>, read<>, std::move(op_fn));
+  return over_state(mutate<&Rep::active>, read<>, std::move(op_fn));
 }
 
 template <typename TOp>
 auto over_active_viewing_snakes(TOp op_fn) {
-  return lens(mutate<&State::active>, read<&State::snakes>, std::move(op_fn));
+  return over_state(mutate<&Rep::active>, read<&Rep::snakes>, std::move(op_fn));
 }
 
 template <typename TOp>
 auto over_snakes_viewing_board_and_food(TOp op_fn) {
-  return lens(mutate<&State::snakes>, read<&State::board, &State::food>, std::move(op_fn));
+  return over_state(mutate<&Rep::snakes>, read<&Rep::board, &Rep::food>, std::move(op_fn));
 }
 
 template <typename TOp>
 auto over_snakes_and_food(TOp op_fn) {
-  return lens(mutate<&State::snakes, &State::food>, read<>, std::move(op_fn));
+  return over_state(mutate<&Rep::snakes, &Rep::food>, read<>, std::move(op_fn));
 }
 
 template <typename TOp>
 auto over_food_viewing_snakes_and_active(TOp op_fn) {
-  return lens(mutate<&State::food>, read<&State::snakes, &State::active>, std::move(op_fn));
+  return over_state(mutate<&Rep::food>, read<&Rep::snakes, &Rep::active>, std::move(op_fn));
 }
 
 template <typename TOp>
 auto over_food_viewing_board_and_snakes(TOp op_fn) {
-  return lens(mutate<&State::food>, read<&State::board, &State::snakes>, std::move(op_fn));
+  return over_state(mutate<&Rep::food>, read<&Rep::board, &Rep::snakes>, std::move(op_fn));
 }
 
 // ============================================================================
@@ -89,7 +133,7 @@ auto with_event_accumulation(TStageFn stage_fn) {
 // ============================================================================
 
 inline State advanceStep(State state) {
-  ++state.step.value;
+  ++rep(state).step.value;
   return state;
 }
 
