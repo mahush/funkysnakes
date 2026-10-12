@@ -35,7 +35,7 @@ std::optional<RejectionReason> rejectionOf(const State& state, const Order& orde
 }
 
 // A valid order replaces the executing one; a head already at the target completes at once
-StepResult activate(StepResult result, const Order& order) {
+StepResult tryActivate(StepResult result, const Order& order) {
   if (std::optional<RejectionReason> reason = rejectionOf(result.state, order)) {
     result.outcomes.push_back(OrderRejected{order.id, *reason});
     return result;
@@ -110,7 +110,7 @@ StepResult collectFood(StepResult result) {
 }
 
 // Completion is positional: the head reached the target and the snake is alive after the step
-StepResult completeArrivedOrders(StepResult result) {
+StepResult completeFulfilledOrders(StepResult result) {
   for (auto it = result.state.active.begin(); it != result.state.active.end();) {
     const Snake& snake = result.state.snakes.at(it->first);
     if (snake_model::alive(snake) && snake_model::head(snake) == it->second.target) {
@@ -150,7 +150,7 @@ std::tuple<State, std::vector<ActivationOutcome>, ArenaEvents> tick(const Random
   StepResult result{std::move(state), {}, {}};
 
   for (const Order& order : eligible) {
-    result = activate(std::move(result), order);
+    result = tryActivate(std::move(result), order);
   }
   if (result.state.ended) {
     return {std::move(result.state), std::move(result.outcomes), std::move(result.events)};
@@ -160,7 +160,7 @@ std::tuple<State, std::vector<ActivationOutcome>, ArenaEvents> tick(const Random
   result.state.snakes = moveSnakes(std::move(result.state.snakes), result.state.board, result.state.food, moves);
   result = resolveCollisions(std::move(result));
   result = collectFood(std::move(result));
-  result = completeArrivedOrders(std::move(result));
+  result = completeFulfilledOrders(std::move(result));
   result.state.food = replenishFood(
       random_int_fn, MIN_FOOD_COUNT, std::move(result.state.food), result.state.board, result.state.snakes);
   ++result.state.step.value;
