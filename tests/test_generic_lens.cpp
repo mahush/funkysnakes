@@ -139,7 +139,7 @@ TEST(GenericLensTest, ComplexTransformation) {
 // Test: bindFront with generic lens
 TEST(GenericLensTest, WithBindFront) {
   // Simulate a function like updateFoodPositions that takes extra param first
-  auto updateWithTick = [](int tick, std::vector<Point> food, const Board& board, const PerPlayerSnakes&) {
+  auto update_with_tick_fn = [](int tick, std::vector<Point> food, const Board& board, const PerPlayerSnakes&) {
     // Only update on certain ticks
     if (tick % 3 == 0 && !food.empty()) {
       food[0].x = (food[0].x + 1) % board.width;
@@ -149,7 +149,7 @@ TEST(GenericLensTest, WithBindFront) {
 
   // Use bindFront from funkypipes to bind the tick parameter
   int current_tick = 6;
-  auto bound_op_fn = funkypipes::bindFront(updateWithTick, current_tick);
+  auto bound_op_fn = funkypipes::bindFront(update_with_tick_fn, current_tick);
 
   auto transform_fn = lens(mutate<&ArenaState::food_items>, read<&ArenaState::board, &ArenaState::snakes>, bound_op_fn);
 
@@ -168,7 +168,7 @@ TEST(GenericLensTest, WithBindFront) {
 // Test: bindFront with mutable lambda
 TEST(GenericLensTest, WithBindFrontMutableLambda) {
   int counter = 0;
-  auto countingOp = [counter](int multiplier, std::vector<Point> food) mutable {
+  auto counting_op_fn = [counter](int multiplier, std::vector<Point> food) mutable {
     counter++;
     if (!food.empty()) {
       food[0].x *= multiplier;
@@ -176,7 +176,7 @@ TEST(GenericLensTest, WithBindFrontMutableLambda) {
     return food;
   };
 
-  auto bound_op_fn = funkypipes::bindFront(countingOp, 2);
+  auto bound_op_fn = funkypipes::bindFront(counting_op_fn, 2);
 
   auto transform_fn = lens(mutate<&ArenaState::food_items>, read<>, bound_op_fn);
 
