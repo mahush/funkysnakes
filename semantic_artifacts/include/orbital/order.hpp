@@ -29,6 +29,10 @@ struct Order {
   OrderId id;
   PlayerId player;
   Point target;
+
+  bool operator==(const Order& other) const noexcept {
+    return round == other.round && id == other.id && player == other.player && target == other.target;
+  }
 };
 
 // ============================================================================
@@ -44,6 +48,10 @@ struct OrderActivated {
   OrderId order;
   std::optional<OrderId> replaced;
   std::vector<Direction> route;
+
+  bool operator==(const OrderActivated& other) const noexcept {
+    return order == other.order && replaced == other.replaced && route == other.route;
+  }
 };
 
 /**
@@ -61,6 +69,8 @@ enum class RejectionReason {
 struct OrderRejected {
   OrderId order;
   RejectionReason reason;
+
+  bool operator==(const OrderRejected& other) const noexcept { return order == other.order && reason == other.reason; }
 };
 
 using ActivationOutcome = std::variant<OrderActivated, OrderRejected>;
@@ -88,6 +98,10 @@ struct OrderEnded {
   OrderId order;
   EndReason reason;
   std::optional<OrderId> replacement;
+
+  bool operator==(const OrderEnded& other) const noexcept {
+    return order == other.order && reason == other.reason && replacement == other.replacement;
+  }
 };
 
 }  // namespace orbital
