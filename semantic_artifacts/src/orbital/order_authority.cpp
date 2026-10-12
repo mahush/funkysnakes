@@ -35,11 +35,13 @@ Status statusAfterEnding(EndReason reason) {
   return Status::FAILED;
 }
 
-void forgetPending(State& state, const OrderRecord& record) {
-  auto it = rep(state).pending.find(record.order.player);
-  if (it != rep(state).pending.end() && it->second == record.order.id) {
-    rep(state).pending.erase(it);
+// The player's pending order is resolved once that same order is resolved; a newer submission stays pending
+std::map<PlayerId, OrderId> forgetPending(std::map<PlayerId, OrderId> pending, const PlayerId& player, OrderId order) {
+  auto it = pending.find(player);
+  if (it != pending.end() && it->second == order) {
+    pending.erase(it);
   }
+  return pending;
 }
 
 // The Arena actually activated the order: it executes, whatever this Authority expected
@@ -49,7 +51,7 @@ State applyOutcome(State state, const OrderActivated& activated) {
     return state;
   }
   it->second.status = Status::EXECUTING;
-  forgetPending(state, it->second);
+  rep(state).pending = forgetPending(std::move(rep(state).pending), it->second.order.player, it->second.order.id);
   return state;
 }
 
@@ -62,7 +64,7 @@ State applyOutcome(State state, const OrderRejected& rejected) {
   }
   it->second.status = Status::REJECTED;
   it->second.rejection = rejected.reason;
-  forgetPending(state, it->second);
+  rep(state).pending = forgetPending(std::move(rep(state).pending), it->second.order.player, it->second.order.id);
   return state;
 }
 
