@@ -62,8 +62,11 @@ State applyFact(State state, const OrderEnded& ended) {
   return state;
 }
 
-// Collection carries no order status
-State applyFact(State state, const FoodCollected& /*collected*/) { return state; }
+// World facts (collection, collisions) carry no order status; eliminations arrive as OrderEnded
+template <typename TWorldFact>
+State applyFact(State state, const TWorldFact& /*fact*/) {
+  return state;
+}
 
 }  // namespace
 

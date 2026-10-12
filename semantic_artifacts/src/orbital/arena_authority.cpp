@@ -72,6 +72,33 @@ PerPlayerDirection takeNextMoves(std::map<PlayerId, ActiveOrder>& active) {
   return moves;
 }
 
+// Collision handling reports only collision events; eating is reported by collectFood
+void appendCollisionFact(ArenaFacts& facts, const Bitten& event) { facts.push_back(event); }
+void appendCollisionFact(ArenaFacts& facts, const SelfBitten& event) { facts.push_back(event); }
+void appendCollisionFact(ArenaFacts& facts, const MutualBite& event) { facts.push_back(event); }
+void appendCollisionFact(ArenaFacts& /*facts*/, const FoodEaten& /*event*/) {}
+
+// Classic collision rules: bites cut or kill, cut and dead segments are dropped as food.
+// An order of a snake that died ends here, before collection, so it can neither collect nor complete.
+StepResult resolveCollisions(StepResult result) {
+  auto [snakes, events, dropped] = handleCollisions(std::move(result.state.snakes), {});
+  result.state.snakes = std::move(snakes);
+  for (const ArenaEvent& event : events) {
+    std::visit([&result](const auto& item) { appendCollisionFact(result.facts, item); }, event);
+  }
+  result.state.food = dropSegmentsAsFood(std::move(result.state.food), dropped);
+
+  for (auto it = result.state.active.begin(); it != result.state.active.end();) {
+    if (!snake_model::alive(result.state.snakes.at(it->first))) {
+      result.facts.push_back(OrderEnded{it->second.id, EndReason::ELIMINATED, std::nullopt});
+      it = result.state.active.erase(it);
+    } else {
+      ++it;
+    }
+  }
+  return result;
+}
+
 // Collection is attributed to the order executing during the move
 StepResult collectFood(StepResult result) {
   auto [food, events] = handleFoodEating(std::move(result.state.food), {}, result.state.snakes);
@@ -135,6 +162,7 @@ std::tuple<State, std::vector<ActivationOutcome>, ArenaFacts> tick(const RandomI
 
   PerPlayerDirection moves = takeNextMoves(result.state.active);
   result.state.snakes = moveSnakes(std::move(result.state.snakes), result.state.board, result.state.food, moves);
+  result = resolveCollisions(std::move(result));
   result = collectFood(std::move(result));
   result = completeArrivedOrders(std::move(result));
   result.state.food =
