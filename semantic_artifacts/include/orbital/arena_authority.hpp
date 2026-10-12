@@ -130,6 +130,14 @@ std::tuple<State, std::vector<ActivationOutcome>, ArenaEvents> tick(const Random
 std::tuple<State, ArenaEvents> endRound(State state);
 
 /**
+ * @brief Whether at least one snake is still alive
+ *
+ * @param state Current world
+ * @return True if a snake is alive
+ */
+bool anySnakeAlive(const State& state);
+
+/**
  * @brief Projection of the world for presentation
  */
 struct View {

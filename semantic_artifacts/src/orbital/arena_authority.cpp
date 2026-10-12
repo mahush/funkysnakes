@@ -1,5 +1,7 @@
 #include "orbital/arena_authority.hpp"
 
+#include <algorithm>
+
 #include "common/game_logic.hpp"
 #include "common/snake_model_evolve.hpp"
 #include "orbital/pursuit_policy.hpp"
@@ -180,6 +182,11 @@ std::tuple<State, ArenaEvents> endRound(State state) {
   state.active.clear();
   state.ended = true;
   return {std::move(state), std::move(events)};
+}
+
+bool anySnakeAlive(const State& state) {
+  return std::any_of(
+      state.snakes.begin(), state.snakes.end(), [](const auto& entry) { return snake_model::alive(entry.second); });
 }
 
 View view(const State& state) {
