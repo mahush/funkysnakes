@@ -101,7 +101,9 @@ food also avoids snake cells.
 Arena rules report what happened as [events](../semantic_artifacts/include/common/arena_events.hpp) instead of deciding their
 consequences: `FoodEaten`, `Bitten` (victim and biter), `SelfBitten` and `MutualBite` (head-on or mutual tail
 bites). The [Scoring Policy](#scoring-policy) turns them into score changes, so the collision and eating helpers
-know nothing about points and can be reused by an arena with different scoring.
+know nothing about points and can be reused by an arena with different scoring. The events themselves are
+shared vocabulary; the classic arena collects the events of a step in its own list,
+[`classic_arena_authority::ArenaEvents`](../semantic_artifacts/include/classic/classic_arena_events.hpp).
 
 ### Inputs and facts
 
