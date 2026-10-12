@@ -132,8 +132,8 @@ Elapsed cadence periods arrive as events from the realization; the Authority dec
 The conclude intent carries the stop-clock and stop-cadence intents, so ending a game is one decision; the
 Authority's surface does not depend on how a realization collects the final scores.
 
-- **pause and conclusion** are two independent flags, `paused` and `over`, not one phase. The game can
-  therefore still be paused and resumed once it is over (see [Pinned behavior](#pinned-behavior));
+- **pause and conclusion**: an ended game stays stopped. `togglePause` is ignored once the game is over and
+  announces no clock or cadence intent;
 - **level**: starts at the requested level and rises once per level period;
 - **conclusion**: decides when the game is over, based on the arena's alive states. Currently the game is
   over when **zero** snakes are alive. This check lives inside the Authority rather than in a separate
@@ -270,7 +270,9 @@ Deliberate changes after characterization, each made separately:
 - at most one food item per cell (new and dropped food could stack);
 - the game starts at the speed of its starting level;
 - game time stops while paused, also in production;
-- cadence periods ending after the game is over are ignored, and the step counts first at the same instant.
+- cadence periods ending after the game is over are ignored, and the step counts first at the same instant;
+- pause is ignored once the game is over, so toggling it can no longer restart stepping. The Domain
+  Application's virtual clock therefore has one `running` flag instead of separate stepping and cadence flags.
 
 ## Pinned behavior
 
@@ -283,7 +285,6 @@ explicit gameplay decision.
 | Only the bitten snake loses points; a head-on hit or mutual bite kills both (−10 each) | Snake-against-snake checks are hard-wired to Player A and Player B |
 | Steering cancellation persists even when the new turn is then rejected | Cancellation (opposite of the first queued turn) happens before the other acceptance checks |
 | `BITE_REMOVE_TAIL` is never used | The mode is always `BITE_DROP_FOOD` |
-| Toggling pause twice after game over restarts the step clock | Pause and conclusion are independent flags; RESUME restarts the step timer. Level-up and reposition stay stopped |
 | The game ends when zero snakes are alive | The surviving snake keeps playing alone until it dies; the code comment says "last snake standing" |
 
 ## Policy candidates

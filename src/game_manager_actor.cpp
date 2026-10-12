@@ -238,10 +238,13 @@ void GameManagerActor::onPauseToggle(const PauseToggleMsg& msg) {
 
   auto [state, clock, cadence] = lifecycle::togglePause(lifecycle_);
   lifecycle_ = state;
+  if (!clock) {
+    return;  // The game is over and stays stopped
+  }
 
   Logger::log("[GameManagerActor] Game " + std::string(lifecycle_.paused ? "PAUSED" : "RESUMED") + "\n");
 
-  executeClockIntent(clock);
+  executeClockIntent(*clock);
   if (cadence) {
     executeCadenceIntent(*cadence);
   }

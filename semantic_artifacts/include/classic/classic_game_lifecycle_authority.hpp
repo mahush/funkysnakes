@@ -44,8 +44,7 @@ constexpr std::array<DueWork, 3> SAME_INSTANT_ORDER{DueWork::STEP, DueWork::LEVE
  *
  * Fields may be read freely. Changes must go through the transitions below only.
  *
- * `paused` and `over` are independent flags, mirroring current behavior: pausing is not
- * blocked once the game is over (see esa_classic_game.md, behavior to pin).
+ * Once `over` is set, `paused` no longer changes: an ended game stays stopped.
  */
 struct State {
   int level{1};        // Current level
@@ -100,15 +99,14 @@ std::tuple<State, ClockIntent, StepIntervalIntent, CadenceIntent> start(int star
 /**
  * @brief Toggle between running and paused
  *
- * Pausing freezes the cadences and resuming continues them. Once the game is over the
- * cadences stay stopped.
- *
- * Note: toggling is not blocked after the game is over (see esa_classic_game.md).
+ * Pausing freezes the cadences and resuming continues them. Once the game is over it stays
+ * stopped: the toggle is ignored and no intent is announced.
  *
  * @param state Current lifecycle state
- * @return Tuple of (toggled state, pause or resume clock intent, optional freeze or resume cadence intent)
+ * @return Tuple of (toggled state, pause or resume clock intent, freeze or resume cadence intent); both intents are
+ *         empty once the game is over
  */
-std::tuple<State, ClockIntent, std::optional<CadenceIntent>> togglePause(State state);
+std::tuple<State, std::optional<ClockIntent>, std::optional<CadenceIntent>> togglePause(State state);
 
 /**
  * @brief React to an elapsed level period

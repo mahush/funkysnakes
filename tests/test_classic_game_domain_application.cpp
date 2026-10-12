@@ -236,4 +236,19 @@ TEST(ClassicGameDomainApplication, StopsSteppingAndLevelingUpAfterGameOver) {
   EXPECT_FALSE(observations.game_over.has_value());
 }
 
+/// @brief Rule decision: an ended game stays stopped, however often pause is toggled
+TEST(ClassicGameDomainApplication, KeepsGameStoppedWhenPauseIsToggledAfterGameOver) {
+  // Given: the game is over and pause was toggled twice
+  app::State state = std::get<0>(wait(steerBothIntoOwnTails(startedApp()), milliseconds{200}));
+  state = std::get<0>(app::apply(std::move(state), app::TogglePause{}));
+  state = std::get<0>(app::apply(std::move(state), app::TogglePause{}));
+
+  // When: two minutes of time pass
+  auto [new_state, observations] = wait(std::move(state), seconds{120});
+
+  // Then: the arena does not step and the level does not rise
+  EXPECT_TRUE(observations.arena_views.empty());
+  EXPECT_TRUE(observations.statuses.empty());
+}
+
 }  // namespace snake
