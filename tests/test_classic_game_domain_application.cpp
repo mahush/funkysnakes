@@ -26,16 +26,16 @@ using std::chrono::seconds;
  *
  * Deterministic and cheap; food is placed in the board's top-left corner area.
  */
-RandomIntGeneratorFn lowestRandom() {
+RandomIntGeneratorFn makeLowestRandom() {
   return [](int min, int /* max */) { return min; };
 }
 
-app::State newApp() { return app::initial(lowestRandom()); }
+app::State newApp() { return app::initial(makeLowestRandom()); }
 
 app::State startedApp(int starting_level = 1) { return std::get<0>(app::apply(newApp(), app::Start{starting_level})); }
 
 std::tuple<app::State, app::Observations> wait(app::State state, milliseconds duration) {
-  return app::apply(lowestRandom(), std::move(state), app::TimeElapsed{duration});
+  return app::apply(makeLowestRandom(), std::move(state), app::TimeElapsed{duration});
 }
 
 Point headOf(const app::State& state, const PlayerId& player) {

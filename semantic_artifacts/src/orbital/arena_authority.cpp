@@ -125,7 +125,7 @@ StepResult completeArrivedOrders(StepResult result) {
 
 }  // namespace
 
-RoundSetup classicSetup(RoundId round) {
+RoundSetup makeClassicSetup(RoundId round) {
   return RoundSetup{round,
                     Board{},
                     {{PLAYER_A, SnakeSetup{Point{5, 10}, Direction::RIGHT, 7}},
