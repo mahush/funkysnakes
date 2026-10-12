@@ -397,6 +397,22 @@ TEST(OrbitalArenaAuthority, RejectsOrderForDeadSnake) {
   EXPECT_EQ(next_outcomes, (std::vector<ActivationOutcome>{OrderRejected{OrderId{1}, RejectionReason::SNAKE_DEAD}}));
 }
 
+/// @section arena_authority::anySnakeAlive
+
+TEST(OrbitalArenaAuthority, ReportsNoSnakeAliveAfterBothDied) {
+  // Given: A and B died in a head-on collision
+  auto [state, outcomes, events] = arena_authority::tick(
+      noRandom(),
+      arena(SnakeSetup{Point{5, 5}, Direction::RIGHT, 2}, SnakeSetup{Point{7, 5}, Direction::LEFT, 2}, {}),
+      {});
+
+  // When: the Arena is asked whether a snake is alive
+  bool alive = arena_authority::anySnakeAlive(state);
+
+  // Then: none is
+  EXPECT_FALSE(alive);
+}
+
 /// @section arena_authority::endRound
 
 TEST(OrbitalArenaAuthority, EndsExecutingOrdersWhenRoundEnds) {
