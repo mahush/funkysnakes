@@ -429,6 +429,18 @@ void GameEngineActor::processInputs() { ... }
 
 This prevents name collisions and keeps internal implementation details from leaking to other translation units.
 
+#### Mechanics Headers
+
+Plumbing of a semantic artifact that introduces no domain decision (lens adapters, event-type conversion and
+accumulation, counters, clearing transient fields) goes into a private `<module_name>_mechanics.hpp` next to the
+module's `.cpp`, in namespace `<module>::mechanics`. The meaningful transition sequence, rules and guards stay in the
+module's `.cpp`. Small or pure is not the criterion: a helper containing a meaningful choice stays in the `.cpp`.
+
+```
+semantic_artifacts/src/orbital/arena_authority.cpp            // step sequence, activation, completion rules
+semantic_artifacts/src/orbital/arena_authority_mechanics.hpp  // lenses, event accumulation, step counter
+```
+
 ## Architecture Overview
 
 ### Actor-Based Message Passing System
