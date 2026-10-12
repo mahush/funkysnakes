@@ -70,7 +70,7 @@ State makeArena(SnakeSetup snake_a, SnakeSetup snake_b, FoodItems food) {
 
 Order orderOfA(int id, Point target) { return Order{ROUND, OrderId{id}, PLAYER_A, target}; }
 
-Point headOfA(const State& state) { return snake_model::head(state.snakes.at(PLAYER_A)); }
+Point headOfA(const State& state) { return snake_model::head(arena_authority::view(state).snakes.at(PLAYER_A)); }
 
 }  // namespace
 
@@ -83,7 +83,7 @@ TEST(OrbitalArenaAuthority, TopsUpFoodToMinimumAtRoundStart) {
       RoundSetup{ROUND, BOARD, {{PLAYER_A, SnakeSetup{Point{5, 5}, Direction::RIGHT, 3}}}, {Point{0, 0}}});
 
   // Then: the board holds the minimum amount of food
-  EXPECT_EQ(state.food.size(), static_cast<size_t>(arena_authority::MIN_FOOD_COUNT));
+  EXPECT_EQ(arena_authority::view(state).food.size(), static_cast<size_t>(arena_authority::MIN_FOOD_COUNT));
 }
 
 /// @section arena_authority::tick
@@ -131,7 +131,7 @@ TEST(OrbitalArenaAuthority, CompletesOrderWhenHeadReachesTarget) {
   // Then: the order completed on arrival and no order executes any more
   EXPECT_EQ(headOfA(next), (Point{7, 5}));
   EXPECT_EQ(next_events, (ArenaEvents{OrderEnded{OrderId{1}, EndReason::COMPLETED, std::nullopt}}));
-  EXPECT_TRUE(next.active.empty());
+  EXPECT_TRUE(arena_authority::view(next).active.empty());
 }
 
 TEST(OrbitalArenaAuthority, MovesStraightOnAfterCompletion) {
@@ -189,7 +189,7 @@ TEST(OrbitalArenaAuthority, AttributesCollectionToExecutingOrder) {
 
   // Then: the food was collected during the order, and the snake grew
   EXPECT_EQ(next_events, (ArenaEvents{FoodCollected{PLAYER_A, Point{7, 5}, OrderId{1}}}));
-  EXPECT_EQ(snake_model::length(next.snakes.at(PLAYER_A)), 4U);
+  EXPECT_EQ(snake_model::length(arena_authority::view(next).snakes.at(PLAYER_A)), 4U);
 }
 
 TEST(OrbitalArenaAuthority, ReportsCollectionWithoutOrderWhenNoneExecutes) {
@@ -246,7 +246,7 @@ TEST(OrbitalArenaAuthority, InterruptsExecutingOrderWithReplacement) {
   EXPECT_EQ(std::get<OrderActivated>(next_outcomes[0]).replaced, OrderId{1});
   EXPECT_EQ(next_events, (ArenaEvents{OrderEnded{OrderId{1}, EndReason::INTERRUPTED, OrderId{2}}}));
   EXPECT_EQ(headOfA(next), (Point{6, 4}));
-  EXPECT_EQ(next.active.at(PLAYER_A).id, OrderId{2});
+  EXPECT_EQ(arena_authority::view(next).active.at(PLAYER_A).id, OrderId{2});
 }
 
 /// @brief The replacement activates before movement, so food on that step belongs to the replacement
@@ -305,7 +305,7 @@ TEST(OrbitalArenaAuthority, KeepsExecutingOrderWhenReplacementIsRejected) {
 
   // Then: F still executes and the snake follows it
   EXPECT_TRUE(next_events.empty());
-  EXPECT_EQ(next.active.at(PLAYER_A).id, OrderId{1});
+  EXPECT_EQ(arena_authority::view(next).active.at(PLAYER_A).id, OrderId{1});
   EXPECT_EQ(headOfA(next), (Point{7, 5}));
 }
 
@@ -334,7 +334,7 @@ TEST(OrbitalArenaAuthority, CutsBittenSnakeAndDropsItsTailAsFood) {
 
   // Then: A bit B at (4,3), B lost its tail from there, and A collected the dropped segment
   EXPECT_EQ(events, (ArenaEvents{Bitten{PLAYER_B, PLAYER_A}, FoodCollected{PLAYER_A, Point{4, 3}, std::nullopt}}));
-  EXPECT_EQ(snake_model::length(next.snakes.at(PLAYER_B)), 3U);
+  EXPECT_EQ(snake_model::length(arena_authority::view(next).snakes.at(PLAYER_B)), 3U);
 }
 
 /// @brief A nonlethal bite leaves the biter's executing order in place
@@ -350,7 +350,7 @@ TEST(OrbitalArenaAuthority, KeepsOrderOfSnakeInvolvedInNonlethalBite) {
 
   // Then: B's order still executes
   EXPECT_EQ(next_events.front(), (ArenaEvent{Bitten{PLAYER_B, PLAYER_A}}));
-  EXPECT_EQ(next.active.at(PLAYER_B).id, OrderId{1});
+  EXPECT_EQ(arena_authority::view(next).active.at(PLAYER_B).id, OrderId{1});
 }
 
 TEST(OrbitalArenaAuthority, EndsOrderOfSnakeThatDied) {
@@ -367,7 +367,7 @@ TEST(OrbitalArenaAuthority, EndsOrderOfSnakeThatDied) {
   ASSERT_GE(next_events.size(), 2U);
   EXPECT_EQ(next_events[0], (ArenaEvent{MutualBite{PLAYER_A, PLAYER_B}}));
   EXPECT_EQ(next_events[1], (ArenaEvent{OrderEnded{OrderId{1}, EndReason::ELIMINATED, std::nullopt}}));
-  EXPECT_TRUE(next.active.empty());
+  EXPECT_TRUE(arena_authority::view(next).active.empty());
 }
 
 /// @brief Reaching the target in a lethal collision fails the order instead of completing it
@@ -430,8 +430,8 @@ TEST(OrbitalArenaAuthority, EndsExecutingOrdersWhenRoundEnds) {
 
   // Then: the order ended with the round, no order executes and the world is unchanged
   EXPECT_EQ(end_events, (ArenaEvents{OrderEnded{OrderId{1}, EndReason::ROUND_ENDED, std::nullopt}}));
-  EXPECT_TRUE(ended.active.empty());
-  EXPECT_TRUE(ended.ended);
+  EXPECT_TRUE(arena_authority::view(ended).active.empty());
+  EXPECT_TRUE(arena_authority::view(ended).ended);
   EXPECT_EQ(headOfA(ended), headOfA(state));
 }
 
@@ -447,7 +447,7 @@ TEST(OrbitalArenaAuthority, RejectsOrdersAndKeepsWorldAfterRoundEnded) {
   EXPECT_EQ(outcomes, (std::vector<ActivationOutcome>{OrderRejected{OrderId{1}, RejectionReason::ROUND_ENDED}}));
   EXPECT_TRUE(events.empty());
   EXPECT_EQ(headOfA(next), (Point{5, 5}));
-  EXPECT_EQ(next.step, ended.step);
+  EXPECT_EQ(arena_authority::lastCompletedStep(next), arena_authority::lastCompletedStep(ended));
 }
 
 }  // namespace orbital

@@ -61,6 +61,10 @@ struct State {
   std::optional<Result> result;   // Set once the game concluded
 };
 
+// ============================================================================
+// Construction: establish a valid initial state from explicit setup
+// ============================================================================
+
 /**
  * @brief Start a game
  *
@@ -69,6 +73,10 @@ struct State {
  * @return Running game
  */
 State startRound(RoundId round, const std::vector<PlayerId>& players);
+
+// ============================================================================
+// Transitions: evolve the state; return it with outputs it does not encode itself
+// ============================================================================
 
 /**
  * @brief Score one arena step and conclude the game if it is over
@@ -86,6 +94,10 @@ std::tuple<State, std::optional<GameConcluded>> observeStep(State state,
                                                             GameTime now,
                                                             const ArenaEvents& events,
                                                             bool any_snake_alive);
+
+// ============================================================================
+// Queries: read the state without evolving it
+// ============================================================================
 
 /**
  * @brief Whether the game is still running (not yet concluded)
