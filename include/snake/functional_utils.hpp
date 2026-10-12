@@ -42,22 +42,22 @@ struct GetArgAt {
  *
  * Examples:
  *   // All arguments to predicate:
- *   auto bothEven = [](int x, int y) { return x % 2 == 0 && y % 2 == 0; };
- *   auto sumIfBothEven = when(bothEven, [](int x, int y) { return x + y; });
- *   sumIfBothEven(2, 4);  // returns 6
- *   sumIfBothEven(2, 3);  // returns 2 (first arg)
+ *   auto both_even_fn = [](int x, int y) { return x % 2 == 0 && y % 2 == 0; };
+ *   auto sum_if_both_even_fn = when(both_even_fn, [](int x, int y) { return x + y; });
+ *   sum_if_both_even_fn(2, 4);  // returns 6
+ *   sum_if_both_even_fn(2, 3);  // returns 2 (first arg)
  *
  *   // Check specific argument:
- *   auto isEven = [](int x) { return x % 2 == 0; };
- *   auto processIfFirstEven = when<0>(isEven, [](int x, int y) { return x + y; });
- *   processIfFirstEven(2, 3);  // returns 5
- *   processIfFirstEven(3, 2);  // returns 3 (first arg)
+ *   auto is_even_fn = [](int x) { return x % 2 == 0; };
+ *   auto process_if_first_even_fn = when<0>(is_even_fn, [](int x, int y) { return x + y; });
+ *   process_if_first_even_fn(2, 3);  // returns 5
+ *   process_if_first_even_fn(3, 2);  // returns 3 (first arg)
  */
 template <std::size_t ArgIndex = std::size_t(-1), typename TPredicate, typename TFn>
 auto when(TPredicate pred_fn, TFn fn) {
   return [pred_fn = std::move(pred_fn), fn = std::move(fn)](auto&&... args) mutable {
     // Get first argument for return value when predicate is false
-    auto getFirst = [](auto&& first, auto&&...) -> decltype(auto) { return std::forward<decltype(first)>(first); };
+    auto get_first_fn = [](auto&& first, auto&&...) -> decltype(auto) { return std::forward<decltype(first)>(first); };
 
     // Check the predicate
     bool condition;
@@ -72,7 +72,7 @@ auto when(TPredicate pred_fn, TFn fn) {
     if (condition) {
       return fn(std::forward<decltype(args)>(args)...);
     }
-    return getFirst(std::forward<decltype(args)>(args)...);
+    return get_first_fn(std::forward<decltype(args)>(args)...);
   };
 }
 
