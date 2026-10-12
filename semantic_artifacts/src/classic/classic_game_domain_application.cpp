@@ -19,17 +19,19 @@ const Board CLASSIC_BOARD{60, 20};
 // ============================================================================
 // Carrying out lifecycle intents
 // ============================================================================
+// The lifecycle Authority announces clock and cadence intents together, so one running flag
+// covers both; the cadence intents decide only whether the period countdowns restart.
 
 VirtualClock executeClockIntent(VirtualClock clock, lifecycle::ClockIntent intent) {
   switch (intent) {
     case lifecycle::ClockIntent::START:
     case lifecycle::ClockIntent::RESUME:
-      clock.stepping = true;
+      clock.running = true;
       clock.until_step = clock.step_interval;
       break;
     case lifecycle::ClockIntent::STOP:
     case lifecycle::ClockIntent::PAUSE:
-      clock.stepping = false;
+      clock.running = false;
       break;
   }
   return clock;
@@ -44,16 +46,12 @@ VirtualClock executeStepIntervalIntent(VirtualClock clock, lifecycle::StepInterv
 VirtualClock executeCadenceIntent(VirtualClock clock, lifecycle::CadenceIntent intent) {
   switch (intent) {
     case lifecycle::CadenceIntent::START:
-      clock.cadences = true;
       clock.until_level_period = lifecycle::LEVEL_PERIOD;
       clock.until_reposition_period = lifecycle::REPOSITION_PERIOD;
       break;
-    case lifecycle::CadenceIntent::RESUME:
-      clock.cadences = true;
-      break;
+    case lifecycle::CadenceIntent::RESUME:  // Continue the remaining periods
     case lifecycle::CadenceIntent::STOP:
-    case lifecycle::CadenceIntent::FREEZE:
-      clock.cadences = false;
+    case lifecycle::CadenceIntent::FREEZE:  // Keep the remaining periods
       break;
   }
   return clock;
@@ -114,23 +112,15 @@ State runRepositionPeriod(State state) {
 
 // Time until the next due work, or nullopt if nothing is running
 std::optional<milliseconds> untilNextDue(const State& state) {
-  std::optional<milliseconds> next;
-  auto consider_fn = [&next](milliseconds candidate) { next = next ? std::min(*next, candidate) : candidate; };
-  if (state.clock.stepping) {
-    consider_fn(state.clock.until_step);
+  if (!state.clock.running) {
+    return std::nullopt;
   }
-  if (state.clock.cadences) {
-    consider_fn(state.clock.until_level_period);
-    consider_fn(state.clock.until_reposition_period);
-  }
-  return next;
+  return std::min({state.clock.until_step, state.clock.until_level_period, state.clock.until_reposition_period});
 }
 
 State advanceClock(State state, milliseconds duration) {
-  if (state.clock.stepping) {
+  if (state.clock.running) {
     state.clock.until_step -= duration;
-  }
-  if (state.clock.cadences) {
     state.clock.until_level_period -= duration;
     state.clock.until_reposition_period -= duration;
   }
@@ -167,7 +157,9 @@ std::tuple<State, Observations> apply(State state, const Steer& steer) {
 std::tuple<State, Observations> apply(State state, const TogglePause& /* toggle */) {
   auto [lifecycle_state, clock_intent, cadence_intent] = lifecycle::togglePause(state.lifecycle);
   state.lifecycle = lifecycle_state;
-  state.clock = executeClockIntent(state.clock, clock_intent);
+  if (clock_intent) {
+    state.clock = executeClockIntent(state.clock, *clock_intent);
+  }
   if (cadence_intent) {
     state.clock = executeCadenceIntent(state.clock, *cadence_intent);
   }
@@ -196,17 +188,17 @@ std::tuple<State, Observations> apply(const RandomIntGeneratorFn& random_int_fn,
     for (lifecycle::DueWork work : lifecycle::SAME_INSTANT_ORDER) {
       switch (work) {
         case lifecycle::DueWork::STEP:
-          if (state.clock.stepping && state.clock.until_step <= milliseconds{0}) {
+          if (state.clock.running && state.clock.until_step <= milliseconds{0}) {
             std::tie(state, observations) = runStep(random_int_fn, std::move(state), std::move(observations));
           }
           break;
         case lifecycle::DueWork::LEVEL_PERIOD:
-          if (state.clock.cadences && state.clock.until_level_period <= milliseconds{0}) {
+          if (state.clock.running && state.clock.until_level_period <= milliseconds{0}) {
             std::tie(state, observations) = runLevelPeriod(std::move(state), std::move(observations));
           }
           break;
         case lifecycle::DueWork::REPOSITION_PERIOD:
-          if (state.clock.cadences && state.clock.until_reposition_period <= milliseconds{0}) {
+          if (state.clock.running && state.clock.until_reposition_period <= milliseconds{0}) {
             state = runRepositionPeriod(std::move(state));
           }
           break;

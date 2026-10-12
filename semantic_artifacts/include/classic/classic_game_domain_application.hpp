@@ -46,8 +46,7 @@ using game_boundary::TogglePause;
  * Mechanics only: it accumulates elapsed game time and reports what falls due.
  */
 struct VirtualClock {
-  bool stepping{false};  // Arena is stepped (between clock START and STOP, unless paused)
-  bool cadences{false};  // Cadences run (after cadence START or RESUME, until STOP or FREEZE)
+  bool running{false};  // Game time passes: stepping and cadences (from START or RESUME until STOP or PAUSE)
   std::chrono::milliseconds step_interval{0};
   std::chrono::milliseconds until_step{0};
   std::chrono::milliseconds until_level_period{0};

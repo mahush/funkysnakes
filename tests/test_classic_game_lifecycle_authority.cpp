@@ -50,8 +50,8 @@ TEST(ClassicGameLifecycleAuthority, StartsAtSpeedOfStartingLevel) {
 
 /// @brief Ensures that a new game resets a previous game's pause and conclusion
 TEST(ClassicGameLifecycleAuthority, ResetsPauseAndConclusionOnNewGame) {
-  // Given: a game is concluded and paused
-  State state = std::get<0>(lifecycle::togglePause(concludedGame()));
+  // Given: a game was paused and then concluded
+  State state = std::get<0>(lifecycle::observeAliveStates(pausedGame(), {{PLAYER_A, false}, {PLAYER_B, false}}));
 
   // When: a new game is started
   state = std::get<0>(lifecycle::start(1, state));
@@ -85,26 +85,15 @@ TEST(ClassicGameLifecycleAuthority, ResumesPausedGameAndItsCadences) {
   EXPECT_EQ(cadence, lifecycle::CadenceIntent::RESUME);
 }
 
-/// @brief Ensures that the stopped cadences of a finished game are not resumed by pausing
-TEST(ClassicGameLifecycleAuthority, LeavesCadencesStoppedWhenPausedAfterGameOver) {
+/// @brief Rule decision: an ended game stays stopped, pausing it neither pauses nor resumes anything
+TEST(ClassicGameLifecycleAuthority, IgnoresPauseWhileGameIsOver) {
   // When: pause is toggled
   auto [state, clock, cadence] = lifecycle::togglePause(concludedGame());
 
-  // Then: the cadences are neither frozen nor resumed
+  // Then: the game is not paused and neither stepping nor the cadences are touched
+  EXPECT_FALSE(state.paused);
+  EXPECT_FALSE(clock.has_value());
   EXPECT_FALSE(cadence.has_value());
-}
-
-/// @brief Pins that pausing is not blocked after the game is over, so toggling twice resumes stepping
-TEST(ClassicGameLifecycleAuthority, ResumesSteppingWhenUnpausedAfterGameOver) {
-  // Given: a game is concluded and paused
-  State state = std::get<0>(lifecycle::togglePause(concludedGame()));
-
-  // When: pause is toggled again
-  auto [new_state, clock, cadence] = lifecycle::togglePause(state);
-
-  // Then: stepping resumes although the game is over
-  EXPECT_TRUE(new_state.over);
-  EXPECT_EQ(clock, lifecycle::ClockIntent::RESUME);
 }
 
 /// @section lifecycle::levelPeriodElapsed
