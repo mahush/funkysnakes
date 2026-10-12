@@ -22,48 +22,48 @@ namespace {
 // They are kept private so the arena transition can only be composed here.
 
 template <typename TOp>
-auto over_direction_command_filter_state(TOp op) {
-  return lens(mutate<&State::direction_command_filter_state>, read<>, std::move(op));
+auto over_direction_command_filter_state(TOp op_fn) {
+  return lens(mutate<&State::direction_command_filter_state>, read<>, std::move(op_fn));
 }
 
 template <typename TOp>
-auto over_direction_command_filter_state_viewing_snakes(TOp op) {
-  return lens(mutate<&State::direction_command_filter_state>, read<&State::snakes>, std::move(op));
+auto over_direction_command_filter_state_viewing_snakes(TOp op_fn) {
+  return lens(mutate<&State::direction_command_filter_state>, read<&State::snakes>, std::move(op_fn));
 }
 
 template <typename TOp>
-auto over_snakes_viewing_board_and_food(TOp op) {
-  return lens(mutate<&State::snakes>, read<&State::board, &State::food_items>, std::move(op));
+auto over_snakes_viewing_board_and_food(TOp op_fn) {
+  return lens(mutate<&State::snakes>, read<&State::board, &State::food_items>, std::move(op_fn));
 }
 
 template <typename TOp>
-auto over_snakes_and_scores(TOp op) {
-  return lens(mutate<&State::snakes, &State::scores>, read<>, std::move(op));
+auto over_snakes_and_scores(TOp op_fn) {
+  return lens(mutate<&State::snakes, &State::scores>, read<>, std::move(op_fn));
 }
 
 template <typename TOp>
-auto over_snakes_and_events(TOp op) {
-  return lens(mutate<&State::snakes, &State::events>, read<>, std::move(op));
+auto over_snakes_and_events(TOp op_fn) {
+  return lens(mutate<&State::snakes, &State::events>, read<>, std::move(op_fn));
 }
 
 template <typename TOp>
-auto over_food_and_events_viewing_snakes(TOp op) {
-  return lens(mutate<&State::food_items, &State::events>, read<&State::snakes>, std::move(op));
+auto over_food_and_events_viewing_snakes(TOp op_fn) {
+  return lens(mutate<&State::food_items, &State::events>, read<&State::snakes>, std::move(op_fn));
 }
 
 template <typename TOp>
-auto over_scores_viewing_events(TOp op) {
-  return lens(mutate<&State::scores>, read<&State::events>, std::move(op));
+auto over_scores_viewing_events(TOp op_fn) {
+  return lens(mutate<&State::scores>, read<&State::events>, std::move(op_fn));
 }
 
 template <typename TOp>
-auto over_food(TOp op) {
-  return lens(mutate<&State::food_items>, read<>, std::move(op));
+auto over_food(TOp op_fn) {
+  return lens(mutate<&State::food_items>, read<>, std::move(op_fn));
 }
 
 template <typename TOp>
-auto over_food_viewing_board_and_snakes(TOp op) {
-  return lens(mutate<&State::food_items>, read<&State::board, &State::snakes>, std::move(op));
+auto over_food_viewing_board_and_snakes(TOp op_fn) {
+  return lens(mutate<&State::food_items>, read<&State::board, &State::snakes>, std::move(op_fn));
 }
 
 // ============================================================================
@@ -105,14 +105,14 @@ State clearEvents(State state) {
 
 }  // namespace
 
-State initial(const RandomIntGeneratorFn& random_int, Board board) {
+State initial(const RandomIntGeneratorFn& random_int_fn, Board board) {
   State state;
   state.board = board;
 
   auto setup =
       makePipe(over_snakes_and_scores(bindFront(addPlayer, PlayerId{PLAYER_A}, Point{5, 10}, Direction::RIGHT, 7)),
                over_snakes_and_scores(bindFront(addPlayer, PlayerId{PLAYER_B}, Point{5, 15}, Direction::RIGHT, 7)),
-               over_food_viewing_board_and_snakes(bindFront(initializeFood, random_int, MIN_FOOD_COUNT)));
+               over_food_viewing_board_and_snakes(bindFront(initializeFood, random_int_fn, MIN_FOOD_COUNT)));
   return setup(std::move(state));
 }
 
@@ -125,12 +125,12 @@ State requestFoodReposition(State state) {
   return state;
 }
 
-State tick(const RandomIntGeneratorFn& random_int, State state) {
+State tick(const RandomIntGeneratorFn& random_int_fn, State state) {
   // makePipe automatically unpacks tuples between stages
   // When a function returns tuple<A, B>, the next function receives (A, B) as separate args
 
   // clang-format off
-  auto tick_pipeline = makePipe(
+  auto tick_pipeline_fn = makePipe(
       clearEvents,                                                                                    // → state
       over_direction_command_filter_state(direction_command_filter::try_consume_next),                // → (state, next_directions)
       over_snakes_viewing_board_and_food(moveSnakes),                                                 // → state
@@ -138,13 +138,13 @@ State tick(const RandomIntGeneratorFn& random_int, State state) {
       when<0>(isBiteDropFoodMode, over_food(dropSegmentsAsFood)),                                     // → state
       over_food_and_events_viewing_snakes(handleFoodEatingOfStep),                                  // → state
       over_scores_viewing_events(scoring_policy::applyScoring),                                       // → state
-      over_food_viewing_board_and_snakes(bindFront(replenishFood, random_int, MIN_FOOD_COUNT)),       // → state
+      over_food_viewing_board_and_snakes(bindFront(replenishFood, random_int_fn, MIN_FOOD_COUNT)),       // → state
       when(shouldRepositionFood,
-           over_food_viewing_board_and_snakes(bindFront(repositionRandomFood, random_int))),          // → state
+           over_food_viewing_board_and_snakes(bindFront(repositionRandomFood, random_int_fn))),          // → state
       clearRepositionFlag);                                                                           // → state
   // clang-format on
 
-  return tick_pipeline(std::move(state));
+  return tick_pipeline_fn(std::move(state));
 }
 
 }  // namespace classic_arena_authority

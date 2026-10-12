@@ -66,10 +66,10 @@ struct State {
 /**
  * @brief Create a Domain Application with an initial arena, before any game has started
  *
- * @param random_int Random number source for initial food placement
+ * @param random_int_fn Random number source for initial food placement
  * @return Initial state
  */
-State initial(const RandomIntGeneratorFn& random_int);
+State initial(const RandomIntGeneratorFn& random_int_fn);
 
 /**
  * @brief Begin a new game
@@ -91,12 +91,14 @@ std::tuple<State, Observations> apply(State state, const TogglePause& toggle);
  *
  * Parameter order: bound parameters first (for bindFront), then state and interaction.
  *
- * @param random_int Random number source for food placement during steps
+ * @param random_int_fn Random number source for food placement during steps
  * @param state Current state
  * @param elapsed Elapsed game time
  * @return Tuple of (state, observations)
  */
-std::tuple<State, Observations> apply(const RandomIntGeneratorFn& random_int, State state, const TimeElapsed& elapsed);
+std::tuple<State, Observations> apply(const RandomIntGeneratorFn& random_int_fn,
+                                      State state,
+                                      const TimeElapsed& elapsed);
 
 }  // namespace classic_game_domain_application
 }  // namespace snake

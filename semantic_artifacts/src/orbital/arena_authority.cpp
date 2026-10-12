@@ -133,18 +133,18 @@ RoundSetup classicSetup(RoundId round) {
                     {}};
 }
 
-State startRound(const RandomIntGeneratorFn& random_int, const RoundSetup& setup) {
+State startRound(const RandomIntGeneratorFn& random_int_fn, const RoundSetup& setup) {
   State state;
   state.round = setup.round;
   state.board = setup.board;
   for (const auto& [player, snake] : setup.snakes) {
     state.snakes.emplace(player, snake_model::initial(snake.head, snake.heading, snake.length));
   }
-  state.food = replenishFood(random_int, MIN_FOOD_COUNT, setup.food, state.board, state.snakes);
+  state.food = replenishFood(random_int_fn, MIN_FOOD_COUNT, setup.food, state.board, state.snakes);
   return state;
 }
 
-std::tuple<State, std::vector<ActivationOutcome>, ArenaEvents> tick(const RandomIntGeneratorFn& random_int,
+std::tuple<State, std::vector<ActivationOutcome>, ArenaEvents> tick(const RandomIntGeneratorFn& random_int_fn,
                                                                     State state,
                                                                     const std::vector<Order>& eligible) {
   StepResult result{std::move(state), {}, {}};
@@ -161,8 +161,8 @@ std::tuple<State, std::vector<ActivationOutcome>, ArenaEvents> tick(const Random
   result = resolveCollisions(std::move(result));
   result = collectFood(std::move(result));
   result = completeArrivedOrders(std::move(result));
-  result.state.food =
-      replenishFood(random_int, MIN_FOOD_COUNT, std::move(result.state.food), result.state.board, result.state.snakes);
+  result.state.food = replenishFood(
+      random_int_fn, MIN_FOOD_COUNT, std::move(result.state.food), result.state.board, result.state.snakes);
   ++result.state.step.value;
 
   return {std::move(result.state), std::move(result.outcomes), std::move(result.events)};

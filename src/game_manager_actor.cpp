@@ -119,12 +119,12 @@ void GameManagerActor::executeCadenceIntent(lifecycle::CadenceIntent cadence) {
 }
 
 void GameManagerActor::freezeCadences() {
-  auto remaining = [now = Clock::now()](Clock::time_point start, std::chrono::milliseconds period) {
+  auto remaining_fn = [now = Clock::now()](Clock::time_point start, std::chrono::milliseconds period) {
     auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(now - start);
     return std::max(std::chrono::milliseconds{0}, period - elapsed);
   };
-  level_period_remaining_ = remaining(level_period_start_, lifecycle::LEVEL_PERIOD);
-  reposition_period_remaining_ = remaining(reposition_period_start_, lifecycle::REPOSITION_PERIOD);
+  level_period_remaining_ = remaining_fn(level_period_start_, lifecycle::LEVEL_PERIOD);
+  reposition_period_remaining_ = remaining_fn(reposition_period_start_, lifecycle::REPOSITION_PERIOD);
   reposition_timer_->execute_command(make_cancel_command<RepositionTimerTag>());
   level_timer_->execute_command(make_cancel_command<LevelTimerTag>());
 }

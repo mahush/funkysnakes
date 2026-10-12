@@ -36,20 +36,20 @@ namespace snake {
  *   // Extract board and snakes for read-only operation
  *   auto extractor = view(read<&State::board, &State::snakes>,
  *                         generateRandomFoodPosition);
- *   Point pos = extractor(state, random_int);
+ *   Point pos = extractor(state, random_int_fn);
  *
  * @param read_tag Tag specifying readonly fields
- * @param op Operation to apply
+ * @param op_fn Operation to apply
  * @return Function that extracts fields and applies operation
  */
 template <auto... ReadMembers, typename TOp>
-auto view(read_t<ReadMembers...>, TOp op) {
+auto view(read_t<ReadMembers...>, TOp op_fn) {
   // Deduce State type from first readonly member pointer
   using FirstMemberPtr = decltype(detail::get_member<0>::template value<ReadMembers...>());
   using TState = typename detail::member_ptr_to_class<FirstMemberPtr>::type;
 
-  return [op = std::move(op)](const TState& state, auto&&... args) {
-    return op(std::as_const(state.*ReadMembers)..., std::forward<decltype(args)>(args)...);
+  return [op_fn = std::move(op_fn)](const TState& state, auto&&... args) {
+    return op_fn(std::as_const(state.*ReadMembers)..., std::forward<decltype(args)>(args)...);
   };
 }
 

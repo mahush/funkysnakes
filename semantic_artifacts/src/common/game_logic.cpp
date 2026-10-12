@@ -156,9 +156,9 @@ FoodItems addFoodIfFree(FoodItems food_items, Point p) {
 std::optional<Point> generateRandomFoodPosition(const Board& board,
                                                 const PerPlayerSnakes& snakes,
                                                 const FoodItems& food_items,
-                                                RandomIntGeneratorFn random_int) {
+                                                RandomIntGeneratorFn random_int_fn) {
   for (int attempt = 0; attempt < 100; ++attempt) {
-    Point candidate{random_int(0, board.width - 1), random_int(0, board.height - 1)};
+    Point candidate{random_int_fn(0, board.width - 1), random_int_fn(0, board.height - 1)};
 
     bool occupied_by_snake = std::any_of(snakes.begin(), snakes.end(), [&candidate](const auto& entry) {
       const Snake& snake = entry.second;
@@ -198,15 +198,15 @@ std::tuple<FoodItems, std::vector<FoodEaten>> handleFoodEating(FoodItems food_it
   return {std::move(food_items), std::move(events)};
 }
 
-FoodItems initializeFood(RandomIntGeneratorFn random_int,
+FoodItems initializeFood(RandomIntGeneratorFn random_int_fn,
                          int count,
                          FoodItems /* food_items */,
                          const Board& board,
                          const PerPlayerSnakes& snakes) {
-  return replenishFood(random_int, count, {}, board, snakes);
+  return replenishFood(random_int_fn, count, {}, board, snakes);
 }
 
-FoodItems replenishFood(RandomIntGeneratorFn random_int,
+FoodItems replenishFood(RandomIntGeneratorFn random_int_fn,
                         int target_count,
                         FoodItems food_items,
                         const Board& board,
@@ -216,7 +216,7 @@ FoodItems replenishFood(RandomIntGeneratorFn random_int,
   }
 
   while (food_items.size() < static_cast<size_t>(target_count)) {
-    std::optional<Point> new_food_pos = generateRandomFoodPosition(board, snakes, food_items, random_int);
+    std::optional<Point> new_food_pos = generateRandomFoodPosition(board, snakes, food_items, random_int_fn);
     if (!new_food_pos) {
       break;  // Board too crowded: try again next step
     }
@@ -226,7 +226,7 @@ FoodItems replenishFood(RandomIntGeneratorFn random_int,
   return food_items;
 }
 
-FoodItems repositionRandomFood(RandomIntGeneratorFn random_int,
+FoodItems repositionRandomFood(RandomIntGeneratorFn random_int_fn,
                                FoodItems food_items,
                                const Board& board,
                                const PerPlayerSnakes& snakes) {
@@ -234,8 +234,8 @@ FoodItems repositionRandomFood(RandomIntGeneratorFn random_int,
     return food_items;
   }
 
-  int food_index = random_int(0, food_items.size() - 1);
-  std::optional<Point> new_position = generateRandomFoodPosition(board, snakes, food_items, random_int);
+  int food_index = random_int_fn(0, food_items.size() - 1);
+  std::optional<Point> new_position = generateRandomFoodPosition(board, snakes, food_items, random_int_fn);
   if (new_position) {
     food_items[food_index] = *new_position;
   }

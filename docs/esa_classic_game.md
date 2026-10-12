@@ -61,10 +61,10 @@ depend on nothing outside that folder except the generic lens and pipe utilities
 ### Authority surface
 
 ```cpp
-State initial(const RandomIntGeneratorFn& random_int, Board board);
+State initial(const RandomIntGeneratorFn& random_int_fn, Board board);
 State steer(State state, const DirectionCommand& cmd);
 State requestFoodReposition(State state);
-State tick(const RandomIntGeneratorFn& random_int, State state);
+State tick(const RandomIntGeneratorFn& random_int_fn, State state);
 ```
 
 All transitions return the resulting state only (no echo outputs). Consumers read results from the state
@@ -201,7 +201,7 @@ single-process realization of classic snake. It composes both Authorities and th
 timers or rendering:
 
 - the boundary interactions above are its interface: `apply(state, Start)`, `apply(state, Steer)`,
-  `apply(state, TogglePause)` and `apply(random_int, state, TimeElapsed)`, each returning the new state plus
+  `apply(state, TogglePause)` and `apply(random_int_fn, state, TimeElapsed)`, each returning the new state plus
   the observations (arena views, statuses, game-over summary);
 - it routes interactions to the Authorities and carries out their intents mechanically: clock, step interval,
   cadences, reposition and conclusion;

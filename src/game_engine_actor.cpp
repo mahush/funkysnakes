@@ -56,15 +56,15 @@ std::tuple<GameState, std::optional<PlayerAliveStatesMsg>> tryGeneratePlayerAliv
  *
  * Parameter order: bound parameters first (for bindFront), then state and event.
  *
- * @param random_int Random number source for food placement
+ * @param random_int_fn Random number source for food placement
  * @param state Current game state
  * @param event Timer elapsed event (unused, required for signature)
  * @return Tuple of (new GameState, RenderableStateMsg, optional PlayerAliveStatesMsg)
  */
 std::tuple<GameState, RenderableStateMsg, std::optional<PlayerAliveStatesMsg>> handleTick(
-    const RandomIntGeneratorFn& random_int, GameState state, const GameTimerElapsedEvent& /* event */) {
+    const RandomIntGeneratorFn& random_int_fn, GameState state, const GameTimerElapsedEvent& /* event */) {
   // Advance the arena (owned by the Classic Arena Authority)
-  state.arena = classic_arena_authority::tick(random_int, std::move(state.arena));
+  state.arena = classic_arena_authority::tick(random_int_fn, std::move(state.arena));
 
   // Check if alive states changed and generate message if so
   auto [state_with_updated_alive, alive_msg] = tryGeneratePlayerAliveStates(state);
@@ -250,9 +250,9 @@ GameEngineActor::GameEngineActor(ActorContext ctx,
       reposition_sub_{create_sub(reposition_topic)},
       summary_req_sub_{create_sub(summary_req_topic)},
       game_loop_timer_{create_timer<GameTimer>(timer_factory)},
-      random_int_{makeRandomIntGenerator()} {
+      random_int_fn_{makeRandomIntGenerator()} {
   game_state_.game_id = "game_001";
-  game_state_.arena = classic_arena_authority::initial(random_int_, Board{60, 20});
+  game_state_.arena = classic_arena_authority::initial(random_int_fn_, Board{60, 20});
 
   Logger::log("[GameEngineActor] Initialized " + std::to_string(game_state_.arena.food_items.size()) + " food items\n");
 }
@@ -267,7 +267,7 @@ void GameEngineActor::processInputs() {
   GameEngineEffectHandler effect_handler(renderable_state_pub_, alive_states_pub_, summary_resp_pub_, game_loop_timer_);
 
   // Process timer events with effect handler pattern
-  processEventWithState(game_loop_timer_, game_state_, bindFront(handleTick, random_int_), effect_handler);
+  processEventWithState(game_loop_timer_, game_state_, bindFront(handleTick, random_int_fn_), effect_handler);
 
   // Process clock commands with effect handler pattern
   processMessageWithState(clock_sub_, game_state_, handleGameClockCommand, effect_handler);

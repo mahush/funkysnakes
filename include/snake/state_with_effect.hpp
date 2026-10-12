@@ -267,19 +267,19 @@ struct StateWithEffect {
  * effect with the accumulated effect.
  *
  * Usage pattern:
- *   auto result = with_combining_effects(x, f);
- * where f :: TState -> StateWithEffect<TState, TEffect>
+ *   auto result = with_combining_effects(x, f_fn);
+ * where f_fn :: TState -> StateWithEffect<TState, TEffect>
  *
  * @tparam TState The state type
  * @tparam TEffect The effect type
  * @tparam TF Function type: TState -> StateWithEffect<TState, TEffect>
  * @param x Current state with accumulated effects
- * @param f Function to apply to the state
+ * @param f_fn Function to apply to the state
  * @return New state with combined effects
  */
 template <typename TState, typename TEffect, typename TF>
-auto with_combining_effects(StateWithEffect<TState, TEffect> x, TF f) -> StateWithEffect<TState, TEffect> {
-  auto res = f(x.state);
+auto with_combining_effects(StateWithEffect<TState, TEffect> x, TF f_fn) -> StateWithEffect<TState, TEffect> {
+  auto res = f_fn(x.state);
   return StateWithEffect<TState, TEffect>{res.state, combine(x.effect, res.effect)};
 }
 

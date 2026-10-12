@@ -43,12 +43,12 @@ State conclude(State state, Observations& observations, const game_authority::Ga
 }
 
 // One arena step, with every Authority observing its complete outcome before the next step
-State runStep(const RandomIntGeneratorFn& random_int, State state, Observations& observations) {
+State runStep(const RandomIntGeneratorFn& random_int_fn, State state, Observations& observations) {
   const GameTime at = state.clock.next_step;
   state.clock.next_step += STEP_INTERVAL;
 
   std::vector<Order> eligible = order_authority::eligible(*state.orders, at);
-  auto [arena, activations, events] = arena_authority::tick(random_int, std::move(*state.arena), eligible);
+  auto [arena, activations, events] = arena_authority::tick(random_int_fn, std::move(*state.arena), eligible);
   state.arena = std::move(arena);
   state.orders = order_authority::observe(std::move(*state.orders), activations, events);
   auto [game, concluded] =
@@ -66,14 +66,14 @@ State runStep(const RandomIntGeneratorFn& random_int, State state, Observations&
 
 State initial() { return State{}; }
 
-std::tuple<State, Observations> apply(const RandomIntGeneratorFn& random_int, State state, const Start& start) {
-  return startWithSetup(random_int, std::move(state), arena_authority::classicSetup(start.round));
+std::tuple<State, Observations> apply(const RandomIntGeneratorFn& random_int_fn, State state, const Start& start) {
+  return startWithSetup(random_int_fn, std::move(state), arena_authority::classicSetup(start.round));
 }
 
-std::tuple<State, Observations> startWithSetup(const RandomIntGeneratorFn& random_int,
+std::tuple<State, Observations> startWithSetup(const RandomIntGeneratorFn& random_int_fn,
                                                State state,
                                                const arena_authority::RoundSetup& setup) {
-  state.arena = arena_authority::startRound(random_int, setup);
+  state.arena = arena_authority::startRound(random_int_fn, setup);
   state.orders = order_authority::startRound(setup.round);
   state.game = game_authority::startRound(setup.round, playersOf(setup));
   state.clock = VirtualClock{};
@@ -96,7 +96,9 @@ std::tuple<State, Observations> apply(State state, const Submit& submit) {
   return {std::move(state), std::move(observations)};
 }
 
-std::tuple<State, Observations> apply(const RandomIntGeneratorFn& random_int, State state, const TimeElapsed& elapsed) {
+std::tuple<State, Observations> apply(const RandomIntGeneratorFn& random_int_fn,
+                                      State state,
+                                      const TimeElapsed& elapsed) {
   Observations observations;
   if (!isStarted(state)) {
     return {std::move(state), std::move(observations)};
@@ -105,7 +107,7 @@ std::tuple<State, Observations> apply(const RandomIntGeneratorFn& random_int, St
   const GameTime until = state.clock.now + elapsed.duration;
   while (game_authority::isRunning(*state.game) && state.clock.next_step <= until) {
     state.clock.now = state.clock.next_step;
-    state = runStep(random_int, std::move(state), observations);
+    state = runStep(random_int_fn, std::move(state), observations);
   }
   state.clock.now = until;
 

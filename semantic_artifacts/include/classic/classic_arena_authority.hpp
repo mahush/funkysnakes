@@ -47,11 +47,11 @@ struct State {
  *
  * Places Player A and Player B and spawns the initial food.
  *
- * @param random_int Random number source for food placement
+ * @param random_int_fn Random number source for food placement
  * @param board Board dimensions
  * @return Initial arena state
  */
-State initial(const RandomIntGeneratorFn& random_int, Board board);
+State initial(const RandomIntGeneratorFn& random_int_fn, Board board);
 
 /**
  * @brief Register a player's steering intention
@@ -78,11 +78,11 @@ State requestFoodReposition(State state);
  *
  * Parameter order: bound parameters first (for bindFront), then state.
  *
- * @param random_int Random number source for food placement
+ * @param random_int_fn Random number source for food placement
  * @param state Current arena state
  * @return Arena state after one step
  */
-State tick(const RandomIntGeneratorFn& random_int, State state);
+State tick(const RandomIntGeneratorFn& random_int_fn, State state);
 
 }  // namespace classic_arena_authority
 }  // namespace snake
