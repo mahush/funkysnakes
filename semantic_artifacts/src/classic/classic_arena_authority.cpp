@@ -79,6 +79,25 @@ State clearRepositionFlag(State state) {
   return state;
 }
 
+// Collision handling as a step of the arena: its events are appended to the step's events
+std::tuple<PerPlayerSnakes, ArenaEvents, std::vector<Point>> handleCollisionsOfStep(PerPlayerSnakes snakes,
+                                                                                    ArenaEvents events) {
+  auto [new_snakes, collision_events, dropped_segments] = handleCollisions(std::move(snakes));
+  for (const CollisionEvent& event : collision_events) {
+    std::visit([&events](const auto& item) { events.push_back(item); }, event);
+  }
+  return {std::move(new_snakes), std::move(events), std::move(dropped_segments)};
+}
+
+// Eating as a step of the arena: its events are appended to the step's events
+std::tuple<FoodItems, ArenaEvents> handleFoodEatingOfStep(FoodItems food_items,
+                                                          ArenaEvents events,
+                                                          const PerPlayerSnakes& snakes) {
+  auto [new_food, eating_events] = handleFoodEating(std::move(food_items), snakes);
+  events.insert(events.end(), eating_events.begin(), eating_events.end());
+  return {std::move(new_food), std::move(events)};
+}
+
 State clearEvents(State state) {
   state.events.clear();
   return state;
@@ -115,9 +134,9 @@ State tick(const RandomIntGeneratorFn& random_int, State state) {
       clearEvents,                                                                                    // → state
       over_direction_command_filter_state(direction_command_filter::try_consume_next),                // → (state, next_directions)
       over_snakes_viewing_board_and_food(moveSnakes),                                                 // → state
-      over_snakes_and_events(handleCollisions),                                                       // → (state, dropped_segments)
+      over_snakes_and_events(handleCollisionsOfStep),                                               // → (state, dropped_segments)
       when<0>(isBiteDropFoodMode, over_food(dropSegmentsAsFood)),                                     // → state
-      over_food_and_events_viewing_snakes(handleFoodEating),                                          // → state
+      over_food_and_events_viewing_snakes(handleFoodEatingOfStep),                                  // → state
       over_scores_viewing_events(scoring_policy::applyScoring),                                       // → state
       over_food_viewing_board_and_snakes(bindFront(replenishFood, random_int, MIN_FOOD_COUNT)),       // → state
       when(shouldRepositionFood,

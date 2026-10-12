@@ -1,7 +1,7 @@
 #pragma once
 
+#include "classic/classic_arena_events.hpp"
 #include "classic/direction_command_filter.hpp"
-#include "common/arena_events.hpp"
 #include "common/game_types.hpp"
 #include "common/random_source.hpp"
 
