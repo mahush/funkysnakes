@@ -26,7 +26,7 @@ namespace arena_authority {
  * snake_model owns the body and life of one snake.
  *
  * Out of scope: pending orders and eligibility (Order Authority), points, round duration and
- * conclusion (Round Authority). The Arena reports events; it does not value them.
+ * conclusion (Game Authority). The Arena reports events; it does not value them.
  *
  * Within the events of one step:
  * - interruption of an executing order precedes collection under its replacement;
@@ -132,7 +132,7 @@ State startRound(const RandomIntGeneratorFn& random_int_fn, const RoundSetup& se
  *
  * @param random_int_fn Random number source for food placement
  * @param state Current world
- * @param eligible Eligible orders supplied by the Order Authority
+ * @param eligible Orders to try to activate, at most one per player, tried in the given order
  * @return Tuple of (world after the step, activation outcomes, events of the step in order)
  */
 std::tuple<State, std::vector<ActivationOutcome>, ArenaEvents> tick(const RandomIntGeneratorFn& random_int_fn,
@@ -140,7 +140,7 @@ std::tuple<State, std::vector<ActivationOutcome>, ArenaEvents> tick(const Random
                                                                     const std::vector<Order>& eligible);
 
 /**
- * @brief End execution of the round after the Round Authority concluded it
+ * @brief End execution of the round
  *
  * Executing orders end with ROUND_ENDED; the world stays as it is. No movement, no collection.
  *

@@ -241,6 +241,17 @@ snake_operations.cpp
 int doSomething(int param_name);
 ```
 
+**Describe the function's own contract**, not the context it is called in: callers change, and such references go
+stale. Preconditions and admitted inputs are part of the contract and belong in the description; the reason a
+caller invokes the function belongs in the caller's documentation.
+```cpp
+// Correct: what the function guarantees
+/** @brief Cancel all pending orders; executing orders are left unchanged */
+
+// Incorrect: why some caller uses it
+/** @brief Cancel all pending orders because the round concluded */  // ❌
+```
+
 **Inline comments** for implementation details:
 ```cpp
 // Single-line comment for explanation

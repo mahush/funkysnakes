@@ -60,9 +60,9 @@ struct Scores {
 Scores applyScoring(Scores scores, const ArenaEvents& events);
 
 /**
- * @brief Lose all unbanked points, because the round concluded
+ * @brief Lose all unbanked points
  *
- * @param scores Scores at conclusion (by value)
+ * @param scores Scores (by value)
  * @return Scores with only credited points
  */
 Scores loseUnbanked(Scores scores);
