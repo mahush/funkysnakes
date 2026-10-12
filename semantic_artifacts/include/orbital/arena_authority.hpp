@@ -67,31 +67,38 @@ struct RoundSetup {
   FoodItems food;  // Food placed at start; topped up to MIN_FOOD_COUNT
 };
 
-namespace detail {
-struct Access;
-}  // namespace detail
+struct View;
 
 /**
  * @brief Arena state owned by the Orbital Arena Authority
  *
  * A value that callers store, pass and replace with the results of the transitions below. Its
- * representation is private: the world is read through the queries and evolves only through the
+ * fields are private: the world is read through the queries and evolves only through the
  * transitions.
  */
 class State {
  private:
-  struct Representation {
-    RoundId round;
-    Board board;
-    PerPlayerSnakes snakes;
-    FoodItems food;
-    std::map<PlayerId, ActiveOrder> active;  // Executing order per snake
-    StepId step{0};                          // Last completed step
-    bool ended{false};                       // Execution of the round has ended
-  };
-  Representation rep_;
+  RoundId round_;
+  Board board_;
+  PerPlayerSnakes snakes_;
+  FoodItems food_;
+  std::map<PlayerId, ActiveOrder> active_;  // Executing order per snake
+  StepId step_{0};                          // Last completed step
+  bool ended_{false};                       // Execution of the round has ended
 
-  friend struct detail::Access;
+  // Construction
+  friend State startRound(const RandomIntGeneratorFn& random_int_fn, const RoundSetup& setup);
+
+  // Transitions
+  friend std::tuple<State, std::vector<ActivationOutcome>, ArenaEvents> tick(const RandomIntGeneratorFn& random_int_fn,
+                                                                             State state,
+                                                                             const std::vector<Order>& eligible);
+  friend std::tuple<State, ArenaEvents> endRound(State state);
+
+  // Queries
+  friend bool anySnakeAlive(const State& state);
+  friend StepId lastCompletedStep(const State& state);
+  friend View view(const State& state);
 };
 
 // ============================================================================
