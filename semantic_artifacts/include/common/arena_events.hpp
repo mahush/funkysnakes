@@ -3,7 +3,7 @@
 #include <variant>
 #include <vector>
 
-#include "classic/players.hpp"
+#include "common/players.hpp"
 
 namespace snake {
 

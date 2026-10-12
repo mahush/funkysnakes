@@ -3,7 +3,7 @@
 #include "classic/classic_arena_authority.hpp"
 #include "classic/difficulty_policy.hpp"
 #include "classic/game_boundary.hpp"
-#include "classic/game_types.hpp"
+#include "common/game_types.hpp"
 #include "snake/control_messages.hpp"
 
 namespace snake {
