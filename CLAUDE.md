@@ -352,6 +352,18 @@ template <typename TFn>
 void process(TFn&& fn);
 ```
 
+**No non-const reference parameters in functional helpers**: a helper that evolves a value takes it by value and
+returns the successor, together with any outputs it produced; read-only complex inputs stay `const&`.
+```cpp
+// Correct: the mutation is visible in the result
+std::tuple<ActiveOrders, PerPlayerDirection> takeNextMoves(ActiveOrders active);
+
+// Incorrect: hidden mutation through the parameter
+PerPlayerDirection takeNextMoves(ActiveOrders& active);  // ❌
+```
+Mutating a function-owned local value and loop references inside a function are fine. Actor shells, which persist
+state by design, are not covered by this rule.
+
 #### const Correctness
 
 **Mark read-only parameters** as `const&`:
