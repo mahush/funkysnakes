@@ -48,29 +48,35 @@ struct GameConcluded {
   Result result;
 };
 
-namespace detail {
-struct Access;
-}  // namespace detail
+struct View;
 
 /**
  * @brief Game state owned by the Orbital Game Authority
  *
  * A value that callers store, pass and replace with the results of the transitions below. Its
- * representation is private: the game is read through the queries and evolves only through the
+ * fields are private: the game is read through the queries and evolves only through the
  * transitions.
  */
 class State {
  private:
-  struct Representation {
-    RoundId round;
-    GameTime duration{GAME_DURATION};
-    GameTime now{0};                // Time of the last observed step
-    scoring_policy::Scores scores;  // Credited points per player, unbanked points per order
-    std::optional<Result> result;   // Set once the game concluded
-  };
-  Representation rep_;
+  RoundId round_;
+  GameTime duration_{GAME_DURATION};
+  GameTime now_{0};                // Time of the last observed step
+  scoring_policy::Scores scores_;  // Credited points per player, unbanked points per order
+  std::optional<Result> result_;   // Set once the game concluded
 
-  friend struct detail::Access;
+  // Construction
+  friend State startRound(RoundId round, const std::vector<PlayerId>& players);
+
+  // Transitions
+  friend std::tuple<State, std::optional<GameConcluded>> observeStep(State state,
+                                                                     GameTime now,
+                                                                     const ArenaEvents& events,
+                                                                     bool any_snake_alive);
+
+  // Queries
+  friend bool isRunning(const State& state);
+  friend View view(const State& state);
 };
 
 // ============================================================================
