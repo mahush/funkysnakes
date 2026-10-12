@@ -4,6 +4,7 @@
 #include <variant>
 #include <vector>
 
+#include "common/arena_events.hpp"
 #include "common/game_primitives.hpp"
 #include "common/players.hpp"
 #include "orbital/identities.hpp"
@@ -17,6 +18,9 @@ namespace orbital {
  *
  * The Arena reports physical and execution facts only; what they are worth is decided by the
  * Scoring Policy, and their effect on order status by the Order Authority.
+ *
+ * Collisions use the shared arena event vocabulary (Bitten, SelfBitten, MutualBite), since the
+ * collision rules are the same as in classic snake.
  */
 
 /**
@@ -34,7 +38,7 @@ struct FoodCollected {
   }
 };
 
-using ArenaFact = std::variant<OrderEnded, FoodCollected>;
+using ArenaFact = std::variant<OrderEnded, FoodCollected, Bitten, SelfBitten, MutualBite>;
 using ArenaFacts = std::vector<ArenaFact>;
 
 }  // namespace orbital
