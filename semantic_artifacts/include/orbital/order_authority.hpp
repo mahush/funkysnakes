@@ -121,6 +121,18 @@ std::tuple<State, OrderId> submit(State state, const Submission& submission);
  * Activation outcomes resolve pending orders; order endings resolve executing orders.
  * Reports about unknown orders are ignored.
  *
+ * Admitted input: the complete report of one step of this round, each step once and in step
+ * order, with the step's outcomes before its events. Order identities restart every round, so
+ * keeping reports of another round out is the caller's guarantee. Duplicate, missing or
+ * reordered steps are a concern of the realization delivering the reports.
+ *
+ * Valid status transitions:
+ * - PENDING → SUPERSEDED (submit), CANCELLED (cancel), REJECTED or EXECUTING (outcome)
+ * - SUPERSEDED → EXECUTING: the Arena actually activated it; what the Arena did wins
+ * - EXECUTING → COMPLETED, INTERRUPTED, FAILED or ENDED_BY_ROUND (OrderEnded), also after cancel
+ * - A rejection reported for an order that is no longer pending changes nothing.
+ * Final statuses are not yet protected against late OrderActivated or OrderEnded reports (Known Issues #3).
+ *
  * @param state Current order state
  * @param outcomes Activation outcomes of the step
  * @param events Arena events of the step

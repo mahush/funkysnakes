@@ -96,6 +96,11 @@ State startRound(RoundId round, const std::vector<PlayerId>& players);
  * The game is over when its duration has elapsed or no snake is alive any more.
  * Steps observed after conclusion change nothing.
  *
+ * Admitted input: every step of this round exactly once, in step order, with its events in the
+ * order the Arena reported them. A step observed twice is scored twice, and steps out of order
+ * can attribute food to an order that already ended; delivering complete steps once and in order
+ * is the realization's guarantee.
+ *
  * @param state Current game state
  * @param now Time of the step on the round's timeline
  * @param events Arena events of the step, in order
