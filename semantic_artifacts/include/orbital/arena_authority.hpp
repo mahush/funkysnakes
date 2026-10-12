@@ -82,6 +82,10 @@ struct State {
   bool ended{false};                       // Execution of the round has ended
 };
 
+// ============================================================================
+// Construction: establish a valid initial state from explicit setup
+// ============================================================================
+
 /**
  * @brief Default setup: classic board, start positions and snake length for Player A and Player B
  *
@@ -98,6 +102,10 @@ RoundSetup makeClassicSetup(RoundId round);
  * @return World without executing orders, food topped up to MIN_FOOD_COUNT
  */
 State startRound(const RandomIntGeneratorFn& random_int_fn, const RoundSetup& setup);
+
+// ============================================================================
+// Transitions: evolve the state; return it with outputs it does not encode itself
+// ============================================================================
 
 /**
  * @brief Advance the world by one step
@@ -128,6 +136,10 @@ std::tuple<State, std::vector<ActivationOutcome>, ArenaEvents> tick(const Random
  * @return Tuple of (ended world, OrderEnded events for orders that were still executing)
  */
 std::tuple<State, ArenaEvents> endRound(State state);
+
+// ============================================================================
+// Queries: read the state without evolving it
+// ============================================================================
 
 /**
  * @brief Whether at least one snake is still alive

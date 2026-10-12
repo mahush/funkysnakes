@@ -75,6 +75,10 @@ struct Submission {
   GameTime issued_at;  // Assigned from the round's logical clock
 };
 
+// ============================================================================
+// Construction: establish a valid initial state from explicit setup
+// ============================================================================
+
 /**
  * @brief Start the order lifecycle of a round
  *
@@ -82,6 +86,10 @@ struct Submission {
  * @return State without any orders
  */
 State startRound(RoundId round);
+
+// ============================================================================
+// Transitions: evolve the state; return it with outputs it does not encode itself
+// ============================================================================
 
 /**
  * @brief Accept a submission as a new order
@@ -94,17 +102,6 @@ State startRound(RoundId round);
  * @return Tuple of (updated state, identity of the new order)
  */
 std::tuple<State, OrderId> submit(State state, const Submission& submission);
-
-/**
- * @brief Pending orders whose deadline has elapsed
- *
- * At most one per player: the latest pending order. Does not change the state.
- *
- * @param state Current order state
- * @param now Current time on the round's timeline
- * @return Eligible orders, ordered by player
- */
-std::vector<Order> eligible(const State& state, GameTime now);
 
 /**
  * @brief Interpret what the Arena reported for one step
@@ -128,6 +125,21 @@ State observe(State state, const std::vector<ActivationOutcome>& outcomes, const
  * @return Order state without pending orders
  */
 State cancel(State state);
+
+// ============================================================================
+// Queries: read the state without evolving it
+// ============================================================================
+
+/**
+ * @brief Pending orders whose deadline has elapsed
+ *
+ * At most one per player: the latest pending order. Does not change the state.
+ *
+ * @param state Current order state
+ * @param now Current time on the round's timeline
+ * @return Eligible orders, ordered by player
+ */
+std::vector<Order> eligible(const State& state, GameTime now);
 
 /**
  * @brief A player's current order situation

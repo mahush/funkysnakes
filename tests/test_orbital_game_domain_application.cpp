@@ -115,7 +115,7 @@ TEST(OrbitalGameDomainApplication, LosesPointsOfOrderInterruptedByReplacement) {
   EXPECT_EQ(statusOf(state, g), Status::EXECUTING);
   EXPECT_EQ(scoreOf(state, PLAYER_A).credited, 0);
   EXPECT_EQ(scoreOf(state, PLAYER_A).unbanked, 0);
-  EXPECT_EQ(snake_model::length(state.arena->snakes.at(PLAYER_A)), 5U);
+  EXPECT_EQ(snake_model::length(arena_authority::view(*state.arena).snakes.at(PLAYER_A)), 5U);
 }
 
 /// @brief Changing one's mind costs nothing until the replacement actually activates
@@ -148,7 +148,7 @@ TEST(OrbitalGameDomainApplication, SupersedesEligibleOrderWithRevisionBeforeItsS
   // Then: G never activated and H waits for its own deadline
   EXPECT_EQ(statusOf(state, g), Status::SUPERSEDED);
   EXPECT_EQ(statusOf(state, h), Status::PENDING);
-  EXPECT_TRUE(state.arena->active.empty());
+  EXPECT_TRUE(arena_authority::view(*state.arena).active.empty());
 }
 
 /// @brief A refused replacement neither stops the executing order nor costs its points
@@ -228,7 +228,7 @@ TEST(OrbitalGameDomainApplication, EndsExecutingAndCancelsPendingOrdersAtConclus
   // Then: F ended with the round and G was cancelled
   EXPECT_EQ(statusOf(state, f), Status::ENDED_BY_ROUND);
   EXPECT_EQ(statusOf(state, g), Status::CANCELLED);
-  EXPECT_TRUE(state.arena->active.empty());
+  EXPECT_TRUE(arena_authority::view(*state.arena).active.empty());
 }
 
 TEST(OrbitalGameDomainApplication, RejectsSubmissionAfterConclusion) {
