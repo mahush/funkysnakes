@@ -1,14 +1,13 @@
 #include "orbital/arena_authority.hpp"
 
 #include <algorithm>
-#include <type_traits>
 
+#include "arena_authority_mechanics.hpp"
 #include "common/game_logic.hpp"
 #include "common/snake_model_evolve.hpp"
 #include "funkypipes/bind_front.hpp"
 #include "funkypipes/make_pipe.hpp"
 #include "orbital/pursuit_policy.hpp"
-#include "snake/generic_lens.hpp"
 
 namespace snake {
 namespace orbital {
@@ -17,67 +16,11 @@ namespace arena_authority {
 using funkypipes::bindFront;
 using funkypipes::makePipe;
 
+using namespace mechanics;  // NOLINT(google-build-using-namespace): private plumbing of this Authority
+
 namespace {
 
 using ActiveOrders = std::map<PlayerId, ActiveOrder>;
-
-// ============================================================================
-// Arena Lenses - internal to the Authority
-// ============================================================================
-
-template <typename TOp>
-auto over_active(TOp op_fn) {
-  return lens(mutate<&State::active>, read<>, std::move(op_fn));
-}
-
-template <typename TOp>
-auto over_active_viewing_snakes(TOp op_fn) {
-  return lens(mutate<&State::active>, read<&State::snakes>, std::move(op_fn));
-}
-
-template <typename TOp>
-auto over_snakes_viewing_board_and_food(TOp op_fn) {
-  return lens(mutate<&State::snakes>, read<&State::board, &State::food>, std::move(op_fn));
-}
-
-template <typename TOp>
-auto over_snakes_and_food(TOp op_fn) {
-  return lens(mutate<&State::snakes, &State::food>, read<>, std::move(op_fn));
-}
-
-template <typename TOp>
-auto over_food_viewing_snakes_and_active(TOp op_fn) {
-  return lens(mutate<&State::food>, read<&State::snakes, &State::active>, std::move(op_fn));
-}
-
-template <typename TOp>
-auto over_food_viewing_board_and_snakes(TOp op_fn) {
-  return lens(mutate<&State::food>, read<&State::board, &State::snakes>, std::move(op_fn));
-}
-
-// ============================================================================
-// Event accumulation - each stage reports only its own events
-// ============================================================================
-
-ArenaEvents appendEvents(ArenaEvents events, const ArenaEvents& more) {
-  events.insert(events.end(), more.begin(), more.end());
-  return events;
-}
-
-// Lifts a stage State -> State or State -> (State, its events) to (State, events so far) -> (State, events so far
-// followed by the stage's events)
-template <typename TStageFn>
-auto with_event_accumulation(TStageFn stage_fn) {
-  return [stage_fn = std::move(stage_fn)](State state, ArenaEvents events) mutable {
-    auto result = stage_fn(std::move(state));
-    if constexpr (std::is_same_v<decltype(result), State>) {
-      return std::make_tuple(std::move(result), std::move(events));
-    } else {
-      auto [next, stage_events] = std::move(result);
-      return std::make_tuple(std::move(next), appendEvents(std::move(events), stage_events));
-    }
-  };
-}
 
 // ============================================================================
 // Activation
@@ -160,11 +103,7 @@ std::tuple<ActiveOrders, PerPlayerDirection> takeNextMoves(ActiveOrders active) 
 // Classic collision rules: bites cut or kill, cut and dead segments are dropped as food
 std::tuple<PerPlayerSnakes, FoodItems, ArenaEvents> resolveCollisions(PerPlayerSnakes snakes, FoodItems food) {
   auto [new_snakes, collision_events, dropped] = handleCollisions(std::move(snakes));
-  ArenaEvents events;
-  for (const CollisionEvent& event : collision_events) {
-    std::visit([&events](const auto& item) { events.push_back(item); }, event);
-  }
-  return {std::move(new_snakes), dropSegmentsAsFood(std::move(food), dropped), std::move(events)};
+  return {std::move(new_snakes), dropSegmentsAsFood(std::move(food), dropped), toArenaEvents(collision_events)};
 }
 
 // An order of a snake that died ends right after collisions, so it can neither collect nor complete
@@ -210,11 +149,6 @@ std::tuple<ActiveOrders, ArenaEvents> completeFulfilledOrders(ActiveOrders activ
     }
   }
   return {std::move(active), std::move(events)};
-}
-
-State advanceStep(State state) {
-  ++state.step.value;
-  return state;
 }
 
 }  // namespace
