@@ -93,11 +93,11 @@ RoundSetup classicSetup(RoundId round);
 /**
  * @brief Start the world of a round
  *
- * @param random_int Random number source for food placement
+ * @param random_int_fn Random number source for food placement
  * @param setup Configuration of the world
  * @return World without executing orders, food topped up to MIN_FOOD_COUNT
  */
-State startRound(const RandomIntGeneratorFn& random_int, const RoundSetup& setup);
+State startRound(const RandomIntGeneratorFn& random_int_fn, const RoundSetup& setup);
 
 /**
  * @brief Advance the world by one step
@@ -110,12 +110,12 @@ State startRound(const RandomIntGeneratorFn& random_int, const RoundSetup& setup
  *
  * Parameter order: bound parameters first (for bindFront), then state.
  *
- * @param random_int Random number source for food placement
+ * @param random_int_fn Random number source for food placement
  * @param state Current world
  * @param eligible Eligible orders supplied by the Order Authority
  * @return Tuple of (world after the step, activation outcomes, events of the step in order)
  */
-std::tuple<State, std::vector<ActivationOutcome>, ArenaEvents> tick(const RandomIntGeneratorFn& random_int,
+std::tuple<State, std::vector<ActivationOutcome>, ArenaEvents> tick(const RandomIntGeneratorFn& random_int_fn,
                                                                     State state,
                                                                     const std::vector<Order>& eligible);
 

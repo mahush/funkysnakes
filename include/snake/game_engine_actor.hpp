@@ -88,7 +88,7 @@ class GameEngineActor : public Actor<GameEngineActor> {
   GameTimerPtr game_loop_timer_;
 
   // Random source for food placement (supplied to the pure core as a fact source)
-  RandomIntGeneratorFn random_int_;
+  RandomIntGeneratorFn random_int_fn_;
 };
 
 }  // namespace snake

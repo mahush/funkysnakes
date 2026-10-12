@@ -18,24 +18,24 @@ using funkyactors::Subscription;
 /**
  * @brief Higher-order function to process all messages from a subscription
  *
- * Drains all pending messages from subscription and applies handler to each.
+ * Drains all pending messages from subscription and applies handler_fn to each.
  *
  * @tparam TMsg Message type
  * @tparam THandlerFn Function type (TMsg -> void)
  * @param sub Subscription to drain
- * @param handler Function to call with each message
+ * @param handler_fn Function to call with each message
  */
 template <typename TMsg, typename THandlerFn>
-void processMessage(const std::shared_ptr<Subscription<TMsg>>& sub, THandlerFn&& handler) {
+void processMessage(const std::shared_ptr<Subscription<TMsg>>& sub, THandlerFn&& handler_fn) {
   while (auto msg = sub->tryTakeMessage()) {
-    handler(*msg);
+    handler_fn(*msg);
   }
 }
 
 /**
  * @brief Higher-order function to process all messages with state transformation
  *
- * Drains all pending messages from subscription and applies handler to each,
+ * Drains all pending messages from subscription and applies handler_fn to each,
  * passing state and message, then assigns the result back to state.
  *
  * @tparam TMsg Message type
@@ -43,29 +43,29 @@ void processMessage(const std::shared_ptr<Subscription<TMsg>>& sub, THandlerFn&&
  * @tparam THandlerFn Function type (TState, TMsg) -> TState
  * @param sub Subscription to drain
  * @param state State reference to pass and update
- * @param handler Function to call with state and each message
+ * @param handler_fn Function to call with state and each message
  */
 template <typename TMsg, typename TState, typename THandlerFn>
-void processMessageWithState(const std::shared_ptr<Subscription<TMsg>>& sub, TState& state, THandlerFn&& handler) {
+void processMessageWithState(const std::shared_ptr<Subscription<TMsg>>& sub, TState& state, THandlerFn&& handler_fn) {
   while (auto msg = sub->tryTakeMessage()) {
-    state = handler(state, *msg);
+    state = handler_fn(state, *msg);
   }
 }
 
 /**
  * @brief Higher-order function to process all timer events
  *
- * Drains all pending events from timer and applies handler to each.
+ * Drains all pending events from timer and applies handler_fn to each.
  *
  * @tparam TTimer Timer type
  * @tparam THandlerFn Function type (Event -> void)
  * @param timer Timer to take events from
- * @param handler Function to call with each event
+ * @param handler_fn Function to call with each event
  */
 template <typename TTimer, typename THandlerFn>
-void processEvent(const std::shared_ptr<TTimer>& timer, THandlerFn&& handler) {
+void processEvent(const std::shared_ptr<TTimer>& timer, THandlerFn&& handler_fn) {
   while (auto event = timer->tryTakeElapsedEvent()) {
-    handler(*event);
+    handler_fn(*event);
   }
 }
 
@@ -179,16 +179,16 @@ void processMessageWithState(const std::shared_ptr<Subscription<TMsg>>& sub,
  * @brief Higher-order function to apply state transformation
  *
  * Applies a state transformer (e.g., lens) to state and assigns result back.
- * Simplifies the pattern: state = transformer(state)
+ * Simplifies the pattern: state = transformer_fn(state)
  *
  * @tparam TState State type
  * @tparam TTransformerFn Function type (TState) -> TState
  * @param state State reference to transform and update
- * @param transformer Function to apply to state
+ * @param transformer_fn Function to apply to state
  */
 template <typename TState, typename TTransformerFn>
-void applyToState(TState& state, TTransformerFn&& transformer) {
-  state = transformer(state);
+void applyToState(TState& state, TTransformerFn&& transformer_fn) {
+  state = transformer_fn(state);
 }
 
 // ============================================================================
@@ -208,19 +208,19 @@ void applyToState(TState& state, TTransformerFn&& transformer) {
  * @tparam T Item type from the source
  * @tparam THandlerFn Function type (T -> void)
  * @param source Any InputSource<T> implementation
- * @param handler Function to call with each item
+ * @param handler_fn Function to call with each item
  */
 template <typename T, typename HandlerFn>
-void process(const std::shared_ptr<InputSource<T>>& source, HandlerFn&& handler) {
+void process(const std::shared_ptr<InputSource<T>>& source, HandlerFn&& handler_fn) {
   while (auto item = source->tryTake()) {
-    handler(*item);
+    handler_fn(*item);
   }
 }
 
 /**
  * @brief Generic function to process items with state transformation
  *
- * Works with ANY input source. Drains all pending items and applies handler to each,
+ * Works with ANY input source. Drains all pending items and applies handler_fn to each,
  * passing state and item, then assigns the result back to state.
  *
  * @tparam T Item type from the source

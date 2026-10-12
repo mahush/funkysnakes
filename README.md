@@ -57,19 +57,19 @@ The **functional core–imperative shell** pattern is the backbone here — but 
 Pure functions eliminate unnecessary interactions with external state: the core depends only on its inputs. Advancing the game one tick is a value-in, value-out transformation — no I/O, no shared state. A tick composes small functions, each focused on one part of the state:
 
 ```cpp
-auto tick_pipeline = makePipe(
+auto tick_pipeline_fn = makePipe(
     over_direction_command_filter_state(direction_command_filter::try_consume_next),
     over_snakes_viewing_board_and_food(moveSnakes),
     over_snakes_and_events(handleCollisions),
     when<0>(isBiteDropFoodMode, over_food(dropSegmentsAsFood)),
     over_food_and_events_viewing_snakes(handleFoodEating),
     over_scores_viewing_events(scoring_policy::applyScoring),
-    over_food_viewing_board_and_snakes(bindFront(replenishFood, random_int, MIN_FOOD_COUNT)),
+    over_food_viewing_board_and_snakes(bindFront(replenishFood, random_int_fn, MIN_FOOD_COUNT)),
     when(shouldRepositionFood,
-         over_food_viewing_board_and_snakes(bindFront(repositionRandomFood, random_int))),
+         over_food_viewing_board_and_snakes(bindFront(repositionRandomFood, random_int_fn))),
     clearRepositionFlag);
 
-state = tick_pipeline(state);  // pure: next state computed from the current state
+state = tick_pipeline_fn(state);  // pure: next state computed from the current state
 ```
 
 Each `over_*` adapter is a lens that focuses one operation on part of the arena state; `when(...)` runs a stage conditionally. The whole tick stays a single pure function from state to state. The pipeline lives in [`classic_arena_authority.cpp`](semantic_artifacts/src/classic/classic_arena_authority.cpp), the single owner of the arena step — see [`docs/esa_classic_game.md`](docs/esa_classic_game.md) for the ownership map.

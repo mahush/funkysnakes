@@ -16,8 +16,8 @@ namespace snake {
 // the actor only focuses whole arena transitions on its arena field.
 //
 // Usage pattern:
-//   auto transformer = over_arena(classic_arena_authority::steer);  // Create transformer
-//   new_state = transformer(state, cmd);                             // Apply to state
+//   auto transformer_fn = over_arena(classic_arena_authority::steer);  // Create transformer
+//   new_state = transformer_fn(state, cmd);                            // Apply to state
 
 /**
  * @brief Lens decorator: Update the arena
@@ -26,12 +26,12 @@ namespace snake {
  * to the arena held in GameState.
  *
  * @tparam TOp Function type: (arena, args...) -> arena
- * @param op Operation to apply
+ * @param op_fn Operation to apply
  * @return State transformer: (GameState, args...) -> GameState
  */
 template <typename TOp>
-auto over_arena(TOp op) {
-  return lens(mutate<&GameState::arena>, read<>, std::move(op));
+auto over_arena(TOp op_fn) {
+  return lens(mutate<&GameState::arena>, read<>, std::move(op_fn));
 }
 
 }  // namespace snake

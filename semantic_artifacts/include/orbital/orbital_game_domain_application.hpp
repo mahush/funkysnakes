@@ -70,22 +70,22 @@ State initial();
  *
  * Parameter order: bound parameters first (for bindFront), then state and interaction.
  *
- * @param random_int Random number source for initial food placement
+ * @param random_int_fn Random number source for initial food placement
  * @param state Current state
  * @param start The start interaction
  * @return Tuple of (state, observations)
  */
-std::tuple<State, Observations> apply(const RandomIntGeneratorFn& random_int, State state, const Start& start);
+std::tuple<State, Observations> apply(const RandomIntGeneratorFn& random_int_fn, State state, const Start& start);
 
 /**
  * @brief Begin a new game with a given world setup
  *
- * @param random_int Random number source for initial food placement
+ * @param random_int_fn Random number source for initial food placement
  * @param state Current state
  * @param setup World at round start; its round identity names the game
  * @return Tuple of (state, observations)
  */
-std::tuple<State, Observations> startWithSetup(const RandomIntGeneratorFn& random_int,
+std::tuple<State, Observations> startWithSetup(const RandomIntGeneratorFn& random_int_fn,
                                                State state,
                                                const arena_authority::RoundSetup& setup);
 
@@ -101,12 +101,14 @@ std::tuple<State, Observations> apply(State state, const Submit& submit);
 /**
  * @brief Let game time pass: run every arena step that falls due
  *
- * @param random_int Random number source for food placement during steps
+ * @param random_int_fn Random number source for food placement during steps
  * @param state Current state
  * @param elapsed Elapsed game time
  * @return Tuple of (state, observations with a report for every step that ran)
  */
-std::tuple<State, Observations> apply(const RandomIntGeneratorFn& random_int, State state, const TimeElapsed& elapsed);
+std::tuple<State, Observations> apply(const RandomIntGeneratorFn& random_int_fn,
+                                      State state,
+                                      const TimeElapsed& elapsed);
 
 }  // namespace orbital_game_domain_application
 }  // namespace orbital

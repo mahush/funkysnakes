@@ -73,10 +73,10 @@ Status viewStatus(const lifecycle::State& state) { return Status{state.level, st
 // Due work
 // ============================================================================
 
-std::tuple<State, Observations> runStep(const RandomIntGeneratorFn& random_int,
+std::tuple<State, Observations> runStep(const RandomIntGeneratorFn& random_int_fn,
                                         State state,
                                         Observations observations) {
-  state.arena = classic_arena_authority::tick(random_int, std::move(state.arena));
+  state.arena = classic_arena_authority::tick(random_int_fn, std::move(state.arena));
   observations.arena_views.push_back(viewArena(state.arena));
 
   // Conclusion is decided by the lifecycle Authority from the arena's alive states
@@ -115,13 +115,13 @@ State runRepositionPeriod(State state) {
 // Time until the next due work, or nullopt if nothing is running
 std::optional<milliseconds> untilNextDue(const State& state) {
   std::optional<milliseconds> next;
-  auto consider = [&next](milliseconds candidate) { next = next ? std::min(*next, candidate) : candidate; };
+  auto consider_fn = [&next](milliseconds candidate) { next = next ? std::min(*next, candidate) : candidate; };
   if (state.clock.stepping) {
-    consider(state.clock.until_step);
+    consider_fn(state.clock.until_step);
   }
   if (state.clock.cadences) {
-    consider(state.clock.until_level_period);
-    consider(state.clock.until_reposition_period);
+    consider_fn(state.clock.until_level_period);
+    consider_fn(state.clock.until_reposition_period);
   }
   return next;
 }
@@ -139,9 +139,9 @@ State advanceClock(State state, milliseconds duration) {
 
 }  // namespace
 
-State initial(const RandomIntGeneratorFn& random_int) {
+State initial(const RandomIntGeneratorFn& random_int_fn) {
   State state;
-  state.arena = classic_arena_authority::initial(random_int, CLASSIC_BOARD);
+  state.arena = classic_arena_authority::initial(random_int_fn, CLASSIC_BOARD);
   state.clock.step_interval = milliseconds{difficulty_policy::stepIntervalMs(1)};
   return state;
 }
@@ -177,7 +177,9 @@ std::tuple<State, Observations> apply(State state, const TogglePause& /* toggle 
   return {std::move(state), std::move(observations)};
 }
 
-std::tuple<State, Observations> apply(const RandomIntGeneratorFn& random_int, State state, const TimeElapsed& elapsed) {
+std::tuple<State, Observations> apply(const RandomIntGeneratorFn& random_int_fn,
+                                      State state,
+                                      const TimeElapsed& elapsed) {
   Observations observations;
   milliseconds remaining = elapsed.duration;
 
@@ -195,7 +197,7 @@ std::tuple<State, Observations> apply(const RandomIntGeneratorFn& random_int, St
       switch (work) {
         case lifecycle::DueWork::STEP:
           if (state.clock.stepping && state.clock.until_step <= milliseconds{0}) {
-            std::tie(state, observations) = runStep(random_int, std::move(state), std::move(observations));
+            std::tie(state, observations) = runStep(random_int_fn, std::move(state), std::move(observations));
           }
           break;
         case lifecycle::DueWork::LEVEL_PERIOD:

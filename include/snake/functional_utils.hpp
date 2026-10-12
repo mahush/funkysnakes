@@ -36,7 +36,7 @@ struct GetArgAt {
  * @tparam ArgIndex Optional: which argument to test with predicate (default: all args)
  * @tparam TPredicate Function type: (a) -> bool or (a...) -> bool
  * @tparam TFn Function type: (a...) -> a0
- * @param pred Predicate to test the value(s)
+ * @param pred_fn Predicate to test the value(s)
  * @param fn Function to apply if predicate is true
  * @return Function that conditionally applies fn
  *
@@ -54,8 +54,8 @@ struct GetArgAt {
  *   processIfFirstEven(3, 2);  // returns 3 (first arg)
  */
 template <std::size_t ArgIndex = std::size_t(-1), typename TPredicate, typename TFn>
-auto when(TPredicate pred, TFn fn) {
-  return [pred = std::move(pred), fn = std::move(fn)](auto&&... args) mutable {
+auto when(TPredicate pred_fn, TFn fn) {
+  return [pred_fn = std::move(pred_fn), fn = std::move(fn)](auto&&... args) mutable {
     // Get first argument for return value when predicate is false
     auto getFirst = [](auto&& first, auto&&...) -> decltype(auto) { return std::forward<decltype(first)>(first); };
 
@@ -63,10 +63,10 @@ auto when(TPredicate pred, TFn fn) {
     bool condition;
     if constexpr (ArgIndex == std::size_t(-1)) {
       // No index specified: pass all args to predicate
-      condition = pred(std::forward<decltype(args)>(args)...);
+      condition = pred_fn(std::forward<decltype(args)>(args)...);
     } else {
       // Index specified: pass only that arg to predicate
-      condition = pred(impl::GetArgAt<ArgIndex>::get(std::forward<decltype(args)>(args)...));
+      condition = pred_fn(impl::GetArgAt<ArgIndex>::get(std::forward<decltype(args)>(args)...));
     }
 
     if (condition) {
@@ -77,20 +77,20 @@ auto when(TPredicate pred, TFn fn) {
 }
 
 /**
- * @brief Binary composition producing f(a, g(a,b))
+ * @brief Binary composition producing f_fn(a, g_fn(a, b))
  *
  * Composes two functions where the second function takes two arguments
  * and its result is passed as the second argument to the first function.
  *
- * @tparam TF Function type for f
- * @tparam TG Function type for g
- * @param f First function
- * @param g Second function
+ * @tparam TF Function type for f_fn
+ * @tparam TG Function type for g_fn
+ * @param f_fn First function
+ * @param g_fn Second function
  * @return Composed function
  */
 template <typename TF, typename TG>
-auto compose2(TF f, TG g) {
-  return [=](auto&& a, auto&& b) { return f(a, g(a, b)); };
+auto compose2(TF f_fn, TG g_fn) {
+  return [=](auto&& a, auto&& b) { return f_fn(a, g_fn(a, b)); };
 }
 
 /**

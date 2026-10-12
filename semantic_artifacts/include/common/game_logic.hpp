@@ -99,13 +99,13 @@ std::tuple<PerPlayerSnakes, CollisionEvents, std::vector<Point>> handleCollision
  * @param board Board dimensions
  * @param snakes Map of player snakes to check for collisions
  * @param food_items Existing food to avoid
- * @param random_int Function that generates random int in range [min, max]
+ * @param random_int_fn Function that generates random int in range [min, max]
  * @return Random free position, or std::nullopt if no free candidate was found
  */
 std::optional<Point> generateRandomFoodPosition(const Board& board,
                                                 const PerPlayerSnakes& snakes,
                                                 const FoodItems& food_items,
-                                                RandomIntGeneratorFn random_int);
+                                                RandomIntGeneratorFn random_int_fn);
 
 /**
  * @brief Add segments that left play as food
@@ -134,14 +134,14 @@ std::tuple<FoodItems, std::vector<FoodEaten>> handleFoodEating(FoodItems food_it
  *
  * Parameter order: bound parameters first (for bindFront), then lens parameters.
  *
- * @param random_int Random number generator function
+ * @param random_int_fn Random number generator function
  * @param count Number of food items to create
  * @param food_items Current food items (unused - for lens compatibility)
  * @param board Board dimensions
  * @param snakes Snakes (for position generation)
  * @return Food items list with specified count
  */
-FoodItems initializeFood(RandomIntGeneratorFn random_int,
+FoodItems initializeFood(RandomIntGeneratorFn random_int_fn,
                          int count,
                          FoodItems food_items,
                          const Board& board,
@@ -152,14 +152,14 @@ FoodItems initializeFood(RandomIntGeneratorFn random_int,
  *
  * New food is placed on free cells only; if no free cell is found, fewer items are added.
  *
- * @param random_int Random number generator function
+ * @param random_int_fn Random number generator function
  * @param target_count Desired number of food items
  * @param food_items Food (by value)
  * @param board Board dimensions
  * @param snakes Snakes (for position generation)
  * @return Updated food with new items added
  */
-FoodItems replenishFood(RandomIntGeneratorFn random_int,
+FoodItems replenishFood(RandomIntGeneratorFn random_int_fn,
                         int target_count,
                         FoodItems food_items,
                         const Board& board,
@@ -172,13 +172,13 @@ FoodItems replenishFood(RandomIntGeneratorFn random_int,
  *
  * Parameter order: bound parameters first (for bindFront), then lens parameters.
  *
- * @param random_int Random number generator function
+ * @param random_int_fn Random number generator function
  * @param food_items Food (by value)
  * @param board Board dimensions
  * @param snakes Snakes (for position generation)
  * @return Updated food with one item repositioned
  */
-FoodItems repositionRandomFood(RandomIntGeneratorFn random_int,
+FoodItems repositionRandomFood(RandomIntGeneratorFn random_int_fn,
                                FoodItems food_items,
                                const Board& board,
                                const PerPlayerSnakes& snakes);

@@ -13,15 +13,15 @@ using ArenaState = classic_arena_authority::State;
 
 // Test: Single mutable field
 TEST(GenericLensTest, SingleMutableField) {
-  auto op = [](PerPlayerSnakes snakes) {
+  auto op_fn = [](PerPlayerSnakes snakes) {
     snakes["PLAYER_A"] = snake_model::initial(Point{5, 5}, Direction::UP, 1);
     return snakes;
   };
 
-  auto transform = lens(mutate<&ArenaState::snakes>, read<>, op);
+  auto transform_fn = lens(mutate<&ArenaState::snakes>, read<>, op_fn);
 
   ArenaState state;
-  state = transform(state);
+  state = transform_fn(state);
 
   EXPECT_EQ(state.snakes.size(), 1u);
   EXPECT_EQ(snake_model::head(state.snakes["PLAYER_A"]).x, 5);
@@ -30,16 +30,16 @@ TEST(GenericLensTest, SingleMutableField) {
 
 // Test: Two mutable fields
 TEST(GenericLensTest, TwoMutableFields) {
-  auto op = [](PerPlayerSnakes snakes, std::map<PlayerId, int> scores) {
+  auto op_fn = [](PerPlayerSnakes snakes, std::map<PlayerId, int> scores) {
     snakes["PLAYER_A"] = snake_model::initial(Point{5, 5}, Direction::UP, 1);
     scores["PLAYER_A"] = 100;
     return std::make_tuple(snakes, scores);
   };
 
-  auto transform = lens(mutate<&ArenaState::snakes, &ArenaState::scores>, read<>, op);
+  auto transform_fn = lens(mutate<&ArenaState::snakes, &ArenaState::scores>, read<>, op_fn);
 
   ArenaState state;
-  state = transform(state);
+  state = transform_fn(state);
 
   EXPECT_EQ(state.snakes.size(), 1u);
   EXPECT_EQ(state.scores["PLAYER_A"], 100);
@@ -47,7 +47,7 @@ TEST(GenericLensTest, TwoMutableFields) {
 
 // Test: Mutable + readonly access
 TEST(GenericLensTest, MutableWithReadonly) {
-  auto op = [](PerPlayerSnakes snakes, const Board& board, const std::vector<Point>& food) {
+  auto op_fn = [](PerPlayerSnakes snakes, const Board& board, const std::vector<Point>& food) {
     // Verify readonly access works
     EXPECT_EQ(board.width, 60);
     EXPECT_EQ(board.height, 20);
@@ -57,29 +57,29 @@ TEST(GenericLensTest, MutableWithReadonly) {
     return snakes;
   };
 
-  auto transform = lens(mutate<&ArenaState::snakes>, read<&ArenaState::board, &ArenaState::food_items>, op);
+  auto transform_fn = lens(mutate<&ArenaState::snakes>, read<&ArenaState::board, &ArenaState::food_items>, op_fn);
 
   ArenaState state;
   state.board = {60, 20};
   state.food_items = {{5, 5}, {10, 10}};
 
-  state = transform(state);
+  state = transform_fn(state);
 
   EXPECT_EQ(snake_model::head(state.snakes["PLAYER_A"]).x, 10);
 }
 
 // Test: Additional output (threaded to next stage)
 TEST(GenericLensTest, AdditionalOutput) {
-  auto op = [](PerPlayerSnakes snakes, std::map<PlayerId, int> scores) {
+  auto op_fn = [](PerPlayerSnakes snakes, std::map<PlayerId, int> scores) {
     scores["PLAYER_A"] = 50;
     std::vector<Point> cut_tails = {{1, 1}, {2, 2}};
     return std::make_tuple(snakes, scores, cut_tails);
   };
 
-  auto transform = lens(mutate<&ArenaState::snakes, &ArenaState::scores>, read<>, op);
+  auto transform_fn = lens(mutate<&ArenaState::snakes, &ArenaState::scores>, read<>, op_fn);
 
   ArenaState state;
-  auto [new_state, cut_tails] = transform(state);
+  auto [new_state, cut_tails] = transform_fn(state);
 
   EXPECT_EQ(new_state.scores["PLAYER_A"], 50);
   EXPECT_EQ(cut_tails.size(), 2u);
@@ -89,18 +89,18 @@ TEST(GenericLensTest, AdditionalOutput) {
 
 // Test: Pipeline argument forwarding
 TEST(GenericLensTest, PipelineArgumentForwarding) {
-  auto op = [](std::vector<Point> food, const std::vector<Point>& new_food) {
+  auto op_fn = [](std::vector<Point> food, const std::vector<Point>& new_food) {
     food.insert(food.end(), new_food.begin(), new_food.end());
     return food;
   };
 
-  auto transform = lens(mutate<&ArenaState::food_items>, read<>, op);
+  auto transform_fn = lens(mutate<&ArenaState::food_items>, read<>, op_fn);
 
   ArenaState state;
   state.food_items = {{5, 5}};
 
   std::vector<Point> pipeline_arg = {{10, 10}, {15, 15}};
-  state = transform(state, pipeline_arg);
+  state = transform_fn(state, pipeline_arg);
 
   EXPECT_EQ(state.food_items.size(), 3u);
   EXPECT_EQ(state.food_items[1].x, 10);
@@ -109,7 +109,7 @@ TEST(GenericLensTest, PipelineArgumentForwarding) {
 
 // Test: Complex case - all features combined
 TEST(GenericLensTest, ComplexTransformation) {
-  auto op = [](PerPlayerSnakes snakes, std::map<PlayerId, int> scores, const Board& board, int bonus) {
+  auto op_fn = [](PerPlayerSnakes snakes, std::map<PlayerId, int> scores, const Board& board, int bonus) {
     // Use readonly board
     EXPECT_EQ(board.width, 80);
 
@@ -122,13 +122,13 @@ TEST(GenericLensTest, ComplexTransformation) {
     return std::make_tuple(snakes, scores, result_data);
   };
 
-  auto transform = lens(mutate<&ArenaState::snakes, &ArenaState::scores>, read<&ArenaState::board>, op);
+  auto transform_fn = lens(mutate<&ArenaState::snakes, &ArenaState::scores>, read<&ArenaState::board>, op_fn);
 
   ArenaState state;
   state.board = {80, 30};
 
   int bonus_points = 200;
-  auto [new_state, result_data] = transform(state, bonus_points);
+  auto [new_state, result_data] = transform_fn(state, bonus_points);
 
   EXPECT_EQ(new_state.scores["PLAYER_A"], 200);
   EXPECT_EQ(result_data.size(), 1u);
@@ -149,15 +149,15 @@ TEST(GenericLensTest, WithBindFront) {
 
   // Use bindFront from funkypipes to bind the tick parameter
   int current_tick = 6;
-  auto bound_op = funkypipes::bindFront(updateWithTick, current_tick);
+  auto bound_op_fn = funkypipes::bindFront(updateWithTick, current_tick);
 
-  auto transform = lens(mutate<&ArenaState::food_items>, read<&ArenaState::board, &ArenaState::snakes>, bound_op);
+  auto transform_fn = lens(mutate<&ArenaState::food_items>, read<&ArenaState::board, &ArenaState::snakes>, bound_op_fn);
 
   ArenaState state;
   state.board = {20, 20};
   state.food_items = {{5, 5}, {10, 10}};
 
-  state = transform(state);
+  state = transform_fn(state);
 
   // Food should be updated (tick 6 is divisible by 3)
   EXPECT_EQ(state.food_items[0].x, 6);
@@ -176,14 +176,14 @@ TEST(GenericLensTest, WithBindFrontMutableLambda) {
     return food;
   };
 
-  auto bound_op = funkypipes::bindFront(countingOp, 2);
+  auto bound_op_fn = funkypipes::bindFront(countingOp, 2);
 
-  auto transform = lens(mutate<&ArenaState::food_items>, read<>, bound_op);
+  auto transform_fn = lens(mutate<&ArenaState::food_items>, read<>, bound_op_fn);
 
   ArenaState state;
   state.food_items = {{5, 5}};
 
-  state = transform(state);
+  state = transform_fn(state);
 
   EXPECT_EQ(state.food_items[0].x, 10);
   EXPECT_EQ(state.food_items[0].y, 5);

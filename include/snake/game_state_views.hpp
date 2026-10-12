@@ -17,7 +17,7 @@ namespace snake {
 //
 // Usage pattern:
 //   auto extractor = view_board_and_snakes(generateFood);  // Create extractor
-//   Point pos = extractor(state, random_int);               // Apply to state
+//   Point pos = extractor(state, random_int_fn);               // Apply to state
 
 /**
  * @brief View decorator: Extract board and snakes for read-only access
@@ -27,15 +27,15 @@ namespace snake {
  *
  * Example usage:
  *   auto extractor = view_board_and_snakes(generateRandomFoodPosition);
- *   Point pos = extractor(state, random_int);
+ *   Point pos = extractor(state, random_int_fn);
  *
  * @tparam TOp Function type: (Board, snakes, args...) -> Result
- * @param op Operation to apply
+ * @param op_fn Operation to apply
  * @return View transformer: (classic_arena_authority::State, args...) -> Result
  */
 template <typename TOp>
-auto view_board_and_snakes(TOp op) {
-  return view(read<&classic_arena_authority::State::board, &classic_arena_authority::State::snakes>, std::move(op));
+auto view_board_and_snakes(TOp op_fn) {
+  return view(read<&classic_arena_authority::State::board, &classic_arena_authority::State::snakes>, std::move(op_fn));
 }
 
 }  // namespace snake
