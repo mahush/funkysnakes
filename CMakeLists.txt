@@ -99,6 +99,8 @@ if(SNAKE_BUILD_TESTS)
     tests/test_scoring_policy.cpp
     tests/test_difficulty_policy.cpp
     tests/test_orbital_latency_policy.cpp
+    tests/test_orbital_pursuit_policy.cpp
+    semantic_artifacts/src/orbital/pursuit_policy.cpp
     tests/test_classic_game_domain_application.cpp
     semantic_artifacts/src/classic/classic_arena_authority.cpp
     semantic_artifacts/src/classic/classic_game_lifecycle_authority.cpp
