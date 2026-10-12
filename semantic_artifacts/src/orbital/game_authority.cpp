@@ -6,20 +6,7 @@ namespace snake {
 namespace orbital {
 namespace game_authority {
 
-namespace detail {
-
-// The Authority's own access to the private representation of its state
-struct Access {
-  static auto& rep(State& state) { return state.rep_; }
-  static const auto& rep(const State& state) { return state.rep_; }
-};
-
-}  // namespace detail
-
 namespace {
-
-auto& rep(State& state) { return detail::Access::rep(state); }
-const auto& rep(const State& state) { return detail::Access::rep(state); }
 
 // Highest credited score wins; equal highest scores draw
 Result decideResult(const PerPlayerScores& credited) {
@@ -40,9 +27,9 @@ Result decideResult(const PerPlayerScores& credited) {
 
 State startRound(RoundId round, const std::vector<PlayerId>& players) {
   State state;
-  rep(state).round = round;
+  state.round_ = round;
   for (const PlayerId& player : players) {
-    rep(state).scores.credited[player] = 0;
+    state.scores_.credited[player] = 0;
   }
   return state;
 }
@@ -55,30 +42,30 @@ std::tuple<State, std::optional<GameConcluded>> observeStep(State state,
     return {std::move(state), std::nullopt};
   }
 
-  rep(state).now = now;
-  rep(state).scores = scoring_policy::applyScoring(std::move(rep(state).scores), events);
+  state.now_ = now;
+  state.scores_ = scoring_policy::applyScoring(std::move(state.scores_), events);
 
-  if (now < rep(state).duration && any_snake_alive) {
+  if (now < state.duration_ && any_snake_alive) {
     return {std::move(state), std::nullopt};
   }
 
-  rep(state).scores = scoring_policy::loseUnbanked(std::move(rep(state).scores));
-  rep(state).result = decideResult(rep(state).scores.credited);
-  return {state, GameConcluded{rep(state).round, *rep(state).result}};
+  state.scores_ = scoring_policy::loseUnbanked(std::move(state.scores_));
+  state.result_ = decideResult(state.scores_.credited);
+  return {state, GameConcluded{state.round_, *state.result_}};
 }
 
-bool isRunning(const State& state) { return !rep(state).result.has_value(); }
+bool isRunning(const State& state) { return !state.result_.has_value(); }
 
 View view(const State& state) {
   View result;
-  for (const auto& [player, credited] : rep(state).scores.credited) {
+  for (const auto& [player, credited] : state.scores_.credited) {
     result.players[player] = PlayerScore{credited, 0};
   }
-  for (const auto& [order, unbanked] : rep(state).scores.unbanked) {
+  for (const auto& [order, unbanked] : state.scores_.unbanked) {
     result.players[unbanked.player].unbanked += unbanked.points;
   }
-  result.remaining = std::max(GameTime{0}, rep(state).duration - rep(state).now);
-  result.result = rep(state).result;
+  result.remaining = std::max(GameTime{0}, state.duration_ - state.now_);
+  result.result = state.result_;
   return result;
 }
 
