@@ -32,18 +32,23 @@ std::vector<PlayerId> playersOf(const arena_authority::RoundSetup& setup) {
   return players;
 }
 
+// What carrying out a conclusion intent made observable
+struct Conclusion {
+  ArenaEvents end_of_round_events;
+  game_authority::GameConcluded concluded;
+};
+
 // Carry out the Game Authority's conclusion intent: end execution, then cancel what is still pending
-State conclude(State state, Observations& observations, const game_authority::GameConcluded& concluded) {
+std::tuple<State, Conclusion> conclude(State state, const game_authority::GameConcluded& concluded) {
   auto [arena, end_events] = arena_authority::endRound(std::move(*state.arena));
   state.arena = std::move(arena);
   state.orders = order_authority::cancel(order_authority::observe(std::move(*state.orders), {}, end_events));
-  observations.end_of_round_events = std::move(end_events);
-  observations.concluded = concluded;
-  return state;
+  return {std::move(state), Conclusion{std::move(end_events), concluded}};
 }
 
 // One arena step, with every Authority observing its complete outcome before the next step
-State runStep(const RandomIntGeneratorFn& random_int_fn, State state, Observations& observations) {
+std::tuple<State, StepReport, std::optional<Conclusion>> runStep(const RandomIntGeneratorFn& random_int_fn,
+                                                                 State state) {
   const GameTime at = state.clock.next_step;
   state.clock.next_step += STEP_INTERVAL;
 
@@ -55,11 +60,12 @@ State runStep(const RandomIntGeneratorFn& random_int_fn, State state, Observatio
       game_authority::observeStep(std::move(*state.game), at, events, arena_authority::anySnakeAlive(*state.arena));
   state.game = std::move(game);
 
-  observations.steps.push_back(StepReport{state.arena->step, at, std::move(activations), std::move(events)});
-  if (concluded) {
-    state = conclude(std::move(state), observations, *concluded);
+  StepReport report{arena_authority::lastCompletedStep(*state.arena), at, std::move(activations), std::move(events)};
+  if (!concluded) {
+    return {std::move(state), std::move(report), std::nullopt};
   }
-  return state;
+  auto [concluded_state, conclusion] = conclude(std::move(state), *concluded);
+  return {std::move(concluded_state), std::move(report), std::move(conclusion)};
 }
 
 }  // namespace
@@ -107,7 +113,13 @@ std::tuple<State, Observations> apply(const RandomIntGeneratorFn& random_int_fn,
   const GameTime until = state.clock.now + elapsed.duration;
   while (game_authority::isRunning(*state.game) && state.clock.next_step <= until) {
     state.clock.now = state.clock.next_step;
-    state = runStep(random_int_fn, std::move(state), observations);
+    auto [next, report, conclusion] = runStep(random_int_fn, std::move(state));
+    state = std::move(next);
+    observations.steps.push_back(std::move(report));
+    if (conclusion) {
+      observations.end_of_round_events = std::move(conclusion->end_of_round_events);
+      observations.concluded = conclusion->concluded;
+    }
   }
   state.clock.now = until;
 

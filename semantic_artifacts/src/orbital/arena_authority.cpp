@@ -279,6 +279,8 @@ bool anySnakeAlive(const State& state) {
       state.snakes.begin(), state.snakes.end(), [](const auto& entry) { return snake_model::alive(entry.second); });
 }
 
+StepId lastCompletedStep(const State& state) { return state.step; }
+
 View view(const State& state) {
   return View{state.board, state.snakes, state.food, state.active, state.step, state.ended};
 }
