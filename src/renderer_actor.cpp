@@ -7,7 +7,7 @@
 #include <string>
 #include <vector>
 
-#include "classic/snake_model.hpp"
+#include "common/snake_model.hpp"
 #include "snake/control_messages.hpp"
 #include "snake/process_helpers.hpp"
 

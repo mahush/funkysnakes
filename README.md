@@ -82,7 +82,7 @@ Each `over_*` adapter is a lens that focuses one operation on part of the arena 
 
 State is passed to pure functions and returned as new state, so every transition is visible at the call site. Where state carries invariants, a protected module reduces the number of places that can influence it to exactly one:
 
-- [`snake_model.hpp`](semantic_artifacts/include/classic/snake_model.hpp) keeps a snake body a connected chain and stops dead snakes from moving.
+- [`snake_model.hpp`](semantic_artifacts/include/common/snake_model.hpp) keeps a snake body a connected chain and stops dead snakes from moving.
 - [`direction_command_filter.hpp`](semantic_artifacts/include/classic/direction_command_filter.hpp) owns buffered inputs behind an opaque queue.
 
 > **Why keep state explicit instead of hiding it in objects?**
@@ -128,7 +128,7 @@ Actors reduce interaction complexity by replacing direct shared-state coordinati
 
 ## Project structure
 
-The semantic artifacts of classic snake (its Authorities, Policies, rule helpers, vocabulary, boundary and Domain Application) live under `semantic_artifacts/include/classic/` and `semantic_artifacts/src/classic/` and are included as `classic/...`. Everything else sits flat under `include/snake/` and `src/`. Grouping the files by architectural responsibility is a *logical view* of the code:
+The semantic artifacts of classic snake (its Authorities, Policies, boundary and Domain Application) live under `semantic_artifacts/include/classic/` and `semantic_artifacts/src/classic/` and are included as `classic/...`. Semantic building blocks shared between game variants (snake model, rule helpers, vocabulary) live under `semantic_artifacts/{include,src}/common/` and are included as `common/...`. Everything else sits flat under `include/snake/` and `src/`. Grouping the files by architectural responsibility is a *logical view* of the code:
 
 ```
 Semantic artifacts     (semantic_artifacts/{include,src}/classic/ — classic snake's meaning)
@@ -136,15 +136,17 @@ Semantic artifacts     (semantic_artifacts/{include,src}/classic/ — classic sn
   classic_game_lifecycle_authority.*  owner of pause, level, conclusion and cadences
   difficulty_policy.hpp    level → step interval
   scoring_policy.*         what arena events are worth
-  arena_events.hpp         what happened in an arena step
   game_boundary.hpp        the game's external interactions
   classic_game_domain_application.*  the whole game without actors (reference)
-  snake_model*.hpp, snake_model.cpp  protected state module: snake bodies
   direction_command_filter.*  encapsulated state module: buffered inputs
+
+Shared semantic blocks (semantic_artifacts/{include,src}/common/ — used by the game variants)
+  snake_model*.hpp, snake_model.cpp  protected state module: snake bodies
   game_logic.*             rules, movement, collisions, food (reported as events)
   snake_predicates.*       collision checks between snake bodies
   game_types.hpp, game_primitives.hpp, players.hpp  arena vocabulary
   random_source.hpp        random source type (the source itself is an external fact)
+  arena_events.hpp         what happened in an arena step
 
 Functional core        (pure logic — no I/O, no shared state)
   game_state_lenses.hpp    focus arena transitions on GameState
@@ -171,11 +173,11 @@ Each interaction problem, the design technique that reduces it, the post that de
 
 | Problem | Technique (post) | Implementation |
 |---------|------------------|----------------|
-| Hidden dependencies on external state | Pure functions — [Handling Side Effects](https://funkyposts.dev/posts/handling-side-effects-in-modern-cpp-designing-systems-around-pure-functions) | [`game_logic.hpp`](semantic_artifacts/include/classic/game_logic.hpp) / [`game_logic.cpp`](semantic_artifacts/src/classic/game_logic.cpp) |
+| Hidden dependencies on external state | Pure functions — [Handling Side Effects](https://funkyposts.dev/posts/handling-side-effects-in-modern-cpp-designing-systems-around-pure-functions) | [`game_logic.hpp`](semantic_artifacts/include/common/game_logic.hpp) / [`game_logic.cpp`](semantic_artifacts/src/common/game_logic.cpp) |
 | State changes scattered and implicit | Explicit state — [Mastering State: Making It Explicit](https://funkyposts.dev/posts/mastering-state-in-modern-cpp-making-it-explicit) | `GameState` in [`game_messages.hpp`](include/snake/game_messages.hpp) |
 | Updates to nested state tangle callers | Lenses & views — [Mastering State: Making It Explicit](https://funkyposts.dev/posts/mastering-state-in-modern-cpp-making-it-explicit) | [`game_state_lenses.hpp`](include/snake/game_state_lenses.hpp), [`game_state_views.hpp`](include/snake/game_state_views.hpp), [`generic_lens.hpp`](include/snake/generic_lens.hpp) |
 | Implementation details leak across modules | Encapsulated state module — [Mastering State: Making It Encapsulated](https://funkyposts.dev/posts/mastering-state-in-modern-cpp-making-it-encapsulated) | [`direction_command_filter.hpp`](semantic_artifacts/include/classic/direction_command_filter.hpp) |
-| Invariants influenced from many places | Protected state module — [Mastering State: Making It Protected](https://funkyposts.dev/posts/mastering-state-in-modern-cpp-making-it-protected) | [`snake_model.hpp`](semantic_artifacts/include/classic/snake_model.hpp) |
+| Invariants influenced from many places | Protected state module — [Mastering State: Making It Protected](https://funkyposts.dev/posts/mastering-state-in-modern-cpp-making-it-protected) | [`snake_model.hpp`](semantic_artifacts/include/common/snake_model.hpp) |
 | Effects hidden inside function bodies | Effects as data — [Effects: Making Them Explicit](https://funkyposts.dev/posts/effects-in-modern-cpp-making-them-explicit) | [`state_with_effect.hpp`](include/snake/state_with_effect.hpp) |
 | Effect handling tangled with logic | Effect interpreter — [Effects: Making Them Explicit](https://funkyposts.dev/posts/effects-in-modern-cpp-making-them-explicit) | [`process_helpers.hpp`](include/snake/process_helpers.hpp) |
 | Shared mutable coordination across threads | Actors / message boundaries — [When One Shell Isn't Enough](https://funkyposts.dev/posts/when-one-shell-isnt-enough-scaling-the-functional-core-imperative-shell-pattern-with-actors-in-cpp) | `GameEngineActor` in [`game_engine_actor.hpp`](include/snake/game_engine_actor.hpp) |

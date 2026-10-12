@@ -17,7 +17,7 @@ Authorities and carries out their intents.
 | Artifact | ESA form | Code | Owns |
 |---|---|---|---|
 | [Classic Arena Authority](#classic-arena-authority) | Authority | [`classic_arena_authority`](../semantic_artifacts/include/classic/classic_arena_authority.hpp) | Snakes, scores, food, steering intentions and the complete arena step |
-| Snake Authority | Nested Authority | [`snake_model`](../semantic_artifacts/include/classic/snake_model.hpp) | Evolution of one snake's body and life: move, grow, cut, kill, edge wrapping, ignoring reverse turns |
+| Snake Authority | Nested Authority | [`snake_model`](../semantic_artifacts/include/common/snake_model.hpp) | Evolution of one snake's body and life: move, grow, cut, kill, edge wrapping, ignoring reverse turns |
 | Steering Authority | Nested Authority | [`direction_command_filter`](../semantic_artifacts/include/classic/direction_command_filter.hpp) | Evolution of buffered steering intentions: acceptance, cancellation, queue limit, one turn per step |
 | [Scoring Policy](#scoring-policy) | Policy, used by the arena | [`scoring_policy`](../semantic_artifacts/include/classic/scoring_policy.hpp) | What arena events are worth |
 | [Classic Game Lifecycle Authority](#classic-game-lifecycle-authority) | Authority, beside the arena | [`classic_game_lifecycle_authority`](../semantic_artifacts/include/classic/classic_game_lifecycle_authority.hpp) | Pause, conclusion, level and game-time cadences |
@@ -51,8 +51,8 @@ Orbital Orders will be a different arena with partly different rules. It is expe
 the classic arena (snake evolution, geometry, collision checks with equal meaning) while each arena keeps
 its own owner for the rules that differ.
 
-The game-rule helpers in [`game_logic`](../semantic_artifacts/include/classic/game_logic.hpp) and
-[`snake_predicates`](../semantic_artifacts/include/classic/snake_predicates.hpp) are not separate semantic owners. They are
+The game-rule helpers in [`game_logic`](../semantic_artifacts/include/common/game_logic.hpp) and
+[`snake_predicates`](../semantic_artifacts/include/common/snake_predicates.hpp) are not separate semantic owners. They are
 reusable building blocks of the arena step, and the Classic Arena Authority decides how they are composed.
 They still contain rules (who loses on a bite, one food item per cell), so they live with the semantic
 artifacts under `semantic_artifacts/` and are part of the reviewed semantic surface. The semantic artifacts
@@ -98,7 +98,7 @@ food also avoids snake cells.
 
 ### Arena events
 
-Arena rules report what happened as [events](../semantic_artifacts/include/classic/arena_events.hpp) instead of deciding their
+Arena rules report what happened as [events](../semantic_artifacts/include/common/arena_events.hpp) instead of deciding their
 consequences: `FoodEaten`, `Bitten` (victim and biter), `SelfBitten` and `MutualBite` (head-on or mutual tail
 bites). The [Scoring Policy](#scoring-policy) turns them into score changes, so the collision and eating helpers
 know nothing about points and can be reused by an arena with different scoring.

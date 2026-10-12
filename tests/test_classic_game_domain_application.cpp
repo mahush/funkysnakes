@@ -10,7 +10,7 @@
 #include <vector>
 
 #include "classic/classic_game_domain_application.hpp"
-#include "classic/snake_model_evolve.hpp"
+#include "common/snake_model_evolve.hpp"
 #include "test_printers.hpp"
 
 namespace snake {

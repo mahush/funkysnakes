@@ -4,9 +4,9 @@
 #include <tuple>
 #include <vector>
 
-#include "classic/arena_events.hpp"
-#include "classic/game_types.hpp"
-#include "classic/random_source.hpp"
+#include "common/arena_events.hpp"
+#include "common/game_types.hpp"
+#include "common/random_source.hpp"
 
 namespace snake {
 

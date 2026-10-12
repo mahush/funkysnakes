@@ -8,7 +8,7 @@
 #include "classic/classic_arena_authority.hpp"
 #include "classic/classic_game_lifecycle_authority.hpp"
 #include "classic/game_boundary.hpp"
-#include "classic/random_source.hpp"
+#include "common/random_source.hpp"
 
 namespace snake {
 namespace classic_game_domain_application {

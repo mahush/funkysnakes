@@ -1,7 +1,7 @@
 #include <gtest/gtest.h>
 
 #include "classic/classic_arena_authority.hpp"
-#include "classic/snake_model_evolve.hpp"
+#include "common/snake_model_evolve.hpp"
 #include "funkypipes/bind_front.hpp"
 #include "snake/generic_lens.hpp"
 #include "snake/generic_view.hpp"
