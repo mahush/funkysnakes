@@ -67,7 +67,7 @@ State runStep(const RandomIntGeneratorFn& random_int_fn, State state, Observatio
 State initial() { return State{}; }
 
 std::tuple<State, Observations> apply(const RandomIntGeneratorFn& random_int_fn, State state, const Start& start) {
-  return startWithSetup(random_int_fn, std::move(state), arena_authority::classicSetup(start.round));
+  return startWithSetup(random_int_fn, std::move(state), arena_authority::makeClassicSetup(start.round));
 }
 
 std::tuple<State, Observations> startWithSetup(const RandomIntGeneratorFn& random_int_fn,

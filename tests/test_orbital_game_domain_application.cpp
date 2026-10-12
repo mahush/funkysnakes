@@ -28,7 +28,7 @@ constexpr RoundId ROUND{1};
 /**
  * @brief Random source that always picks the far corner of the board for new food
  */
-RandomIntGeneratorFn cornerRandom() {
+RandomIntGeneratorFn makeCornerRandom() {
   return [](int /* min */, int max) { return max; };
 }
 
@@ -37,7 +37,7 @@ RandomIntGeneratorFn cornerRandom() {
  *
  * Filler food in row 9 brings the food to the minimum without random draws.
  */
-RoundSetup lanes(FoodItems food) {
+RoundSetup makeLanes(FoodItems food) {
   for (int x = 15; food.size() < static_cast<size_t>(arena_authority::MIN_FOOD_COUNT); ++x) {
     food.push_back(Point{x, 9});
   }
@@ -49,11 +49,11 @@ RoundSetup lanes(FoodItems food) {
 }
 
 app::State started(const RoundSetup& setup) {
-  return std::get<0>(app::startWithSetup(cornerRandom(), app::initial(), setup));
+  return std::get<0>(app::startWithSetup(makeCornerRandom(), app::initial(), setup));
 }
 
 app::State elapse(app::State state, int ms) {
-  return std::get<0>(app::apply(cornerRandom(), std::move(state), app::TimeElapsed{milliseconds{ms}}));
+  return std::get<0>(app::apply(makeCornerRandom(), std::move(state), app::TimeElapsed{milliseconds{ms}}));
 }
 
 std::tuple<app::State, OrderId> submit(app::State state, const PlayerId& player, Point target) {
@@ -88,7 +88,7 @@ game_authority::PlayerScore scoreOf(const app::State& state, const PlayerId& pla
 TEST(OrbitalGameDomainApplication, BanksPointsOfOrderThatCompletesBeforeReplacementActivates) {
   // Given: F to (10,2) activates at 400 ms, collects food at (5,2) and (7,2) and arrives at 1600 ms;
   //        G is submitted at 1200 ms (eligible at 1808 ms)
-  auto [with_f, f] = submit(started(lanes({Point{5, 2}, Point{7, 2}})), PLAYER_A, Point{10, 2});
+  auto [with_f, f] = submit(started(makeLanes({Point{5, 2}, Point{7, 2}})), PLAYER_A, Point{10, 2});
   auto [with_g, g] = submit(elapse(with_f, 1200), PLAYER_A, Point{10, 6});
 
   // When: time passes until G has activated at 2000 ms
@@ -104,7 +104,7 @@ TEST(OrbitalGameDomainApplication, BanksPointsOfOrderThatCompletesBeforeReplacem
 /// @brief The defining history: F collects +20 while G is pending, and G activates first
 TEST(OrbitalGameDomainApplication, LosesPointsOfOrderInterruptedByReplacement) {
   // Given: F to (10,2) collected food at (5,2); G is submitted at 600 ms (eligible after 1104 ms)
-  auto [with_f, f] = submit(started(lanes({Point{5, 2}, Point{7, 2}})), PLAYER_A, Point{10, 2});
+  auto [with_f, f] = submit(started(makeLanes({Point{5, 2}, Point{7, 2}})), PLAYER_A, Point{10, 2});
   auto [with_g, g] = submit(elapse(with_f, 600), PLAYER_A, Point{10, 6});
 
   // When: time passes until G has activated, after F collected the second food
@@ -121,7 +121,7 @@ TEST(OrbitalGameDomainApplication, LosesPointsOfOrderInterruptedByReplacement) {
 /// @brief Changing one's mind costs nothing until the replacement actually activates
 TEST(OrbitalGameDomainApplication, KeepsUnbankedPointsWhenReplacementIsOnlySubmitted) {
   // Given: F to (10,2) collected food at (5,2) and (7,2)
-  auto [with_f, f] = submit(started(lanes({Point{5, 2}, Point{7, 2}})), PLAYER_A, Point{10, 2});
+  auto [with_f, f] = submit(started(makeLanes({Point{5, 2}, Point{7, 2}})), PLAYER_A, Point{10, 2});
   app::State collected = elapse(with_f, 1000);
 
   // When: G is submitted
@@ -138,7 +138,7 @@ TEST(OrbitalGameDomainApplication, KeepsUnbankedPointsWhenReplacementIsOnlySubmi
 /// @brief A revision handled before the activation step prevents the old pending order from activating
 TEST(OrbitalGameDomainApplication, SupersedesEligibleOrderWithRevisionBeforeItsStep) {
   // Given: G was submitted at 0 ms (eligible at 400 ms) and time is at 399 ms
-  auto [with_g, g] = submit(started(lanes({})), PLAYER_A, Point{10, 6});
+  auto [with_g, g] = submit(started(makeLanes({})), PLAYER_A, Point{10, 6});
   app::State before_step = elapse(with_g, 399);
 
   // When: H is submitted and the step at 400 ms runs
@@ -154,7 +154,7 @@ TEST(OrbitalGameDomainApplication, SupersedesEligibleOrderWithRevisionBeforeItsS
 /// @brief A refused replacement neither stops the executing order nor costs its points
 TEST(OrbitalGameDomainApplication, KeepsExecutingOrderAndItsPointsWhenReplacementIsRejected) {
   // Given: F to (10,2) collected food at (5,2), and G with a target outside the board was submitted
-  auto [with_f, f] = submit(started(lanes({Point{5, 2}})), PLAYER_A, Point{10, 2});
+  auto [with_f, f] = submit(started(makeLanes({Point{5, 2}})), PLAYER_A, Point{10, 2});
   auto [with_g, g] = submit(elapse(with_f, 600), PLAYER_A, Point{25, 2});
 
   // When: time passes until G was evaluated
@@ -171,7 +171,7 @@ TEST(OrbitalGameDomainApplication, KeepsExecutingOrderAndItsPointsWhenReplacemen
 /// @brief A food race: the loser's positional order stays valid after the food is gone
 TEST(OrbitalGameDomainApplication, CompletesPositionalOrderAfterOpponentTookTheFood) {
   // Given: A orders its snake to the food at (8,2); B heads down column 8 and takes the food at once
-  RoundSetup setup = lanes({Point{8, 2}});
+  RoundSetup setup = makeLanes({Point{8, 2}});
   setup.snakes.at(PLAYER_B) = SnakeSetup{Point{8, 1}, Direction::DOWN, 2};
   auto [with_order, order] = submit(started(setup), PLAYER_A, Point{8, 2});
 
@@ -189,10 +189,10 @@ TEST(OrbitalGameDomainApplication, CompletesPositionalOrderAfterOpponentTookTheF
 /// @brief The step due at the end of the game counts, including the completion it brings
 TEST(OrbitalGameDomainApplication, BanksCompletionOnFinalStepBeforeConclusion) {
   // Given: at 118400 ms A heads right in row 2; an order to (19,5) collects food at (19,3) and arrives at 120000 ms
-  auto [with_order, order] = submit(elapse(started(lanes({Point{19, 3}})), 118400), PLAYER_A, Point{19, 5});
+  auto [with_order, order] = submit(elapse(started(makeLanes({Point{19, 3}})), 118400), PLAYER_A, Point{19, 5});
 
   // When: the remaining time of the game passes
-  auto [state, observations] = app::apply(cornerRandom(), with_order, app::TimeElapsed{milliseconds{1600}});
+  auto [state, observations] = app::apply(makeCornerRandom(), with_order, app::TimeElapsed{milliseconds{1600}});
 
   // Then: the order completed on the final step, its 10 points count and A wins
   EXPECT_EQ(statusOf(state, order), Status::COMPLETED);
@@ -204,12 +204,12 @@ TEST(OrbitalGameDomainApplication, BanksCompletionOnFinalStepBeforeConclusion) {
 
 TEST(OrbitalGameDomainApplication, ConcludesWithDrawWhenBothSnakesDie) {
   // Given: A and B head towards each other in row 5
-  RoundSetup setup = lanes({});
+  RoundSetup setup = makeLanes({});
   setup.snakes.at(PLAYER_A) = SnakeSetup{Point{5, 5}, Direction::RIGHT, 2};
   setup.snakes.at(PLAYER_B) = SnakeSetup{Point{7, 5}, Direction::LEFT, 2};
 
   // When: their heads meet
-  auto [state, observations] = app::apply(cornerRandom(), started(setup), app::TimeElapsed{milliseconds{200}});
+  auto [state, observations] = app::apply(makeCornerRandom(), started(setup), app::TimeElapsed{milliseconds{200}});
 
   // Then: the game concluded at once as a draw
   ASSERT_TRUE(observations.concluded.has_value());
@@ -219,7 +219,7 @@ TEST(OrbitalGameDomainApplication, ConcludesWithDrawWhenBothSnakesDie) {
 /// @brief Once the game is over, executing orders end with it and pending ones are cancelled
 TEST(OrbitalGameDomainApplication, EndsExecutingAndCancelsPendingOrdersAtConclusion) {
   // Given: F executes since 118800 ms, and G submitted at 119600 ms is still pending at the end
-  auto [with_f, f] = submit(elapse(started(lanes({})), 118000), PLAYER_A, Point{12, 6});
+  auto [with_f, f] = submit(elapse(started(makeLanes({})), 118000), PLAYER_A, Point{12, 6});
   auto [with_g, g] = submit(elapse(with_f, 1600), PLAYER_A, Point{3, 3});
 
   // When: the game ends
@@ -233,7 +233,7 @@ TEST(OrbitalGameDomainApplication, EndsExecutingAndCancelsPendingOrdersAtConclus
 
 TEST(OrbitalGameDomainApplication, RejectsSubmissionAfterConclusion) {
   // Given: the game is over
-  app::State over = elapse(started(lanes({})), 120000);
+  app::State over = elapse(started(makeLanes({})), 120000);
 
   // When: a player submits an order
   auto [state, observations] = app::apply(over, app::Submit{PLAYER_A, Point{3, 3}});
@@ -245,10 +245,10 @@ TEST(OrbitalGameDomainApplication, RejectsSubmissionAfterConclusion) {
 
 TEST(OrbitalGameDomainApplication, RunsNoStepsAfterConclusion) {
   // Given: the game is over
-  app::State over = elapse(started(lanes({})), 120000);
+  app::State over = elapse(started(makeLanes({})), 120000);
 
   // When: more time passes
-  auto [state, observations] = app::apply(cornerRandom(), over, app::TimeElapsed{milliseconds{1000}});
+  auto [state, observations] = app::apply(makeCornerRandom(), over, app::TimeElapsed{milliseconds{1000}});
 
   // Then: no step runs
   EXPECT_TRUE(observations.steps.empty());
@@ -259,7 +259,8 @@ TEST(OrbitalGameDomainApplication, RunsNoStepsAfterConclusion) {
 /// @brief One time advance can run several steps; every step's report is kept
 TEST(OrbitalGameDomainApplication, ReportsEveryStepOfOneTimeAdvance) {
   // When: one second passes at once
-  auto [state, observations] = app::apply(cornerRandom(), started(lanes({})), app::TimeElapsed{milliseconds{1000}});
+  auto [state, observations] =
+      app::apply(makeCornerRandom(), started(makeLanes({})), app::TimeElapsed{milliseconds{1000}});
 
   // Then: five steps ran, at 200 ms intervals
   ASSERT_EQ(observations.steps.size(), 5U);
@@ -270,7 +271,7 @@ TEST(OrbitalGameDomainApplication, ReportsEveryStepOfOneTimeAdvance) {
 /// @brief A submission's issue time is the current time of the game clock
 TEST(OrbitalGameDomainApplication, IssuesSubmissionAtCurrentGameTime) {
   // Given: 1300 ms have passed
-  app::State state = elapse(started(lanes({})), 1300);
+  app::State state = elapse(started(makeLanes({})), 1300);
 
   // When: a player submits an order
   auto [next, observations] = app::apply(state, app::Submit{PLAYER_A, Point{3, 3}});

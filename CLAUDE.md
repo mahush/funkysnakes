@@ -161,6 +161,14 @@ Point getHead(const Snake& snake);
 std::optional<Message> tryTakeMessage();
 ```
 
+**Factory Functions**: prefix with `make` - functions whose purpose is to build a value or configuration from parameters
+```cpp
+RoundSetup makeClassicSetup(RoundId round);
+RandomIntGeneratorFn makeRandomIntGenerator();
+```
+Authority construction transitions keep their domain names (`startRound`, `initial`); queries and transitions are not
+factories just because they return a value.
+
 **Member Variables**: `snake_case_` - lowercase with trailing underscore
 ```cpp
 class Actor {

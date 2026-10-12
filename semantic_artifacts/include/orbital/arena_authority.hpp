@@ -88,7 +88,7 @@ struct State {
  * @param round Identity of the round
  * @return Setup without initial food (food is spawned at round start)
  */
-RoundSetup classicSetup(RoundId round);
+RoundSetup makeClassicSetup(RoundId round);
 
 /**
  * @brief Start the world of a round

@@ -19,12 +19,12 @@ namespace app = orbital_game_domain_application;
 using std::chrono::milliseconds;
 
 // New food always appears in the far corner, so histories are reproducible
-RandomIntGeneratorFn cornerRandom() {
+RandomIntGeneratorFn makeCornerRandom() {
   return [](int /* min */, int max) { return max; };
 }
 
 // Board 20x10: A in row 2 heading right with food at (5,2) and (7,2); B in row 7 heading right
-arena_authority::RoundSetup board() {
+arena_authority::RoundSetup makeBoard() {
   return arena_authority::RoundSetup{RoundId{1},
                                      Board{20, 10},
                                      {{PLAYER_A, arena_authority::SnakeSetup{Point{2, 2}, Direction::RIGHT, 3}},
@@ -104,7 +104,7 @@ app::State submit(app::State state, Point target, const std::string& name) {
 }
 
 app::State elapse(app::State state, int ms) {
-  auto [next, observations] = app::apply(cornerRandom(), std::move(state), app::TimeElapsed{milliseconds{ms}});
+  auto [next, observations] = app::apply(makeCornerRandom(), std::move(state), app::TimeElapsed{milliseconds{ms}});
   printSteps(observations, next);
   return next;
 }
@@ -112,7 +112,7 @@ app::State elapse(app::State state, int ms) {
 // F collects two foods while G waits; when G is submitted decides whether F's +20 counts
 void runHistory(const std::string& title, int submit_g_at_ms, int until_ms) {
   std::cout << "\n" << title << "\n";
-  app::State state = std::get<0>(app::startWithSetup(cornerRandom(), app::initial(), board()));
+  app::State state = std::get<0>(app::startWithSetup(makeCornerRandom(), app::initial(), makeBoard()));
   state = submit(std::move(state), Point{10, 2}, "F");
   state = elapse(std::move(state), submit_g_at_ms);
   state = submit(std::move(state), Point{10, 6}, "G");

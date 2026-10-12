@@ -140,7 +140,7 @@ TEST(DirectionCommandFilter, RejectsTurnOfUnknownPlayer) {
 
 namespace {
 
-PerPlayerSnakes twoSnakes() {
+PerPlayerSnakes makeTwoSnakes() {
   return {{PLAYER_A, snake_model::initial(Point{10, 5}, Direction::RIGHT, 5)},
           {PLAYER_B, snake_model::initial(Point{10, 15}, Direction::RIGHT, 5)}};
 }
@@ -151,9 +151,9 @@ PerPlayerSnakes twoSnakes() {
 TEST(DirectionCommandFilter, ConsumesOneTurnPerPlayer) {
   // Given: turns are queued for both players
   direction_command_filter::State state =
-      direction_command_filter::try_add({}, twoSnakes(), steer(PLAYER_A, Direction::UP));
-  state = direction_command_filter::try_add(state, twoSnakes(), steer(PLAYER_A, Direction::LEFT));
-  state = direction_command_filter::try_add(state, twoSnakes(), steer(PLAYER_B, Direction::DOWN));
+      direction_command_filter::try_add({}, makeTwoSnakes(), steer(PLAYER_A, Direction::UP));
+  state = direction_command_filter::try_add(state, makeTwoSnakes(), steer(PLAYER_A, Direction::LEFT));
+  state = direction_command_filter::try_add(state, makeTwoSnakes(), steer(PLAYER_B, Direction::DOWN));
 
   // When: the next turns are consumed
   auto [new_state, consumed] = direction_command_filter::try_consume_next(state);
@@ -166,9 +166,9 @@ TEST(DirectionCommandFilter, ConsumesOneTurnPerPlayer) {
 TEST(DirectionCommandFilter, ConsumesQueuedTurnsInOrder) {
   // Given: two turns are queued and the first was consumed
   direction_command_filter::State state =
-      direction_command_filter::try_add({}, twoSnakes(), steer(PLAYER_A, Direction::UP));
-  state = direction_command_filter::try_add(state, twoSnakes(), steer(PLAYER_A, Direction::LEFT));
-  state = direction_command_filter::try_add(state, twoSnakes(), steer(PLAYER_B, Direction::DOWN));
+      direction_command_filter::try_add({}, makeTwoSnakes(), steer(PLAYER_A, Direction::UP));
+  state = direction_command_filter::try_add(state, makeTwoSnakes(), steer(PLAYER_A, Direction::LEFT));
+  state = direction_command_filter::try_add(state, makeTwoSnakes(), steer(PLAYER_B, Direction::DOWN));
   state = std::get<0>(direction_command_filter::try_consume_next(state));
 
   // When: the next turns are consumed
@@ -182,7 +182,7 @@ TEST(DirectionCommandFilter, ConsumesQueuedTurnsInOrder) {
 TEST(DirectionCommandFilter, ConsumesNothingOnceAllTurnsAreConsumed) {
   // Given: all queued turns were consumed
   direction_command_filter::State state =
-      direction_command_filter::try_add({}, twoSnakes(), steer(PLAYER_A, Direction::UP));
+      direction_command_filter::try_add({}, makeTwoSnakes(), steer(PLAYER_A, Direction::UP));
   state = std::get<0>(direction_command_filter::try_consume_next(state));
 
   // When: the next turns are consumed
