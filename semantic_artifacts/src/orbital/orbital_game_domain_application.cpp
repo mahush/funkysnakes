@@ -1,5 +1,6 @@
 #include "orbital/orbital_game_domain_application.hpp"
 
+#include <iterator>
 #include <vector>
 
 namespace snake {
@@ -32,23 +33,33 @@ std::vector<PlayerId> playersOf(const arena_authority::RoundSetup& setup) {
   return players;
 }
 
-// What carrying out a conclusion intent made observable
-struct Conclusion {
-  ArenaEvents end_of_round_events;
-  game_authority::GameConcluded concluded;
-};
+// Observations produced so far, followed by a later batch
+Observations appendObservations(Observations observations, Observations later) {
+  observations.steps.insert(observations.steps.end(),
+                            std::make_move_iterator(later.steps.begin()),
+                            std::make_move_iterator(later.steps.end()));
+  observations.end_of_round_events.insert(
+      observations.end_of_round_events.end(), later.end_of_round_events.begin(), later.end_of_round_events.end());
+  if (later.concluded) {
+    observations.concluded = later.concluded;
+  }
+  return observations;
+}
 
 // Carry out the Game Authority's conclusion intent: end execution, then cancel what is still pending
-std::tuple<State, Conclusion> conclude(State state, const game_authority::GameConcluded& concluded) {
+std::tuple<State, Observations> conclude(State state, const game_authority::GameConcluded& concluded) {
   auto [arena, end_events] = arena_authority::endRound(std::move(*state.arena));
   state.arena = std::move(arena);
   state.orders = order_authority::cancel(order_authority::observe(std::move(*state.orders), {}, end_events));
-  return {std::move(state), Conclusion{std::move(end_events), concluded}};
+
+  Observations observations;
+  observations.end_of_round_events = std::move(end_events);
+  observations.concluded = concluded;
+  return {std::move(state), std::move(observations)};
 }
 
 // One arena step, with every Authority observing its complete outcome before the next step
-std::tuple<State, StepReport, std::optional<Conclusion>> runStep(const RandomIntGeneratorFn& random_int_fn,
-                                                                 State state) {
+std::tuple<State, Observations> runStep(const RandomIntGeneratorFn& random_int_fn, State state) {
   const GameTime at = state.clock.next_step;
   state.clock.next_step += STEP_INTERVAL;
 
@@ -60,12 +71,14 @@ std::tuple<State, StepReport, std::optional<Conclusion>> runStep(const RandomInt
       game_authority::observeStep(std::move(*state.game), at, events, arena_authority::anySnakeAlive(*state.arena));
   state.game = std::move(game);
 
-  StepReport report{arena_authority::lastCompletedStep(*state.arena), at, std::move(activations), std::move(events)};
+  Observations observations;
+  observations.steps.push_back(
+      StepReport{arena_authority::lastCompletedStep(*state.arena), at, std::move(activations), std::move(events)});
   if (!concluded) {
-    return {std::move(state), std::move(report), std::nullopt};
+    return {std::move(state), std::move(observations)};
   }
   auto [concluded_state, conclusion] = conclude(std::move(state), *concluded);
-  return {std::move(concluded_state), std::move(report), std::move(conclusion)};
+  return {std::move(concluded_state), appendObservations(std::move(observations), std::move(conclusion))};
 }
 
 }  // namespace
@@ -113,13 +126,9 @@ std::tuple<State, Observations> apply(const RandomIntGeneratorFn& random_int_fn,
   const GameTime until = state.clock.now + elapsed.duration;
   while (game_authority::isRunning(*state.game) && state.clock.next_step <= until) {
     state.clock.now = state.clock.next_step;
-    auto [next, report, conclusion] = runStep(random_int_fn, std::move(state));
+    auto [next, step_observations] = runStep(random_int_fn, std::move(state));
     state = std::move(next);
-    observations.steps.push_back(std::move(report));
-    if (conclusion) {
-      observations.end_of_round_events = std::move(conclusion->end_of_round_events);
-      observations.concluded = conclusion->concluded;
-    }
+    observations = appendObservations(std::move(observations), std::move(step_observations));
   }
   state.clock.now = until;
 
