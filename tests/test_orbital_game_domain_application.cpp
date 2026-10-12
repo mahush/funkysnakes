@@ -268,6 +268,43 @@ TEST(OrbitalGameDomainApplication, ReportsEveryStepOfOneTimeAdvance) {
   EXPECT_EQ(observations.steps.back().at, milliseconds{1000});
 }
 
+namespace {
+
+// Every step report of the given time advances, in order
+std::vector<game_boundary::StepReport> stepsOfAdvances(app::State state, const std::vector<int>& advances_ms) {
+  std::vector<game_boundary::StepReport> steps;
+  for (int ms : advances_ms) {
+    auto [next, observations] = app::apply(makeCornerRandom(), std::move(state), app::TimeElapsed{milliseconds{ms}});
+    state = std::move(next);
+    steps.insert(steps.end(), observations.steps.begin(), observations.steps.end());
+  }
+  return steps;
+}
+
+}  // namespace
+
+/// @brief Cutting the same game time into smaller advances does not change what happens
+TEST(OrbitalGameDomainApplication, ReportsSameStepsForOneAdvanceAndItsParts) {
+  // Given: A's order to (7,2) is pending; it activates at 400 ms and collects the food at (6,2) on its way
+  auto [state, order] = submit(started(makeLanes({Point{6, 2}})), PLAYER_A, Point{7, 2});
+
+  // When: one second passes once at once and once in five parts
+  std::vector<game_boundary::StepReport> at_once = stepsOfAdvances(state, {1000});
+  std::vector<game_boundary::StepReport> in_parts = stepsOfAdvances(state, {200, 200, 200, 200, 200});
+
+  // Then: both report the same steps with the same activations and events
+  ASSERT_EQ(at_once.size(), 5U);
+  ASSERT_EQ(at_once[1].activations.size(), 1U);
+  ASSERT_FALSE(at_once[3].events.empty());
+  ASSERT_EQ(in_parts.size(), at_once.size());
+  for (size_t i = 0; i < at_once.size(); ++i) {
+    EXPECT_EQ(in_parts[i].step, at_once[i].step);
+    EXPECT_EQ(in_parts[i].at, at_once[i].at);
+    EXPECT_EQ(in_parts[i].activations, at_once[i].activations);
+    EXPECT_EQ(in_parts[i].events, at_once[i].events);
+  }
+}
+
 /// @brief A submission's issue time is the current time of the game clock
 TEST(OrbitalGameDomainApplication, IssuesSubmissionAtCurrentGameTime) {
   // Given: 1300 ms have passed
