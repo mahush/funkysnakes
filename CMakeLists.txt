@@ -70,6 +70,28 @@ target_compile_options(snake_actors PRIVATE
   $<$<CONFIG:Release>:-O3>
 )
 
+# Orbital Orders domain runner: prints traces of the Domain Application, no platform needed
+add_executable(orbital_domain_runner
+  src/orbital_domain_runner.cpp
+  semantic_artifacts/src/orbital/arena_authority.cpp
+  semantic_artifacts/src/orbital/game_authority.cpp
+  semantic_artifacts/src/orbital/order_authority.cpp
+  semantic_artifacts/src/orbital/orbital_game_domain_application.cpp
+  semantic_artifacts/src/orbital/pursuit_policy.cpp
+  semantic_artifacts/src/orbital/scoring_policy.cpp
+  semantic_artifacts/src/common/game_logic.cpp
+  semantic_artifacts/src/common/snake_model.cpp
+  semantic_artifacts/src/common/snake_predicates.cpp
+)
+
+target_include_directories(orbital_domain_runner PRIVATE ${PROJECT_SOURCE_DIR}/semantic_artifacts/include)
+
+target_compile_options(orbital_domain_runner PRIVATE
+  -Wall -Wextra -Wpedantic -Werror
+  $<$<CONFIG:Debug>:-g -O0>
+  $<$<CONFIG:Release>:-O3>
+)
+
 # Optional: Build tests (ON by default for development)
 option(SNAKE_BUILD_TESTS "Build snake unit tests" ON)
 if(SNAKE_BUILD_TESTS)

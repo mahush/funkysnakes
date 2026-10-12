@@ -204,6 +204,9 @@ cmake --build build
 # Run the game
 ./build/snake_actors
 
+# Print traces of the Orbital Orders domain histories (no platform needed)
+./build/orbital_domain_runner
+
 # Run tests
 ./build/test_snake
 ```
