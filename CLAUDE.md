@@ -458,10 +458,12 @@ Plumbing of a semantic artifact that introduces no domain decision (lens adapter
 accumulation, counters, clearing transient fields) goes into a private `<module_name>_mechanics.hpp` next to the
 module's `.cpp`, in namespace `<module>::mechanics`. The meaningful transition sequence, rules and guards stay in the
 module's `.cpp`. Small or pure is not the criterion: a helper containing a meaningful choice stays in the `.cpp`.
+When the state's fields are private, lenses over them are written inside the friended transition that composes
+them; the mechanics header then holds only plumbing that needs no access to the state.
 
 ```
 semantic_artifacts/src/orbital/arena_authority.cpp            // step sequence, activation, completion rules
-semantic_artifacts/src/orbital/arena_authority_mechanics.hpp  // lenses, event accumulation, step counter
+semantic_artifacts/src/orbital/arena_authority_mechanics.hpp  // event conversion and accumulation
 ```
 
 ## Architecture Overview
