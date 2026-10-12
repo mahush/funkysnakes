@@ -67,19 +67,31 @@ struct RoundSetup {
   FoodItems food;  // Food placed at start; topped up to MIN_FOOD_COUNT
 };
 
+namespace detail {
+struct Access;
+}  // namespace detail
+
 /**
  * @brief Arena state owned by the Orbital Arena Authority
  *
- * Fields may be read freely. Changes must go through the transitions below only.
+ * A value that callers store, pass and replace with the results of the transitions below. Its
+ * representation is private: the world is read through the queries and evolves only through the
+ * transitions.
  */
-struct State {
-  RoundId round;
-  Board board;
-  PerPlayerSnakes snakes;
-  FoodItems food;
-  std::map<PlayerId, ActiveOrder> active;  // Executing order per snake
-  StepId step{0};                          // Last completed step
-  bool ended{false};                       // Execution of the round has ended
+class State {
+ private:
+  struct Representation {
+    RoundId round;
+    Board board;
+    PerPlayerSnakes snakes;
+    FoodItems food;
+    std::map<PlayerId, ActiveOrder> active;  // Executing order per snake
+    StepId step{0};                          // Last completed step
+    bool ended{false};                       // Execution of the round has ended
+  };
+  Representation rep_;
+
+  friend struct detail::Access;
 };
 
 // ============================================================================
