@@ -138,6 +138,14 @@ std::tuple<State, ArenaEvents> endRound(State state);
 bool anySnakeAlive(const State& state);
 
 /**
+ * @brief The last step the world completed
+ *
+ * @param state Current world
+ * @return Identity of the last completed step (0 before the first step)
+ */
+StepId lastCompletedStep(const State& state);
+
+/**
  * @brief Projection of the world for presentation
  */
 struct View {
