@@ -62,11 +62,15 @@ State applyEvent(State state, const OrderEnded& ended) {
   return state;
 }
 
-// World events (collection, collisions) carry no order status; eliminations arrive as OrderEnded
-template <typename TWorldEvent>
-State applyEvent(State state, const TWorldEvent& /*event*/) {
-  return state;
-}
+// World events carry no order status; eliminations arrive as OrderEnded. Each alternative is listed so that a new
+// arena event needs a deliberate interpretation here.
+State applyEvent(State state, const FoodCollected& /*collected*/) { return state; }
+
+State applyEvent(State state, const Bitten& /*bitten*/) { return state; }
+
+State applyEvent(State state, const SelfBitten& /*self_bitten*/) { return state; }
+
+State applyEvent(State state, const MutualBite& /*mutual_bite*/) { return state; }
 
 }  // namespace
 

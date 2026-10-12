@@ -292,6 +292,35 @@ TEST(OrderAuthority, KeepsPendingOrderWhenExecutingOrderCompletes) {
   EXPECT_EQ(statusOf(observed, h), Status::PENDING);
 }
 
+/// @subsection world events
+
+namespace {
+
+class OrderAuthorityWorldEvent : public ::testing::TestWithParam<ArenaEvent> {};
+
+}  // namespace
+
+/// @brief Collection and collisions carry no order status; an elimination arrives as its own OrderEnded
+TEST_P(OrderAuthorityWorldEvent, KeepsOrderStatusOnWorldEvent) {
+  // Given: an executing order
+  auto [state, id] =
+      order_authority::submit(order_authority::startRound(ROUND), Submission{PLAYER_A, Point{3, 4}, milliseconds{0}});
+  order_authority::State executing = order_authority::observe(state, {OrderActivated{id, std::nullopt, {}}}, {});
+
+  // When: the Arena reports a world event of that player
+  order_authority::State observed = order_authority::observe(executing, {}, {GetParam()});
+
+  // Then: the order still executes
+  EXPECT_EQ(statusOf(observed, id), Status::EXECUTING);
+}
+
+INSTANTIATE_TEST_SUITE_P(WorldEvents,
+                         OrderAuthorityWorldEvent,
+                         ::testing::Values(ArenaEvent{FoodCollected{PLAYER_A, Point{3, 4}, OrderId{1}}},
+                                           ArenaEvent{Bitten{PLAYER_A, PLAYER_B}},
+                                           ArenaEvent{SelfBitten{PLAYER_A}},
+                                           ArenaEvent{MutualBite{PLAYER_A, PLAYER_B}}));
+
 /// @section order_authority::cancel
 
 TEST(OrderAuthority, CancelsPendingOrders) {
