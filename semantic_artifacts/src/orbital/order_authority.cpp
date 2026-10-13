@@ -27,8 +27,8 @@ Status statusAfterEnding(EndReason reason) {
   return Status::FAILED;
 }
 
-// The player's pending order is resolved once that same order is resolved; a newer submission stays pending
-PendingOrders forgetPending(PendingOrders pending, const PlayerId& player, OrderId order) {
+// Drops the player's pending entry if it is this order; a newer pending order of the player is kept
+PendingOrders dropPendingOrder(PendingOrders pending, const PlayerId& player, OrderId order) {
   auto it = pending.find(player);
   if (it != pending.end() && it->second == order) {
     pending.erase(it);
@@ -43,7 +43,7 @@ std::tuple<Orders, PendingOrders> applyOutcome(Orders orders, PendingOrders pend
     return {std::move(orders), std::move(pending)};
   }
   it->second.status = Status::EXECUTING;
-  pending = forgetPending(std::move(pending), it->second.order.player, it->second.order.id);
+  pending = dropPendingOrder(std::move(pending), it->second.order.player, it->second.order.id);
   return {std::move(orders), std::move(pending)};
 }
 
@@ -56,7 +56,7 @@ std::tuple<Orders, PendingOrders> applyOutcome(Orders orders, PendingOrders pend
   }
   it->second.status = Status::REJECTED;
   it->second.rejection = rejected.reason;
-  pending = forgetPending(std::move(pending), it->second.order.player, it->second.order.id);
+  pending = dropPendingOrder(std::move(pending), it->second.order.player, it->second.order.id);
   return {std::move(orders), std::move(pending)};
 }
 
