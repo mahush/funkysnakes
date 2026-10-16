@@ -1,5 +1,6 @@
 // Orbital Orders domain runner: plays the defining histories through the Domain Application and
-// prints what happened, step by step. No actors, timers, networking or rendering.
+// prints what happened, step by step: commitments (Order), activations and endings (Arena) and the
+// resulting score and handover chain (Game). No actors, timers, networking or rendering.
 
 #include <chrono>
 #include <iostream>
@@ -34,7 +35,18 @@ arena_authority::RoundSetup makeBoard() {
 
 std::string point(Point p) { return "(" + std::to_string(p.x) + "," + std::to_string(p.y) + ")"; }
 
-std::string order(OrderId id) { return id.value == 1 ? "F" : id.value == 2 ? "G" : "#" + std::to_string(id.value); }
+std::string order(OrderId id) {
+  switch (id.value) {
+    case 1:
+      return "F";
+    case 2:
+      return "G";
+    case 3:
+      return "H";
+    default:
+      return "#" + std::to_string(id.value);
+  }
+}
 
 std::string endReason(EndReason reason) {
   switch (reason) {
@@ -75,10 +87,14 @@ std::string describe(const ArenaEvent& event) {
 
 void printScore(const app::State& state) {
   const game_authority::PlayerScore score = game_authority::view(*state.game).players.at(PLAYER_A);
-  std::cout << "            A: credited " << score.credited << ", unbanked " << score.unbanked << "\n";
+  std::cout << "            A: credited " << score.credited << ", unbanked " << score.unbanked << ", chain "
+            << score.chain << " (next handover +" << score.next_handover << ")\n";
 }
 
 void printSteps(const app::Observations& observations, const app::State& state) {
+  if (observations.steps.empty()) {
+    return;
+  }
   for (const game_boundary::StepReport& step : observations.steps) {
     std::vector<std::string> lines;
     for (const ActivationOutcome& outcome : step.activations) {
@@ -96,9 +112,9 @@ void printSteps(const app::Observations& observations, const app::State& state) 
 
 app::State submit(app::State state, Point target, const std::string& name) {
   auto [next, observations] = app::apply(std::move(state), app::Submit{PLAYER_A, target});
-  const auto& accepted = std::get<game_boundary::SubmissionAccepted>(*observations.submission);
+  const OrderCommitted& committed = *observations.commitment;
   const order_authority::View orders = order_authority::view(*next.orders);
-  std::cout << "  " << accepted.committed_at.count() << " ms  A submits " << name << " to " << point(target)
+  std::cout << "  " << committed.committed_at.count() << " ms  A commits " << name << " to " << point(target)
             << ", eligible from " << orders.players.at(PLAYER_A).pending->deadline.count() << " ms\n";
   return next;
 }
@@ -109,14 +125,24 @@ app::State elapse(app::State state, int ms) {
   return next;
 }
 
-// F collects two foods while G waits; when G is submitted decides whether F's +20 counts
-void runHistory(const std::string& title, int submit_g_at_ms, int until_ms) {
+struct Commit {
+  int at_ms;
+  Point target;
+  std::string name;
+};
+
+// F to (10,2) collects two foods and arrives at 1600 ms; when its successors are committed decides
+// whether F's +20 counts and whether completions hand over
+void runHistory(const std::string& title, const std::vector<Commit>& commits, int until_ms) {
   std::cout << "\n" << title << "\n";
   app::State state = std::get<0>(app::startWithSetup(makeCornerRandom(), app::initial(), makeBoard()));
-  state = submit(std::move(state), Point{10, 2}, "F");
-  state = elapse(std::move(state), submit_g_at_ms);
-  state = submit(std::move(state), Point{10, 6}, "G");
-  state = elapse(std::move(state), until_ms - submit_g_at_ms);
+  int now_ms = 0;
+  for (const Commit& commit : commits) {
+    state = elapse(std::move(state), commit.at_ms - now_ms);
+    state = submit(std::move(state), commit.target, commit.name);
+    now_ms = commit.at_ms;
+  }
+  state = elapse(std::move(state), until_ms - now_ms);
 }
 
 }  // namespace
@@ -125,9 +151,22 @@ int main() {
   std::cout << "Orbital Orders - Domain Application traces\n"
                "Steps every 200 ms; orbital delay 0.2-2 s; food +10 during an order stays unbanked\n"
                "until the order completes, and is lost if a replacement activates first;\n"
-               "food without an order is credited +5 at once.\n";
+               "food without an order is credited +5 at once.\n"
+               "An order completing while its successor is already committed and still pending is a\n"
+               "handover: +10 for the first of a chain, doubling for each consecutive one.\n";
 
-  runHistory("History 1: F completes before G activates - F's +20 is banked", 1400, 2000);
-  runHistory("History 2: G activates before F completes - F's +20 is lost", 800, 1200);
+  const Commit f{0, Point{10, 2}, "F"};
+  runHistory("History 1: G is committed before F completes - F's +20 is banked and F hands over",
+             {f, Commit{1400, Point{10, 6}, "G"}},
+             2000);
+  runHistory("History 2: G activates before F completes - F's +20 is lost and nothing is handed over",
+             {f, Commit{800, Point{10, 6}, "G"}},
+             1200);
+  runHistory("History 3: G is committed after F completed - F's +20 is banked, but no handover",
+             {f, Commit{1600, Point{10, 6}, "G"}},
+             2000);
+  runHistory("History 4: H is committed before G completes - the second handover doubles the bonus",
+             {f, Commit{1400, Point{10, 6}, "G"}, Commit{2200, Point{3, 6}, "H"}},
+             2600);
   return 0;
 }
