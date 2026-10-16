@@ -71,7 +71,9 @@ Chain deriveChain(const PlayerId& player,
     for (const ActivationOutcome& outcome : step.activations) {
       const OrderId order = orderOf(outcome);
       resolved.insert(order);
-      if (std::holds_alternative<OrderRejected>(outcome) && belongsToPlayer(order)) {
+      // Only a refusal of the prepared successor ends the chain; a superseded draft was never prepared
+      if (std::holds_alternative<OrderRejected>(outcome) && belongsToPlayer(order) &&
+          latestCommittedBefore(committed, step.at) == order) {
         chain.length = 0;
       }
     }
