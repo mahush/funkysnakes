@@ -45,7 +45,9 @@ struct Order {
  *
  * Commitment happens where the player's input is accepted; `committed_at` is that time on the
  * round's timeline, and it stays the order's commitment time however late the record travels.
- * `superseded` names the player's previously pending order that this commitment replaced.
+ * `superseded` names the player's previously pending order that this commitment replaced. Game
+ * does not need it, since the player's latest commitment is the successor; it lets a consumer of a
+ * possibly incomplete or reordered history, such as a transport, recognize the replaced order.
  *
  * Together with the Arena's order endings, this history tells whether an order completed while
  * a successor of the same player was already committed and still pending.

@@ -34,7 +34,9 @@ using game_boundary::TimeElapsed;
  *   → score, advance handover chains and check end (Game)
  *   → if concluded: end execution (Arena) → interpret endings (Order) → cancel pending (Order)
  * The clock never stands on a step that has not run, so every commitment lies strictly before the
- * next step and strictly after the steps already run, as Game's handover chain requires.
+ * next step. A commitment can share the time of the last step that ran; it was still made after
+ * that step, which Game's rule for handovers (committed strictly before the completing step)
+ * reflects.
  */
 
 // Interval between arena steps on the game timeline
