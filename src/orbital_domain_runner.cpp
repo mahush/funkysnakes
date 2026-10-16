@@ -112,6 +112,10 @@ void printSteps(const app::Observations& observations, const app::State& state) 
 
 app::State submit(app::State state, Point target, const std::string& name) {
   auto [next, observations] = app::apply(std::move(state), app::Submit{PLAYER_A, target});
+  if (!observations.commitment) {
+    std::cout << "  A's order " << name << " to " << point(target) << " is rejected: the game is over\n";
+    return next;
+  }
   const OrderCommitted& committed = *observations.commitment;
   const order_authority::View orders = order_authority::view(*next.orders);
   std::cout << "  " << committed.committed_at.count() << " ms  A commits " << name << " to " << point(target)
