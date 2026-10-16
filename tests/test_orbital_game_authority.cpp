@@ -3,6 +3,7 @@
 #include <gtest/gtest.h>
 
 #include <chrono>
+#include <set>
 #include <tuple>
 #include <vector>
 
@@ -19,6 +20,7 @@ using game_authority::Result;
 using game_authority::State;
 
 constexpr RoundId ROUND{1};
+const std::set<PlayerId> BOTH_ALIVE{PLAYER_A, PLAYER_B};
 
 State runningGame() { return game_authority::startRound(ROUND, {PLAYER_A, PLAYER_B}); }
 
@@ -33,7 +35,8 @@ OrderActivated activated(int order) { return OrderActivated{OrderId{order}, std:
 
 // A step of a running game that concludes nothing
 State step(State state, int at_ms, const std::vector<ActivationOutcome>& activations, const ArenaEvents& events) {
-  return std::get<0>(game_authority::observeStep(std::move(state), milliseconds{at_ms}, activations, events, true));
+  return std::get<0>(
+      game_authority::observeStep(std::move(state), milliseconds{at_ms}, activations, events, BOTH_ALIVE));
 }
 
 // Game in which A's order 1 executes, with successor 2 committed at 500 ms and still pending
@@ -69,7 +72,7 @@ TEST(OrbitalGameAuthority, ShowsCreditedAndUnbankedPointsSeparately) {
       milliseconds{200},
       {},
       {FoodCollected{PLAYER_A, Point{1, 1}, OrderId{1}}, FoodCollected{PLAYER_B, Point{2, 2}, std::nullopt}},
-      true);
+      BOTH_ALIVE);
 
   // Then: A has 10 unbanked points, B 5 credited points, and the game goes on
   game_authority::View view = game_authority::view(state);
@@ -81,7 +84,7 @@ TEST(OrbitalGameAuthority, ShowsCreditedAndUnbankedPointsSeparately) {
 
 TEST(OrbitalGameAuthority, CountsDownRemainingTime) {
   // When: a step at 30 s is observed
-  auto [state, concluded] = game_authority::observeStep(runningGame(), milliseconds{30000}, {}, {}, true);
+  auto [state, concluded] = game_authority::observeStep(runningGame(), milliseconds{30000}, {}, {}, BOTH_ALIVE);
 
   // Then: 90 s remain
   EXPECT_EQ(game_authority::view(state).remaining, milliseconds{90000});
@@ -91,7 +94,7 @@ TEST(OrbitalGameAuthority, CountsDownRemainingTime) {
 
 TEST(OrbitalGameAuthority, ConcludesWhenDurationHasElapsed) {
   // When: the step at two minutes is observed
-  auto [state, concluded] = game_authority::observeStep(runningGame(), std::chrono::minutes{2}, {}, {}, true);
+  auto [state, concluded] = game_authority::observeStep(runningGame(), std::chrono::minutes{2}, {}, {}, BOTH_ALIVE);
 
   // Then: the game concluded
   EXPECT_TRUE(concluded.has_value());
@@ -101,7 +104,7 @@ TEST(OrbitalGameAuthority, ConcludesWhenDurationHasElapsed) {
 TEST(OrbitalGameAuthority, ConcludesWhenNoSnakeIsAlive) {
   // When: a step after which no snake is alive is observed
   auto [state, concluded] =
-      game_authority::observeStep(runningGame(), milliseconds{5000}, {}, {MutualBite{PLAYER_A, PLAYER_B}}, false);
+      game_authority::observeStep(runningGame(), milliseconds{5000}, {}, {MutualBite{PLAYER_A, PLAYER_B}}, {});
 
   // Then: the game concluded early
   EXPECT_TRUE(concluded.has_value());
@@ -115,11 +118,11 @@ TEST(OrbitalGameAuthority, BanksCompletionOnFinalStepBeforeConclusion) {
       milliseconds{1000},
       {},
       {FoodCollected{PLAYER_A, Point{1, 1}, OrderId{1}}, FoodCollected{PLAYER_A, Point{2, 1}, OrderId{1}}},
-      true);
+      BOTH_ALIVE);
 
   // When: F completes on the step at two minutes
   auto [final_state, concluded] = game_authority::observeStep(
-      state, std::chrono::minutes{2}, {}, {OrderEnded{OrderId{1}, EndReason::COMPLETED, std::nullopt}}, true);
+      state, std::chrono::minutes{2}, {}, {OrderEnded{OrderId{1}, EndReason::COMPLETED, std::nullopt}}, BOTH_ALIVE);
 
   // Then: A's 20 points count and A wins
   EXPECT_EQ(game_authority::view(final_state).players.at(PLAYER_A).credited, 20);
@@ -135,10 +138,10 @@ TEST(OrbitalGameAuthority, LosesUnbankedPointsAtConclusion) {
                                                     {FoodCollected{PLAYER_B, Point{3, 3}, std::nullopt},
                                                      FoodCollected{PLAYER_A, Point{1, 1}, OrderId{1}},
                                                      FoodCollected{PLAYER_A, Point{2, 1}, OrderId{1}}},
-                                                    true);
+                                                    BOTH_ALIVE);
 
   // When: the game concludes while A's order still executes
-  auto [final_state, concluded] = game_authority::observeStep(state, std::chrono::minutes{2}, {}, {}, true);
+  auto [final_state, concluded] = game_authority::observeStep(state, std::chrono::minutes{2}, {}, {}, BOTH_ALIVE);
 
   // Then: A's unbanked points are lost and B wins
   EXPECT_EQ(game_authority::view(final_state).players.at(PLAYER_A).unbanked, 0);
@@ -147,7 +150,7 @@ TEST(OrbitalGameAuthority, LosesUnbankedPointsAtConclusion) {
 
 TEST(OrbitalGameAuthority, DrawsOnEqualCreditedScores) {
   // When: the game concludes with equal credited scores
-  auto [state, concluded] = game_authority::observeStep(runningGame(), std::chrono::minutes{2}, {}, {}, true);
+  auto [state, concluded] = game_authority::observeStep(runningGame(), std::chrono::minutes{2}, {}, {}, BOTH_ALIVE);
 
   // Then: the result is a draw
   EXPECT_EQ(concluded->result, (Result{std::nullopt}));
@@ -157,7 +160,7 @@ TEST(OrbitalGameAuthority, DrawsOnEqualCreditedScores) {
 TEST(OrbitalGameAuthority, IgnoresStepsAfterConclusion) {
   // Given: a concluded game in which B leads
   auto [state, concluded] = game_authority::observeStep(
-      runningGame(), std::chrono::minutes{2}, {}, {FoodCollected{PLAYER_B, Point{3, 3}, std::nullopt}}, true);
+      runningGame(), std::chrono::minutes{2}, {}, {FoodCollected{PLAYER_B, Point{3, 3}, std::nullopt}}, BOTH_ALIVE);
 
   // When: further events are observed
   auto [later, again] = game_authority::observeStep(state,
@@ -165,7 +168,7 @@ TEST(OrbitalGameAuthority, IgnoresStepsAfterConclusion) {
                                                     {},
                                                     {OrderEnded{OrderId{1}, EndReason::ROUND_ENDED, std::nullopt},
                                                      FoodCollected{PLAYER_A, Point{1, 1}, std::nullopt}},
-                                                    true);
+                                                    BOTH_ALIVE);
 
   // Then: nothing changes and no second conclusion is announced
   EXPECT_FALSE(again.has_value());
@@ -249,6 +252,21 @@ TEST(OrbitalGameAuthority, BreaksChainWhenExecutingOrderIsEliminated) {
 
   // Then: the chain is broken
   EXPECT_EQ(game_authority::view(observed).players.at(PLAYER_A).chain, 0);
+}
+
+/// @brief A snake can die between orders, right after a handover; no order ending is reported then
+TEST(OrbitalGameAuthority, BreaksChainWhenSnakeDiesWithoutExecutingOrder) {
+  // Given: order 1 handed over to 2, which has not activated yet
+  State state = step(withPendingSuccessor(), 1000, {}, {completed(1)});
+
+  // When: A's snake dies in the next step
+  auto [observed, concluded] =
+      game_authority::observeStep(std::move(state), milliseconds{1200}, {}, {SelfBitten{PLAYER_A}}, {PLAYER_B});
+
+  // Then: the chain is broken, while the earned bonus stays credited
+  game_authority::PlayerScore score = game_authority::view(observed).players.at(PLAYER_A);
+  EXPECT_EQ(score.chain, 0);
+  EXPECT_EQ(score.credited, 10 - 10);
 }
 
 /// @brief A successor that is refused does not continue the chain it was prepared for
@@ -357,7 +375,8 @@ TEST(OrbitalGameAuthority, IgnoresCommitmentLearnedAfterConclusion) {
   // Given: order 1 completed on the final step without a known successor
   State state = game_authority::observeCommitment(runningGame(), committedByA(1, 0));
   state = step(std::move(state), 200, {activated(1)}, {});
-  state = std::get<0>(game_authority::observeStep(std::move(state), std::chrono::minutes{2}, {}, {completed(1)}, true));
+  state = std::get<0>(
+      game_authority::observeStep(std::move(state), std::chrono::minutes{2}, {}, {completed(1)}, BOTH_ALIVE));
 
   // When: the commitment of a successor is learned after conclusion
   State observed = game_authority::observeCommitment(std::move(state), committedByA(2, 500));
@@ -371,7 +390,8 @@ TEST(OrbitalGameAuthority, BreaksChainAtConclusion) {
   State state = step(withPendingSuccessor(), 1000, {}, {completed(1)});
 
   // When: the game concludes
-  auto [observed, concluded] = game_authority::observeStep(std::move(state), std::chrono::minutes{2}, {}, {}, true);
+  auto [observed, concluded] =
+      game_authority::observeStep(std::move(state), std::chrono::minutes{2}, {}, {}, BOTH_ALIVE);
 
   // Then: the earned bonus counts, and no chain is left
   game_authority::PlayerScore score = game_authority::view(observed).players.at(PLAYER_A);

@@ -267,8 +267,8 @@ TEST(OrbitalGameDomainApplication, ReachesSameScoreWhenCommitmentReachesGameAfte
       game_authority::startRound(ROUND, {PLAYER_A, PLAYER_B}), *f_observations.commitment);
   for (const auto* steps : {&early.steps, &late.steps}) {
     for (const game_boundary::StepReport& report : *steps) {
-      game =
-          std::get<0>(game_authority::observeStep(std::move(game), report.at, report.activations, report.events, true));
+      game = std::get<0>(game_authority::observeStep(
+          std::move(game), report.at, report.activations, report.events, {PLAYER_A, PLAYER_B}));
     }
   }
 

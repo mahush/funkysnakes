@@ -3,6 +3,7 @@
 #include <chrono>
 #include <map>
 #include <optional>
+#include <set>
 #include <tuple>
 #include <vector>
 
@@ -34,8 +35,8 @@ namespace game_authority {
  * and is still pending is a handover; it earns the Scoring Policy's bonus for its position in the
  * chain. A successor counts as committed for a step if it was committed before the step's time,
  * and as still pending if it has not been activated, rejected or superseded by then. The chain
- * breaks with a completion without such a successor, an interruption, an elimination, a rejection
- * of the successor or the end of the game.
+ * breaks with a completion without such a successor, an interruption, the player's snake dying
+ * (whether or not an order was executing), a rejection of the successor or the end of the game.
  *
  * The chain is derived from both histories as far as they are known. Commitments may be learned
  * after the steps they relate to, as when a player-local Order Authority synchronizes late; the
@@ -69,6 +70,7 @@ struct ObservedStep {
   GameTime at;
   std::vector<ActivationOutcome> activations;
   ArenaEvents events;
+  std::set<PlayerId> alive;  // Players whose snake survived the step
 };
 
 /**
@@ -109,7 +111,7 @@ class State {
                                                                      GameTime now,
                                                                      const std::vector<ActivationOutcome>& activations,
                                                                      const ArenaEvents& events,
-                                                                     bool any_snake_alive);
+                                                                     const std::set<PlayerId>& alive);
   friend State observeCommitment(State state, const OrderCommitted& committed);
 
   // Queries
@@ -152,14 +154,14 @@ State startRound(RoundId round, const std::vector<PlayerId>& players);
  * @param now Time of the step on the round's timeline
  * @param activations Activation outcomes of the step
  * @param events Arena events of the step, in order
- * @param any_snake_alive Whether a snake is still alive after the step
+ * @param alive Players whose snake is still alive after the step
  * @return Tuple of (updated state, conclusion intent if the game concluded with this step)
  */
 std::tuple<State, std::optional<GameConcluded>> observeStep(State state,
                                                             GameTime now,
                                                             const std::vector<ActivationOutcome>& activations,
                                                             const ArenaEvents& events,
-                                                            bool any_snake_alive);
+                                                            const std::set<PlayerId>& alive);
 
 /**
  * @brief Learn that a player committed an order

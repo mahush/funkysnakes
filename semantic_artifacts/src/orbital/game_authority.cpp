@@ -92,6 +92,10 @@ Chain deriveChain(const PlayerId& player,
         chain.length = 0;
       }
     }
+    // Elimination ends the chain, also when the snake died with no order executing
+    if (step.alive.count(player) == 0) {
+      chain.length = 0;
+    }
   }
   return chain;
 }
@@ -128,18 +132,18 @@ std::tuple<State, std::optional<GameConcluded>> observeStep(State state,
                                                             GameTime now,
                                                             const std::vector<ActivationOutcome>& activations,
                                                             const ArenaEvents& events,
-                                                            bool any_snake_alive) {
+                                                            const std::set<PlayerId>& alive) {
   if (!isRunning(state)) {
     return {std::move(state), std::nullopt};
   }
 
   state.now_ = now;
   state.scores_ = scoring_policy::applyScoring(std::move(state.scores_), events);
-  state.steps_.push_back(ObservedStep{now, activations, events});
+  state.steps_.push_back(ObservedStep{now, activations, events, alive});
   std::tie(state.scores_.credited, state.chains_) =
       creditHandovers(std::move(state.scores_.credited), std::move(state.chains_), state.commitments_, state.steps_);
 
-  if (now < state.duration_ && any_snake_alive) {
+  if (now < state.duration_ && !alive.empty()) {
     return {std::move(state), std::nullopt};
   }
 
