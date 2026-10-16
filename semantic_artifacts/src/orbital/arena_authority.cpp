@@ -234,6 +234,16 @@ bool anySnakeAlive(const State& state) {
       state.snakes_.begin(), state.snakes_.end(), [](const auto& entry) { return snake_model::alive(entry.second); });
 }
 
+std::set<PlayerId> alivePlayers(const State& state) {
+  std::set<PlayerId> alive;
+  for (const auto& [player, snake] : state.snakes_) {
+    if (snake_model::alive(snake)) {
+      alive.insert(player);
+    }
+  }
+  return alive;
+}
+
 StepId lastCompletedStep(const State& state) { return state.step_; }
 
 std::optional<std::vector<Direction>> routeIfActivatedNow(const State& state, const PlayerId& player, Point target) {

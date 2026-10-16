@@ -2,6 +2,7 @@
 
 #include <map>
 #include <optional>
+#include <set>
 #include <tuple>
 #include <vector>
 
@@ -100,6 +101,7 @@ class State {
 
   // Queries
   friend bool anySnakeAlive(const State& state);
+  friend std::set<PlayerId> alivePlayers(const State& state);
   friend StepId lastCompletedStep(const State& state);
   friend std::optional<std::vector<Direction>> routeIfActivatedNow(const State& state,
                                                                    const PlayerId& player,
@@ -173,6 +175,14 @@ std::tuple<State, ArenaEvents> endRound(State state);
  * @return True if a snake is alive
  */
 bool anySnakeAlive(const State& state);
+
+/**
+ * @brief Players whose snake is still alive
+ *
+ * @param state Current world
+ * @return Players with a living snake
+ */
+std::set<PlayerId> alivePlayers(const State& state);
 
 /**
  * @brief The last step the world completed

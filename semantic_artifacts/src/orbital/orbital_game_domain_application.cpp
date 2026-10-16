@@ -91,7 +91,7 @@ std::tuple<State, Observations> runStep(const RandomIntGeneratorFn& random_int_f
   state.arena = std::move(arena);
   state.orders = order_authority::observe(std::move(*state.orders), activations, events);
   auto [game, concluded] = game_authority::observeStep(
-      std::move(*state.game), at, activations, events, arena_authority::anySnakeAlive(*state.arena));
+      std::move(*state.game), at, activations, events, arena_authority::alivePlayers(*state.arena));
   state.game = std::move(game);
 
   Observations observations;
