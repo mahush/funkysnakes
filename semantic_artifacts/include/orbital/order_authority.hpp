@@ -16,10 +16,14 @@ namespace order_authority {
 /**
  * Order Authority - owns the delayed lifecycle of the players' orders
  *
- * Owns submitted orders, the latest pending order per player, its fixed eligibility deadline,
- * supersession, eligibility and the status of every order interpreted from what the Arena
- * reports. It does not own the actual executing route (Arena) or any points (Game).
+ * Owns the committed orders with their commitment times, the latest pending order per player, its
+ * fixed eligibility deadline, supersession, eligibility and the status of every order interpreted
+ * from what the Arena reports. It does not own the actual executing route (Arena) or any points
+ * (Game).
  *
+ * - A submission is committed where the player's input is accepted; its commitment time is part
+ *   of the domain history and is published as OrderCommitted, so that Game can relate it to the
+ *   Arena's completions. Commitment, supersession and the deadline are one lifecycle.
  * - The Orbital Latency Policy calculates a submission's deadline; this Authority stores it.
  * - A new submission supersedes the player's pending order; the superseded order never activates.
  * - Eligibility is a query: it does not consume the pending order. The pending order is resolved
@@ -75,7 +79,7 @@ class State {
   friend State startRound(RoundId round);
 
   // Transitions
-  friend std::tuple<State, OrderId> submit(State state, const Submission& submission);
+  friend std::tuple<State, OrderCommitted> submit(State state, const Submission& submission);
   friend State observe(State state, const std::vector<ActivationOutcome>& outcomes, const ArenaEvents& events);
   friend State cancel(State state);
 
@@ -110,16 +114,16 @@ State startRound(RoundId round);
 // ============================================================================
 
 /**
- * @brief Accept a submission as a new order
+ * @brief Commit a submission as a new order
  *
  * The order gets a new identity and a deadline from the Orbital Latency Policy. A pending order
  * of the same player is superseded.
  *
  * @param state Current order state
  * @param submission The player's request
- * @return Tuple of (updated state, identity of the new order)
+ * @return Tuple of (updated state, commitment record with the new order's identity)
  */
-std::tuple<State, OrderId> submit(State state, const Submission& submission);
+std::tuple<State, OrderCommitted> submit(State state, const Submission& submission);
 
 /**
  * @brief Interpret what the Arena reported for one step

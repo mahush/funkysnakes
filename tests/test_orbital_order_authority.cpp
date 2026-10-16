@@ -3,6 +3,7 @@
 #include <gtest/gtest.h>
 
 #include <chrono>
+#include <tuple>
 #include <vector>
 
 #include "orbital/order_authority.hpp"
@@ -30,6 +31,12 @@ Status statusOf(const order_authority::State& state, OrderId id) {
   return Status::PENDING;
 }
 
+// Commit a submission and keep only the new order's identity
+std::tuple<order_authority::State, OrderId> submitOrder(order_authority::State state, const Submission& submission) {
+  auto [next, committed] = order_authority::submit(std::move(state), submission);
+  return {std::move(next), committed.order};
+}
+
 }  // namespace
 
 /// @section order_authority::submit
@@ -37,10 +44,10 @@ Status statusOf(const order_authority::State& state, OrderId id) {
 TEST(OrderAuthority, AssignsNewIdentityToEachSubmission) {
   // Given: an order was submitted
   auto [state, first] =
-      order_authority::submit(order_authority::startRound(ROUND), Submission{PLAYER_A, Point{3, 4}, milliseconds{0}});
+      submitOrder(order_authority::startRound(ROUND), Submission{PLAYER_A, Point{3, 4}, milliseconds{0}});
 
   // When: the same player submits again
-  auto [next_state, second] = order_authority::submit(state, Submission{PLAYER_A, Point{3, 4}, milliseconds{100}});
+  auto [next_state, second] = submitOrder(state, Submission{PLAYER_A, Point{3, 4}, milliseconds{100}});
 
   // Then: the second order has its own identity
   EXPECT_NE(first, second);
@@ -49,8 +56,8 @@ TEST(OrderAuthority, AssignsNewIdentityToEachSubmission) {
 /// @brief The deadline is fixed when the order is issued and taken from the Orbital Latency Policy
 TEST(OrderAuthority, StoresDeadlineFromIssueTime) {
   // When: an order is submitted at the peak of the orbital cycle
-  auto [state, id] = order_authority::submit(order_authority::startRound(ROUND),
-                                             Submission{PLAYER_A, Point{3, 4}, milliseconds{30000}});
+  auto [state, id] =
+      submitOrder(order_authority::startRound(ROUND), Submission{PLAYER_A, Point{3, 4}, milliseconds{30000}});
 
   // Then: its deadline lies the peak delay after its issue time
   EXPECT_EQ(order_authority::view(state).players.at(PLAYER_A).pending->deadline, milliseconds{32000});
@@ -59,11 +66,10 @@ TEST(OrderAuthority, StoresDeadlineFromIssueTime) {
 /// @brief A player can change their mind; the superseded order never activates
 TEST(OrderAuthority, SupersedesPendingOrderOfSamePlayer) {
   // Given: player A has a pending order G
-  auto [state, g] =
-      order_authority::submit(order_authority::startRound(ROUND), Submission{PLAYER_A, Point{3, 4}, milliseconds{0}});
+  auto [state, g] = submitOrder(order_authority::startRound(ROUND), Submission{PLAYER_A, Point{3, 4}, milliseconds{0}});
 
   // When: player A submits H
-  auto [next_state, h] = order_authority::submit(state, Submission{PLAYER_A, Point{8, 1}, milliseconds{100}});
+  auto [next_state, h] = submitOrder(state, Submission{PLAYER_A, Point{8, 1}, milliseconds{100}});
 
   // Then: G is superseded and H is the pending order
   EXPECT_EQ(statusOf(next_state, g), Status::SUPERSEDED);
@@ -72,15 +78,53 @@ TEST(OrderAuthority, SupersedesPendingOrderOfSamePlayer) {
 
 TEST(OrderAuthority, KeepsPendingOrdersOfOtherPlayers) {
   // Given: player A has a pending order
-  auto [state, a] =
-      order_authority::submit(order_authority::startRound(ROUND), Submission{PLAYER_A, Point{3, 4}, milliseconds{0}});
+  auto [state, a] = submitOrder(order_authority::startRound(ROUND), Submission{PLAYER_A, Point{3, 4}, milliseconds{0}});
 
   // When: player B submits an order
-  auto [next_state, b] = order_authority::submit(state, Submission{PLAYER_B, Point{8, 1}, milliseconds{100}});
+  auto [next_state, b] = submitOrder(state, Submission{PLAYER_B, Point{8, 1}, milliseconds{100}});
 
   // Then: both orders are pending
   EXPECT_EQ(statusOf(next_state, a), Status::PENDING);
   EXPECT_EQ(statusOf(next_state, b), Status::PENDING);
+}
+
+/// @brief The commitment time is the domain fact Game relates to the Arena's completions
+TEST(OrderAuthority, PublishesCommitmentWithItsTime) {
+  // When: player A commits an order at 1300 ms
+  auto [state, committed] = order_authority::submit(order_authority::startRound(ROUND),
+                                                    Submission{PLAYER_A, Point{3, 4}, milliseconds{1300}});
+
+  // Then: the commitment names round, order, player and time, and supersedes nothing
+  EXPECT_EQ(committed,
+            (OrderCommitted{ROUND,
+                            order_authority::view(state).players.at(PLAYER_A).pending->order.id,
+                            PLAYER_A,
+                            milliseconds{1300},
+                            std::nullopt}));
+}
+
+TEST(OrderAuthority, PublishesSupersededOrderWithCommitment) {
+  // Given: player A has a pending order G
+  auto [state, g] = submitOrder(order_authority::startRound(ROUND), Submission{PLAYER_A, Point{3, 4}, milliseconds{0}});
+
+  // When: player A commits H
+  auto [next_state, h] = order_authority::submit(state, Submission{PLAYER_A, Point{8, 1}, milliseconds{100}});
+
+  // Then: H's commitment names G as superseded
+  EXPECT_EQ(h.superseded, g);
+}
+
+/// @brief Only a pending order is superseded; an executing order is replaced in the Arena, not here
+TEST(OrderAuthority, SupersedesNothingWhenOnlyAnOrderExecutes) {
+  // Given: F executes
+  auto [state, f] = submitOrder(order_authority::startRound(ROUND), Submission{PLAYER_A, Point{3, 4}, milliseconds{0}});
+  order_authority::State executing = order_authority::observe(state, {OrderActivated{f, std::nullopt, {}}}, {});
+
+  // When: player A commits G
+  auto [next_state, g] = order_authority::submit(executing, Submission{PLAYER_A, Point{8, 1}, milliseconds{500}});
+
+  // Then: G's commitment supersedes nothing
+  EXPECT_FALSE(g.superseded.has_value());
 }
 
 /// @section order_authority::eligible
@@ -88,7 +132,7 @@ TEST(OrderAuthority, KeepsPendingOrdersOfOtherPlayers) {
 TEST(OrderAuthority, HoldsBackOrderBeforeItsDeadline) {
   // Given: an order issued at 0 ms, eligible after 200 ms
   auto [state, id] =
-      order_authority::submit(order_authority::startRound(ROUND), Submission{PLAYER_A, Point{3, 4}, milliseconds{0}});
+      submitOrder(order_authority::startRound(ROUND), Submission{PLAYER_A, Point{3, 4}, milliseconds{0}});
 
   // When: eligibility is checked just before the deadline
   std::vector<Order> orders = order_authority::eligible(state, milliseconds{199});
@@ -100,7 +144,7 @@ TEST(OrderAuthority, HoldsBackOrderBeforeItsDeadline) {
 TEST(OrderAuthority, ReleasesOrderOnceItsDeadlineHasElapsed) {
   // Given: an order issued at 0 ms, eligible after 200 ms
   auto [state, id] =
-      order_authority::submit(order_authority::startRound(ROUND), Submission{PLAYER_A, Point{3, 4}, milliseconds{0}});
+      submitOrder(order_authority::startRound(ROUND), Submission{PLAYER_A, Point{3, 4}, milliseconds{0}});
 
   // When: eligibility is checked at the deadline
   std::vector<Order> orders = order_authority::eligible(state, milliseconds{200});
@@ -116,9 +160,8 @@ TEST(OrderAuthority, ReleasesOrderOnceItsDeadlineHasElapsed) {
 /// @brief Revising postpones activation: the new order waits for its own deadline, not the old one
 TEST(OrderAuthority, DoesNotInheritDeadlineOfSupersededOrder) {
   // Given: G issued at 0 ms (eligible at 200 ms), superseded by H issued at 300 ms (eligible at 536 ms)
-  auto [state, g] =
-      order_authority::submit(order_authority::startRound(ROUND), Submission{PLAYER_A, Point{3, 4}, milliseconds{0}});
-  auto [revised_state, h] = order_authority::submit(state, Submission{PLAYER_A, Point{8, 1}, milliseconds{300}});
+  auto [state, g] = submitOrder(order_authority::startRound(ROUND), Submission{PLAYER_A, Point{3, 4}, milliseconds{0}});
+  auto [revised_state, h] = submitOrder(state, Submission{PLAYER_A, Point{8, 1}, milliseconds{300}});
 
   // When: eligibility is checked after G's but before H's deadline
   std::vector<Order> orders = order_authority::eligible(revised_state, milliseconds{500});
@@ -131,7 +174,7 @@ TEST(OrderAuthority, DoesNotInheritDeadlineOfSupersededOrder) {
 TEST(OrderAuthority, KeepsOrderPendingWhenEligibilityIsQueried) {
   // Given: an eligible order whose eligibility was queried
   auto [state, id] =
-      order_authority::submit(order_authority::startRound(ROUND), Submission{PLAYER_A, Point{3, 4}, milliseconds{0}});
+      submitOrder(order_authority::startRound(ROUND), Submission{PLAYER_A, Point{3, 4}, milliseconds{0}});
   order_authority::eligible(state, milliseconds{400});
 
   // When: eligibility is queried again
@@ -149,7 +192,7 @@ TEST(OrderAuthority, KeepsOrderPendingWhenEligibilityIsQueried) {
 TEST(OrderAuthority, MarksActivatedOrderAsExecuting) {
   // Given: a pending order
   auto [state, id] =
-      order_authority::submit(order_authority::startRound(ROUND), Submission{PLAYER_A, Point{3, 4}, milliseconds{0}});
+      submitOrder(order_authority::startRound(ROUND), Submission{PLAYER_A, Point{3, 4}, milliseconds{0}});
 
   // When: the Arena reports its activation
   order_authority::State observed = order_authority::observe(state, {OrderActivated{id, std::nullopt, {}}}, {});
@@ -163,7 +206,7 @@ TEST(OrderAuthority, MarksActivatedOrderAsExecuting) {
 TEST(OrderAuthority, RecordsReasonOfRejectedOrder) {
   // Given: a pending order
   auto [state, id] =
-      order_authority::submit(order_authority::startRound(ROUND), Submission{PLAYER_A, Point{3, 4}, milliseconds{0}});
+      submitOrder(order_authority::startRound(ROUND), Submission{PLAYER_A, Point{3, 4}, milliseconds{0}});
 
   // When: the Arena reports its rejection
   order_authority::State observed =
@@ -178,10 +221,9 @@ TEST(OrderAuthority, RecordsReasonOfRejectedOrder) {
 /// @brief A refused replacement leaves the executing order in place, as in the world
 TEST(OrderAuthority, KeepsExecutingOrderWhenReplacementIsRejected) {
   // Given: F executes and G is pending
-  auto [state, f] =
-      order_authority::submit(order_authority::startRound(ROUND), Submission{PLAYER_A, Point{3, 4}, milliseconds{0}});
+  auto [state, f] = submitOrder(order_authority::startRound(ROUND), Submission{PLAYER_A, Point{3, 4}, milliseconds{0}});
   order_authority::State executing = order_authority::observe(state, {OrderActivated{f, std::nullopt, {}}}, {});
-  auto [pending_state, g] = order_authority::submit(executing, Submission{PLAYER_A, Point{8, 1}, milliseconds{500}});
+  auto [pending_state, g] = submitOrder(executing, Submission{PLAYER_A, Point{8, 1}, milliseconds{500}});
 
   // When: the Arena rejects G
   order_authority::State observed =
@@ -194,9 +236,8 @@ TEST(OrderAuthority, KeepsExecutingOrderWhenReplacementIsRejected) {
 /// @brief In a distributed realization H may still be in transit when G activates; the world decides
 TEST(OrderAuthority, FollowsArenaWhenSupersededOrderWasActivated) {
   // Given: G was superseded by pending H
-  auto [state, g] =
-      order_authority::submit(order_authority::startRound(ROUND), Submission{PLAYER_A, Point{3, 4}, milliseconds{0}});
-  auto [revised_state, h] = order_authority::submit(state, Submission{PLAYER_A, Point{8, 1}, milliseconds{300}});
+  auto [state, g] = submitOrder(order_authority::startRound(ROUND), Submission{PLAYER_A, Point{3, 4}, milliseconds{0}});
+  auto [revised_state, h] = submitOrder(state, Submission{PLAYER_A, Point{8, 1}, milliseconds{300}});
 
   // When: the Arena reports that it activated G
   order_authority::State observed = order_authority::observe(revised_state, {OrderActivated{g, std::nullopt, {}}}, {});
@@ -209,7 +250,7 @@ TEST(OrderAuthority, FollowsArenaWhenSupersededOrderWasActivated) {
 TEST(OrderAuthority, IgnoresOutcomesOfUnknownOrders) {
   // Given: a pending order
   auto [state, id] =
-      order_authority::submit(order_authority::startRound(ROUND), Submission{PLAYER_A, Point{3, 4}, milliseconds{0}});
+      submitOrder(order_authority::startRound(ROUND), Submission{PLAYER_A, Point{3, 4}, milliseconds{0}});
 
   // When: the Arena reports outcomes for an order this round never issued
   order_authority::State observed =
@@ -238,7 +279,7 @@ class OrderAuthorityEnding : public ::testing::TestWithParam<EndingCase> {};
 TEST_P(OrderAuthorityEnding, RecordsHowExecutingOrderEnded) {
   // Given: an executing order
   auto [state, id] =
-      order_authority::submit(order_authority::startRound(ROUND), Submission{PLAYER_A, Point{3, 4}, milliseconds{0}});
+      submitOrder(order_authority::startRound(ROUND), Submission{PLAYER_A, Point{3, 4}, milliseconds{0}});
   order_authority::State executing = order_authority::observe(state, {OrderActivated{id, std::nullopt, {}}}, {});
 
   // When: the Arena reports how it ended
@@ -260,10 +301,9 @@ INSTANTIATE_TEST_SUITE_P(EndReasons,
 /// @brief Within one step, the old order is interrupted at activation of its replacement
 TEST(OrderAuthority, InterpretsReplacementAndInterruptionOfOneStep) {
   // Given: F executes and G is pending
-  auto [state, f] =
-      order_authority::submit(order_authority::startRound(ROUND), Submission{PLAYER_A, Point{3, 4}, milliseconds{0}});
+  auto [state, f] = submitOrder(order_authority::startRound(ROUND), Submission{PLAYER_A, Point{3, 4}, milliseconds{0}});
   order_authority::State executing = order_authority::observe(state, {OrderActivated{f, std::nullopt, {}}}, {});
-  auto [pending_state, g] = order_authority::submit(executing, Submission{PLAYER_A, Point{8, 1}, milliseconds{500}});
+  auto [pending_state, g] = submitOrder(executing, Submission{PLAYER_A, Point{8, 1}, milliseconds{500}});
 
   // When: the Arena activates G, interrupting F, in one step
   order_authority::State observed =
@@ -278,10 +318,9 @@ TEST(OrderAuthority, InterpretsReplacementAndInterruptionOfOneStep) {
 /// @brief F's completion stays F's, even while H is the latest intention
 TEST(OrderAuthority, KeepsPendingOrderWhenExecutingOrderCompletes) {
   // Given: F executes and H is pending
-  auto [state, f] =
-      order_authority::submit(order_authority::startRound(ROUND), Submission{PLAYER_A, Point{3, 4}, milliseconds{0}});
+  auto [state, f] = submitOrder(order_authority::startRound(ROUND), Submission{PLAYER_A, Point{3, 4}, milliseconds{0}});
   order_authority::State executing = order_authority::observe(state, {OrderActivated{f, std::nullopt, {}}}, {});
-  auto [pending_state, h] = order_authority::submit(executing, Submission{PLAYER_A, Point{8, 1}, milliseconds{500}});
+  auto [pending_state, h] = submitOrder(executing, Submission{PLAYER_A, Point{8, 1}, milliseconds{500}});
 
   // When: the Arena reports that F completed
   order_authority::State observed =
@@ -304,7 +343,7 @@ class OrderAuthorityWorldEvent : public ::testing::TestWithParam<ArenaEvent> {};
 TEST_P(OrderAuthorityWorldEvent, KeepsOrderStatusOnWorldEvent) {
   // Given: an executing order
   auto [state, id] =
-      order_authority::submit(order_authority::startRound(ROUND), Submission{PLAYER_A, Point{3, 4}, milliseconds{0}});
+      submitOrder(order_authority::startRound(ROUND), Submission{PLAYER_A, Point{3, 4}, milliseconds{0}});
   order_authority::State executing = order_authority::observe(state, {OrderActivated{id, std::nullopt, {}}}, {});
 
   // When: the Arena reports a world event of that player
@@ -325,9 +364,8 @@ INSTANTIATE_TEST_SUITE_P(WorldEvents,
 
 TEST(OrderAuthority, CancelsPendingOrders) {
   // Given: pending orders of both players
-  auto [state, a] =
-      order_authority::submit(order_authority::startRound(ROUND), Submission{PLAYER_A, Point{3, 4}, milliseconds{0}});
-  auto [both_state, b] = order_authority::submit(state, Submission{PLAYER_B, Point{8, 1}, milliseconds{0}});
+  auto [state, a] = submitOrder(order_authority::startRound(ROUND), Submission{PLAYER_A, Point{3, 4}, milliseconds{0}});
+  auto [both_state, b] = submitOrder(state, Submission{PLAYER_B, Point{8, 1}, milliseconds{0}});
 
   // When: the orders are cancelled
   order_authority::State cancelled = order_authority::cancel(both_state);
@@ -341,8 +379,7 @@ TEST(OrderAuthority, CancelsPendingOrders) {
 /// @brief In a distributed realization the Arena's report of the last step may arrive after the cancel
 TEST(OrderAuthority, AppliesLateEndingOfExecutingOrderAfterCancel) {
   // Given: an executing order, and the pending orders were cancelled
-  auto [state, f] =
-      order_authority::submit(order_authority::startRound(ROUND), Submission{PLAYER_A, Point{3, 4}, milliseconds{0}});
+  auto [state, f] = submitOrder(order_authority::startRound(ROUND), Submission{PLAYER_A, Point{3, 4}, milliseconds{0}});
   order_authority::State cancelled =
       order_authority::cancel(order_authority::observe(state, {OrderActivated{f, std::nullopt, {}}}, {}));
 
@@ -358,7 +395,7 @@ TEST(OrderAuthority, AppliesLateEndingOfExecutingOrderAfterCancel) {
 TEST(OrderAuthority, KeepsCancelledOrderCancelledWhenRejectionArrivesLate) {
   // Given: a pending order was cancelled
   auto [state, id] =
-      order_authority::submit(order_authority::startRound(ROUND), Submission{PLAYER_A, Point{3, 4}, milliseconds{0}});
+      submitOrder(order_authority::startRound(ROUND), Submission{PLAYER_A, Point{3, 4}, milliseconds{0}});
   order_authority::State cancelled = order_authority::cancel(state);
 
   // When: the Arena reports that it refused the order because the round ended

@@ -5,6 +5,7 @@
 #include <vector>
 
 #include "common/game_primitives.hpp"
+#include "common/game_time.hpp"
 #include "common/players.hpp"
 #include "orbital/identities.hpp"
 
@@ -14,9 +15,9 @@ namespace orbital {
 /**
  * Order vocabulary shared by the Order Authority and the Arena Authority
  *
- * The Order Authority hands eligible orders to the Arena; the Arena reports what actually
- * happened to them. Every item carries the identities needed to correlate it, also when it
- * arrives late in a distributed realization.
+ * The Order Authority hands eligible orders to the Arena and publishes its commitment history;
+ * the Arena reports what actually happened to the orders. Every item carries the identities needed to correlate it,
+ * also when it arrives late in a distributed realization.
  */
 
 /**
@@ -32,6 +33,33 @@ struct Order {
 
   bool operator==(const Order& other) const noexcept {
     return round == other.round && id == other.id && player == other.player && target == other.target;
+  }
+};
+
+// ============================================================================
+// Commitment history: what the Order Authority accepted from a player
+// ============================================================================
+
+/**
+ * @brief A player committed an order
+ *
+ * Commitment happens where the player's input is accepted; `committed_at` is that time on the
+ * round's timeline, and it stays the order's commitment time however late the record travels.
+ * `superseded` names the player's previously pending order that this commitment replaced.
+ *
+ * Together with the Arena's order endings, this history tells whether an order completed while
+ * a successor of the same player was already committed and still pending.
+ */
+struct OrderCommitted {
+  RoundId round;
+  OrderId order;
+  PlayerId player;
+  GameTime committed_at;
+  std::optional<OrderId> superseded;
+
+  bool operator==(const OrderCommitted& other) const noexcept {
+    return round == other.round && order == other.order && player == other.player &&
+           committed_at == other.committed_at && superseded == other.superseded;
   }
 };
 
