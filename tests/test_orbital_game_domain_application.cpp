@@ -349,16 +349,16 @@ TEST(OrbitalGameDomainApplication, ReportsSameStepsAndViewsForOneAdvanceAndItsPa
   EXPECT_EQ(viewedOutcome(in_parts_state), viewedOutcome(at_once_state));
 }
 
-/// @brief A submission's issue time is the current time of the game clock
-TEST(OrbitalGameDomainApplication, IssuesSubmissionAtCurrentGameTime) {
+/// @brief A submission's commitment time is the current time of the game clock
+TEST(OrbitalGameDomainApplication, CommitsSubmissionAtCurrentGameTime) {
   // Given: 1300 ms have passed
   app::State state = elapse(started(makeLanes({})), 1300);
 
   // When: a player submits an order
   auto [next, observations] = app::apply(state, app::Submit{PLAYER_A, Point{3, 3}});
 
-  // Then: it is issued at 1300 ms
-  EXPECT_EQ(std::get<SubmissionAccepted>(*observations.submission).issued_at, milliseconds{1300});
+  // Then: it is committed at 1300 ms
+  EXPECT_EQ(std::get<SubmissionAccepted>(*observations.submission).committed_at, milliseconds{1300});
 }
 
 /// @subsection views

@@ -98,7 +98,7 @@ app::State submit(app::State state, Point target, const std::string& name) {
   auto [next, observations] = app::apply(std::move(state), app::Submit{PLAYER_A, target});
   const auto& accepted = std::get<game_boundary::SubmissionAccepted>(*observations.submission);
   const order_authority::View orders = order_authority::view(*next.orders);
-  std::cout << "  " << accepted.issued_at.count() << " ms  A submits " << name << " to " << point(target)
+  std::cout << "  " << accepted.committed_at.count() << " ms  A submits " << name << " to " << point(target)
             << ", eligible from " << orders.players.at(PLAYER_A).pending->deadline.count() << " ms\n";
   return next;
 }
