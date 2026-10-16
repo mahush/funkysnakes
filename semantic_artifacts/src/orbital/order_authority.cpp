@@ -99,8 +99,8 @@ std::tuple<State, OrderId> submit(State state, const Submission& submission) {
   const Order order{state.round_, id, submission.player, submission.target};
   state.orders_.emplace(id,
                         OrderRecord{order,
-                                    submission.issued_at,
-                                    latency_policy::deadlineFor(submission.issued_at),
+                                    submission.committed_at,
+                                    latency_policy::deadlineFor(submission.committed_at),
                                     Status::PENDING,
                                     std::nullopt});
   state.pending_[submission.player] = id;

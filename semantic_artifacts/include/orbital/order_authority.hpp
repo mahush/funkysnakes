@@ -48,7 +48,7 @@ enum class Status {
  */
 struct OrderRecord {
   Order order;
-  GameTime issued_at;
+  GameTime committed_at;
   GameTime deadline;
   Status status;
   std::optional<RejectionReason> rejection;
@@ -90,7 +90,7 @@ class State {
 struct Submission {
   PlayerId player;
   Point target;
-  GameTime issued_at;  // Assigned from the round's logical clock
+  GameTime committed_at;  // When the player committed it, on the round's timeline
 };
 
 // ============================================================================

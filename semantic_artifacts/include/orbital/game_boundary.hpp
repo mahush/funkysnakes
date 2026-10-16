@@ -27,8 +27,8 @@ namespace game_boundary {
  * messages. Every realization offers the same interactions.
  *
  * Submission rule of the boundary: a submission is accepted while the game is running (as the
- * Game Authority says); afterwards it is rejected with ROUND_OVER. The issue time of a submission
- * is the current time of the round's logical clock; submissions are never backdated.
+ * Game Authority says); afterwards it is rejected with ROUND_OVER. An accepted submission is
+ * committed at the current time of the round's logical clock; submissions are never backdated.
  */
 
 // ============================================================================
@@ -66,11 +66,11 @@ struct TimeElapsed {
 // ============================================================================
 
 /**
- * @brief A submission became an order
+ * @brief A submission was committed as an order
  */
 struct SubmissionAccepted {
   OrderId order;
-  GameTime issued_at;
+  GameTime committed_at;
 };
 
 /**
