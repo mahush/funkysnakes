@@ -25,11 +25,18 @@ namespace scoring_policy {
  *
  * Submitting or superseding a pending order is no arena event and changes no points. A
  * nonlethal bite leaves an order's unbanked points intact.
+ *
+ * A completion that hands over to an already committed, still pending successor is worth a
+ * handover bonus in addition; whether a completion qualifies is the Game Authority's chain. The
+ * first handover of a chain is worth the base bonus, each consecutive one doubles it, up to a cap.
+ * Base and cap are provisional tuning values.
  */
 
 constexpr int FOOD_POINTS = 10;          // During an order, unbanked
 constexpr int FOOD_POINTS_NO_ORDER = 5;  // Without an order, credited at once
 constexpr int COLLISION_PENALTY = 10;
+constexpr int HANDOVER_BONUS_BASE = 10;  // First handover of a chain
+constexpr int HANDOVER_BONUS_CAP = 80;   // Doubling stops here
 
 /**
  * @brief Unbanked points of one executing order
@@ -60,6 +67,14 @@ struct Scores {
  * @return Scores after the events
  */
 Scores applyScoring(Scores scores, const ArenaEvents& events);
+
+/**
+ * @brief Bonus for the given handover of a chain
+ *
+ * @param handover Position of the handover in its chain, starting at 1
+ * @return Base bonus doubled for each earlier handover of the chain, at most the cap
+ */
+int handoverBonus(int handover);
 
 /**
  * @brief Lose all unbanked points
