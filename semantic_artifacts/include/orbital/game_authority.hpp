@@ -10,6 +10,7 @@
 #include "common/players.hpp"
 #include "orbital/arena_events.hpp"
 #include "orbital/identities.hpp"
+#include "orbital/order.hpp"
 #include "orbital/scoring_policy.hpp"
 
 namespace snake {
@@ -19,14 +20,27 @@ namespace game_authority {
 /**
  * Orbital Game Authority - owns the evolution of an Orbital Orders game as a whole
  *
- * Owns whether the game runs, its duration, the credited and unbanked points and the final
- * result. A game is one round. It sits beside the Arena and Order Authorities: it reads what the
- * Arena reports, uses the Orbital Scoring Policy for point values and announces the conclusion as
- * an intent, which the realization routes to the Arena (end of execution) and to the Order
- * Authority (cancel pending orders).
+ * Owns whether the game runs, its duration, the credited and unbanked points, each player's
+ * handover chain and the final result. A game is one round. It sits beside the Arena and Order
+ * Authorities: it reads what the Arena reports and the Order Authority's commitment history, uses
+ * the Orbital Scoring Policy for point values and announces the conclusion as an intent, which the
+ * realization routes to the Arena (end of execution) and to the Order Authority (cancel pending
+ * orders).
  *
  * Within one step, the step's events are scored before conclusion is checked, so a step due at
  * the end of the game still counts. Unbanked points left at conclusion are lost.
+ *
+ * Handover chain: an order completing while the player's latest successor was already committed
+ * and is still pending is a handover; it earns the Scoring Policy's bonus for its position in the
+ * chain. A successor counts as committed for a step if it was committed before the step's time,
+ * and as still pending if it has not been activated, rejected or superseded by then. The chain
+ * breaks with a completion without such a successor, an interruption, an elimination, a rejection
+ * of the successor or the end of the game.
+ *
+ * The chain is derived from both histories as far as they are known. Commitments may be learned
+ * after the steps they relate to, as when a player-local Order Authority synchronizes late; the
+ * bonuses are then credited when the commitment is learned, and the eventual score is the same as
+ * if it had been known in time. Arena history is never rewritten.
  */
 
 constexpr std::chrono::minutes GAME_DURATION{2};
@@ -48,6 +62,23 @@ struct GameConcluded {
   Result result;
 };
 
+/**
+ * @brief An observed arena step as far as the handover chain needs it
+ */
+struct ObservedStep {
+  GameTime at;
+  std::vector<ActivationOutcome> activations;
+  ArenaEvents events;
+};
+
+/**
+ * @brief A player's handover chain as derived from the known histories
+ */
+struct Chain {
+  int length{0};          // Consecutive handovers of the current chain
+  int bonus_credited{0};  // Handover bonus credited so far over the whole game
+};
+
 struct View;
 
 /**
@@ -65,14 +96,21 @@ class State {
   scoring_policy::Scores scores_;  // Credited points per player, unbanked points per order
   std::optional<Result> result_;   // Set once the game concluded
 
+  // Histories the handover chain is derived from
+  std::map<PlayerId, std::vector<OrderCommitted>> commitments_;  // Learned commitments per player
+  std::vector<ObservedStep> steps_;                              // Observed steps, in step order
+  std::map<PlayerId, Chain> chains_;                             // Derived chain and bonus credited so far
+
   // Construction
   friend State startRound(RoundId round, const std::vector<PlayerId>& players);
 
   // Transitions
   friend std::tuple<State, std::optional<GameConcluded>> observeStep(State state,
                                                                      GameTime now,
+                                                                     const std::vector<ActivationOutcome>& activations,
                                                                      const ArenaEvents& events,
                                                                      bool any_snake_alive);
+  friend State observeCommitment(State state, const OrderCommitted& committed);
 
   // Queries
   friend bool isRunning(const State& state);
@@ -102,6 +140,9 @@ State startRound(RoundId round, const std::vector<PlayerId>& players);
  * The game is over when its duration has elapsed or no snake is alive any more.
  * Steps observed after conclusion change nothing.
  *
+ * Completions of the step earn handover bonuses as far as the successors' commitments are known;
+ * see observeCommitment for commitments learned later.
+ *
  * Admitted input: every step of this round exactly once, in step order, with its events in the
  * order the Arena reported them. A step observed twice is scored twice, and steps out of order
  * can attribute food to an order that already ended; delivering complete steps once and in order
@@ -109,14 +150,33 @@ State startRound(RoundId round, const std::vector<PlayerId>& players);
  *
  * @param state Current game state
  * @param now Time of the step on the round's timeline
+ * @param activations Activation outcomes of the step
  * @param events Arena events of the step, in order
  * @param any_snake_alive Whether a snake is still alive after the step
  * @return Tuple of (updated state, conclusion intent if the game concluded with this step)
  */
 std::tuple<State, std::optional<GameConcluded>> observeStep(State state,
                                                             GameTime now,
+                                                            const std::vector<ActivationOutcome>& activations,
                                                             const ArenaEvents& events,
                                                             bool any_snake_alive);
+
+/**
+ * @brief Learn that a player committed an order
+ *
+ * The commitment counts with its own commitment time, whenever it is learned. If steps already
+ * observed show that the order was a successor pending at a completion, the handover bonus earned
+ * there is credited now. Commitments learned after conclusion, of another round or twice change
+ * nothing.
+ *
+ * Admitted input: the Order Authority's commitments of this round, in any order relative to the
+ * steps.
+ *
+ * @param state Current game state
+ * @param committed The commitment
+ * @return Updated game state
+ */
+State observeCommitment(State state, const OrderCommitted& committed);
 
 // ============================================================================
 // Queries: read the state without evolving it
@@ -135,7 +195,9 @@ bool isRunning(const State& state);
  */
 struct PlayerScore {
   int credited;
-  int unbanked;  // Points of the executing order that count only if it completes
+  int unbanked;       // Points of the executing order that count only if it completes
+  int chain;          // Consecutive handovers of the current chain
+  int next_handover;  // Bonus the next handover of the chain would earn
 };
 
 /**
