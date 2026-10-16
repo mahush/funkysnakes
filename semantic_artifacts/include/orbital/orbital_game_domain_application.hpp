@@ -28,11 +28,13 @@ using game_boundary::TimeElapsed;
  * networking or rendering. It routes boundary interactions and Authority outputs mechanically and
  * makes no gameplay decision of its own.
  *
- * One logical clock drives the round. Each step that falls due runs:
- *   eligible orders (Order) → step (Arena) → interpret outcomes (Order) → score and check end (Game)
+ * One logical clock drives the round. A submission is committed (Order) at the clock's current
+ * time and its commitment is passed on to Game. Each step that falls due runs:
+ *   eligible orders (Order) → step (Arena) → interpret outcomes (Order)
+ *   → score, advance handover chains and check end (Game)
  *   → if concluded: end execution (Arena) → interpret endings (Order) → cancel pending (Order)
- * Submissions are handled when they arrive, so a submission at the time of a step is handled
- * before that step if it arrives before the time advance that reaches it.
+ * The clock never stands on a step that has not run, so every commitment lies strictly before the
+ * next step and strictly after the steps already run, as Game's handover chain requires.
  */
 
 // Interval between arena steps on the game timeline

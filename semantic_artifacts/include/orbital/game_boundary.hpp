@@ -118,6 +118,7 @@ struct Views {
  */
 struct Observations {
   std::optional<SubmissionOutcome> submission;  // For Submit
+  std::optional<OrderCommitted> commitment;     // For an accepted Submit: the Order Authority's commitment record
   std::vector<StepReport> steps;                // Every step that ran, oldest first
   ArenaEvents end_of_round_events;              // Orders ended because the game concluded
   std::optional<game_authority::GameConcluded> concluded;
