@@ -87,13 +87,15 @@ State startRound(RoundId round) {
   return state;
 }
 
-std::tuple<State, OrderId> submit(State state, const Submission& submission) {
+std::tuple<State, OrderCommitted> submit(State state, const Submission& submission) {
   const OrderId id{state.next_order_id_};
   ++state.next_order_id_;
 
+  std::optional<OrderId> superseded;
   auto pending = state.pending_.find(submission.player);
   if (pending != state.pending_.end()) {
     state.orders_.at(pending->second).status = Status::SUPERSEDED;
+    superseded = pending->second;
   }
 
   const Order order{state.round_, id, submission.player, submission.target};
@@ -104,7 +106,8 @@ std::tuple<State, OrderId> submit(State state, const Submission& submission) {
                                     Status::PENDING,
                                     std::nullopt});
   state.pending_[submission.player] = id;
-  return {std::move(state), id};
+  const OrderCommitted committed{state.round_, id, submission.player, submission.committed_at, superseded};
+  return {std::move(state), committed};
 }
 
 std::vector<Order> eligible(const State& state, GameTime now) {
