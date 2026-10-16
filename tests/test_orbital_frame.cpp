@@ -107,6 +107,24 @@ TEST(OrbitalFrame, ShowsExecutingTargetAndRemainingRoute) {
   EXPECT_EQ(frame.players.at(PLAYER_A).executing_target, (Point{8, 5}));
 }
 
+/// @brief Players see the chain their prepared successors built and what the next handover is worth
+TEST(OrbitalFrame, ShowsHandoverChainAndNextBonus) {
+  // Given: A ordered the snake to (8,5), arriving at 1400 ms, and committed a successor at 1200 ms
+  auto [state, views] = started();
+  auto [with_order, order_views] = submitted(state, PLAYER_A, Point{8, 5});
+  auto [before_arrival, before_views] = elapsed(with_order, 1200);
+  auto [with_successor, successor_views] = submitted(before_arrival, PLAYER_A, Point{12, 5});
+
+  // When: the order arrives while the successor is pending
+  auto [next, handover_views] = elapsed(with_successor, 200);
+  Frame frame = orbital_frame::build(handover_views, {});
+
+  // Then: the chain has one handover, credited with its bonus, and the next one would earn double
+  EXPECT_EQ(frame.players.at(PLAYER_A).chain, 1);
+  EXPECT_EQ(frame.players.at(PLAYER_A).credited, 10);
+  EXPECT_EQ(frame.players.at(PLAYER_A).next_handover, 20);
+}
+
 TEST(OrbitalFrame, ShowsLinkDelayAndRemainingTime) {
   // Given: a game started
   auto [state, views] = started();

@@ -93,6 +93,8 @@ PlayerPanel buildPanel(const Views& views, const PlayerId& player, const std::ma
   if (auto score = views.game.players.find(player); score != views.game.players.end()) {
     panel.credited = score->second.credited;
     panel.unbanked = score->second.unbanked;
+    panel.chain = score->second.chain;
+    panel.next_handover = score->second.next_handover;
   }
   panel.alive = snake_model::alive(views.arena.snakes.at(player));
   if (auto orders = views.orders.players.find(player); orders != views.orders.players.end()) {
