@@ -326,6 +326,22 @@ TEST(OrbitalGameAuthority, IgnoresSuccessorCommittedAtTimeOfCompletion) {
   EXPECT_EQ(game_authority::view(observed).players.at(PLAYER_A).credited, 0);
 }
 
+TEST(OrbitalGameAuthority, BreaksChainAtConclusion) {
+  // Given: order 1 handed over to 2
+  State state = step(withPendingSuccessor(), 1000, {}, {completed(1)});
+
+  // When: the game concludes
+  auto [observed, concluded] =
+      game_authority::observeStep(std::move(state), std::chrono::minutes{2}, {}, {}, BOTH_ALIVE);
+
+  // Then: the earned bonus counts, and no chain is left
+  game_authority::PlayerScore score = game_authority::view(observed).players.at(PLAYER_A);
+  EXPECT_EQ(score.credited, 10);
+  EXPECT_EQ(score.chain, 0);
+}
+
+/// @section game_authority::observeCommitment
+
 /// @brief A player-local Order Authority may synchronize its history after the Arena reported the completion
 TEST(OrbitalGameAuthority, CreditsHandoverWhenSuccessorCommitmentIsLearnedLate) {
   // Given: order 1 activated and completed, before any commitment of a successor is known
@@ -385,18 +401,38 @@ TEST(OrbitalGameAuthority, IgnoresCommitmentLearnedAfterConclusion) {
   EXPECT_EQ(game_authority::view(observed).players.at(PLAYER_A).credited, 0);
 }
 
-TEST(OrbitalGameAuthority, BreaksChainAtConclusion) {
-  // Given: order 1 handed over to 2
-  State state = step(withPendingSuccessor(), 1000, {}, {completed(1)});
+/// @brief Synchronization may deliver an older commitment first; the later one shows it was superseded
+TEST(OrbitalGameAuthority, WithdrawsHandoverBonusWhenLateCommitmentShowsCountedSuccessorWasSuperseded) {
+  // Given: order 1 completed while order 3 was the latest known commitment, still pending
+  State state = game_authority::observeCommitment(runningGame(), committedByA(1, 0));
+  state = step(std::move(state), 200, {activated(1)}, {});
+  state = game_authority::observeCommitment(std::move(state), committedByA(3, 500));
+  state = step(std::move(state), 800, {OrderRejected{OrderId{4}, RejectionReason::TARGET_OFF_BOARD}}, {});
+  state = step(std::move(state), 1000, {}, {completed(1)});
 
-  // When: the game concludes
-  auto [observed, concluded] =
-      game_authority::observeStep(std::move(state), std::chrono::minutes{2}, {}, {}, BOTH_ALIVE);
+  // When: a commitment at 700 ms is learned, later than 3, whose order was resolved before the completion
+  State observed = game_authority::observeCommitment(
+      std::move(state), OrderCommitted{ROUND, OrderId{4}, PLAYER_A, milliseconds{700}, OrderId{3}});
 
-  // Then: the earned bonus counts, and no chain is left
+  // Then: no successor was pending at the completion, so the bonus credited before is withdrawn
   game_authority::PlayerScore score = game_authority::view(observed).players.at(PLAYER_A);
-  EXPECT_EQ(score.credited, 10);
+  EXPECT_EQ(score.credited, 0);
   EXPECT_EQ(score.chain, 0);
+}
+
+/// @brief Resending must not move a commitment in time; its first record is the domain fact
+TEST(OrbitalGameAuthority, KeepsFirstCommitmentTimeOfAnOrder) {
+  // Given: successor 2's commitment at 1100 ms was learned, after the completion at 1000 ms
+  State state = game_authority::observeCommitment(runningGame(), committedByA(1, 0));
+  state = step(std::move(state), 200, {activated(1)}, {});
+  state = game_authority::observeCommitment(std::move(state), committedByA(2, 1100));
+  state = step(std::move(state), 1000, {}, {completed(1)});
+
+  // When: a record for order 2 with an earlier time is learned
+  State observed = game_authority::observeCommitment(std::move(state), committedByA(2, 500));
+
+  // Then: the first time counts, so the completion stays no handover
+  EXPECT_EQ(game_authority::view(observed).players.at(PLAYER_A).credited, 0);
 }
 
 }  // namespace orbital
