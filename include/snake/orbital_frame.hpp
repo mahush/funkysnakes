@@ -8,6 +8,7 @@
 #include "common/game_primitives.hpp"
 #include "common/players.hpp"
 #include "orbital/game_boundary.hpp"
+#include "snake/orbital_food_labels.hpp"
 
 namespace snake {
 namespace orbital_frame {
@@ -36,13 +37,21 @@ enum class CellRole {
 };
 
 /**
- * @brief One board cell: its role and the player it belongs to, if any
+ * @brief One board cell: its role, the player it belongs to and the label of its food, if any
  */
 struct Cell {
-  CellRole role{CellRole::EMPTY};
+  CellRole role;
   std::optional<PlayerId> player;
+  std::optional<int> label;  // Label of a food cell
 
-  bool operator==(const Cell& other) const noexcept { return role == other.role && player == other.player; }
+  Cell(CellRole cell_role = CellRole::EMPTY,
+       std::optional<PlayerId> cell_player = std::nullopt,
+       std::optional<int> food_label = std::nullopt)
+      : role{cell_role}, player{std::move(cell_player)}, label{food_label} {}
+
+  bool operator==(const Cell& other) const noexcept {
+    return role == other.role && player == other.player && label == other.label;
+  }
 };
 
 /**
@@ -97,9 +106,12 @@ struct Frame {
  *
  * @param views Views of the Domain Application after the latest interaction
  * @param cursors Cursor position per player
+ * @param food_labels Labels of the food on the board
  * @return Board cells and panel values
  */
-Frame build(const orbital::game_boundary::Views& views, const std::map<PlayerId, Point>& cursors);
+Frame build(const orbital::game_boundary::Views& views,
+            const std::map<PlayerId, Point>& cursors,
+            const orbital_food_labels::FoodLabels& food_labels = {});
 
 }  // namespace orbital_frame
 }  // namespace snake

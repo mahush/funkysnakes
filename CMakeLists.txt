@@ -115,6 +115,7 @@ add_executable(orbital_snake
   src/orbital_frame.cpp
   src/orbital_view.cpp
   src/orbital_controls.cpp
+  src/orbital_food_labels.cpp
   semantic_artifacts/src/orbital/arena_authority.cpp
   semantic_artifacts/src/orbital/game_authority.cpp
   semantic_artifacts/src/orbital/order_authority.cpp
@@ -179,6 +180,8 @@ if(SNAKE_BUILD_TESTS)
     src/orbital_frame.cpp
     tests/test_orbital_controls.cpp
     src/orbital_controls.cpp
+    tests/test_orbital_food_labels.cpp
+    src/orbital_food_labels.cpp
     semantic_artifacts/src/orbital/orbital_game_domain_application.cpp
     semantic_artifacts/src/orbital/pursuit_policy.cpp
     tests/test_classic_game_domain_application.cpp

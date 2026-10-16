@@ -82,7 +82,9 @@ std::string cellSymbol(CellRole role) {
 }
 
 ftxui::Element cellElement(const Cell& cell) {
-  ftxui::Element symbol = ftxui::text(cellSymbol(cell.role));
+  // Labelled food shows its digit in place of the food symbol
+  ftxui::Element symbol = ftxui::text(cell.role == CellRole::FOOD && cell.label ? std::to_string(*cell.label) + " "
+                                                                                : cellSymbol(cell.role));
   if (cell.role == CellRole::FOOD) {
     return symbol | ftxui::color(foodColor());
   }
@@ -255,7 +257,7 @@ ftxui::Element keyHelp() {
   return ftxui::hbox({
              ftxui::text(" "),
              ftxui::text("●") | ftxui::color(playerColor(PLAYER_A)),
-             ftxui::text(" w a s d · e     "),
+             ftxui::text(" w a s d · e · 0-9 food     "),
              ftxui::text("●") | ftxui::color(playerColor(PLAYER_B)),
              ftxui::text(" ← ↑ → ↓ · Enter     n new   q quit"),
          }) |

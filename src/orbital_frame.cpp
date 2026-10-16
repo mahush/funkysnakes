@@ -48,7 +48,9 @@ void putRoute(CellGrid& cells,
 }
 
 // Board cells, drawn lowest precedence first so that later cells cover earlier ones
-CellGrid buildCells(const Views& views, const std::map<PlayerId, Point>& cursors) {
+CellGrid buildCells(const Views& views,
+                    const std::map<PlayerId, Point>& cursors,
+                    const orbital_food_labels::FoodLabels& food_labels) {
   const Board& board = views.arena.board;
   CellGrid cells(board.height, std::vector<Cell>(board.width));
 
@@ -65,6 +67,9 @@ CellGrid buildCells(const Views& views, const std::map<PlayerId, Point>& cursors
   }
   for (const Point& food : views.arena.food) {
     put(cells, food, Cell{CellRole::FOOD, std::nullopt});
+  }
+  for (const auto& [label, food] : food_labels) {
+    put(cells, food, Cell{CellRole::FOOD, std::nullopt, label});
   }
   for (const auto& [player, orders] : views.orders.players) {
     if (orders.pending) {
@@ -114,9 +119,11 @@ PlayerPanel buildPanel(const Views& views, const PlayerId& player, const std::ma
 
 }  // namespace
 
-Frame build(const Views& views, const std::map<PlayerId, Point>& cursors) {
+Frame build(const Views& views,
+            const std::map<PlayerId, Point>& cursors,
+            const orbital_food_labels::FoodLabels& food_labels) {
   Frame frame;
-  frame.cells = buildCells(views, cursors);
+  frame.cells = buildCells(views, cursors, food_labels);
   frame.delay =
       DelayGauge{views.submission_delay, orbital::latency_policy::MIN_DELAY, orbital::latency_policy::MAX_DELAY};
   frame.remaining = views.game.remaining;

@@ -23,6 +23,7 @@
 #include "orbital/orbital_game_domain_application.hpp"
 #include "snake/key.hpp"
 #include "snake/orbital_controls.hpp"
+#include "snake/orbital_food_labels.hpp"
 #include "snake/orbital_frame.hpp"
 #include "snake/orbital_view.hpp"
 
@@ -33,6 +34,7 @@ using snake::RandomIntGeneratorFn;
 using snake::SpecialKey;
 namespace orbital = snake::orbital;
 namespace orbital_controls = snake::orbital_controls;
+namespace orbital_food_labels = snake::orbital_food_labels;
 namespace orbital_frame = snake::orbital_frame;
 namespace orbital_view = snake::orbital_view;
 namespace app = orbital::orbital_game_domain_application;
@@ -130,10 +132,16 @@ int main() {
   std::tie(state, observations) = app::apply(random_int_fn, app::initial(), app::Start{orbital::RoundId{++round}});
   Views views = *observations.views;
   orbital_controls::Cursors cursors = orbital_controls::makeCursors(views);
+  orbital_food_labels::FoodLabels food_labels = orbital_food_labels::relabel({}, views.arena.food);
 
   const NulDroppingCout nul_dropping_cout;  // Outlives the screen, which writes on teardown too
   auto screen = ftxui::ScreenInteractive::FullscreenAlternateScreen();
   auto on_key = [&](const Key& key) {
+    if (auto submit = orbital_food_labels::trySubmitFood(food_labels, key)) {
+      std::tie(state, observations) = app::apply(std::move(state), *submit);
+      views = *observations.views;
+      return;
+    }
     auto [next_cursors, intent] = orbital_controls::interpretKey(views.arena.board, std::move(cursors), key);
     cursors = std::move(next_cursors);
     if (!intent) {
@@ -145,20 +153,21 @@ int main() {
       std::tie(state, observations) =
           app::apply(random_int_fn, std::move(state), app::Start{orbital::RoundId{++round}});
       cursors = orbital_controls::makeCursors(*observations.views);
+      food_labels = orbital_food_labels::relabel({}, observations.views->arena.food);
     } else {
       screen.Exit();
     }
     views = *observations.views;
   };
-  auto component =
-      ftxui::CatchEvent(ftxui::Renderer([&] { return orbital_view::draw(orbital_frame::build(views, cursors)); }),
-                        [&](const ftxui::Event& event) {
-                          if (auto key = tryKey(event)) {
-                            on_key(*key);
-                            return true;
-                          }
-                          return false;
-                        });
+  auto component = ftxui::CatchEvent(
+      ftxui::Renderer([&] { return orbital_view::draw(orbital_frame::build(views, cursors, food_labels)); }),
+      [&](const ftxui::Event& event) {
+        if (auto key = tryKey(event)) {
+          on_key(*key);
+          return true;
+        }
+        return false;
+      });
 
   ftxui::Loop loop{&screen, component};
   auto last = std::chrono::steady_clock::now();
@@ -168,6 +177,7 @@ int main() {
     last += elapsed;  // Keep the sub-millisecond remainder for the next frame
     std::tie(state, observations) = app::apply(random_int_fn, std::move(state), app::TimeElapsed{elapsed});
     views = *observations.views;
+    food_labels = orbital_food_labels::relabel(std::move(food_labels), views.arena.food);
 
     screen.PostEvent(ftxui::Event::Custom);  // Redraw even without keys
     loop.RunOnce();                          // Handles the pending keys, then draws

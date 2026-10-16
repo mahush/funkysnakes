@@ -73,6 +73,17 @@ TEST(OrbitalFrame, PlacesSnakesFoodAndCursorsOnBoard) {
   EXPECT_EQ(cellAt(frame, Point{12, 4}), (Cell{CellRole::CURSOR, PLAYER_A}));
 }
 
+TEST(OrbitalFrame, LabelsFoodWithItsDigit) {
+  // Given: a game started
+  auto [state, views] = started();
+
+  // When: the frame is built with the food at (10,5) labelled 3
+  Frame frame = orbital_frame::build(views, {}, {{3, Point{10, 5}}});
+
+  // Then: that food cell carries the label
+  EXPECT_EQ(cellAt(frame, Point{10, 5}), (Cell{CellRole::FOOD, std::nullopt, 3}));
+}
+
 /// @brief Players see where their order in transit will lead and when it can activate
 TEST(OrbitalFrame, ShowsPendingTargetRouteAndCountdown) {
   // Given: a game started
