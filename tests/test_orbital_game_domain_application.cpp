@@ -101,21 +101,19 @@ TEST(OrbitalGameDomainApplication, StartsOnSquareBoardWithSnakesSideBySide) {
 
 /// @subsection unbanked points
 
-/// @brief The defining history: F collects +20 while G is pending, and F completes first
-TEST(OrbitalGameDomainApplication, BanksPointsOfOrderThatCompletesBeforeReplacementActivates) {
-  // Given: F to (10,2) activates at 200 ms, collects food at (5,2) and (7,2) and arrives at 1600 ms;
-  //        G is submitted at 1400 ms (eligible at 1768 ms)
+/// @brief F's food points count once F completes; no successor was prepared, so no handover bonus
+TEST(OrbitalGameDomainApplication, BanksPointsOfOrderThatCompletes) {
+  // Given: F to (10,2) activates at 200 ms and collects food at (5,2) and (7,2)
   auto [with_f, f] = submit(started(makeLanes({Point{5, 2}, Point{7, 2}})), PLAYER_A, Point{10, 2});
-  auto [with_g, g] = submit(elapse(with_f, 1400), PLAYER_A, Point{10, 6});
 
-  // When: time passes until G has activated at 1800 ms
-  app::State state = elapse(with_g, 400);
+  // When: time passes until F has arrived at 1600 ms
+  app::State state = elapse(with_f, 1600);
 
-  // Then: F completed and its 20 points count; G executes
+  // Then: F completed and its 20 points count
   EXPECT_EQ(statusOf(state, f), Status::COMPLETED);
-  EXPECT_EQ(statusOf(state, g), Status::EXECUTING);
   EXPECT_EQ(scoreOf(state, PLAYER_A).credited, 20);
   EXPECT_EQ(scoreOf(state, PLAYER_A).unbanked, 0);
+  EXPECT_EQ(scoreOf(state, PLAYER_A).chain, 0);
 }
 
 /// @brief The defining history: F collects +20 while G is pending, and G activates first
@@ -148,6 +146,139 @@ TEST(OrbitalGameDomainApplication, KeepsUnbankedPointsWhenReplacementIsOnlySubmi
   EXPECT_EQ(scoreOf(with_g, PLAYER_A).unbanked, 20);
   EXPECT_EQ(statusOf(with_g, f), Status::EXECUTING);
   EXPECT_EQ(statusOf(with_g, g), Status::PENDING);
+}
+
+/// @subsection handover chain
+///
+/// F to (10,2) activates at 200 ms and arrives at 1600 ms. A successor committed at 1400 ms is
+/// eligible after 1684 ms and so still pending when F completes.
+
+/// @brief The defining history of the refinement: G is committed before F completes and still pending then
+TEST(OrbitalGameDomainApplication, AwardsHandoverBonusWhenSuccessorIsCommittedBeforeCompletion) {
+  // Given: F collects food at (5,2) and (7,2); G is committed at 1400 ms
+  auto [with_f, f] = submit(started(makeLanes({Point{5, 2}, Point{7, 2}})), PLAYER_A, Point{10, 2});
+  auto [with_g, g] = submit(elapse(with_f, 1400), PLAYER_A, Point{10, 6});
+
+  // When: time passes until G has activated at 1800 ms
+  app::State state = elapse(with_g, 400);
+
+  // Then: F's 20 food points and the base handover bonus count; the chain has one handover
+  EXPECT_EQ(statusOf(state, f), Status::COMPLETED);
+  EXPECT_EQ(statusOf(state, g), Status::EXECUTING);
+  EXPECT_EQ(scoreOf(state, PLAYER_A).credited, 20 + 10);
+  EXPECT_EQ(scoreOf(state, PLAYER_A).chain, 1);
+  EXPECT_EQ(scoreOf(state, PLAYER_A).next_handover, 20);
+}
+
+TEST(OrbitalGameDomainApplication, DoublesHandoverBonusForConsecutiveHandover) {
+  // Given: F hands over to G, which activates at 1800 ms towards (10,6) and arrives at 2400 ms;
+  //        H is committed at 2200 ms (eligible after 2530 ms)
+  auto [with_f, f] = submit(started(makeLanes({})), PLAYER_A, Point{10, 2});
+  auto [with_g, g] = submit(elapse(with_f, 1400), PLAYER_A, Point{10, 6});
+  auto [with_h, h] = submit(elapse(with_g, 800), PLAYER_A, Point{3, 6});
+
+  // When: time passes until G has completed
+  app::State state = elapse(with_h, 200);
+
+  // Then: both handovers count, the second worth twice the first
+  EXPECT_EQ(statusOf(state, g), Status::COMPLETED);
+  EXPECT_EQ(statusOf(state, h), Status::PENDING);
+  EXPECT_EQ(scoreOf(state, PLAYER_A).credited, 10 + 20);
+  EXPECT_EQ(scoreOf(state, PLAYER_A).chain, 2);
+}
+
+/// @brief Committing too late: F completes before its successor exists
+TEST(OrbitalGameDomainApplication, BreaksChainWhenSuccessorIsCommittedAfterCompletion) {
+  // Given: F hands over to G, which arrives at 2400 ms; H is committed only at 2400 ms, after that step
+  auto [with_f, f] = submit(started(makeLanes({})), PLAYER_A, Point{10, 2});
+  auto [with_g, g] = submit(elapse(with_f, 1400), PLAYER_A, Point{10, 6});
+  auto [with_h, h] = submit(elapse(with_g, 1000), PLAYER_A, Point{3, 6});
+
+  // When: time passes until H has activated
+  app::State state = elapse(with_h, 600);
+
+  // Then: only F's handover counts and the chain is broken
+  EXPECT_EQ(statusOf(state, g), Status::COMPLETED);
+  EXPECT_EQ(statusOf(state, h), Status::EXECUTING);
+  EXPECT_EQ(scoreOf(state, PLAYER_A).credited, 10);
+  EXPECT_EQ(scoreOf(state, PLAYER_A).chain, 0);
+}
+
+/// @brief Committing too early: the successor activates first and interrupts G
+TEST(OrbitalGameDomainApplication, BreaksChainAndLosesPointsWhenSuccessorActivatesFirst) {
+  // Given: F hands over to G, which collects food at (10,4) on its way to (10,6); H is committed at 1900 ms
+  auto [with_f, f] = submit(started(makeLanes({Point{10, 4}})), PLAYER_A, Point{10, 2});
+  auto [with_g, g] = submit(elapse(with_f, 1400), PLAYER_A, Point{10, 6});
+  auto [with_h, h] = submit(elapse(with_g, 500), PLAYER_A, Point{3, 6});
+
+  // When: time passes until H has activated at 2400 ms, the step at which G would have arrived
+  app::State state = elapse(with_h, 500);
+
+  // Then: G was interrupted, its food points are lost, F's handover still counts and the chain is broken
+  EXPECT_EQ(statusOf(state, g), Status::INTERRUPTED);
+  EXPECT_EQ(statusOf(state, h), Status::EXECUTING);
+  EXPECT_EQ(scoreOf(state, PLAYER_A).credited, 10);
+  EXPECT_EQ(scoreOf(state, PLAYER_A).unbanked, 0);
+  EXPECT_EQ(scoreOf(state, PLAYER_A).chain, 0);
+}
+
+/// @brief Revising the prepared successor keeps the handover: the latest committed successor counts
+TEST(OrbitalGameDomainApplication, KeepsHandoverWhenPendingSuccessorIsRevised) {
+  // Given: G is committed at 1200 ms and superseded by G' at 1400 ms, both before F completes
+  auto [with_f, f] = submit(started(makeLanes({})), PLAYER_A, Point{10, 2});
+  auto [with_g, g] = submit(elapse(with_f, 1200), PLAYER_A, Point{10, 8});
+  auto [with_revised, revised] = submit(elapse(with_g, 200), PLAYER_A, Point{10, 6});
+
+  // When: time passes until G' has activated
+  app::State state = elapse(with_revised, 400);
+
+  // Then: G never activated, and F's completion is a handover to G'
+  EXPECT_EQ(statusOf(state, g), Status::SUPERSEDED);
+  EXPECT_EQ(statusOf(state, revised), Status::EXECUTING);
+  EXPECT_EQ(scoreOf(state, PLAYER_A).credited, 10);
+  EXPECT_EQ(scoreOf(state, PLAYER_A).chain, 1);
+}
+
+/// @brief A prepared successor that the Arena refuses ends the chain it was prepared for
+TEST(OrbitalGameDomainApplication, BreaksChainWhenSuccessorIsRejected) {
+  // Given: G, with a target outside the board, is committed at 1400 ms
+  auto [with_f, f] = submit(started(makeLanes({})), PLAYER_A, Point{10, 2});
+  auto [with_g, g] = submit(elapse(with_f, 1400), PLAYER_A, Point{25, 2});
+
+  // When: time passes until G was evaluated at 1800 ms
+  app::State state = elapse(with_g, 400);
+
+  // Then: F's handover counts, but G was rejected and the chain is broken
+  EXPECT_EQ(statusOf(state, g), Status::REJECTED);
+  EXPECT_EQ(scoreOf(state, PLAYER_A).credited, 10);
+  EXPECT_EQ(scoreOf(state, PLAYER_A).chain, 0);
+}
+
+/// @brief Distributed ordering: Game learns the player's earlier commitment only after the Arena's completion
+TEST(OrbitalGameDomainApplication, ReachesSameScoreWhenCommitmentReachesGameAfterCompletion) {
+  // Given: the canonical history, in which G is committed at 1400 ms and F completes at 1600 ms
+  auto [with_f, f_observations] =
+      app::apply(started(makeLanes({Point{5, 2}, Point{7, 2}})), app::Submit{PLAYER_A, Point{10, 2}});
+  auto [before_g, early] = app::apply(makeCornerRandom(), std::move(with_f), app::TimeElapsed{milliseconds{1400}});
+  auto [with_g, g_observations] = app::apply(std::move(before_g), app::Submit{PLAYER_A, Point{10, 6}});
+  auto [canonical, late] = app::apply(makeCornerRandom(), std::move(with_g), app::TimeElapsed{milliseconds{400}});
+  //        and a Game that learns F's commitment and all steps first
+  game_authority::State game = game_authority::observeCommitment(
+      game_authority::startRound(ROUND, {PLAYER_A, PLAYER_B}), *f_observations.commitment);
+  for (const auto* steps : {&early.steps, &late.steps}) {
+    for (const game_boundary::StepReport& report : *steps) {
+      game =
+          std::get<0>(game_authority::observeStep(std::move(game), report.at, report.activations, report.events, true));
+    }
+  }
+
+  // When: G's commitment record reaches that Game after F's completion
+  game = game_authority::observeCommitment(std::move(game), *g_observations.commitment);
+
+  // Then: its score and chain equal those of the canonical Domain Application
+  EXPECT_EQ(game_authority::view(game).players.at(PLAYER_A).credited, scoreOf(canonical, PLAYER_A).credited);
+  EXPECT_EQ(game_authority::view(game).players.at(PLAYER_A).chain, scoreOf(canonical, PLAYER_A).chain);
+  EXPECT_EQ(scoreOf(canonical, PLAYER_A).credited, 20 + 10);
 }
 
 /// @subsection pending orders

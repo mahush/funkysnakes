@@ -133,7 +133,9 @@ std::tuple<State, Observations> apply(State state, const Submit& submit) {
   auto [orders, committed] = order_authority::submit(
       std::move(*state.orders), order_authority::Submission{submit.player, submit.target, state.clock.now});
   state.orders = std::move(orders);
+  state.game = game_authority::observeCommitment(std::move(*state.game), committed);
   observations.submission = SubmissionAccepted{committed.order, committed.committed_at};
+  observations.commitment = committed;
   observations = withViews(std::move(observations), state);
   return {std::move(state), std::move(observations)};
 }
