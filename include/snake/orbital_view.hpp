@@ -16,8 +16,8 @@ namespace orbital_view {
  * square board looks square.
  * Colours come from the Gruvbox dark palette: blue borders, a grey link delay, purple and yellow snakes.
  * Cell symbols, in the colour of their player: '●' snake, '⬤' head, '✖' head of a dead snake,
- * '·' pending route (faded), '•' active route, '◎' target, '✚' cursor; '◆' food in green, or its label digit if it has
- * one.
+ * '·' pending route (faded), '•' active route, '◎' target, '✚' cursor; '◆' food in green, followed by its label digit
+ * if it has one, e.g. '◆3'.
  */
 
 /**

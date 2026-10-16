@@ -82,8 +82,8 @@ std::string cellSymbol(CellRole role) {
 }
 
 ftxui::Element cellElement(const Cell& cell) {
-  // Labelled food shows its digit in place of the food symbol
-  ftxui::Element symbol = ftxui::text(cell.role == CellRole::FOOD && cell.label ? std::to_string(*cell.label) + " "
+  // Labelled food shows its digit in the second column, next to the food symbol
+  ftxui::Element symbol = ftxui::text(cell.role == CellRole::FOOD && cell.label ? "◆" + std::to_string(*cell.label)
                                                                                 : cellSymbol(cell.role));
   if (cell.role == CellRole::FOOD) {
     return symbol | ftxui::color(foodColor());
