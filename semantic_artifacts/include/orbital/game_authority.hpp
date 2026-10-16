@@ -40,8 +40,11 @@ namespace game_authority {
  *
  * The chain is derived from both histories as far as they are known. Commitments may be learned
  * after the steps they relate to, as when a player-local Order Authority synchronizes late; the
- * bonuses are then credited when the commitment is learned, and the eventual score is the same as
- * if it had been known in time. Arena history is never rewritten.
+ * chain is then derived again and the difference of the bonuses is credited when the commitment is
+ * learned. Usually that adds a bonus; it withdraws one that was credited on incomplete history,
+ * when a later commitment shows that the counted successor had already been superseded. Either
+ * way, the eventual score is the same as if every commitment had been known in time, so scores
+ * shown before the histories are complete are provisional. Arena history is never rewritten.
  */
 
 constexpr std::chrono::minutes GAME_DURATION{2};
@@ -168,8 +171,10 @@ std::tuple<State, std::optional<GameConcluded>> observeStep(State state,
  *
  * The commitment counts with its own commitment time, whenever it is learned. If steps already
  * observed show that the order was a successor pending at a completion, the handover bonus earned
- * there is credited now. Commitments learned after conclusion, of another round or twice change
- * nothing.
+ * there is credited now; if it shows that a counted successor had been superseded, that bonus is
+ * withdrawn. Commitments learned after conclusion or of another round change nothing. An order's
+ * commitment counts once: a later record for an already known order, also with another time,
+ * changes nothing, so a commitment time cannot be rewritten by resending.
  *
  * Admitted input: the Order Authority's commitments of this round, in any order relative to the
  * steps.

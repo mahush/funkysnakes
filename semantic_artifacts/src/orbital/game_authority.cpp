@@ -160,7 +160,8 @@ State observeCommitment(State state, const OrderCommitted& committed) {
     return state;
   }
   std::vector<OrderCommitted>& known = state.commitments_[committed.player];
-  if (std::find(known.begin(), known.end(), committed) != known.end()) {
+  auto same_order = [&committed](const OrderCommitted& other) { return other.order == committed.order; };
+  if (std::any_of(known.begin(), known.end(), same_order)) {
     return state;
   }
   known.push_back(committed);
