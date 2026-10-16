@@ -1,5 +1,7 @@
 #include "orbital/scoring_policy.hpp"
 
+#include <algorithm>
+
 namespace snake {
 namespace orbital {
 namespace scoring_policy {
@@ -51,6 +53,14 @@ Scores applyScoring(Scores scores, const ArenaEvents& events) {
     scores = std::visit([&scores](const auto& item) { return applyEvent(std::move(scores), item); }, event);
   }
   return scores;
+}
+
+int handoverBonus(int handover) {
+  int bonus = HANDOVER_BONUS_BASE;
+  for (int i = 1; i < handover && bonus < HANDOVER_BONUS_CAP; ++i) {
+    bonus *= 2;
+  }
+  return std::min(bonus, HANDOVER_BONUS_CAP);
 }
 
 Scores loseUnbanked(Scores scores) {

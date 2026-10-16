@@ -167,5 +167,36 @@ TEST(OrbitalScoringPolicy, LosesAllUnbankedPointsAtConclusion) {
   EXPECT_EQ(concluded.credited, startScores().credited);
 }
 
+/// @section scoring_policy::handoverBonus
+
+namespace {
+
+struct HandoverBonusCase {
+  int handover;
+  int bonus;
+};
+
+class OrbitalScoringPolicyHandoverBonus : public ::testing::TestWithParam<HandoverBonusCase> {};
+
+}  // namespace
+
+/// @brief Consecutive handovers double the bonus; the cap keeps a long chain from deciding the game alone
+TEST_P(OrbitalScoringPolicyHandoverBonus, DoublesBonusForEachConsecutiveHandoverUpToCap) {
+  // When: the bonus of a handover is computed
+  int bonus = scoring_policy::handoverBonus(GetParam().handover);
+
+  // Then: it is the base doubled per earlier handover, capped
+  EXPECT_EQ(bonus, GetParam().bonus);
+}
+
+INSTANTIATE_TEST_SUITE_P(Handovers,
+                         OrbitalScoringPolicyHandoverBonus,
+                         ::testing::Values(HandoverBonusCase{1, 10},
+                                           HandoverBonusCase{2, 20},
+                                           HandoverBonusCase{3, 40},
+                                           HandoverBonusCase{4, 80},
+                                           HandoverBonusCase{5, 80},
+                                           HandoverBonusCase{12, 80}));
+
 }  // namespace orbital
 }  // namespace snake
