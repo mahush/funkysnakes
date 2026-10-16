@@ -238,6 +238,7 @@ std::string orderText(const PlayerPanel& panel) {
 ftxui::Element playerPanel(const PlayerId& player, const PlayerPanel& panel, int width) {
   std::vector<ftxui::Element> lines{
       ftxui::text(std::to_string(panel.credited) + " pts   +" + std::to_string(panel.unbanked) + " unbanked"),
+      ftxui::text("chain " + std::to_string(panel.chain) + "   next handover +" + std::to_string(panel.next_handover)),
       ftxui::text(orderText(panel)),
   };
   if (panel.pending_target && panel.executing_target) {
