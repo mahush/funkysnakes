@@ -265,6 +265,22 @@ TEST(OrbitalGameAuthority, BreaksChainWhenSuccessorIsRejected) {
   EXPECT_EQ(score.chain, 0);
 }
 
+/// @brief A late refusal of a superseded draft concerns no prepared successor, as for the Order Authority
+TEST(OrbitalGameAuthority, KeepsChainWhenSupersededDraftIsRejected) {
+  // Given: order 1 handed over to 2, 2 executes, and draft 3 was superseded by pending successor 4
+  State state = step(withPendingSuccessor(), 1000, {}, {completed(1)});
+  state = step(std::move(state), 1200, {activated(2)}, {});
+  state = game_authority::observeCommitment(std::move(state), committedByA(3, 1300));
+  state = game_authority::observeCommitment(
+      std::move(state), OrderCommitted{ROUND, OrderId{4}, PLAYER_A, milliseconds{1400}, OrderId{3}});
+
+  // When: the Arena reports a refusal of draft 3
+  State observed = step(std::move(state), 1600, {OrderRejected{OrderId{3}, RejectionReason::ROUND_ENDED}}, {});
+
+  // Then: the chain still has its handover
+  EXPECT_EQ(game_authority::view(observed).players.at(PLAYER_A).chain, 1);
+}
+
 /// @brief Only the latest commitment is the successor; a superseded draft does not matter
 TEST(OrbitalGameAuthority, CountsLatestCommittedSuccessorAfterSupersession) {
   // Given: successor 2 was superseded by 3, which is pending
