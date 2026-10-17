@@ -70,41 +70,43 @@ TEST(PursuitPolicy, PlansEmptyRouteWhenHeadIsAtTarget) {
 
 /// @subsection final leg
 
-TEST(PursuitPolicy, TakesShorterWrappedWayOnFinalLeg) {
-  // When: a route to a target that is closer across the top edge is planned
+/// @brief The turn goes where the player sees the target, even when the way across the edge is shorter
+TEST(PursuitPolicy, TurnsTowardsTargetWithoutWrappingOnFinalLeg) {
+  // When: a route to a target far below the head, closer across the top edge, is planned
   Route route = pursuit_policy::planRoute(Point{2, 1}, R, Point{2, 8}, Board{10, 10});
 
-  // Then: the snake turns up and wraps instead of going down seven cells
-  EXPECT_EQ(route, (Route{U, U, U}));
+  // Then: the snake turns down and goes seven cells instead of wrapping up through the edge
+  EXPECT_EQ(route, (Route{D, D, D, D, D, D, D}));
 }
 
 namespace {
 
-struct TieCase {
+struct TurnCase {
   Direction heading;
   Point target;
   Route expected_route;
 };
 
-class PursuitPolicyTie : public ::testing::TestWithParam<TieCase> {};
+class PursuitPolicyTurn : public ::testing::TestWithParam<TurnCase> {};
 
 }  // namespace
 
-/// @brief Equally long ways across are a fixed convention so that routes are deterministic
-TEST_P(PursuitPolicyTie, TurnsClockwiseWhenBothWaysAreEqual) {
-  // When: a route to a target half the board away across the heading is planned
-  Route route = pursuit_policy::planRoute(Point{2, 2}, GetParam().heading, GetParam().target, Board{4, 4});
+TEST_P(PursuitPolicyTurn, TurnsTowardsTargetSideAsSeenOnScreen) {
+  // When: a route from (2,2) to a target off the heading's line is planned
+  Route route = pursuit_policy::planRoute(Point{2, 2}, GetParam().heading, GetParam().target, Board{6, 6});
 
-  // Then: the snake turns clockwise relative to its heading
+  // Then: the final leg leads towards the target's side
   EXPECT_EQ(route, GetParam().expected_route);
 }
 
 INSTANTIATE_TEST_SUITE_P(Headings,
-                         PursuitPolicyTie,
-                         ::testing::Values(TieCase{R, Point{2, 0}, Route{D, D}},
-                                           TieCase{D, Point{0, 2}, Route{L, L}},
-                                           TieCase{L, Point{2, 0}, Route{U, U}},
-                                           TieCase{U, Point{0, 2}, Route{R, R}}));
+                         PursuitPolicyTurn,
+                         ::testing::Values(TurnCase{R, Point{2, 0}, Route{U, U}},
+                                           TurnCase{R, Point{2, 5}, Route{D, D, D}},
+                                           TurnCase{D, Point{0, 2}, Route{L, L}},
+                                           TurnCase{D, Point{5, 2}, Route{R, R, R}},
+                                           TurnCase{L, Point{2, 0}, Route{U, U}},
+                                           TurnCase{U, Point{5, 2}, Route{R, R, R}}));
 
 /// @subsection agreement with snake movement
 
