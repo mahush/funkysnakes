@@ -389,5 +389,24 @@ TEST(OrbitalGameDomainApplication, ViewsPendingRouteFromCurrentSnakePosition) {
             (std::vector<Direction>{D::RIGHT, D::RIGHT, D::RIGHT, D::RIGHT, D::RIGHT, D::DOWN, D::DOWN, D::DOWN}));
 }
 
+/// @section orbital_game_domain_application::startWithSetup
+
+/// @brief A concluded game can be followed by a fresh one
+TEST(OrbitalGameDomainApplication, StartsFreshGameAfterConclusion) {
+  // Given: the first game is over
+  app::State over = elapse(started(makeLanes({})), 120000);
+
+  // When: a new game starts
+  auto [state, observations] =
+      app::startWithSetup(makeCornerRandom(), over, RoundSetup{RoundId{2}, Board{20, 10}, makeLanes({}).snakes, {}});
+
+  // Then: it runs from time zero with no orders and the full duration remaining
+  ASSERT_TRUE(observations.views.has_value());
+  EXPECT_TRUE(game_authority::isRunning(*state.game));
+  EXPECT_EQ(observations.views->now, milliseconds{0});
+  EXPECT_TRUE(observations.views->orders.orders.empty());
+  EXPECT_EQ(observations.views->game.remaining, game_authority::view(*started(makeLanes({})).game).remaining);
+}
+
 }  // namespace orbital
 }  // namespace snake
