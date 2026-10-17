@@ -18,35 +18,60 @@ using orbital_frame::DelayGauge;
 using orbital_frame::Frame;
 using orbital_frame::PlayerPanel;
 
-constexpr int DELAY_GAUGE_WIDTH = 10;  // Width of the wedge at its slow end; even, so it has a middle column
+constexpr int DELAY_GAUGE_WIDTH = 10;             // Width of the wedge at its slow end; even, so it has a middle column
+constexpr float PENDING_ROUTE_BRIGHTNESS = 0.3F;  // Share of the player colour left in a pending route
 
-// Symbol of a player's snake head and cursor
-char playerSymbol(const PlayerId& player) { return player == PLAYER_A ? 'A' : 'B'; }
+ftxui::Color foodColor() { return ftxui::Color::RGB(240, 200, 60); }
 
-char tailSymbol(const PlayerId& player) { return player == PLAYER_A ? 'a' : 'b'; }
+ftxui::Color playerColor(const PlayerId& player) {
+  return player == PLAYER_A ? ftxui::Color::RGB(95, 215, 95) : ftxui::Color::RGB(215, 95, 215);
+}
 
-// A board cell is two terminal columns wide, so that a square board looks square
-std::string cellSymbol(const Cell& cell) {
-  switch (cell.role) {
+// Player colour blended towards black, for marks that should recede
+ftxui::Color dimmed(const PlayerId& player) {
+  return ftxui::Color::Interpolate(PENDING_ROUTE_BRIGHTNESS, ftxui::Color::RGB(0, 0, 0), playerColor(player));
+}
+
+// Symbol of a board cell; a cell is two terminal columns wide, so that a square board looks square
+std::string cellSymbol(CellRole role) {
+  switch (role) {
     case CellRole::EMPTY:
       return "  ";
     case CellRole::PENDING_ROUTE:
-      return ". ";
+      return "· ";
     case CellRole::ACTIVE_ROUTE:
-      return "+ ";
+      return "• ";
     case CellRole::FOOD:
-      return "* ";
+      return "◆ ";
     case CellRole::TARGET:
-      return "? ";
+      return "◎ ";
     case CellRole::SNAKE_BODY:
-      return {tailSymbol(*cell.player), ' '};
+      return "● ";
     case CellRole::SNAKE_HEAD:
-    case CellRole::CURSOR:
-      return {playerSymbol(*cell.player), ' '};
+      return "⬤ ";
     case CellRole::DEAD_HEAD:
-      return "x ";
+      return "✖ ";
+    case CellRole::CURSOR:
+      return "✚ ";
   }
   return "  ";
+}
+
+ftxui::Element cellElement(const Cell& cell) {
+  ftxui::Element symbol = ftxui::text(cellSymbol(cell.role));
+  if (cell.role == CellRole::FOOD) {
+    return symbol | ftxui::color(foodColor());
+  }
+  if (!cell.player) {
+    return symbol;
+  }
+  if (cell.role == CellRole::PENDING_ROUTE) {
+    return symbol | ftxui::color(dimmed(*cell.player));
+  }
+  if (cell.role == CellRole::SNAKE_HEAD || cell.role == CellRole::CURSOR) {
+    return symbol | ftxui::color(playerColor(*cell.player)) | ftxui::bold;
+  }
+  return symbol | ftxui::color(playerColor(*cell.player));
 }
 
 // Seconds with one decimal, e.g. "0.6s"
@@ -86,11 +111,11 @@ std::string statusText(const Frame& frame) {
 ftxui::Element board(const Frame& frame) {
   std::vector<ftxui::Element> rows;
   for (const auto& row : frame.cells) {
-    std::string line;
+    std::vector<ftxui::Element> cells;
     for (const Cell& cell : row) {
-      line += cellSymbol(cell);
+      cells.push_back(cellElement(cell));
     }
-    rows.push_back(ftxui::text(line));
+    rows.push_back(ftxui::hbox(std::move(cells)));
   }
   return ftxui::window(ftxui::text(" Orbital Orders · " + statusText(frame) + " "),
                        padded(ftxui::vbox(std::move(rows))));
@@ -105,18 +130,23 @@ ftxui::Element delayGauge(const DelayGauge& delay, int height) {
       ((delay.now - delay.min).count() * last + (delay.max - delay.min).count() / 2) / (delay.max - delay.min).count());
   const int middle = DELAY_GAUGE_WIDTH / 2;
 
-  std::vector<ftxui::Element> rows{ftxui::text("slow " + seconds(delay.max))};
+  std::vector<ftxui::Element> rows{ftxui::text("slow " + seconds(delay.max)) | ftxui::dim};
   for (int row = 0; row < wedge_height; ++row) {
     const int from_bottom = last - row;
     const int half_width = (from_bottom * middle + last / 2) / last;
-    std::string line(DELAY_GAUGE_WIDTH + 1, ' ');
-    for (int column = middle - half_width; column <= middle + half_width; ++column) {
-      line[column] = from_bottom <= now_from_bottom ? '#' : '.';
+    const bool filled = from_bottom <= now_from_bottom;
+    const std::string margin(middle - half_width, ' ');
+    std::string bar;
+    for (int column = 0; column <= 2 * half_width; ++column) {
+      bar += filled ? "▓" : "░";
     }
-    line += from_bottom == now_from_bottom ? " < " + seconds(delay.now) : "";
-    rows.push_back(ftxui::text(line));
+    std::vector<ftxui::Element> line{ftxui::text(margin), filled ? ftxui::text(bar) : ftxui::text(bar) | ftxui::dim};
+    if (from_bottom == now_from_bottom) {
+      line.push_back(ftxui::text(" ◀ " + seconds(delay.now)) | ftxui::bold);
+    }
+    rows.push_back(ftxui::hbox(std::move(line)));
   }
-  rows.push_back(ftxui::text("fast " + seconds(delay.min)));
+  rows.push_back(ftxui::text("fast " + seconds(delay.min)) | ftxui::dim);
   return ftxui::window(ftxui::text(" Link delay "), padded(ftxui::vbox(std::move(rows))));
 }
 
@@ -133,7 +163,7 @@ std::string orderText(const PlayerPanel& panel) {
   return "no order";
 }
 
-ftxui::Element playerPanel(const PlayerId& player, const PlayerPanel& panel) {
+ftxui::Element playerPanel(const PlayerId& player, const PlayerPanel& panel, int width) {
   std::vector<ftxui::Element> lines{
       ftxui::text(std::to_string(panel.credited) + " pts   +" + std::to_string(panel.unbanked) + " unbanked"),
       ftxui::text(orderText(panel)),
@@ -141,28 +171,43 @@ ftxui::Element playerPanel(const PlayerId& player, const PlayerPanel& panel) {
   if (panel.pending_target && panel.executing_target) {
     lines.push_back(ftxui::text("executing " + targetText(*panel.executing_target)));
   }
-  return ftxui::window(ftxui::text(" " + std::string{playerSymbol(player)} + " " + player + " "),
-                       padded(ftxui::vbox(std::move(lines)))) |
-         ftxui::flex;
+  ftxui::Element title = ftxui::hbox({
+      ftxui::text(" "),
+      ftxui::text("●") | ftxui::color(playerColor(player)),
+      ftxui::text(" " + player + " "),
+  });
+  return ftxui::window(std::move(title), padded(ftxui::vbox(std::move(lines)))) |
+         ftxui::size(ftxui::WIDTH, ftxui::EQUAL, width);
 }
 
-ftxui::Element keyHelp() { return ftxui::text(" A  w a s d · e     B  ← ↑ → ↓ · Enter     n new   q quit"); }
+ftxui::Element keyHelp() {
+  return ftxui::hbox({
+             ftxui::text(" "),
+             ftxui::text("●") | ftxui::color(playerColor(PLAYER_A)),
+             ftxui::text(" w a s d · e     "),
+             ftxui::text("●") | ftxui::color(playerColor(PLAYER_B)),
+             ftxui::text(" ← ↑ → ↓ · Enter     n new   q quit"),
+         }) |
+         ftxui::dim;
+}
 
 }  // namespace
 
 ftxui::Element draw(const Frame& frame) {
+  ftxui::Element top = ftxui::hbox({board(frame), delayGauge(frame.delay, static_cast<int>(frame.cells.size()))});
+  top->ComputeRequirement();
+
+  // The player panels share the width of the board and link delay equally
+  const int panel_count = std::max(static_cast<int>(frame.players.size()), 1);
+  const int panel_width = top->requirement().min_x / panel_count;
   std::vector<ftxui::Element> panels;
   for (const auto& [player, panel] : frame.players) {
-    panels.push_back(playerPanel(player, panel));
+    panels.push_back(playerPanel(player, panel, panel_width));
   }
-  // The vbox is as wide as the board and link delay; the panels share that width
-  return ftxui::hbox({
-      ftxui::vbox({
-          ftxui::hbox({board(frame), delayGauge(frame.delay, static_cast<int>(frame.cells.size()))}),
-          ftxui::hbox(std::move(panels)),
-          keyHelp(),
-      }),
-      ftxui::filler(),
+  return ftxui::vbox({
+      std::move(top),
+      ftxui::hbox(std::move(panels)),
+      keyHelp(),
   });
 }
 

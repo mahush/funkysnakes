@@ -14,6 +14,8 @@ namespace orbital_view {
  * wedge, narrow and fast at the bottom, wide and slow at the top, filled up to the current delay;
  * below them a panel per player and the key help. Each board cell is two columns wide, so that a
  * square board looks square.
+ * Cell symbols, in the colour of their player: '●' snake, '⬤' head, '✖' head of a dead snake,
+ * '·' pending route (dimmed), '•' active route, '◎' target, '✚' cursor; '◆' food in yellow.
  */
 
 /**
