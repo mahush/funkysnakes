@@ -418,6 +418,32 @@ TEST(OrbitalArenaAuthority, ReportsNoSnakeAliveAfterBothDied) {
   EXPECT_FALSE(alive);
 }
 
+/// @section arena_authority::routeIfActivatedNow
+
+/// @brief Lets players preview the route of an order in transit from where the snake is now
+TEST(OrbitalArenaAuthority, ReportsRouteActivationWouldPlanNow) {
+  // Given: A's snake at (4,2) heading right
+  State state = makeArena(SnakeSetup{Point{4, 2}, Direction::RIGHT, 3}, {});
+
+  // When: the route to (8,5) is asked for
+  std::optional<std::vector<Direction>> route = arena_authority::routeIfActivatedNow(state, PLAYER_A, Point{8, 5});
+
+  // Then: it follows the heading to column 8, then turns down to row 5
+  using D = Direction;
+  EXPECT_EQ(route, (std::vector<Direction>{D::RIGHT, D::RIGHT, D::RIGHT, D::RIGHT, D::DOWN, D::DOWN, D::DOWN}));
+}
+
+TEST(OrbitalArenaAuthority, ReportsNoRouteToTargetOffBoard) {
+  // Given: A's snake on the board
+  State state = makeArena(SnakeSetup{Point{4, 2}, Direction::RIGHT, 3}, {});
+
+  // When: the route to a position outside the board is asked for
+  std::optional<std::vector<Direction>> route = arena_authority::routeIfActivatedNow(state, PLAYER_A, Point{25, 5});
+
+  // Then: there is none
+  EXPECT_FALSE(route.has_value());
+}
+
 /// @section arena_authority::endRound
 
 TEST(OrbitalArenaAuthority, EndsExecutingOrdersWhenRoundEnds) {
