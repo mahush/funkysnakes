@@ -136,6 +136,8 @@ if(SNAKE_BUILD_TESTS)
     tests/test_orbital_game_authority.cpp
     semantic_artifacts/src/orbital/game_authority.cpp
     tests/test_orbital_game_domain_application.cpp
+    tests/test_orbital_frame.cpp
+    src/orbital_frame.cpp
     semantic_artifacts/src/orbital/orbital_game_domain_application.cpp
     semantic_artifacts/src/orbital/pursuit_policy.cpp
     tests/test_classic_game_domain_application.cpp
