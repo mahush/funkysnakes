@@ -31,18 +31,21 @@ namespace game_authority {
  * Within one step, the step's events are scored before conclusion is checked, so a step due at
  * the end of the game still counts. Unbanked points left at conclusion are lost.
  *
- * Handover chain: an order completing while the player's latest successor was already committed
- * and is still pending is a handover; it earns the Scoring Policy's bonus for its position in the
- * chain. A successor counts as committed for a step if it was committed before the step's time,
- * and as still pending if it has not been activated, rejected or superseded by then. The chain
- * breaks with a completion without such a successor, an interruption, the player's snake dying
- * (whether or not an order was executing), a rejection of the successor or the end of the game.
+ * Handover chain: an order completing while its prepared successor is still pending is a handover;
+ * it earns the Scoring Policy's bonus for its position in the chain. The prepared successor is the
+ * player's one commitment made while the order executed: from the step that activated it and before
+ * the completing step. It is still pending if it has not been activated or rejected by then. A
+ * second commitment in that time revises the prepared successor and forfeits the handover of the
+ * executing order; later commitments cannot restore it, while the executing order's unbanked points
+ * are unaffected. The chain breaks with a completion that is no handover, an interruption, the
+ * player's snake dying (whether or not an order was executing), a rejection of the successor or the
+ * end of the game.
  *
  * The chain is derived from both histories as far as they are known. Commitments may be learned
  * after the steps they relate to, as when a player-local Order Authority synchronizes late; the
  * chain is then derived again and the difference of the bonuses is credited when the commitment is
  * learned. Usually that adds a bonus; it withdraws one that was credited on incomplete history,
- * when a later commitment shows that the counted successor had already been superseded. Either
+ * when a later commitment shows that the counted successor had already been revised. Either
  * way, the eventual score is the same as if every commitment had been known in time, so scores
  * shown before the histories are complete are provisional. Arena history is never rewritten.
  */
@@ -171,7 +174,7 @@ std::tuple<State, std::optional<GameConcluded>> observeStep(State state,
  *
  * The commitment counts with its own commitment time, whenever it is learned. If steps already
  * observed show that the order was a successor pending at a completion, the handover bonus earned
- * there is credited now; if it shows that a counted successor had been superseded, that bonus is
+ * there is credited now; if it shows that a counted successor had been revised, that bonus is
  * withdrawn. Commitments learned after conclusion or of another round change nothing. An order's
  * commitment counts once: a later record for an already known order, also with another time,
  * changes nothing, so a commitment time cannot be rewritten by resending.

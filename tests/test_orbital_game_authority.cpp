@@ -299,8 +299,8 @@ TEST(OrbitalGameAuthority, KeepsChainWhenSupersededDraftIsRejected) {
   EXPECT_EQ(game_authority::view(observed).players.at(PLAYER_A).chain, 1);
 }
 
-/// @brief Only the latest commitment is the successor; a superseded draft does not matter
-TEST(OrbitalGameAuthority, CountsLatestCommittedSuccessorAfterSupersession) {
+/// @brief A handover needs one uninterrupted prepared successor; a later successor cannot restore it
+TEST(OrbitalGameAuthority, ForfeitsHandoverWhenPendingSuccessorIsRevised) {
   // Given: successor 2 was superseded by 3, which is pending
   State state = game_authority::observeCommitment(
       withPendingSuccessor(), OrderCommitted{ROUND, OrderId{3}, PLAYER_A, milliseconds{700}, OrderId{2}});
@@ -308,8 +308,24 @@ TEST(OrbitalGameAuthority, CountsLatestCommittedSuccessorAfterSupersession) {
   // When: order 1 completes
   State observed = step(std::move(state), 1000, {}, {completed(1)});
 
-  // Then: the completion is a handover
-  EXPECT_EQ(game_authority::view(observed).players.at(PLAYER_A).chain, 1);
+  // Then: the completion is no handover
+  game_authority::PlayerScore score = game_authority::view(observed).players.at(PLAYER_A);
+  EXPECT_EQ(score.credited, 0);
+  EXPECT_EQ(score.chain, 0);
+}
+
+/// @brief Revising the successor costs the handover only, not the points of the order that completes
+TEST(OrbitalGameAuthority, BanksUnbankedPointsWhenPendingSuccessorIsRevised) {
+  // Given: order 1 collected food, and successor 2 was superseded by 3
+  State state = step(withPendingSuccessor(), 600, {}, {FoodCollected{PLAYER_A, Point{1, 1}, OrderId{1}}});
+  state = game_authority::observeCommitment(std::move(state),
+                                            OrderCommitted{ROUND, OrderId{3}, PLAYER_A, milliseconds{700}, OrderId{2}});
+
+  // When: order 1 completes
+  State observed = step(std::move(state), 1000, {}, {completed(1)});
+
+  // Then: the food points are banked without a handover bonus
+  EXPECT_EQ(game_authority::view(observed).players.at(PLAYER_A).credited, 10);
 }
 
 /// @brief A step runs before a commitment made at the same time on the game clock
@@ -401,20 +417,16 @@ TEST(OrbitalGameAuthority, IgnoresCommitmentLearnedAfterConclusion) {
   EXPECT_EQ(game_authority::view(observed).players.at(PLAYER_A).credited, 0);
 }
 
-/// @brief Synchronization may deliver an older commitment first; the later one shows it was superseded
-TEST(OrbitalGameAuthority, WithdrawsHandoverBonusWhenLateCommitmentShowsCountedSuccessorWasSuperseded) {
-  // Given: order 1 completed while order 3 was the latest known commitment, still pending
-  State state = game_authority::observeCommitment(runningGame(), committedByA(1, 0));
-  state = step(std::move(state), 200, {activated(1)}, {});
-  state = game_authority::observeCommitment(std::move(state), committedByA(3, 500));
-  state = step(std::move(state), 800, {OrderRejected{OrderId{4}, RejectionReason::TARGET_OFF_BOARD}}, {});
-  state = step(std::move(state), 1000, {}, {completed(1)});
+/// @brief Synchronization may deliver an older commitment first; the later one shows it was revised
+TEST(OrbitalGameAuthority, WithdrawsHandoverBonusWhenLateCommitmentShowsCountedSuccessorWasRevised) {
+  // Given: order 1 completed while successor 2 was the only known commitment, credited as a handover
+  State state = step(withPendingSuccessor(), 1000, {}, {completed(1)});
 
-  // When: a commitment at 700 ms is learned, later than 3, whose order was resolved before the completion
+  // When: a commitment at 700 ms is learned that superseded 2 before the completion
   State observed = game_authority::observeCommitment(
-      std::move(state), OrderCommitted{ROUND, OrderId{4}, PLAYER_A, milliseconds{700}, OrderId{3}});
+      std::move(state), OrderCommitted{ROUND, OrderId{3}, PLAYER_A, milliseconds{700}, OrderId{2}});
 
-  // Then: no successor was pending at the completion, so the bonus credited before is withdrawn
+  // Then: the prepared successor was revised, so the bonus credited before is withdrawn
   game_authority::PlayerScore score = game_authority::view(observed).players.at(PLAYER_A);
   EXPECT_EQ(score.credited, 0);
   EXPECT_EQ(score.chain, 0);
