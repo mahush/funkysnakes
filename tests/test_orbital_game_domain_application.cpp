@@ -81,19 +81,19 @@ game_authority::PlayerScore scoreOf(const app::State& state, const PlayerId& pla
 /// @section orbital_game_domain_application::apply
 ///
 /// Whole-game histories: Order eligibility → Arena execution → Game scoring.
-/// Timing: an order issued at 0 ms is eligible after 400 ms; steps run every 200 ms.
+/// Timing: an order issued at 0 ms is eligible after 200 ms; steps run every 200 ms.
 
 /// @subsection unbanked points
 
 /// @brief The defining history: F collects +20 while G is pending, and F completes first
 TEST(OrbitalGameDomainApplication, BanksPointsOfOrderThatCompletesBeforeReplacementActivates) {
-  // Given: F to (10,2) activates at 400 ms, collects food at (5,2) and (7,2) and arrives at 1600 ms;
-  //        G is submitted at 1200 ms (eligible at 1808 ms)
+  // Given: F to (10,2) activates at 200 ms, collects food at (5,2) and (7,2) and arrives at 1600 ms;
+  //        G is submitted at 1400 ms (eligible at 1768 ms)
   auto [with_f, f] = submit(started(makeLanes({Point{5, 2}, Point{7, 2}})), PLAYER_A, Point{10, 2});
-  auto [with_g, g] = submit(elapse(with_f, 1200), PLAYER_A, Point{10, 6});
+  auto [with_g, g] = submit(elapse(with_f, 1400), PLAYER_A, Point{10, 6});
 
-  // When: time passes until G has activated at 2000 ms
-  app::State state = elapse(with_g, 800);
+  // When: time passes until G has activated at 1800 ms
+  app::State state = elapse(with_g, 400);
 
   // Then: F completed and its 20 points count; G executes
   EXPECT_EQ(statusOf(state, f), Status::COMPLETED);
@@ -104,12 +104,12 @@ TEST(OrbitalGameDomainApplication, BanksPointsOfOrderThatCompletesBeforeReplacem
 
 /// @brief The defining history: F collects +20 while G is pending, and G activates first
 TEST(OrbitalGameDomainApplication, LosesPointsOfOrderInterruptedByReplacement) {
-  // Given: F to (10,2) collected food at (5,2); G is submitted at 600 ms (eligible after 1104 ms)
+  // Given: F to (10,2) collected food at (5,2); G is submitted at 800 ms (eligible after 1096 ms)
   auto [with_f, f] = submit(started(makeLanes({Point{5, 2}, Point{7, 2}})), PLAYER_A, Point{10, 2});
-  auto [with_g, g] = submit(elapse(with_f, 600), PLAYER_A, Point{10, 6});
+  auto [with_g, g] = submit(elapse(with_f, 800), PLAYER_A, Point{10, 6});
 
-  // When: time passes until G has activated, after F collected the second food
-  app::State state = elapse(with_g, 600);
+  // When: time passes until G has activated at 1200 ms, after F collected the second food
+  app::State state = elapse(with_g, 400);
 
   // Then: F was interrupted and its 20 points are lost, while the snake kept its growth
   EXPECT_EQ(statusOf(state, f), Status::INTERRUPTED);
@@ -138,11 +138,11 @@ TEST(OrbitalGameDomainApplication, KeepsUnbankedPointsWhenReplacementIsOnlySubmi
 
 /// @brief A revision handled before the activation step prevents the old pending order from activating
 TEST(OrbitalGameDomainApplication, SupersedesEligibleOrderWithRevisionBeforeItsStep) {
-  // Given: G was submitted at 0 ms (eligible at 400 ms) and time is at 399 ms
+  // Given: G was submitted at 0 ms (eligible at 200 ms) and time is at 199 ms
   auto [with_g, g] = submit(started(makeLanes({})), PLAYER_A, Point{10, 6});
-  app::State before_step = elapse(with_g, 399);
+  app::State before_step = elapse(with_g, 199);
 
-  // When: H is submitted and the step at 400 ms runs
+  // When: H is submitted and the step at 200 ms runs
   auto [with_h, h] = submit(before_step, PLAYER_A, Point{12, 2});
   app::State state = elapse(with_h, 1);
 
@@ -219,12 +219,13 @@ TEST(OrbitalGameDomainApplication, ConcludesWithDrawWhenBothSnakesDie) {
 
 /// @brief Once the game is over, executing orders end with it and pending ones are cancelled
 TEST(OrbitalGameDomainApplication, EndsExecutingAndCancelsPendingOrdersAtConclusion) {
-  // Given: F executes since 118800 ms, and G submitted at 119600 ms is still pending at the end
+  // Given: F executes since 118600 ms, and G submitted at 119800 ms (eligible after 120024 ms) is still
+  //        pending at the end
   auto [with_f, f] = submit(elapse(started(makeLanes({})), 118000), PLAYER_A, Point{12, 6});
-  auto [with_g, g] = submit(elapse(with_f, 1600), PLAYER_A, Point{3, 3});
+  auto [with_g, g] = submit(elapse(with_f, 1800), PLAYER_A, Point{3, 3});
 
   // When: the game ends
-  app::State state = elapse(with_g, 400);
+  app::State state = elapse(with_g, 200);
 
   // Then: F ended with the round and G was cancelled
   EXPECT_EQ(statusOf(state, f), Status::ENDED_BY_ROUND);
@@ -311,7 +312,7 @@ auto viewedOutcome(const app::State& state) {
 
 /// @brief Cutting the same game time into smaller advances does not change what happens
 TEST(OrbitalGameDomainApplication, ReportsSameStepsAndViewsForOneAdvanceAndItsParts) {
-  // Given: A's order to (7,2) is pending; it activates at 400 ms and collects the food at (6,2) on its way
+  // Given: A's order to (7,2) is pending; it activates at 200 ms and collects the food at (6,2) on its way
   auto [state, order] = submit(started(makeLanes({Point{6, 2}})), PLAYER_A, Point{7, 2});
 
   // When: one second passes once at once and once in five parts
@@ -320,7 +321,7 @@ TEST(OrbitalGameDomainApplication, ReportsSameStepsAndViewsForOneAdvanceAndItsPa
 
   // Then: both report the same steps with the same activations and events, and lead to the same views
   ASSERT_EQ(at_once.size(), 5U);
-  ASSERT_EQ(at_once[1].activations.size(), 1U);
+  ASSERT_EQ(at_once[0].activations.size(), 1U);
   ASSERT_FALSE(at_once[3].events.empty());
   ASSERT_EQ(in_parts.size(), at_once.size());
   for (size_t i = 0; i < at_once.size(); ++i) {
@@ -348,16 +349,16 @@ TEST(OrbitalGameDomainApplication, IssuesSubmissionAtCurrentGameTime) {
 
 /// @brief Players see how long a submission sent now would travel, so they can time it
 TEST(OrbitalGameDomainApplication, ViewsDelayOfSubmissionIssuedNow) {
-  // Given: 7400 ms have passed
-  app::State state = elapse(started(makeLanes({})), 7400);
+  // Given: 14900 ms have passed
+  app::State state = elapse(started(makeLanes({})), 14900);
 
   // When: 100 ms more pass, reaching a quarter of the orbital cycle
   auto [next, observations] = app::apply(makeCornerRandom(), state, app::TimeElapsed{milliseconds{100}});
 
-  // Then: the views carry the current time and the delay halfway between 400 ms and 3000 ms
+  // Then: the views carry the current time and the delay halfway between 200 ms and 2000 ms
   ASSERT_TRUE(observations.views.has_value());
-  EXPECT_EQ(observations.views->now, milliseconds{7500});
-  EXPECT_EQ(observations.views->submission_delay, milliseconds{1700});
+  EXPECT_EQ(observations.views->now, milliseconds{15000});
+  EXPECT_EQ(observations.views->submission_delay, milliseconds{1100});
 }
 
 /// @brief Game time ends with the game, so the link condition shown at the end stays as it was
@@ -376,17 +377,17 @@ TEST(OrbitalGameDomainApplication, StopsGameTimeAndLinkDelayAtConclusion) {
 
 /// @brief The preview of an order in transit follows the snake until the order activates
 TEST(OrbitalGameDomainApplication, ViewsPendingRouteFromCurrentSnakePosition) {
-  // Given: A at (2,2) heading right ordered (8,5) at 0 ms, eligible at 400 ms
-  auto [with_order, order] = submit(started(makeLanes({})), PLAYER_A, Point{8, 5});
+  // Given: at 200 ms, with A's snake at (3,2) heading right, A ordered (8,5) (eligible after 424 ms)
+  auto [with_order, order] = submit(elapse(started(makeLanes({})), 200), PLAYER_A, Point{8, 5});
 
-  // When: the first step moved the snake to (3,2)
+  // When: the step at 400 ms moved the snake to (4,2)
   auto [state, observations] = app::apply(makeCornerRandom(), with_order, app::TimeElapsed{milliseconds{200}});
 
-  // Then: the pending route starts from (3,2): five moves right, three down
+  // Then: the pending route starts from (4,2): four moves right, three down
   ASSERT_TRUE(observations.views.has_value());
   using D = Direction;
   EXPECT_EQ(observations.views->pending_routes.at(PLAYER_A),
-            (std::vector<Direction>{D::RIGHT, D::RIGHT, D::RIGHT, D::RIGHT, D::RIGHT, D::DOWN, D::DOWN, D::DOWN}));
+            (std::vector<Direction>{D::RIGHT, D::RIGHT, D::RIGHT, D::RIGHT, D::DOWN, D::DOWN, D::DOWN}));
 }
 
 /// @section orbital_game_domain_application::startWithSetup
