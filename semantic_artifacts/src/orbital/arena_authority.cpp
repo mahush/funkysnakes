@@ -167,11 +167,11 @@ StepId nextStep(StepId step) { return StepId{step.value + 1}; }
 
 }  // namespace
 
-RoundSetup makeClassicSetup(RoundId round) {
+RoundSetup makeOrbitalSetup(RoundId round) {
   return RoundSetup{round,
-                    Board{},
-                    {{PLAYER_A, SnakeSetup{Point{5, 10}, Direction::RIGHT, 7}},
-                     {PLAYER_B, SnakeSetup{Point{5, 15}, Direction::RIGHT, 7}}},
+                    Board{ORBITAL_BOARD_SIZE, ORBITAL_BOARD_SIZE},
+                    {{PLAYER_A, SnakeSetup{Point{5, 11}, Direction::RIGHT, 7}},
+                     {PLAYER_B, SnakeSetup{Point{5, 16}, Direction::RIGHT, 7}}},
                     {}};
 }
 

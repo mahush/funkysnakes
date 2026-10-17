@@ -5,6 +5,7 @@
 #include <chrono>
 #include <tuple>
 
+#include "common/snake_model.hpp"
 #include "orbital/latency_policy.hpp"
 #include "orbital/orbital_game_domain_application.hpp"
 #include "test_printers.hpp"
@@ -82,6 +83,21 @@ game_authority::PlayerScore scoreOf(const app::State& state, const PlayerId& pla
 ///
 /// Whole-game histories: Order eligibility → Arena execution → Game scoring.
 /// Timing: an order issued at 0 ms is eligible after 200 ms; steps run every 200 ms.
+
+/// @subsection start
+
+/// @brief A square board looks square in the terminal, where each cell is drawn two columns wide
+TEST(OrbitalGameDomainApplication, StartsOnSquareBoardWithSnakesSideBySide) {
+  // When: a game starts with the default setup
+  auto [state, observations] = app::apply(makeCornerRandom(), app::initial(), app::Start{RoundId{1}});
+
+  // Then: the board is 28x28 and both snakes start heading right, five rows apart
+  const arena_authority::View& arena = observations.views->arena;
+  EXPECT_EQ(arena.board.width, 28);
+  EXPECT_EQ(arena.board.height, 28);
+  EXPECT_EQ(snake_model::head(arena.snakes.at(PLAYER_A)), (Point{5, 11}));
+  EXPECT_EQ(snake_model::head(arena.snakes.at(PLAYER_B)), (Point{5, 16}));
+}
 
 /// @subsection unbanked points
 
