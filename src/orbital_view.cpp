@@ -22,7 +22,10 @@ using orbital_frame::PlayerPanel;
 
 // Width of the link delay wedge at its slow and fast ends; both odd, so that every row is centred
 constexpr int DELAY_GAUGE_WIDTH = 11;
-constexpr int DELAY_GAUGE_FAST_WIDTH = 3;         // Exactly the current delay, e.g. "0.2", inside the bar
+constexpr int DELAY_GAUGE_FAST_WIDTH = 3;  // Exactly the current delay, e.g. "0.2", inside the bar
+// Content width of the link delay box: the wedge with a column of space on each side, so that the
+// box title "Link delay" has border line on both sides
+constexpr int DELAY_BOX_WIDTH = DELAY_GAUGE_WIDTH + 2;
 constexpr float PENDING_ROUTE_BRIGHTNESS = 0.3F;  // Share of the player colour left in a pending route
 
 ftxui::Color foodColor() { return ftxui::Color::RGB(240, 200, 60); }
@@ -103,6 +106,12 @@ ftxui::Element padded(ftxui::Element content) {
   return ftxui::hbox({ftxui::text(" "), std::move(content), ftxui::text(" ")});
 }
 
+// Rounded box whose title starts after one line character of the top border, e.g. "╭─ Title ───╮"
+ftxui::Element box(ftxui::Element title, ftxui::Element content) {
+  return ftxui::window(ftxui::hbox({ftxui::text("─ "), std::move(title), ftxui::text(" ")}),
+                       padded(std::move(content)));
+}
+
 std::string targetText(Point target) { return "(" + std::to_string(target.x) + "," + std::to_string(target.y) + ")"; }
 
 std::string statusText(const Frame& frame) {
@@ -124,8 +133,7 @@ ftxui::Element board(const Frame& frame) {
     }
     rows.push_back(ftxui::hbox(std::move(cells)));
   }
-  return ftxui::window(ftxui::text(" Orbital Orders · " + statusText(frame) + " "),
-                       padded(ftxui::vbox(std::move(rows))));
+  return box(ftxui::text("Orbital Orders · " + statusText(frame)), ftxui::vbox(std::move(rows)));
 }
 
 // Text centred in a fixed width: the same number of spaces left and right, one more right if odd
@@ -149,7 +157,7 @@ ftxui::Element delayGauge(const DelayGauge& delay, int height) {
   const int now_from_bottom = static_cast<int>(
       ((delay.now - delay.min).count() * last + (delay.max - delay.min).count() / 2) / (delay.max - delay.min).count());
 
-  std::vector<ftxui::Element> rows{centredText("slow " + seconds(delay.max), DELAY_GAUGE_WIDTH) | ftxui::dim};
+  std::vector<ftxui::Element> rows{centredText("slow " + seconds(delay.max), DELAY_BOX_WIDTH) | ftxui::dim};
   for (int row = 0; row < wedge_height; ++row) {
     const int from_bottom = last - row;
     // Widths grow in steps of two from the fast to the slow end, so every row is centred exactly
@@ -179,10 +187,10 @@ ftxui::Element delayGauge(const DelayGauge& delay, int height) {
       }
       bar = filled ? ftxui::text(line) : ftxui::text(line) | ftxui::dim;
     }
-    rows.push_back(centred(std::move(bar), width, DELAY_GAUGE_WIDTH));
+    rows.push_back(centred(std::move(bar), width, DELAY_BOX_WIDTH));
   }
-  rows.push_back(centredText("fast " + seconds(delay.min), DELAY_GAUGE_WIDTH) | ftxui::dim);
-  return ftxui::window(ftxui::text(" Link delay "), padded(ftxui::vbox(std::move(rows))));
+  rows.push_back(centredText("fast " + seconds(delay.min), DELAY_BOX_WIDTH) | ftxui::dim);
+  return box(ftxui::text("Link delay"), ftxui::vbox(std::move(rows)));
 }
 
 std::string orderText(const PlayerPanel& panel) {
@@ -207,12 +215,10 @@ ftxui::Element playerPanel(const PlayerId& player, const PlayerPanel& panel, int
     lines.push_back(ftxui::text("executing " + targetText(*panel.executing_target)));
   }
   ftxui::Element title = ftxui::hbox({
-      ftxui::text(" "),
       ftxui::text("●") | ftxui::color(playerColor(player)),
-      ftxui::text(" " + player + " "),
+      ftxui::text(" " + player),
   });
-  return ftxui::window(std::move(title), padded(ftxui::vbox(std::move(lines)))) |
-         ftxui::size(ftxui::WIDTH, ftxui::EQUAL, width);
+  return box(std::move(title), ftxui::vbox(std::move(lines))) | ftxui::size(ftxui::WIDTH, ftxui::EQUAL, width);
 }
 
 ftxui::Element keyHelp() {
