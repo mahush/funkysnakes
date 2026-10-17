@@ -12,10 +12,11 @@ namespace scoring_policy {
 /**
  * Orbital Scoring Policy - decides what arena events are worth and when points count
  *
- * Stateless decision. Point values follow classic snake; the timing of when they count is
- * Orbital's own rule:
+ * Stateless decision. Food and collision values follow classic snake, except that food without
+ * an order is worth less: eating during an order risks its points, so it has to be worth more than
+ * eating while driving straight. The timing of when points count is Orbital's own rule:
  * - FoodCollected during an order: +10 unbanked for that order
- * - FoodCollected without an order: +10 credited at once
+ * - FoodCollected without an order: +5 credited at once
  * - Bitten: the victim loses 10 credited at once, the biter gets nothing
  * - SelfBitten: the snake loses 10 credited at once
  * - MutualBite: both snakes lose 10 credited at once
@@ -26,7 +27,8 @@ namespace scoring_policy {
  * nonlethal bite leaves an order's unbanked points intact.
  */
 
-constexpr int FOOD_POINTS = 10;
+constexpr int FOOD_POINTS = 10;          // During an order, unbanked
+constexpr int FOOD_POINTS_NO_ORDER = 5;  // Without an order, credited at once
 constexpr int COLLISION_PENALTY = 10;
 
 /**

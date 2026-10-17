@@ -124,7 +124,8 @@ void runHistory(const std::string& title, int submit_g_at_ms, int until_ms) {
 int main() {
   std::cout << "Orbital Orders - Domain Application traces\n"
                "Steps every 200 ms; orbital delay 0.2-2 s; food +10 during an order stays unbanked\n"
-               "until the order completes, and is lost if a replacement activates first.\n";
+               "until the order completes, and is lost if a replacement activates first;\n"
+               "food without an order is credited +5 at once.\n";
 
   runHistory("History 1: F completes before G activates - F's +20 is banked", 1400, 2000);
   runHistory("History 2: G activates before F completes - F's +20 is lost", 800, 1200);

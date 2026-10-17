@@ -11,7 +11,7 @@ Scores applyEvent(Scores scores, const FoodCollected& collected) {
     Unbanked& unbanked = scores.unbanked.try_emplace(*collected.during, Unbanked{collected.player, 0}).first->second;
     unbanked.points += FOOD_POINTS;
   } else {
-    scores.credited[collected.player] += FOOD_POINTS;
+    scores.credited[collected.player] += FOOD_POINTS_NO_ORDER;
   }
   return scores;
 }

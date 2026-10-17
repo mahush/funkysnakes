@@ -33,8 +33,8 @@ TEST(OrbitalScoringPolicy, CreditsFoodCollectedWithoutOrderAtOnce) {
   // When: food collected without an executing order is scored
   Scores scores = scoring_policy::applyScoring(startScores(), {FoodCollected{PLAYER_A, Point{1, 1}, std::nullopt}});
 
-  // Then: the eater is credited ten points
-  EXPECT_EQ(scores.credited.at(PLAYER_A), 110);
+  // Then: the eater is credited five points
+  EXPECT_EQ(scores.credited.at(PLAYER_A), 105);
   EXPECT_TRUE(scores.unbanked.empty());
 }
 
