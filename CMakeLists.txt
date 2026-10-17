@@ -113,6 +113,7 @@ target_compile_options(orbital_domain_runner PRIVATE
 add_executable(orbital_snake
   src/orbital_snake.cpp
   src/orbital_frame.cpp
+  src/orbital_view.cpp
   src/orbital_controls.cpp
   semantic_artifacts/src/orbital/arena_authority.cpp
   semantic_artifacts/src/orbital/game_authority.cpp

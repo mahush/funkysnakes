@@ -1,9 +1,9 @@
-// Tests for the Orbital Frame: terminal presentation of the Orbital Orders views.
+// Tests for the Orbital Frame: what the Orbital Orders terminal shows.
 
 #include <gtest/gtest.h>
 
 #include <chrono>
-#include <string>
+#include <optional>
 #include <tuple>
 
 #include "orbital/orbital_game_domain_application.hpp"
@@ -46,36 +46,31 @@ std::tuple<app::State, Views> elapsed(app::State state, int ms) {
   return {std::move(next), *observations.views};
 }
 
-// Symbol at a board position; the frame's first line and column are the border
-char cellAt(const std::vector<std::string>& frame, Point p) { return frame.at(p.y + 1).at(p.x + 1); }
+using orbital_frame::Cell;
+using orbital_frame::CellRole;
+using orbital_frame::Frame;
 
-bool hasLineContaining(const std::vector<std::string>& frame, const std::string& text) {
-  for (const std::string& line : frame) {
-    if (line.find(text) != std::string::npos) {
-      return true;
-    }
-  }
-  return false;
-}
+const Cell& cellAt(const Frame& frame, Point p) { return frame.cells.at(p.y).at(p.x); }
 
 }  // namespace
 
-/// @section orbital_frame::render
+/// @section orbital_frame::build
 
-TEST(OrbitalFrame, DrawsSnakesFoodAndCursorsInsideBorder) {
+TEST(OrbitalFrame, PlacesSnakesFoodAndCursorsOnBoard) {
   // Given: a game started
   auto [state, views] = started();
 
-  // When: the frame is rendered with A's cursor at (12,4)
-  std::vector<std::string> frame = orbital_frame::render(views, {{PLAYER_A, Point{12, 4}}});
+  // When: the frame is built with A's cursor at (12,4)
+  Frame frame = orbital_frame::build(views, {{PLAYER_A, Point{12, 4}}});
 
   // Then: heads, tails, food and the cursor appear at their board positions
-  EXPECT_EQ(frame.front().substr(0, 22), "+" + std::string(20, '-') + "+");
-  EXPECT_EQ(cellAt(frame, Point{4, 2}), 'A');
-  EXPECT_EQ(cellAt(frame, Point{3, 2}), 'a');
-  EXPECT_EQ(cellAt(frame, Point{4, 7}), 'B');
-  EXPECT_EQ(cellAt(frame, Point{10, 5}), '*');
-  EXPECT_EQ(cellAt(frame, Point{12, 4}), 'A');
+  EXPECT_EQ(frame.cells.size(), 10U);
+  EXPECT_EQ(frame.cells.front().size(), 20U);
+  EXPECT_EQ(cellAt(frame, Point{4, 2}), (Cell{CellRole::SNAKE_HEAD, PLAYER_A}));
+  EXPECT_EQ(cellAt(frame, Point{3, 2}), (Cell{CellRole::SNAKE_BODY, PLAYER_A}));
+  EXPECT_EQ(cellAt(frame, Point{4, 7}), (Cell{CellRole::SNAKE_HEAD, PLAYER_B}));
+  EXPECT_EQ(cellAt(frame, Point{10, 5}), (Cell{CellRole::FOOD, std::nullopt}));
+  EXPECT_EQ(cellAt(frame, Point{12, 4}), (Cell{CellRole::CURSOR, PLAYER_A}));
 }
 
 /// @brief Players see where their order in transit will lead and when it can activate
@@ -85,13 +80,14 @@ TEST(OrbitalFrame, ShowsPendingTargetRouteAndCountdown) {
 
   // When: A orders the snake to (8,5) at 0 ms, eligible after 200 ms
   auto [next, pending_views] = submitted(state, PLAYER_A, Point{8, 5});
-  std::vector<std::string> frame = orbital_frame::render(pending_views, {});
+  Frame frame = orbital_frame::build(pending_views, {});
 
-  // Then: the target, the lightweight route from the head at (4,2) and the remaining delay show
-  EXPECT_EQ(cellAt(frame, Point{8, 5}), '?');
-  EXPECT_EQ(cellAt(frame, Point{5, 2}), '.');
-  EXPECT_EQ(cellAt(frame, Point{8, 4}), '.');
-  EXPECT_TRUE(hasLineContaining(frame, "pending (8,5) in 0.2s"));
+  // Then: the target, the route from the head at (4,2) and the remaining delay show
+  EXPECT_EQ(cellAt(frame, Point{8, 5}), (Cell{CellRole::TARGET, PLAYER_A}));
+  EXPECT_EQ(cellAt(frame, Point{5, 2}), (Cell{CellRole::PENDING_ROUTE, PLAYER_A}));
+  EXPECT_EQ(cellAt(frame, Point{8, 4}), (Cell{CellRole::PENDING_ROUTE, PLAYER_A}));
+  EXPECT_EQ(frame.players.at(PLAYER_A).pending_target, (Point{8, 5}));
+  EXPECT_EQ(frame.players.at(PLAYER_A).pending_remaining, milliseconds{200});
 }
 
 /// @brief Players see the route the Arena follows for an executing order
@@ -102,13 +98,13 @@ TEST(OrbitalFrame, ShowsExecutingTargetAndRemainingRoute) {
 
   // When: the order activated at 200 ms and by 400 ms the snake moved on to (6,2)
   auto [next, executing_views] = elapsed(with_order, 400);
-  std::vector<std::string> frame = orbital_frame::render(executing_views, {});
+  Frame frame = orbital_frame::build(executing_views, {});
 
-  // Then: the bold route continues right to (8,2), turns down to the target (8,5)
-  EXPECT_EQ(cellAt(frame, Point{7, 2}), '+');
-  EXPECT_EQ(cellAt(frame, Point{8, 3}), '+');
-  EXPECT_EQ(cellAt(frame, Point{8, 5}), '@');
-  EXPECT_TRUE(hasLineContaining(frame, "executing (8,5)"));
+  // Then: the route continues right to (8,2), turns down to the target (8,5)
+  EXPECT_EQ(cellAt(frame, Point{7, 2}), (Cell{CellRole::ACTIVE_ROUTE, PLAYER_A}));
+  EXPECT_EQ(cellAt(frame, Point{8, 3}), (Cell{CellRole::ACTIVE_ROUTE, PLAYER_A}));
+  EXPECT_EQ(cellAt(frame, Point{8, 5}), (Cell{CellRole::TARGET, PLAYER_A}));
+  EXPECT_EQ(frame.players.at(PLAYER_A).executing_target, (Point{8, 5}));
 }
 
 TEST(OrbitalFrame, ShowsLinkDelayAndRemainingTime) {
@@ -117,12 +113,13 @@ TEST(OrbitalFrame, ShowsLinkDelayAndRemainingTime) {
 
   // When: 15 s pass, a quarter of the orbital cycle
   auto [next, later_views] = elapsed(state, 15000);
-  std::vector<std::string> frame = orbital_frame::render(later_views, {});
+  Frame frame = orbital_frame::build(later_views, {});
 
-  // Then: the delay of 1.1 s is marked halfway up the wedge beside the board, in board row 4 of
-  //       rows 0-9 (row 9 is the fast end); 105 s remain
-  EXPECT_NE(frame.at(4 + 1).find("< 1.1s"), std::string::npos);
-  EXPECT_TRUE(hasLineContaining(frame, "Time left 105.0s"));
+  // Then: the delay is 1.1 s within 0.2-2 s and 105 s remain
+  EXPECT_EQ(frame.delay.now, milliseconds{1100});
+  EXPECT_EQ(frame.delay.min, milliseconds{200});
+  EXPECT_EQ(frame.delay.max, milliseconds{2000});
+  EXPECT_EQ(frame.remaining, milliseconds{105000});
 }
 
 TEST(OrbitalFrame, ShowsResultOnceGameIsOver) {
@@ -131,10 +128,11 @@ TEST(OrbitalFrame, ShowsResultOnceGameIsOver) {
 
   // When: the two minutes pass without anyone scoring
   auto [next, over_views] = elapsed(state, 120000);
-  std::vector<std::string> frame = orbital_frame::render(over_views, {});
+  Frame frame = orbital_frame::build(over_views, {});
 
-  // Then: the result is a draw
-  EXPECT_TRUE(hasLineContaining(frame, "Game over: draw"));
+  // Then: the game is over without a winner
+  ASSERT_TRUE(frame.game_over.has_value());
+  EXPECT_EQ(frame.game_over->winner, std::nullopt);
 }
 
 }  // namespace snake
