@@ -3,9 +3,12 @@
 // The shell measures real time and feeds it as game time, turns keys into submissions and draws the
 // views. Every game decision stays in the Domain Application.
 
+#include <algorithm>
 #include <chrono>
+#include <iostream>
 #include <optional>
 #include <random>
+#include <streambuf>
 #include <string>
 #include <thread>
 #include <tuple>
@@ -35,6 +38,57 @@ using orbital::game_boundary::Submit;
 using orbital::game_boundary::Views;
 
 constexpr std::chrono::milliseconds FRAME_INTERVAL{50};
+
+// Drops the NUL byte FTXUI appends to every frame as a flush marker for the web. Terminals ignore it,
+// but vim's :terminal prints it in the bottom right corner and scrolls the frame by a line.
+class NulDroppingBuffer : public std::streambuf {
+ public:
+  explicit NulDroppingBuffer(std::streambuf* target) : target_{target} {}
+
+ protected:
+  int_type overflow(int_type ch) override {
+    if (traits_type::eq_int_type(ch, traits_type::eof()) || traits_type::to_char_type(ch) == '\0') {
+      return traits_type::not_eof(ch);
+    }
+    return target_->sputc(traits_type::to_char_type(ch));
+  }
+
+  std::streamsize xsputn(const char* text, std::streamsize count) override {
+    const char* begin = text;
+    const char* const end = text + count;
+    while (begin != end) {
+      const char* nul = std::find(begin, end, '\0');
+      if (target_->sputn(begin, nul - begin) != nul - begin) {
+        return begin - text;
+      }
+      begin = nul == end ? end : nul + 1;
+    }
+    return count;
+  }
+
+  int sync() override { return target_->pubsync(); }
+
+ private:
+  std::streambuf* target_;
+};
+
+// Routes std::cout through a NulDroppingBuffer for the lifetime of this object
+class NulDroppingCout {
+ public:
+  NulDroppingCout() : original_{std::cout.rdbuf()}, buffer_{original_} { std::cout.rdbuf(&buffer_); }
+  ~NulDroppingCout() {
+    std::cout.flush();
+    std::cout.rdbuf(original_);
+  }
+  NulDroppingCout(const NulDroppingCout&) = delete;
+  NulDroppingCout& operator=(const NulDroppingCout&) = delete;
+  NulDroppingCout(NulDroppingCout&&) = delete;
+  NulDroppingCout& operator=(NulDroppingCout&&) = delete;
+
+ private:
+  std::streambuf* original_;
+  NulDroppingBuffer buffer_;
+};
 
 // Key of a terminal event, if the shell has a use for it
 std::optional<Key> tryKey(const ftxui::Event& event) {
@@ -85,6 +139,7 @@ int main() {
   Views views = *observations.views;
   orbital_controls::Cursors cursors = orbital_controls::makeCursors(views);
 
+  const NulDroppingCout nul_dropping_cout;  // Outlives the screen, which writes on teardown too
   auto screen = ftxui::ScreenInteractive::FullscreenAlternateScreen();
   auto on_key = [&](const Key& key) {
     auto [next_cursors, intent] = orbital_controls::interpretKey(views.arena.board, std::move(cursors), key);
