@@ -204,6 +204,12 @@ cmake --build build
 # Run the game
 ./build/snake_actors
 
+# Play Orbital Orders in the terminal (two players on one keyboard)
+#   Player A: w/a/s/d move the target cursor, e sends the order
+#   Player B: arrow keys move the target cursor, Enter sends the order
+#   n starts a new game, q quits
+./build/orbital_snake
+
 # Print traces of the Orbital Orders domain histories (no platform needed)
 ./build/orbital_domain_runner
 
