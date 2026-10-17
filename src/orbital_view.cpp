@@ -7,6 +7,8 @@
 #include <utility>
 #include <vector>
 
+#include "ftxui/screen/string.hpp"
+
 namespace snake {
 namespace orbital_view {
 
@@ -18,7 +20,9 @@ using orbital_frame::DelayGauge;
 using orbital_frame::Frame;
 using orbital_frame::PlayerPanel;
 
-constexpr int DELAY_GAUGE_WIDTH = 10;             // Width of the wedge at its slow end; even, so it has a middle column
+// Width of the link delay wedge at its slow and fast ends; both even, so that every row is centred
+constexpr int DELAY_GAUGE_WIDTH = 14;
+constexpr int DELAY_GAUGE_FAST_WIDTH = 6;         // Room for the current delay, e.g. "0.2s", inside the bar
 constexpr float PENDING_ROUTE_BRIGHTNESS = 0.3F;  // Share of the player colour left in a pending route
 
 ftxui::Color foodColor() { return ftxui::Color::RGB(240, 200, 60); }
@@ -121,32 +125,60 @@ ftxui::Element board(const Frame& frame) {
                        padded(ftxui::vbox(std::move(rows))));
 }
 
+// Text centred in a fixed width: the same number of spaces left and right, one more right if odd
+ftxui::Element centred(ftxui::Element content, int content_width, int width) {
+  const int left = (width - content_width) / 2;
+  return ftxui::hbox({ftxui::text(std::string(left, ' ')),
+                      std::move(content),
+                      ftxui::text(std::string(width - content_width - left, ' '))});
+}
+
+ftxui::Element centredText(const std::string& text, int width) {
+  return centred(ftxui::text(text), ftxui::string_width(text), width);
+}
+
 // Link delay of a submission sent now: a wedge as tall as the board, wide and slow at the top and
-// narrow and fast at the bottom, filled from the bottom up to the current delay, which is marked
+// narrow and fast at the bottom, filled from the bottom up to the current delay, whose value is
+// written into its row. The narrow end fits that value, so the gauge always has the same width.
 ftxui::Element delayGauge(const DelayGauge& delay, int height) {
   const int wedge_height = std::max(height - 2, 2);  // Leaves a row each for the slow and fast labels
   const int last = wedge_height - 1;
   const int now_from_bottom = static_cast<int>(
       ((delay.now - delay.min).count() * last + (delay.max - delay.min).count() / 2) / (delay.max - delay.min).count());
-  const int middle = DELAY_GAUGE_WIDTH / 2;
 
-  std::vector<ftxui::Element> rows{ftxui::text("slow " + seconds(delay.max)) | ftxui::dim};
+  std::vector<ftxui::Element> rows{centredText("slow " + seconds(delay.max), DELAY_GAUGE_WIDTH) | ftxui::dim};
   for (int row = 0; row < wedge_height; ++row) {
     const int from_bottom = last - row;
-    const int half_width = (from_bottom * middle + last / 2) / last;
+    // Widths grow in steps of two from the fast to the slow end, so every row is centred exactly
+    const int steps = (DELAY_GAUGE_WIDTH - DELAY_GAUGE_FAST_WIDTH) / 2;
+    const int width = DELAY_GAUGE_FAST_WIDTH + 2 * ((from_bottom * steps + last / 2) / last);
     const bool filled = from_bottom <= now_from_bottom;
-    const std::string margin(middle - half_width, ' ');
-    std::string bar;
-    for (int column = 0; column <= 2 * half_width; ++column) {
-      bar += filled ? "▓" : "░";
-    }
-    std::vector<ftxui::Element> line{ftxui::text(margin), filled ? ftxui::text(bar) : ftxui::text(bar) | ftxui::dim};
+    const std::string fill = filled ? "▓" : "░";
+
+    ftxui::Element bar;
     if (from_bottom == now_from_bottom) {
-      line.push_back(ftxui::text(" ◀ " + seconds(delay.now)) | ftxui::bold);
+      const std::string value = seconds(delay.now);
+      const int value_width = static_cast<int>(value.size());
+      const int left = (width - value_width) / 2;
+      std::string left_fill;
+      std::string right_fill;
+      for (int column = 0; column < left; ++column) {
+        left_fill += fill;
+      }
+      for (int column = 0; column < width - value_width - left; ++column) {
+        right_fill += fill;
+      }
+      bar = ftxui::hbox({ftxui::text(left_fill), ftxui::text(value) | ftxui::bold, ftxui::text(right_fill)});
+    } else {
+      std::string line;
+      for (int column = 0; column < width; ++column) {
+        line += fill;
+      }
+      bar = filled ? ftxui::text(line) : ftxui::text(line) | ftxui::dim;
     }
-    rows.push_back(ftxui::hbox(std::move(line)));
+    rows.push_back(centred(std::move(bar), width, DELAY_GAUGE_WIDTH));
   }
-  rows.push_back(ftxui::text("fast " + seconds(delay.min)) | ftxui::dim);
+  rows.push_back(centredText("fast " + seconds(delay.min), DELAY_GAUGE_WIDTH) | ftxui::dim);
   return ftxui::window(ftxui::text(" Link delay "), padded(ftxui::vbox(std::move(rows))));
 }
 
@@ -197,12 +229,16 @@ ftxui::Element draw(const Frame& frame) {
   ftxui::Element top = ftxui::hbox({board(frame), delayGauge(frame.delay, static_cast<int>(frame.cells.size()))});
   top->ComputeRequirement();
 
-  // The player panels share the width of the board and link delay equally
+  // The player panels share the width of the board and link delay; the last one takes the
+  // remainder, so that they end exactly below the link delay
+  const int total_width = top->requirement().min_x;
   const int panel_count = std::max(static_cast<int>(frame.players.size()), 1);
-  const int panel_width = top->requirement().min_x / panel_count;
+  const int panel_width = total_width / panel_count;
   std::vector<ftxui::Element> panels;
+  int index = 0;
   for (const auto& [player, panel] : frame.players) {
-    panels.push_back(playerPanel(player, panel, panel_width));
+    const bool is_last = ++index == panel_count;
+    panels.push_back(playerPanel(player, panel, is_last ? total_width - panel_width * (panel_count - 1) : panel_width));
   }
   return ftxui::vbox({
       std::move(top),
