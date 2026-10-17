@@ -20,6 +20,7 @@ cmake --build build
 ./build/snake_actors      # Run main application
 ./build/test_snake        # Run tests
 ./build/orbital_domain_runner  # Print Orbital Orders domain traces
+./build/orbital_snake     # Play Orbital Orders in the terminal
 ```
 
 ### Testing
