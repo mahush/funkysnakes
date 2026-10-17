@@ -51,6 +51,20 @@ std::optional<OrderId> latestCommittedBefore(const std::vector<OrderCommitted>& 
   return latest ? std::optional<OrderId>{latest->order} : std::nullopt;
 }
 
+// The player's commitments from the given time on and before the other, apart from the given order
+std::vector<OrderId> committedBetween(const std::vector<OrderCommitted>& committed,
+                                      OrderId except,
+                                      GameTime from,
+                                      GameTime until) {
+  std::vector<OrderId> orders;
+  for (const OrderCommitted& commitment : committed) {
+    if (commitment.order != except && from <= commitment.committed_at && commitment.committed_at < until) {
+      orders.push_back(commitment.order);
+    }
+  }
+  return orders;
+}
+
 OrderId orderOf(const ActivationOutcome& outcome) {
   return std::visit([](const auto& item) { return item.order; }, outcome);
 }
@@ -66,11 +80,15 @@ Chain deriveChain(const PlayerId& player,
   };
 
   Chain chain;
-  std::set<OrderId> resolved;  // Orders activated or rejected so far: no longer pending
+  std::set<OrderId> resolved;                // Orders activated or rejected so far: no longer pending
+  std::map<OrderId, GameTime> activated_at;  // Step time at which each order became executing
   for (const ObservedStep& step : steps) {
     for (const ActivationOutcome& outcome : step.activations) {
       const OrderId order = orderOf(outcome);
       resolved.insert(order);
+      if (std::holds_alternative<OrderActivated>(outcome)) {
+        activated_at.emplace(order, step.at);
+      }
       // Only a refusal of the prepared successor ends the chain; a superseded draft was never prepared
       if (std::holds_alternative<OrderRejected>(outcome) && belongsToPlayer(order) &&
           latestCommittedBefore(committed, step.at) == order) {
@@ -82,9 +100,15 @@ Chain deriveChain(const PlayerId& player,
       if (ended == nullptr || !belongsToPlayer(ended->order)) {
         continue;
       }
-      const std::optional<OrderId> successor = latestCommittedBefore(committed, step.at);
-      const bool hands_over = ended->reason == EndReason::COMPLETED && successor && *successor != ended->order &&
-                              resolved.count(*successor) == 0;
+      // Successors prepared for the ended order are the commitments made while it executed; a commitment
+      // made before its activation would have superseded it. A second one revised the prepared successor,
+      // which forfeits the handover of this order however the later successor fares
+      auto activation = activated_at.find(ended->order);
+      const std::vector<OrderId> successors =
+          activation == activated_at.end() ? std::vector<OrderId>{}
+                                           : committedBetween(committed, ended->order, activation->second, step.at);
+      const bool hands_over =
+          ended->reason == EndReason::COMPLETED && successors.size() == 1 && resolved.count(successors.front()) == 0;
       if (hands_over) {
         ++chain.length;
         chain.bonus_credited += scoring_policy::handoverBonus(chain.length);
