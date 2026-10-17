@@ -20,9 +20,9 @@ using orbital_frame::DelayGauge;
 using orbital_frame::Frame;
 using orbital_frame::PlayerPanel;
 
-// Width of the link delay wedge at its slow and fast ends; both even, so that every row is centred
-constexpr int DELAY_GAUGE_WIDTH = 14;
-constexpr int DELAY_GAUGE_FAST_WIDTH = 6;         // Room for the current delay, e.g. "0.2s", inside the bar
+// Width of the link delay wedge at its slow and fast ends; both odd, so that every row is centred
+constexpr int DELAY_GAUGE_WIDTH = 11;
+constexpr int DELAY_GAUGE_FAST_WIDTH = 3;         // Exactly the current delay, e.g. "0.2", inside the bar
 constexpr float PENDING_ROUTE_BRIGHTNESS = 0.3F;  // Share of the player colour left in a pending route
 
 ftxui::Color foodColor() { return ftxui::Color::RGB(240, 200, 60); }
@@ -78,14 +78,17 @@ ftxui::Element cellElement(const Cell& cell) {
   return symbol | ftxui::color(playerColor(*cell.player));
 }
 
-// Seconds with one decimal, e.g. "0.6s"
-std::string seconds(std::chrono::milliseconds duration) {
+// Seconds with one decimal and no unit, e.g. "0.6"
+std::string decimalSeconds(std::chrono::milliseconds duration) {
   std::ostringstream text;
   text.setf(std::ios::fixed);
   text.precision(1);
-  text << static_cast<double>(duration.count()) / 1000.0 << "s";
+  text << static_cast<double>(duration.count()) / 1000.0;
   return text.str();
 }
+
+// Seconds with one decimal, e.g. "0.6s"
+std::string seconds(std::chrono::milliseconds duration) { return decimalSeconds(duration) + "s"; }
 
 // Minutes and seconds, e.g. "1:45"
 std::string clock(std::chrono::milliseconds duration) {
@@ -157,7 +160,7 @@ ftxui::Element delayGauge(const DelayGauge& delay, int height) {
 
     ftxui::Element bar;
     if (from_bottom == now_from_bottom) {
-      const std::string value = seconds(delay.now);
+      const std::string value = decimalSeconds(delay.now);
       const int value_width = static_cast<int>(value.size());
       const int left = (width - value_width) / 2;
       std::string left_fill;
