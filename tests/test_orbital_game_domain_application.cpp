@@ -5,6 +5,7 @@
 #include <chrono>
 #include <tuple>
 
+#include "orbital/latency_policy.hpp"
 #include "orbital/orbital_game_domain_application.hpp"
 #include "test_printers.hpp"
 
@@ -341,6 +342,51 @@ TEST(OrbitalGameDomainApplication, IssuesSubmissionAtCurrentGameTime) {
 
   // Then: it is issued at 1300 ms
   EXPECT_EQ(std::get<SubmissionAccepted>(*observations.submission).issued_at, milliseconds{1300});
+}
+
+/// @subsection views
+
+/// @brief Players see how long a submission sent now would travel, so they can time it
+TEST(OrbitalGameDomainApplication, ViewsDelayOfSubmissionIssuedNow) {
+  // Given: 7400 ms have passed
+  app::State state = elapse(started(makeLanes({})), 7400);
+
+  // When: 100 ms more pass, reaching a quarter of the orbital cycle
+  auto [next, observations] = app::apply(makeCornerRandom(), state, app::TimeElapsed{milliseconds{100}});
+
+  // Then: the views carry the current time and the delay halfway between 400 ms and 3000 ms
+  ASSERT_TRUE(observations.views.has_value());
+  EXPECT_EQ(observations.views->now, milliseconds{7500});
+  EXPECT_EQ(observations.views->submission_delay, milliseconds{1700});
+}
+
+/// @brief Game time ends with the game, so the link condition shown at the end stays as it was
+TEST(OrbitalGameDomainApplication, StopsGameTimeAndLinkDelayAtConclusion) {
+  // Given: the game ended at 120000 ms
+  app::State over = elapse(started(makeLanes({})), 120000);
+
+  // When: five more seconds pass
+  auto [state, observations] = app::apply(makeCornerRandom(), over, app::TimeElapsed{milliseconds{5000}});
+
+  // Then: the views still show the time and delay of the end of the game
+  ASSERT_TRUE(observations.views.has_value());
+  EXPECT_EQ(observations.views->now, milliseconds{120000});
+  EXPECT_EQ(observations.views->submission_delay, latency_policy::delayAt(milliseconds{120000}));
+}
+
+/// @brief The preview of an order in transit follows the snake until the order activates
+TEST(OrbitalGameDomainApplication, ViewsPendingRouteFromCurrentSnakePosition) {
+  // Given: A at (2,2) heading right ordered (8,5) at 0 ms, eligible at 400 ms
+  auto [with_order, order] = submit(started(makeLanes({})), PLAYER_A, Point{8, 5});
+
+  // When: the first step moved the snake to (3,2)
+  auto [state, observations] = app::apply(makeCornerRandom(), with_order, app::TimeElapsed{milliseconds{200}});
+
+  // Then: the pending route starts from (3,2): five moves right, three down
+  ASSERT_TRUE(observations.views.has_value());
+  using D = Direction;
+  EXPECT_EQ(observations.views->pending_routes.at(PLAYER_A),
+            (std::vector<Direction>{D::RIGHT, D::RIGHT, D::RIGHT, D::RIGHT, D::RIGHT, D::DOWN, D::DOWN, D::DOWN}));
 }
 
 }  // namespace orbital

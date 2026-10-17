@@ -1,6 +1,7 @@
 #pragma once
 
 #include <chrono>
+#include <map>
 #include <optional>
 #include <variant>
 #include <vector>
@@ -99,7 +100,7 @@ struct StepReport {
 };
 
 /**
- * @brief Current views of the three Authorities
+ * @brief Current views of the three Authorities, the game time and the orbital link condition
  *
  * A combined presentation is a projection of these views; it owns no meaning of its own.
  */
@@ -107,6 +108,9 @@ struct Views {
   arena_authority::View arena;
   order_authority::View orders;
   game_authority::View game;
+  GameTime now;                                               // Current time of the round's logical clock
+  std::chrono::milliseconds submission_delay;                 // Delay of a submission issued now (Latency Policy)
+  std::map<PlayerId, std::vector<Direction>> pending_routes;  // Route each pending order would get if it activated now
 };
 
 /**

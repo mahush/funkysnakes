@@ -3,6 +3,8 @@
 #include <iterator>
 #include <vector>
 
+#include "orbital/latency_policy.hpp"
+
 namespace snake {
 namespace orbital {
 namespace orbital_game_domain_application {
@@ -17,10 +19,31 @@ using game_boundary::Views;
 
 bool isStarted(const State& state) { return state.game.has_value(); }
 
+// Route each pending order would get from the snake's current position
+std::map<PlayerId, std::vector<Direction>> pendingRoutes(const arena_authority::State& arena,
+                                                         const order_authority::View& orders) {
+  std::map<PlayerId, std::vector<Direction>> routes;
+  for (const auto& [player, player_orders] : orders.players) {
+    if (!player_orders.pending) {
+      continue;
+    }
+    if (auto route = arena_authority::routeIfActivatedNow(arena, player, player_orders.pending->order.target)) {
+      routes[player] = std::move(*route);
+    }
+  }
+  return routes;
+}
+
 Observations withViews(Observations observations, const State& state) {
   if (isStarted(state)) {
-    observations.views = Views{
-        arena_authority::view(*state.arena), order_authority::view(*state.orders), game_authority::view(*state.game)};
+    order_authority::View orders = order_authority::view(*state.orders);
+    std::map<PlayerId, std::vector<Direction>> pending_routes = pendingRoutes(*state.arena, orders);
+    observations.views = Views{arena_authority::view(*state.arena),
+                               std::move(orders),
+                               game_authority::view(*state.game),
+                               state.clock.now,
+                               latency_policy::delayAt(state.clock.now),
+                               std::move(pending_routes)};
   }
   return observations;
 }
@@ -130,7 +153,9 @@ std::tuple<State, Observations> apply(const RandomIntGeneratorFn& random_int_fn,
     state = std::move(next);
     observations = appendObservations(std::move(observations), std::move(step_observations));
   }
-  state.clock.now = until;
+  if (game_authority::isRunning(*state.game)) {
+    state.clock.now = until;  // Once concluded, the clock stays at the step that ended the game
+  }
 
   observations = withViews(std::move(observations), state);
   return {std::move(state), std::move(observations)};
