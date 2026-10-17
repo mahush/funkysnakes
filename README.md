@@ -223,6 +223,7 @@ cmake --build build
 - **C++17 compiler** (GCC 11+, Clang 14+)
 - **funkyactors** — actor framework, auto-downloaded via FetchContent from [github.com/mahush/funkyactors](https://github.com/mahush/funkyactors)
 - **funkypipes** — function-pipeline library, auto-downloaded via FetchContent from [github.com/mahush/funkypipes](https://github.com/mahush/funkypipes)
+- **FTXUI 7.0.3** — terminal UI of `orbital_snake`, auto-downloaded via FetchContent from [github.com/ArthurSonzogni/FTXUI](https://github.com/ArthurSonzogni/FTXUI)
 - **Standalone Asio 1.30.2** (bundled with funkyactors)
 - **GoogleTest 1.15.2** (optional, for tests, auto-downloaded)
 
