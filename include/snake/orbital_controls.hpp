@@ -24,20 +24,6 @@ namespace orbital_controls {
  */
 
 /**
- * @brief State of the key parser: arrow keys arrive as the sequence ESC [ A/B/C/D
- */
-enum class KeyParseState { NORMAL, SAW_ESC, SAW_BRACKET };
-
-/**
- * @brief Parse one character of the terminal input
- *
- * @param state Parser state before the character
- * @param ch Character read from the terminal
- * @return Tuple of (parser state after the character, key once complete)
- */
-std::tuple<KeyParseState, std::optional<Key>> parseKey(KeyParseState state, char ch);
-
-/**
  * @brief The cursor position of each player
  */
 using Cursors = std::map<PlayerId, Point>;

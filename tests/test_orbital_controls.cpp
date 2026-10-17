@@ -14,36 +14,12 @@ namespace {
 using orbital::game_boundary::Submit;
 using orbital_controls::Cursors;
 using orbital_controls::Intent;
-using orbital_controls::KeyParseState;
 
 const Board BOARD{20, 10};
 
 Cursors makeStartCursors() { return Cursors{{PLAYER_A, Point{4, 2}}, {PLAYER_B, Point{4, 7}}}; }
 
 }  // namespace
-
-/// @section orbital_controls::parseKey
-
-TEST(OrbitalControls, ParsesArrowKeyFromEscapeSequence) {
-  // Given: ESC and '[' were read
-  auto [after_esc, no_key] = orbital_controls::parseKey(KeyParseState::NORMAL, 27);
-  auto [after_bracket, still_no_key] = orbital_controls::parseKey(after_esc, '[');
-
-  // When: 'A' is read
-  auto [state, key] = orbital_controls::parseKey(after_bracket, 'A');
-
-  // Then: the key is arrow up and the parser waits for the next key
-  EXPECT_EQ(key, Key{SpecialKey::ARROW_UP});
-  EXPECT_EQ(state, KeyParseState::NORMAL);
-}
-
-TEST(OrbitalControls, PassesPlainCharacterThrough) {
-  // When: 'e' is read
-  auto [state, key] = orbital_controls::parseKey(KeyParseState::NORMAL, 'e');
-
-  // Then: the key is 'e'
-  EXPECT_EQ(key, Key{'e'});
-}
 
 /// @section orbital_controls::interpretKey
 /// @subsection cursor moves
