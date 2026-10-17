@@ -98,6 +98,9 @@ class State {
   // Queries
   friend bool anySnakeAlive(const State& state);
   friend StepId lastCompletedStep(const State& state);
+  friend std::optional<std::vector<Direction>> routeIfActivatedNow(const State& state,
+                                                                   const PlayerId& player,
+                                                                   Point target);
   friend View view(const State& state);
 };
 
@@ -175,6 +178,20 @@ bool anySnakeAlive(const State& state);
  * @return Identity of the last completed step (0 before the first step)
  */
 StepId lastCompletedStep(const State& state);
+
+/**
+ * @brief Route an order of the player to the target would get if it activated now
+ *
+ * Activation happens at the start of a step, before movement, so this is the route the next step
+ * would plan from the snake's current head and heading.
+ *
+ * @param state Current world
+ * @param player Player whose snake would execute the order
+ * @param target Order target
+ * @return Moves of the route; empty if the head is at the target; nothing if the player has no
+ *         living snake, the target is off the board or execution has ended
+ */
+std::optional<std::vector<Direction>> routeIfActivatedNow(const State& state, const PlayerId& player, Point target);
 
 /**
  * @brief Projection of the world for presentation

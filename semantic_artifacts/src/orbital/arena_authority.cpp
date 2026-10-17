@@ -236,6 +236,16 @@ bool anySnakeAlive(const State& state) {
 
 StepId lastCompletedStep(const State& state) { return state.step_; }
 
+std::optional<std::vector<Direction>> routeIfActivatedNow(const State& state, const PlayerId& player, Point target) {
+  auto snake = state.snakes_.find(player);
+  if (state.ended_ || snake == state.snakes_.end() || !snake_model::alive(snake->second) ||
+      !isOnBoard(target, state.board_)) {
+    return std::nullopt;
+  }
+  return pursuit_policy::planRoute(
+      snake_model::head(snake->second), snake_model::currentDirection(snake->second), target, state.board_);
+}
+
 View view(const State& state) {
   return View{state.board_, state.snakes_, state.food_, state.active_, state.step_, state.ended_};
 }
