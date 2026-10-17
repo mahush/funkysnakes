@@ -47,11 +47,11 @@ TEST(OrbitalGameAuthority, ShowsCreditedAndUnbankedPointsSeparately) {
       {FoodCollected{PLAYER_A, Point{1, 1}, OrderId{1}}, FoodCollected{PLAYER_B, Point{2, 2}, std::nullopt}},
       true);
 
-  // Then: A has 10 unbanked points, B 10 credited points, and the game goes on
+  // Then: A has 10 unbanked points, B 5 credited points, and the game goes on
   game_authority::View view = game_authority::view(state);
   EXPECT_EQ(view.players.at(PLAYER_A).credited, 0);
   EXPECT_EQ(view.players.at(PLAYER_A).unbanked, 10);
-  EXPECT_EQ(view.players.at(PLAYER_B).credited, 10);
+  EXPECT_EQ(view.players.at(PLAYER_B).credited, 5);
   EXPECT_FALSE(concluded.has_value());
 }
 

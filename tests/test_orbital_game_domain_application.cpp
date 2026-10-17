@@ -179,9 +179,9 @@ TEST(OrbitalGameDomainApplication, CompletesPositionalOrderAfterOpponentTookTheF
   // When: A's snake arrives at (8,2)
   app::State state = elapse(with_order, 1200);
 
-  // Then: B was credited for the food and A's order completed without points
+  // Then: B, eating without an order, was credited 5 for the food and A's order completed without points
   EXPECT_EQ(statusOf(state, order), Status::COMPLETED);
-  EXPECT_EQ(scoreOf(state, PLAYER_B).credited, 10);
+  EXPECT_EQ(scoreOf(state, PLAYER_B).credited, 5);
   EXPECT_EQ(scoreOf(state, PLAYER_A).credited, 0);
 }
 
