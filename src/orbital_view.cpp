@@ -154,8 +154,12 @@ ftxui::Element centredText(const std::string& text, int width) {
 ftxui::Element delayGauge(const DelayGauge& delay, int height) {
   const int wedge_height = std::max(height - 2, 2);  // Leaves a row each for the slow and fast labels
   const int last = wedge_height - 1;
-  const int now_from_bottom = static_cast<int>(
-      ((delay.now - delay.min).count() * last + (delay.max - delay.min).count() / 2) / (delay.max - delay.min).count());
+  // The delay's value sits on the row of its level, from the second row (fastest) to the top row
+  // (slowest), so the bottom row is filled even at the fastest delay
+  const int value_rows = last - 1;
+  const int now_from_bottom =
+      1 + static_cast<int>(((delay.now - delay.min).count() * value_rows + (delay.max - delay.min).count() / 2) /
+                           (delay.max - delay.min).count());
 
   std::vector<ftxui::Element> rows{centredText("slow " + seconds(delay.max), DELAY_BOX_WIDTH) | ftxui::dim};
   for (int row = 0; row < wedge_height; ++row) {
