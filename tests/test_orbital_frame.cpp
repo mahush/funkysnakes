@@ -83,7 +83,7 @@ TEST(OrbitalFrame, ShowsPendingTargetRouteAndCountdown) {
   // Given: a game started
   auto [state, views] = started();
 
-  // When: A orders the snake to (8,5) at 0 ms, eligible after 400 ms
+  // When: A orders the snake to (8,5) at 0 ms, eligible after 200 ms
   auto [next, pending_views] = submitted(state, PLAYER_A, Point{8, 5});
   std::vector<std::string> frame = orbital_frame::render(pending_views, {});
 
@@ -91,7 +91,7 @@ TEST(OrbitalFrame, ShowsPendingTargetRouteAndCountdown) {
   EXPECT_EQ(cellAt(frame, Point{8, 5}), '?');
   EXPECT_EQ(cellAt(frame, Point{5, 2}), '.');
   EXPECT_EQ(cellAt(frame, Point{8, 4}), '.');
-  EXPECT_TRUE(hasLineContaining(frame, "pending (8,5) in 0.4s"));
+  EXPECT_TRUE(hasLineContaining(frame, "pending (8,5) in 0.2s"));
 }
 
 /// @brief Players see the route the Arena follows for an executing order
@@ -100,7 +100,7 @@ TEST(OrbitalFrame, ShowsExecutingTargetAndRemainingRoute) {
   auto [state, views] = started();
   auto [with_order, order_views] = submitted(state, PLAYER_A, Point{8, 5});
 
-  // When: the order activated at 400 ms, where the snake moved on to (6,2)
+  // When: the order activated at 200 ms and by 400 ms the snake moved on to (6,2)
   auto [next, executing_views] = elapsed(with_order, 400);
   std::vector<std::string> frame = orbital_frame::render(executing_views, {});
 
@@ -115,14 +115,14 @@ TEST(OrbitalFrame, ShowsLinkDelayAndRemainingTime) {
   // Given: a game started
   auto [state, views] = started();
 
-  // When: 7.5 s pass, a quarter of the orbital cycle
-  auto [next, later_views] = elapsed(state, 7500);
+  // When: 15 s pass, a quarter of the orbital cycle
+  auto [next, later_views] = elapsed(state, 15000);
   std::vector<std::string> frame = orbital_frame::render(later_views, {});
 
-  // Then: the delay of 1.7 s is marked halfway up the wedge beside the board, in board row 4 of
-  //       rows 0-9 (row 9 is the fast end); the remaining time is as of the last step at 7.4 s
-  EXPECT_NE(frame.at(4 + 1).find("< 1.7s"), std::string::npos);
-  EXPECT_TRUE(hasLineContaining(frame, "Time left 112.6s"));
+  // Then: the delay of 1.1 s is marked halfway up the wedge beside the board, in board row 4 of
+  //       rows 0-9 (row 9 is the fast end); 105 s remain
+  EXPECT_NE(frame.at(4 + 1).find("< 1.1s"), std::string::npos);
+  EXPECT_TRUE(hasLineContaining(frame, "Time left 105.0s"));
 }
 
 TEST(OrbitalFrame, ShowsResultOnceGameIsOver) {

@@ -19,9 +19,9 @@ namespace latency_policy {
  * does not move it; storing and waiting for the deadline is owned by the Order Authority.
  */
 
-constexpr std::chrono::milliseconds MIN_DELAY{400};
-constexpr std::chrono::milliseconds MAX_DELAY{3000};
-constexpr std::chrono::milliseconds CYCLE{30000};
+constexpr std::chrono::milliseconds MIN_DELAY{200};
+constexpr std::chrono::milliseconds MAX_DELAY{2000};
+constexpr std::chrono::milliseconds CYCLE{60000};
 
 /**
  * @brief Communication delay for an order issued at the given time

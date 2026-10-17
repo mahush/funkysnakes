@@ -50,10 +50,10 @@ TEST(OrderAuthority, AssignsNewIdentityToEachSubmission) {
 TEST(OrderAuthority, StoresDeadlineFromIssueTime) {
   // When: an order is submitted at the peak of the orbital cycle
   auto [state, id] = order_authority::submit(order_authority::startRound(ROUND),
-                                             Submission{PLAYER_A, Point{3, 4}, milliseconds{15000}});
+                                             Submission{PLAYER_A, Point{3, 4}, milliseconds{30000}});
 
   // Then: its deadline lies the peak delay after its issue time
-  EXPECT_EQ(order_authority::view(state).players.at(PLAYER_A).pending->deadline, milliseconds{18000});
+  EXPECT_EQ(order_authority::view(state).players.at(PLAYER_A).pending->deadline, milliseconds{32000});
 }
 
 /// @brief A player can change their mind; the superseded order never activates
@@ -86,24 +86,24 @@ TEST(OrderAuthority, KeepsPendingOrdersOfOtherPlayers) {
 /// @section order_authority::eligible
 
 TEST(OrderAuthority, HoldsBackOrderBeforeItsDeadline) {
-  // Given: an order issued at 0 ms, eligible after 400 ms
+  // Given: an order issued at 0 ms, eligible after 200 ms
   auto [state, id] =
       order_authority::submit(order_authority::startRound(ROUND), Submission{PLAYER_A, Point{3, 4}, milliseconds{0}});
 
   // When: eligibility is checked just before the deadline
-  std::vector<Order> orders = order_authority::eligible(state, milliseconds{399});
+  std::vector<Order> orders = order_authority::eligible(state, milliseconds{199});
 
   // Then: nothing is eligible
   EXPECT_TRUE(orders.empty());
 }
 
 TEST(OrderAuthority, ReleasesOrderOnceItsDeadlineHasElapsed) {
-  // Given: an order issued at 0 ms, eligible after 400 ms
+  // Given: an order issued at 0 ms, eligible after 200 ms
   auto [state, id] =
       order_authority::submit(order_authority::startRound(ROUND), Submission{PLAYER_A, Point{3, 4}, milliseconds{0}});
 
   // When: eligibility is checked at the deadline
-  std::vector<Order> orders = order_authority::eligible(state, milliseconds{400});
+  std::vector<Order> orders = order_authority::eligible(state, milliseconds{200});
 
   // Then: the order is eligible with its round, identity, player and target
   ASSERT_EQ(orders.size(), 1U);
@@ -115,7 +115,7 @@ TEST(OrderAuthority, ReleasesOrderOnceItsDeadlineHasElapsed) {
 
 /// @brief Revising postpones activation: the new order waits for its own deadline, not the old one
 TEST(OrderAuthority, DoesNotInheritDeadlineOfSupersededOrder) {
-  // Given: G issued at 0 ms (eligible at 400 ms), superseded by H issued at 300 ms
+  // Given: G issued at 0 ms (eligible at 200 ms), superseded by H issued at 300 ms (eligible at 536 ms)
   auto [state, g] =
       order_authority::submit(order_authority::startRound(ROUND), Submission{PLAYER_A, Point{3, 4}, milliseconds{0}});
   auto [revised_state, h] = order_authority::submit(state, Submission{PLAYER_A, Point{8, 1}, milliseconds{300}});
