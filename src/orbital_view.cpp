@@ -26,17 +26,34 @@ constexpr int DELAY_GAUGE_FAST_WIDTH = 3;  // Exactly the current delay, e.g. "0
 // Content width of the link delay box: the wedge with a column of space on each side, so that the
 // box title "Link delay" has border line on both sides
 constexpr int DELAY_BOX_WIDTH = DELAY_GAUGE_WIDTH + 2;
-constexpr float PENDING_ROUTE_BRIGHTNESS = 0.3F;  // Share of the player colour left in a pending route
 
-ftxui::Color foodColor() { return ftxui::Color::RGB(240, 200, 60); }
+// Gruvbox dark palette
+namespace gruvbox {
+ftxui::Color bg2() { return ftxui::Color::RGB(0x50, 0x49, 0x45); }
+ftxui::Color gray() { return ftxui::Color::RGB(0x92, 0x83, 0x74); }
+ftxui::Color fg4() { return ftxui::Color::RGB(0xa8, 0x99, 0x84); }
+ftxui::Color fg() { return ftxui::Color::RGB(0xeb, 0xdb, 0xb2); }
+ftxui::Color green() { return ftxui::Color::RGB(0xb8, 0xbb, 0x26); }
+ftxui::Color yellow() { return ftxui::Color::RGB(0xfa, 0xbd, 0x2f); }
+ftxui::Color purple() { return ftxui::Color::RGB(0xd3, 0x86, 0x9b); }
+ftxui::Color blue() { return ftxui::Color::RGB(0x83, 0xa5, 0x98); }
+ftxui::Color fadedPurple() { return ftxui::Color::RGB(0x8f, 0x3f, 0x71); }
+ftxui::Color fadedYellow() { return ftxui::Color::RGB(0xb5, 0x76, 0x14); }
+}  // namespace gruvbox
 
-ftxui::Color playerColor(const PlayerId& player) {
-  return player == PLAYER_A ? ftxui::Color::RGB(95, 215, 95) : ftxui::Color::RGB(215, 95, 215);
-}
+ftxui::Color borderColor() { return gruvbox::blue(); }
+ftxui::Color textColor() { return gruvbox::fg(); }
+ftxui::Color labelColor() { return gruvbox::gray(); }
+ftxui::Color foodColor() { return gruvbox::green(); }
+ftxui::Color delayFilledColor() { return gruvbox::fg4(); }
+ftxui::Color delayEmptyColor() { return gruvbox::bg2(); }
 
-// Player colour blended towards black, for marks that should recede
+ftxui::Color playerColor(const PlayerId& player) { return player == PLAYER_A ? gruvbox::purple() : gruvbox::yellow(); }
+
+// Faded variant of the player colour, for marks that should recede; a blend towards the background
+// would turn grey in a 256 colour terminal
 ftxui::Color dimmed(const PlayerId& player) {
-  return ftxui::Color::Interpolate(PENDING_ROUTE_BRIGHTNESS, ftxui::Color::RGB(0, 0, 0), playerColor(player));
+  return player == PLAYER_A ? gruvbox::fadedPurple() : gruvbox::fadedYellow();
 }
 
 // Symbol of a board cell; a cell is two terminal columns wide, so that a square board looks square
@@ -107,9 +124,13 @@ ftxui::Element padded(ftxui::Element content) {
 }
 
 // Rounded box whose title starts after one line character of the top border, e.g. "╭─ Title ───╮"
+// The border is drawn in a muted colour; title and content are drawn over it in the text colour,
+// where their own colours, such as the snakes', take precedence
 ftxui::Element box(ftxui::Element title, ftxui::Element content) {
-  return ftxui::window(ftxui::hbox({ftxui::text("─ "), std::move(title), ftxui::text(" ")}),
-                       padded(std::move(content)));
+  ftxui::Element framed_title =
+      ftxui::hbox({ftxui::text("─ "), std::move(title) | ftxui::color(textColor()), ftxui::text(" ")});
+  return ftxui::window(std::move(framed_title), padded(std::move(content) | ftxui::color(textColor()))) |
+         ftxui::color(borderColor());
 }
 
 std::string targetText(Point target) { return "(" + std::to_string(target.x) + "," + std::to_string(target.y) + ")"; }
@@ -161,7 +182,8 @@ ftxui::Element delayGauge(const DelayGauge& delay, int height) {
       1 + static_cast<int>(((delay.now - delay.min).count() * value_rows + (delay.max - delay.min).count() / 2) /
                            (delay.max - delay.min).count());
 
-  std::vector<ftxui::Element> rows{centredText("slow " + seconds(delay.max), DELAY_BOX_WIDTH) | ftxui::dim};
+  std::vector<ftxui::Element> rows{centredText("slow " + seconds(delay.max), DELAY_BOX_WIDTH) |
+                                   ftxui::color(labelColor())};
   for (int row = 0; row < wedge_height; ++row) {
     const int from_bottom = last - row;
     // Widths grow in steps of two from the fast to the slow end, so every row is centred exactly
@@ -169,6 +191,7 @@ ftxui::Element delayGauge(const DelayGauge& delay, int height) {
     const int width = DELAY_GAUGE_FAST_WIDTH + 2 * ((from_bottom * steps + last / 2) / last);
     const bool filled = from_bottom <= now_from_bottom;
     const std::string fill = filled ? "▓" : "░";
+    const ftxui::Color fill_color = filled ? delayFilledColor() : delayEmptyColor();
 
     ftxui::Element bar;
     if (from_bottom == now_from_bottom) {
@@ -183,17 +206,19 @@ ftxui::Element delayGauge(const DelayGauge& delay, int height) {
       for (int column = 0; column < width - value_width - left; ++column) {
         right_fill += fill;
       }
-      bar = ftxui::hbox({ftxui::text(left_fill), ftxui::text(value) | ftxui::bold, ftxui::text(right_fill)});
+      bar = ftxui::hbox({ftxui::text(left_fill) | ftxui::color(fill_color),
+                         ftxui::text(value) | ftxui::color(textColor()) | ftxui::bold,
+                         ftxui::text(right_fill) | ftxui::color(fill_color)});
     } else {
       std::string line;
       for (int column = 0; column < width; ++column) {
         line += fill;
       }
-      bar = filled ? ftxui::text(line) : ftxui::text(line) | ftxui::dim;
+      bar = ftxui::text(line) | ftxui::color(fill_color);
     }
     rows.push_back(centred(std::move(bar), width, DELAY_BOX_WIDTH));
   }
-  rows.push_back(centredText("fast " + seconds(delay.min), DELAY_BOX_WIDTH) | ftxui::dim);
+  rows.push_back(centredText("fast " + seconds(delay.min), DELAY_BOX_WIDTH) | ftxui::color(labelColor()));
   return box(ftxui::text("Link delay"), ftxui::vbox(std::move(rows)));
 }
 
@@ -233,7 +258,7 @@ ftxui::Element keyHelp() {
              ftxui::text("●") | ftxui::color(playerColor(PLAYER_B)),
              ftxui::text(" ← ↑ → ↓ · Enter     n new   q quit"),
          }) |
-         ftxui::dim;
+         ftxui::color(labelColor());
 }
 
 }  // namespace
