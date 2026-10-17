@@ -222,21 +222,21 @@ TEST(OrbitalGameDomainApplication, BreaksChainAndLosesPointsWhenSuccessorActivat
   EXPECT_EQ(scoreOf(state, PLAYER_A).chain, 0);
 }
 
-/// @brief Revising the prepared successor keeps the handover: the latest committed successor counts
-TEST(OrbitalGameDomainApplication, KeepsHandoverWhenPendingSuccessorIsRevised) {
-  // Given: G is committed at 1200 ms and superseded by G' at 1400 ms, both before F completes
-  auto [with_f, f] = submit(started(makeLanes({})), PLAYER_A, Point{10, 2});
+/// @brief A handover needs one uninterrupted prepared successor; revising it forfeits the handover
+TEST(OrbitalGameDomainApplication, ForfeitsHandoverButBanksPointsWhenPendingSuccessorIsRevised) {
+  // Given: F collects food at (5,2) and (7,2); G is committed at 1200 ms and superseded by G' at 1400 ms
+  auto [with_f, f] = submit(started(makeLanes({Point{5, 2}, Point{7, 2}})), PLAYER_A, Point{10, 2});
   auto [with_g, g] = submit(elapse(with_f, 1200), PLAYER_A, Point{10, 8});
   auto [with_revised, revised] = submit(elapse(with_g, 200), PLAYER_A, Point{10, 6});
 
   // When: time passes until G' has activated
   app::State state = elapse(with_revised, 400);
 
-  // Then: G never activated, and F's completion is a handover to G'
+  // Then: G never activated, G' took over, F's food points count, and F's completion is no handover
   EXPECT_EQ(statusOf(state, g), Status::SUPERSEDED);
   EXPECT_EQ(statusOf(state, revised), Status::EXECUTING);
-  EXPECT_EQ(scoreOf(state, PLAYER_A).credited, 10);
-  EXPECT_EQ(scoreOf(state, PLAYER_A).chain, 1);
+  EXPECT_EQ(scoreOf(state, PLAYER_A).credited, 20);
+  EXPECT_EQ(scoreOf(state, PLAYER_A).chain, 0);
 }
 
 /// @brief A prepared successor that the Arena refuses ends the chain it was prepared for
