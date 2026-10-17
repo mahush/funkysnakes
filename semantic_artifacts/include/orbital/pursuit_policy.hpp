@@ -15,10 +15,10 @@ namespace pursuit_policy {
  * direction per tick, that leads the head from its position to the target. The Arena keeps the
  * route of the executing order and takes one move per tick; it does not interpret the route.
  *
- * Current route shape: follow the current heading until aligned with the target, then turn once
- * and take the shorter wrapped way to it. If both ways are equally long, turn clockwise (as seen
- * on screen). A target on the line ahead or behind is reached by going straight, wrapping at the
- * board edge if needed.
+ * Current route shape: follow the current heading until aligned with the target, wrapping at the
+ * board edge if the target lies behind (this avoids a reversal), then turn once towards the target
+ * as seen on screen and go straight to it without wrapping. A target on the line ahead or behind is
+ * reached by going straight.
  *
  * A route never starts with or contains a reversal of the previous move: the snake model would
  * ignore such a move for snakes of length two or more, and the snake would leave its route.

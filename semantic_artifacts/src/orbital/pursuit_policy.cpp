@@ -1,5 +1,7 @@
 #include "orbital/pursuit_policy.hpp"
 
+#include <cstdlib>
+
 namespace snake {
 namespace orbital {
 namespace pursuit_policy {
@@ -7,21 +9,6 @@ namespace pursuit_policy {
 namespace {
 
 bool isHorizontal(Direction dir) { return dir == Direction::LEFT || dir == Direction::RIGHT; }
-
-// Clockwise neighbour as seen on screen (y grows downwards)
-Direction clockwise(Direction dir) {
-  switch (dir) {
-    case Direction::UP:
-      return Direction::RIGHT;
-    case Direction::RIGHT:
-      return Direction::DOWN;
-    case Direction::DOWN:
-      return Direction::LEFT;
-    case Direction::LEFT:
-      return Direction::UP;
-  }
-  return dir;
-}
 
 // Steps needed when moving in the positive direction of an axis, wrapping at its size
 int forwardDistance(int from, int to, int size) { return ((to - from) % size + size) % size; }
@@ -46,30 +33,21 @@ struct FinalLeg {
   int steps;
 };
 
-// Shorter wrapped way across the heading's axis; equal ways turn clockwise
-FinalLeg finalLeg(Point head, Direction heading, Point target, const Board& board) {
-  const bool horizontal = isHorizontal(heading);
-  const int size = horizontal ? board.height : board.width;
-  const int positive_steps =
-      horizontal ? forwardDistance(head.y, target.y, size) : forwardDistance(head.x, target.x, size);
-  const int negative_steps = positive_steps == 0 ? 0 : size - positive_steps;
-  const Direction positive = horizontal ? Direction::DOWN : Direction::RIGHT;
-  const Direction negative = horizontal ? Direction::UP : Direction::LEFT;
-
-  if (positive_steps < negative_steps) {
-    return {positive, positive_steps};
+// Across the heading's axis towards the target as seen on screen, without wrapping
+FinalLeg finalLeg(Point head, Direction heading, Point target) {
+  if (isHorizontal(heading)) {
+    const int offset = target.y - head.y;
+    return {offset < 0 ? Direction::UP : Direction::DOWN, std::abs(offset)};
   }
-  if (negative_steps < positive_steps) {
-    return {negative, negative_steps};
-  }
-  return {clockwise(heading), positive_steps};
+  const int offset = target.x - head.x;
+  return {offset < 0 ? Direction::LEFT : Direction::RIGHT, std::abs(offset)};
 }
 
 }  // namespace
 
 std::vector<Direction> planRoute(Point head, Direction heading, Point target, const Board& board) {
   const int first_steps = stepsAlongHeading(head, heading, target, board);
-  const FinalLeg final_leg = finalLeg(head, heading, target, board);
+  const FinalLeg final_leg = finalLeg(head, heading, target);
 
   std::vector<Direction> route(first_steps, heading);
   route.insert(route.end(), final_leg.steps, final_leg.direction);
