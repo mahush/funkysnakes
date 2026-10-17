@@ -7,8 +7,6 @@ namespace orbital_controls {
 
 namespace {
 
-constexpr char ESC = 27;
-
 // Cursor movement of a key: the moving player and direction
 std::optional<std::tuple<PlayerId, Direction>> tryCursorMove(const Key& key) {
   if (const auto* special = std::get_if<SpecialKey>(&key)) {
@@ -69,35 +67,6 @@ Point moveCursor(Point p, Direction direction, const Board& board) {
 }
 
 }  // namespace
-
-std::tuple<KeyParseState, std::optional<Key>> parseKey(KeyParseState state, char ch) {
-  switch (state) {
-    case KeyParseState::NORMAL:
-      if (ch == ESC) {
-        return {KeyParseState::SAW_ESC, std::nullopt};
-      }
-      return {KeyParseState::NORMAL, Key{ch}};
-    case KeyParseState::SAW_ESC:
-      if (ch == '[') {
-        return {KeyParseState::SAW_BRACKET, std::nullopt};
-      }
-      return {KeyParseState::NORMAL, Key{ch}};
-    case KeyParseState::SAW_BRACKET:
-      switch (ch) {
-        case 'A':
-          return {KeyParseState::NORMAL, Key{SpecialKey::ARROW_UP}};
-        case 'B':
-          return {KeyParseState::NORMAL, Key{SpecialKey::ARROW_DOWN}};
-        case 'C':
-          return {KeyParseState::NORMAL, Key{SpecialKey::ARROW_RIGHT}};
-        case 'D':
-          return {KeyParseState::NORMAL, Key{SpecialKey::ARROW_LEFT}};
-        default:
-          return {KeyParseState::NORMAL, std::nullopt};
-      }
-  }
-  return {KeyParseState::NORMAL, std::nullopt};
-}
 
 Cursors makeCursors(const orbital::game_boundary::Views& views) {
   Cursors cursors;
