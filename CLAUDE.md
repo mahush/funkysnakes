@@ -678,6 +678,7 @@ void MyActor::processInputs() {
 ## Dependencies
 
 - **Standalone Asio 1.30.2**: Auto-downloaded via CMake FetchContent
+- **FTXUI 7.0.3**: Auto-downloaded via CMake FetchContent, terminal UI of `orbital_snake`
 - **GoogleTest 1.15.2**: Auto-downloaded for tests (optional)
 - **C++17**: Required (GCC 11+, Clang 14+)
 - **CMake 3.12+**: Build system
