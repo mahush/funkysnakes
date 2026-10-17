@@ -128,7 +128,7 @@ target_include_directories(orbital_snake PRIVATE
   ${PROJECT_SOURCE_DIR}/include
   ${PROJECT_SOURCE_DIR}/semantic_artifacts/include
 )
-target_link_libraries(orbital_snake PRIVATE funkypipes)
+target_link_libraries(orbital_snake PRIVATE funkypipes ftxui::component ftxui::dom ftxui::screen)
 target_compile_options(orbital_snake PRIVATE
   -Wall -Wextra -Wpedantic -Werror
   $<$<CONFIG:Debug>:-g -O0>
