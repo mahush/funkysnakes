@@ -3,12 +3,59 @@
 #include <algorithm>
 #include <set>
 #include <tuple>
+#include <vector>
+
+#include "game_authority_mechanics.hpp"
 
 namespace snake {
 namespace orbital {
 namespace game_authority {
 
 namespace {
+
+// An ended order's unbanked points are banked or forfeited as the Scoring Policy decides for its end reason
+Scores settleOrder(Scores scores, OrderId order, EndReason reason) {
+  auto it = scores.unbanked.find(order);
+  if (it == scores.unbanked.end()) {
+    return scores;
+  }
+  switch (scoring_policy::settlementOf(reason)) {
+    case scoring_policy::Settlement::BANK:
+      scores.credited[it->second.player] += it->second.points;
+      break;
+    case scoring_policy::Settlement::FORFEIT:
+      break;
+  }
+  scores.unbanked.erase(it);
+  return scores;
+}
+
+// Score a step's events in order: food collected during an order is held before a later ending of
+// that order in the same step settles it
+Scores scoreEvents(Scores scores, const ArenaEvents& events) {
+  for (const ArenaEvent& event : events) {
+    if (const auto* ended = std::get_if<OrderEnded>(&event)) {
+      scores = settleOrder(std::move(scores), ended->order, ended->reason);
+      continue;
+    }
+    for (const scoring_policy::PointEffect& effect : scoring_policy::effectsOf(event)) {
+      scores = mechanics::applyEffect(std::move(scores), effect);
+    }
+  }
+  return scores;
+}
+
+// Conclusion ends the round: every order still holding points ends with it
+Scores settleAtConclusion(Scores scores) {
+  std::vector<OrderId> executing;
+  for (const auto& [order, unbanked] : scores.unbanked) {
+    executing.push_back(order);
+  }
+  for (OrderId order : executing) {
+    scores = settleOrder(std::move(scores), order, EndReason::ROUND_ENDED);
+  }
+  return scores;
+}
 
 // Highest credited score wins; equal highest scores draw
 Result decideResult(const PerPlayerScores& credited) {
@@ -162,7 +209,7 @@ std::tuple<State, std::optional<GameConcluded>> observeStep(State state,
   }
 
   state.now_ = now;
-  state.scores_ = scoring_policy::applyScoring(std::move(state.scores_), events);
+  state.scores_ = scoreEvents(std::move(state.scores_), events);
   state.steps_.push_back(ObservedStep{now, activations, events, alive});
   std::tie(state.scores_.credited, state.chains_) =
       creditHandovers(std::move(state.scores_.credited), std::move(state.chains_), state.commitments_, state.steps_);
@@ -171,7 +218,7 @@ std::tuple<State, std::optional<GameConcluded>> observeStep(State state,
     return {std::move(state), std::nullopt};
   }
 
-  state.scores_ = scoring_policy::loseUnbanked(std::move(state.scores_));
+  state.scores_ = settleAtConclusion(std::move(state.scores_));
   for (auto& [player, chain] : state.chains_) {
     chain.length = 0;
   }

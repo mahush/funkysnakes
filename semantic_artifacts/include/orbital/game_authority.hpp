@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "common/game_time.hpp"
+#include "common/game_types.hpp"
 #include "common/players.hpp"
 #include "orbital/arena_events.hpp"
 #include "orbital/identities.hpp"
@@ -28,8 +29,13 @@ namespace game_authority {
  * realization routes to the Arena (end of execution) and to the Order Authority (cancel pending
  * orders).
  *
+ * Points: an event's points are applied as the Scoring Policy's point effects say; points held for
+ * an order are settled when the order ends, as the Scoring Policy decides for its end reason. An
+ * order ends when the Arena reports its ending, or with the round when the game concludes while it
+ * still executes.
+ *
  * Within one step, the step's events are scored before conclusion is checked, so a step due at
- * the end of the game still counts. Unbanked points left at conclusion are lost.
+ * the end of the game still counts.
  *
  * Handover chain: an order completing while its prepared successor is still pending is a handover;
  * it earns the Scoring Policy's bonus for its position in the chain. The prepared successor is the
@@ -87,6 +93,22 @@ struct Chain {
   int bonus_credited{0};  // Handover bonus credited so far over the whole game
 };
 
+/**
+ * @brief Points held for one executing order
+ */
+struct Unbanked {
+  PlayerId player;
+  int points;
+};
+
+/**
+ * @brief Credited points per player and points held per executing order
+ */
+struct Scores {
+  PerPlayerScores credited;
+  std::map<OrderId, Unbanked> unbanked;
+};
+
 struct View;
 
 /**
@@ -100,9 +122,9 @@ class State {
  private:
   RoundId round_;
   GameTime duration_{GAME_DURATION};
-  GameTime now_{0};                // Time of the last observed step
-  scoring_policy::Scores scores_;  // Credited points per player, unbanked points per order
-  std::optional<Result> result_;   // Set once the game concluded
+  GameTime now_{0};               // Time of the last observed step
+  Scores scores_;                 // Credited points per player, unbanked points per order
+  std::optional<Result> result_;  // Set once the game concluded
 
   // Histories the handover chain is derived from
   std::map<PlayerId, std::vector<OrderCommitted>> commitments_;  // Learned commitments per player
