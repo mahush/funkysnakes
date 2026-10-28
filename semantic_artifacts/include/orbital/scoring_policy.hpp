@@ -1,9 +1,12 @@
 #pragma once
 
-#include <map>
+#include <variant>
+#include <vector>
 
-#include "common/game_types.hpp"
+#include "common/players.hpp"
 #include "orbital/arena_events.hpp"
+#include "orbital/identities.hpp"
+#include "orbital/order.hpp"
 
 namespace snake {
 namespace orbital {
@@ -12,16 +15,17 @@ namespace scoring_policy {
 /**
  * Orbital Scoring Policy - decides what arena events are worth and when points count
  *
- * Stateless decision. Food and collision values follow classic snake, except that food without
- * an order is worth less: eating during an order risks its points, so it has to be worth more than
- * eating while driving straight. The timing of when points count is Orbital's own rule:
+ * Stateless decision: it names point effects and settlements; holding and applying them to a
+ * score is up to its user. Food and collision values follow classic snake, except that food
+ * without an order is worth less: eating during an order risks its points, so it has to be worth
+ * more than eating while driving straight. The timing of when points count is Orbital's own rule:
  * - FoodCollected during an order: +10 unbanked for that order
  * - FoodCollected without an order: +5 credited at once
  * - Bitten: the victim loses 10 credited at once, the biter gets nothing
  * - SelfBitten: the snake loses 10 credited at once
  * - MutualBite: both snakes lose 10 credited at once
- * - OrderEnded COMPLETED: the order's unbanked points are banked (credited)
- * - OrderEnded INTERRUPTED, ELIMINATED or ROUND_ENDED: the order's unbanked points are lost
+ * - An order ending COMPLETED: the order's unbanked points are banked (credited)
+ * - An order ending INTERRUPTED, ELIMINATED or ROUND_ENDED: the order's unbanked points are forfeited
  *
  * Submitting or superseding a pending order is no arena event and changes no points. A
  * nonlethal bite leaves an order's unbanked points intact.
@@ -39,34 +43,56 @@ constexpr int HANDOVER_BONUS_BASE = 10;  // First handover of a chain
 constexpr int HANDOVER_BONUS_CAP = 80;   // Doubling stops here
 
 /**
- * @brief Unbanked points of one executing order
+ * @brief Points that count at once; negative for a penalty
  */
-struct Unbanked {
+struct Credit {
   PlayerId player;
   int points;
 
-  bool operator==(const Unbanked& other) const noexcept { return player == other.player && points == other.points; }
+  bool operator==(const Credit& other) const noexcept { return player == other.player && points == other.points; }
 };
 
 /**
- * @brief Credited points per player and unbanked points per executing order
+ * @brief Points that count only once the order they are held for is banked
  */
-struct Scores {
-  PerPlayerScores credited;
-  std::map<OrderId, Unbanked> unbanked;
+struct Unbank {
+  OrderId order;
+  PlayerId player;
+  int points;
+
+  bool operator==(const Unbank& other) const noexcept {
+    return order == other.order && player == other.player && points == other.points;
+  }
+};
+
+using PointEffect = std::variant<Credit, Unbank>;
+
+/**
+ * @brief What happens to an ended order's unbanked points
+ */
+enum class Settlement {
+  BANK,    // Credited to the order's player
+  FORFEIT  // Lost
 };
 
 /**
- * @brief Apply the point changes of one step's events, in order
+ * @brief Point effects of one arena event
  *
- * Applying in order matters: food collected during an order is unbanked first and then banked
- * or lost when that order ends later in the same step.
+ * An order ending carries no effect of its own; what it means for the order's unbanked points
+ * is decided by settlementOf.
  *
- * @param scores Scores before the events (by value)
- * @param events Arena events of one step
- * @return Scores after the events
+ * @param event Arena event
+ * @return Point effects of the event, in order; empty if it is worth nothing
  */
-Scores applyScoring(Scores scores, const ArenaEvents& events);
+std::vector<PointEffect> effectsOf(const ArenaEvent& event);
+
+/**
+ * @brief Settlement of an order's unbanked points when the order ends
+ *
+ * @param reason Why the order stopped executing
+ * @return BANK for a completed order, FORFEIT for any other ending
+ */
+Settlement settlementOf(EndReason reason);
 
 /**
  * @brief Bonus for the given handover of a chain
@@ -75,14 +101,6 @@ Scores applyScoring(Scores scores, const ArenaEvents& events);
  * @return Base bonus doubled for each earlier handover of the chain, at most the cap
  */
 int handoverBonus(int handover);
-
-/**
- * @brief Lose all unbanked points
- *
- * @param scores Scores (by value)
- * @return Scores with only credited points
- */
-Scores loseUnbanked(Scores scores);
 
 }  // namespace scoring_policy
 }  // namespace orbital

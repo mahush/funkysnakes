@@ -82,6 +82,86 @@ TEST(OrbitalGameAuthority, ShowsCreditedAndUnbankedPointsSeparately) {
   EXPECT_FALSE(concluded.has_value());
 }
 
+/// @brief F's +20 count once F actually completes
+TEST(OrbitalGameAuthority, BanksUnbankedPointsOnCompletion) {
+  // Given: order F of A holds 20 unbanked points
+  State state =
+      step(runningGame(),
+           200,
+           {},
+           {FoodCollected{PLAYER_A, Point{1, 1}, OrderId{1}}, FoodCollected{PLAYER_A, Point{2, 1}, OrderId{1}}});
+
+  // When: F completes
+  State banked = step(state, 400, {}, {completed(1)});
+
+  // Then: the 20 points are credited and nothing is unbanked any more
+  game_authority::View view = game_authority::view(banked);
+  EXPECT_EQ(view.players.at(PLAYER_A).credited, 20);
+  EXPECT_EQ(view.players.at(PLAYER_A).unbanked, 0);
+}
+
+TEST(OrbitalGameAuthority, ForfeitsUnbankedPointsOfInterruptedOrder) {
+  // Given: order F of A holds 10 unbanked points
+  State state = step(runningGame(), 200, {}, {FoodCollected{PLAYER_A, Point{1, 1}, OrderId{1}}});
+
+  // When: F is interrupted
+  State interrupted = step(state, 400, {}, {OrderEnded{OrderId{1}, EndReason::INTERRUPTED, OrderId{2}}});
+
+  // Then: the points are gone and the credited score is unchanged
+  game_authority::View view = game_authority::view(interrupted);
+  EXPECT_EQ(view.players.at(PLAYER_A).credited, 0);
+  EXPECT_EQ(view.players.at(PLAYER_A).unbanked, 0);
+}
+
+/// @brief Food collected during an order and its completion in the same step count in order
+TEST(OrbitalGameAuthority, BanksFoodCollectedOnArrivalStep) {
+  // When: a step with collection during order 1 followed by its completion is observed
+  State state = step(runningGame(), 200, {}, {FoodCollected{PLAYER_A, Point{1, 1}, OrderId{1}}, completed(1)});
+
+  // Then: the points are credited
+  EXPECT_EQ(game_authority::view(state).players.at(PLAYER_A).credited, 10);
+}
+
+TEST(OrbitalGameAuthority, AwardsNoPointsForCompletionAlone) {
+  // When: the completion of an order without unbanked points is observed
+  State state = step(runningGame(), 200, {}, {completed(1)});
+
+  // Then: A has no points
+  EXPECT_EQ(game_authority::view(state).players.at(PLAYER_A).credited, 0);
+}
+
+/// @brief A replacement's own points start fresh; the interrupted order's points do not move over
+TEST(OrbitalGameAuthority, KeepsUnbankedPointsPerOrder) {
+  // Given: order F of A holds 10 unbanked points
+  State state = step(runningGame(), 200, {}, {FoodCollected{PLAYER_A, Point{1, 1}, OrderId{1}}});
+
+  // When: G interrupts F and collects food
+  State next = step(
+      state,
+      400,
+      {},
+      {OrderEnded{OrderId{1}, EndReason::INTERRUPTED, OrderId{2}}, FoodCollected{PLAYER_A, Point{2, 1}, OrderId{2}}});
+
+  // Then: only G's 10 points are unbanked
+  game_authority::View view = game_authority::view(next);
+  EXPECT_EQ(view.players.at(PLAYER_A).unbanked, 10);
+  EXPECT_EQ(view.players.at(PLAYER_A).credited, 0);
+}
+
+/// @brief A penalty counts at once and does not touch an executing order's unbanked points
+TEST(OrbitalGameAuthority, KeepsUnbankedPointsOnCollisionPenalty) {
+  // Given: order F of B holds 10 unbanked points
+  State state = step(runningGame(), 200, {}, {FoodCollected{PLAYER_B, Point{1, 1}, OrderId{1}}});
+
+  // When: B is bitten
+  State bitten = step(state, 400, {}, {Bitten{PLAYER_B, PLAYER_A}});
+
+  // Then: B lost ten credited points and F still holds its 10 unbanked points
+  game_authority::View view = game_authority::view(bitten);
+  EXPECT_EQ(view.players.at(PLAYER_B).credited, -10);
+  EXPECT_EQ(view.players.at(PLAYER_B).unbanked, 10);
+}
+
 TEST(OrbitalGameAuthority, CountsDownRemainingTime) {
   // When: a step at 30 s is observed
   auto [state, concluded] = game_authority::observeStep(runningGame(), milliseconds{30000}, {}, {}, BOTH_ALIVE);
@@ -129,8 +209,8 @@ TEST(OrbitalGameAuthority, BanksCompletionOnFinalStepBeforeConclusion) {
   EXPECT_EQ(concluded->result, (Result{PlayerId{PLAYER_A}}));
 }
 
-/// @brief Unbanked points do not count for the winner
-TEST(OrbitalGameAuthority, LosesUnbankedPointsAtConclusion) {
+/// @brief Conclusion ends the round for an order still executing; the Scoring Policy forfeits its points then
+TEST(OrbitalGameAuthority, SettlesExecutingOrderAsEndedByRoundAtConclusion) {
   // Given: B has 10 credited points and A's executing order holds 20 unbanked points
   auto [state, first] = game_authority::observeStep(runningGame(),
                                                     milliseconds{1000},
@@ -143,7 +223,7 @@ TEST(OrbitalGameAuthority, LosesUnbankedPointsAtConclusion) {
   // When: the game concludes while A's order still executes
   auto [final_state, concluded] = game_authority::observeStep(state, std::chrono::minutes{2}, {}, {}, BOTH_ALIVE);
 
-  // Then: A's unbanked points are lost and B wins
+  // Then: A's unbanked points are forfeited and B wins
   EXPECT_EQ(game_authority::view(final_state).players.at(PLAYER_A).unbanked, 0);
   EXPECT_EQ(concluded->result, (Result{PlayerId{PLAYER_B}}));
 }
