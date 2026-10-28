@@ -8,51 +8,41 @@ namespace scoring_policy {
 
 namespace {
 
-Scores applyEvent(Scores scores, const FoodCollected& collected) {
+std::vector<PointEffect> effectsOfEvent(const FoodCollected& collected) {
   if (collected.during) {
-    Unbanked& unbanked = scores.unbanked.try_emplace(*collected.during, Unbanked{collected.player, 0}).first->second;
-    unbanked.points += FOOD_POINTS;
-  } else {
-    scores.credited[collected.player] += FOOD_POINTS_NO_ORDER;
+    return {Unbank{*collected.during, collected.player, FOOD_POINTS}};
   }
-  return scores;
+  return {Credit{collected.player, FOOD_POINTS_NO_ORDER}};
 }
 
-Scores applyEvent(Scores scores, const OrderEnded& ended) {
-  auto it = scores.unbanked.find(ended.order);
-  if (it == scores.unbanked.end()) {
-    return scores;
-  }
-  if (ended.reason == EndReason::COMPLETED) {
-    scores.credited[it->second.player] += it->second.points;
-  }
-  scores.unbanked.erase(it);
-  return scores;
+std::vector<PointEffect> effectsOfEvent(const OrderEnded& /*ended*/) { return {}; }
+
+std::vector<PointEffect> effectsOfEvent(const Bitten& bitten) { return {Credit{bitten.victim, -COLLISION_PENALTY}}; }
+
+std::vector<PointEffect> effectsOfEvent(const SelfBitten& self_bitten) {
+  return {Credit{self_bitten.player, -COLLISION_PENALTY}};
 }
 
-Scores applyEvent(Scores scores, const Bitten& bitten) {
-  scores.credited[bitten.victim] -= COLLISION_PENALTY;
-  return scores;
-}
-
-Scores applyEvent(Scores scores, const SelfBitten& self_bitten) {
-  scores.credited[self_bitten.player] -= COLLISION_PENALTY;
-  return scores;
-}
-
-Scores applyEvent(Scores scores, const MutualBite& mutual) {
-  scores.credited[mutual.first] -= COLLISION_PENALTY;
-  scores.credited[mutual.second] -= COLLISION_PENALTY;
-  return scores;
+std::vector<PointEffect> effectsOfEvent(const MutualBite& mutual) {
+  return {Credit{mutual.first, -COLLISION_PENALTY}, Credit{mutual.second, -COLLISION_PENALTY}};
 }
 
 }  // namespace
 
-Scores applyScoring(Scores scores, const ArenaEvents& events) {
-  for (const ArenaEvent& event : events) {
-    scores = std::visit([&scores](const auto& item) { return applyEvent(std::move(scores), item); }, event);
+std::vector<PointEffect> effectsOf(const ArenaEvent& event) {
+  return std::visit([](const auto& item) { return effectsOfEvent(item); }, event);
+}
+
+Settlement settlementOf(EndReason reason) {
+  switch (reason) {
+    case EndReason::COMPLETED:
+      return Settlement::BANK;
+    case EndReason::INTERRUPTED:
+    case EndReason::ELIMINATED:
+    case EndReason::ROUND_ENDED:
+      return Settlement::FORFEIT;
   }
-  return scores;
+  return Settlement::FORFEIT;
 }
 
 int handoverBonus(int handover) {
@@ -61,11 +51,6 @@ int handoverBonus(int handover) {
     bonus *= 2;
   }
   return std::min(bonus, HANDOVER_BONUS_CAP);
-}
-
-Scores loseUnbanked(Scores scores) {
-  scores.unbanked.clear();
-  return scores;
 }
 
 }  // namespace scoring_policy
