@@ -675,6 +675,16 @@ void MyActor::processInputs() {
 - **Publisher**: Lightweight wrapper, used to send messages to topic
 - Create with `create_sub()` and `create_pub()` helpers in Actor base class
 
+## Commits and History
+
+- **Commit message: one line only**: a lowercase imperative headline, no body, e.g.
+  `keep stdout of classic snake blocking while reading keys`.
+- **No attribution**: no `Co-Authored-By` or other Claude signature in commits or PR descriptions.
+- **Small, fine-grained commits**, each one buildable; a bug fix gets its own commit.
+- **Push only on explicit request**: commit locally and do not push, not even at the end of a task.
+- **History rewrites** of unpushed work (fixups, rewording) are welcome so intermediate states vanish. Force-push only
+  on explicit request, and then with `--force-with-lease`.
+
 ## Dependencies
 
 - **Standalone Asio 1.30.2**: Auto-downloaded via CMake FetchContent
