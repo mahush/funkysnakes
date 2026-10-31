@@ -1,13 +1,45 @@
 #include "snake/stdin_reader.hpp"
 
+#include <fcntl.h>
 #include <unistd.h>
 
+#include <cerrno>
 #include <iostream>
+#include <system_error>
 
 namespace snake {
 
+namespace {
+
+/**
+ * @brief Open a descriptor reading the same input as stdin, with its own open file description
+ *
+ * Asio switches every descriptor it waits on to O_NONBLOCK, and that flag belongs to the open file
+ * description. A terminal's stdin and stdout share one description, so reading STDIN_FILENO through
+ * Asio would make stdout non-blocking as well: a write to a full terminal then fails with EAGAIN and
+ * std::cout drops all further output. Opening the terminal anew keeps the flag away from stdout.
+ *
+ * @return A descriptor owned by the caller: the terminal opened anew if stdin is one, otherwise a duplicate of stdin
+ * @throws std::system_error if stdin is a terminal that cannot be opened anew; a duplicate would share stdout's
+ *         description again
+ */
+int openInputDescriptor() {
+  if (!isatty(STDIN_FILENO)) {
+    // A pipe or file never shares its description with stdout
+    return dup(STDIN_FILENO);
+  }
+  const char* terminal_path = ttyname(STDIN_FILENO);
+  int terminal_fd = terminal_path ? open(terminal_path, O_RDONLY | O_NOCTTY | O_CLOEXEC) : -1;
+  if (terminal_fd == -1) {
+    throw std::system_error{errno, std::generic_category(), "cannot open the stdin terminal anew for key input"};
+  }
+  return terminal_fd;
+}
+
+}  // namespace
+
 StdinReader::StdinReader(asio::io_context& io)
-    : stdin_{io, STDIN_FILENO}, read_buffer_{1}, strand_{asio::make_strand(io)} {}
+    : stdin_{io, openInputDescriptor()}, read_buffer_{1}, strand_{asio::make_strand(io)} {}
 
 StdinReader::~StdinReader() { stopReading(); }
 
