@@ -25,6 +25,20 @@ bool isBiteDropFoodMode(const State& state) { return state.collision_mode == Col
 
 bool shouldRepositionFood(const State& state) { return state.should_reposition_food; }
 
+// ============================================================================
+// Scoring of the step
+// ============================================================================
+
+// Every event of the step changes the scores as the Scoring Policy decides
+PerPlayerScores scoreEvents(PerPlayerScores scores, const ArenaEvents& events) {
+  for (const ArenaEvent& event : events) {
+    for (const scoring_policy::ScoreChange& change : scoring_policy::effectsOf(event)) {
+      scores = applyScoreChange(std::move(scores), change);
+    }
+  }
+  return scores;
+}
+
 }  // namespace
 
 State initial(const RandomIntGeneratorFn& random_int_fn, Board board) {
@@ -61,7 +75,7 @@ State tick(const RandomIntGeneratorFn& random_int_fn, State state) {
       when<0>(isBiteDropFoodMode, over_food(dropSegmentsAsFood)),                                     // → state
       over_food_viewing_snakes(handleFoodEatingOfStep),                                               // → (state, events)
       MAKE_CALLABLE(appendStageEvents),                                                               // → state
-      over_scores_viewing_events(scoring_policy::applyScoring),                                       // → state
+      over_scores_viewing_events(scoreEvents),                                                        // → state
       over_food_viewing_board_and_snakes(bindFront(replenishFood, random_int_fn, MIN_FOOD_COUNT)),    // → state
       when(shouldRepositionFood,
            over_food_viewing_board_and_snakes(bindFront(repositionRandomFood, random_int_fn))),       // → state
