@@ -63,7 +63,7 @@ auto tick_pipeline_fn = makePipe(
     over_snakes_and_events(handleCollisions),
     when<0>(isBiteDropFoodMode, over_food(dropSegmentsAsFood)),
     over_food_and_events_viewing_snakes(handleFoodEating),
-    over_scores_viewing_events(scoring_policy::applyScoring),
+    over_scores_viewing_events(scoreEvents),  // score changes as the Scoring Policy decides
     over_food_viewing_board_and_snakes(bindFront(replenishFood, random_int_fn, MIN_FOOD_COUNT)),
     when(shouldRepositionFood,
          over_food_viewing_board_and_snakes(bindFront(repositionRandomFood, random_int_fn))),
