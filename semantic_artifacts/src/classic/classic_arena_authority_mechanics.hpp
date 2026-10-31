@@ -10,6 +10,7 @@
 #include <vector>
 
 #include "classic/classic_arena_authority.hpp"
+#include "classic/scoring_policy.hpp"
 #include "common/game_logic.hpp"
 #include "snake/generic_lens.hpp"
 
@@ -100,6 +101,12 @@ inline std::tuple<PerPlayerSnakes, ArenaEvents, std::vector<Point>> handleCollis
 inline std::tuple<FoodItems, ArenaEvents> handleFoodEatingOfStep(FoodItems food_items, const PerPlayerSnakes& snakes) {
   auto [new_food, eating_events] = handleFoodEating(std::move(food_items), snakes);
   return {std::move(new_food), ArenaEvents{eating_events.begin(), eating_events.end()}};
+}
+
+// Adds what a score change names
+inline PerPlayerScores applyScoreChange(PerPlayerScores scores, const scoring_policy::ScoreChange& change) {
+  scores[change.player] += change.points;
+  return scores;
 }
 
 // The step's events so far, followed by those a stage reported
