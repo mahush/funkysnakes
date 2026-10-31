@@ -86,7 +86,7 @@ The order is meaningful and owned by the Authority:
    segments leaving play (cut tails and the complete bodies of snakes killed in this step);
 4. drop those segments as food;
 5. eat food under alive snake heads and report it as events;
-6. apply the Scoring Policy to the step's events;
+6. change the scores by what the Scoring Policy decides for each of the step's events;
 7. replenish food up to `MIN_FOOD_COUNT` on free cells (up to 100 random attempts per item; if none is free,
    fewer items are placed this step);
 8. if requested, reposition one random food item, then clear the request.
@@ -116,12 +116,17 @@ shared vocabulary; the classic arena collects the events of a step in its own li
 
 ## Scoring Policy
 
-A stateless mapping from the arena events of one step to score changes:
+A stateless decision mapping one arena event to score changes (`effectsOf`):
 
 - +10 for each `FoodEaten`;
 - −10 for the victim of a `Bitten` (the biter gets nothing from the bite itself);
 - −10 for a `SelfBitten`;
 - −10 for each snake in a `MutualBite`.
+
+The Policy only decides; it owns no score state. The Classic Arena Authority owns the scores and applies the
+changes for every event of a step. Purity alone does not make a Policy: a function that takes the scores and
+returns their successor would define how the score state evolves, which is Authority behavior. Orbital's
+Scoring Policy has the same split.
 
 ## Classic Game Lifecycle Authority
 
