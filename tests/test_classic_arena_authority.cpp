@@ -11,6 +11,7 @@
 #include <algorithm>
 #include <deque>
 #include <memory>
+#include <stdexcept>
 #include <vector>
 
 #include "classic/classic_arena_authority.hpp"
@@ -145,6 +146,28 @@ TEST(ClassicArenaAuthority, StartsSnakesWhollyOnBoard) {
 
   // Then: every segment of every snake lies on the board
   EXPECT_TRUE(offBoardSegments(state.snakes, state.board).empty());
+}
+
+/// @brief An invalid start layout is a programming error in the setup, so construction refuses it
+TEST(ClassicArenaAuthority, RejectsSetupWithSnakeOffBoard) {
+  // When/Then: an arena whose snake's tail reaches past the left edge is rejected
+  EXPECT_THROW(classic_arena_authority::initial(
+                   makeScriptedRandom({}),
+                   classic_arena_authority::ArenaSetup{
+                       BOARD, {{PLAYER_A, classic_arena_authority::SnakeSetup{Point{2, 5}, Direction::RIGHT, 4}}}}),
+               std::invalid_argument);
+}
+
+/// @brief An invalid start layout is a programming error in the setup, so construction refuses it
+TEST(ClassicArenaAuthority, RejectsSetupWithOverlappingSnakes) {
+  // When/Then: an arena whose snakes share a cell is rejected
+  EXPECT_THROW(classic_arena_authority::initial(
+                   makeScriptedRandom({}),
+                   classic_arena_authority::ArenaSetup{
+                       BOARD,
+                       {{PLAYER_A, classic_arena_authority::SnakeSetup{Point{10, 5}, Direction::RIGHT, 3}},
+                        {PLAYER_B, classic_arena_authority::SnakeSetup{Point{9, 5}, Direction::UP, 2}}}}),
+               std::invalid_argument);
 }
 
 /// @section classic_arena_authority::steer

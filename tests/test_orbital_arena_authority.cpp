@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <deque>
 #include <memory>
+#include <stdexcept>
 #include <vector>
 
 #include "orbital/arena_authority.hpp"
@@ -113,6 +114,27 @@ TEST(OrbitalArenaAuthority, StartsSnakesWhollyOnBoard) {
   // Then: every segment of every snake lies on the board
   arena_authority::View view = arena_authority::view(state);
   EXPECT_TRUE(offBoardSegments(view.snakes, view.board).empty());
+}
+
+/// @brief An invalid start layout is a programming error in the setup, so construction refuses it
+TEST(OrbitalArenaAuthority, RejectsSetupWithSnakeOffBoard) {
+  // When/Then: a round whose snake's tail reaches past the left edge is rejected
+  EXPECT_THROW(
+      arena_authority::startRound(
+          makeNoRandom(), RoundSetup{ROUND, BOARD, {{PLAYER_A, SnakeSetup{Point{2, 5}, Direction::RIGHT, 4}}}, {}}),
+      std::invalid_argument);
+}
+
+/// @brief An invalid start layout is a programming error in the setup, so construction refuses it
+TEST(OrbitalArenaAuthority, RejectsSetupWithOverlappingSnakes) {
+  // When/Then: a round whose snakes share a cell is rejected
+  EXPECT_THROW(arena_authority::startRound(makeNoRandom(),
+                                           RoundSetup{ROUND,
+                                                      BOARD,
+                                                      {{PLAYER_A, SnakeSetup{Point{10, 5}, Direction::RIGHT, 3}},
+                                                       {PLAYER_B, SnakeSetup{Point{9, 5}, Direction::UP, 2}}},
+                                                      {}}),
+               std::invalid_argument);
 }
 
 /// @section arena_authority::tick

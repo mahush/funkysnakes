@@ -2,6 +2,9 @@
 
 #include <algorithm>
 #include <iterator>
+#include <set>
+#include <stdexcept>
+#include <utility>
 
 #include "common/players.hpp"
 #include "common/snake_model_evolve.hpp"
@@ -35,6 +38,22 @@ std::tuple<PerPlayerSnakes, PerPlayerScores> addPlayer(PlayerId player_id,
   snakes[player_id] = snake_model::initial(start_position, initial_direction, snake_length);
   scores[player_id] = 0;
   return {std::move(snakes), std::move(scores)};
+}
+
+void requireValidStartLayout(const PerPlayerSnakes& snakes, const Board& board) {
+  std::set<std::pair<int, int>> occupied;
+  for (const auto& [player, snake] : snakes) {
+    std::vector<Point> segments = snake_model::tail(snake);
+    segments.push_back(snake_model::head(snake));
+    for (const Point& segment : segments) {
+      if (segment.x < 0 || segment.x >= board.width || segment.y < 0 || segment.y >= board.height) {
+        throw std::invalid_argument{"snake of " + player + " does not lie wholly on the board"};
+      }
+      if (!occupied.insert({segment.x, segment.y}).second) {
+        throw std::invalid_argument{"snake of " + player + " overlaps another segment"};
+      }
+    }
+  }
 }
 
 // ============================================================================
