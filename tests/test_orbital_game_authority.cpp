@@ -172,6 +172,15 @@ TEST(OrbitalGameAuthority, CountsDownRemainingTime) {
 
 /// @subsection conclusion
 
+TEST(OrbitalGameAuthority, KeepsRunningBeforeDurationHasElapsed) {
+  // When: the step at 119800 ms is observed
+  auto [state, concluded] = game_authority::observeStep(runningGame(), milliseconds{119800}, {}, {}, BOTH_ALIVE);
+
+  // Then: the game still runs
+  EXPECT_FALSE(concluded.has_value());
+  EXPECT_TRUE(game_authority::isRunning(state));
+}
+
 TEST(OrbitalGameAuthority, ConcludesWhenDurationHasElapsed) {
   // When: the step at two minutes is observed
   auto [state, concluded] = game_authority::observeStep(runningGame(), std::chrono::minutes{2}, {}, {}, BOTH_ALIVE);
