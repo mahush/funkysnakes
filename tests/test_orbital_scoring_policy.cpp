@@ -12,9 +12,9 @@ namespace orbital {
 namespace {
 
 using scoring_policy::Credit;
+using scoring_policy::Hold;
 using scoring_policy::PointEffect;
 using scoring_policy::Settlement;
-using scoring_policy::Unbank;
 
 }  // namespace
 
@@ -22,12 +22,12 @@ using scoring_policy::Unbank;
 
 /// @subsection food
 
-TEST(OrbitalScoringPolicy, HoldsFoodCollectedDuringOrderUnbanked) {
+TEST(OrbitalScoringPolicy, HoldsFoodCollectedDuringOrder) {
   // When: the effects of food collected during order 1 are decided
   std::vector<PointEffect> effects = scoring_policy::effectsOf(FoodCollected{PLAYER_A, Point{1, 1}, OrderId{1}});
 
   // Then: ten points are held for the order
-  EXPECT_EQ(effects, (std::vector<PointEffect>{Unbank{OrderId{1}, PLAYER_A, 10}}));
+  EXPECT_EQ(effects, (std::vector<PointEffect>{Hold{OrderId{1}, PLAYER_A, 10}}));
 }
 
 TEST(OrbitalScoringPolicy, CreditsFoodCollectedWithoutOrderAtOnce) {
