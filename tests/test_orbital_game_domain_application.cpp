@@ -91,12 +91,16 @@ TEST(OrbitalGameDomainApplication, StartsOnSquareBoardWithSnakesSideBySide) {
   // When: a game starts with the default setup
   auto [state, observations] = app::apply(makeCornerRandom(), app::initial(), app::Start{RoundId{1}});
 
-  // Then: the board is 28x28 and both snakes start heading right, five rows apart
+  // Then: the board is 28x28 and both snakes start with seven segments heading right, five rows apart
   const arena_authority::View& arena = observations.views->arena;
   EXPECT_EQ(arena.board.width, 28);
   EXPECT_EQ(arena.board.height, 28);
   EXPECT_EQ(snake_model::head(arena.snakes.at(PLAYER_A)), (Point{5, 11}));
   EXPECT_EQ(snake_model::head(arena.snakes.at(PLAYER_B)), (Point{5, 16}));
+  EXPECT_EQ(snake_model::length(arena.snakes.at(PLAYER_A)), 7u);
+  EXPECT_EQ(snake_model::length(arena.snakes.at(PLAYER_B)), 7u);
+  EXPECT_EQ(snake_model::currentDirection(arena.snakes.at(PLAYER_A)), Direction::RIGHT);
+  EXPECT_EQ(snake_model::currentDirection(arena.snakes.at(PLAYER_B)), Direction::RIGHT);
 }
 
 /// @subsection held points

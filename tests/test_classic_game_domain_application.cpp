@@ -44,6 +44,23 @@ Point headOf(const app::State& state, const PlayerId& player) {
 
 }  // namespace
 
+/// @section initial
+
+TEST(ClassicGameDomainApplication, StartsOnClassicBoardWithSnakesSideBySide) {
+  // When: a Domain Application is created
+  app::State state = newApp();
+
+  // Then: the board is 60x20 and both snakes start with seven segments heading right, five rows apart
+  EXPECT_EQ(state.arena.board.width, 60);
+  EXPECT_EQ(state.arena.board.height, 20);
+  EXPECT_EQ(headOf(state, PLAYER_A), (Point{5, 10}));
+  EXPECT_EQ(headOf(state, PLAYER_B), (Point{5, 15}));
+  EXPECT_EQ(snake_model::length(state.arena.snakes.at(PLAYER_A)), 7u);
+  EXPECT_EQ(snake_model::length(state.arena.snakes.at(PLAYER_B)), 7u);
+  EXPECT_EQ(snake_model::currentDirection(state.arena.snakes.at(PLAYER_A)), Direction::RIGHT);
+  EXPECT_EQ(snake_model::currentDirection(state.arena.snakes.at(PLAYER_B)), Direction::RIGHT);
+}
+
 /// @section Start
 
 /// @brief Ensures that starting a game reports its starting level and running status
