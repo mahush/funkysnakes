@@ -152,7 +152,7 @@ TEST(ClassicArenaAuthority, StartsSnakesWhollyOnBoard) {
 TEST(ClassicArenaAuthority, RejectsSetupWithSnakeOffBoard) {
   // When/Then: an arena whose snake's tail reaches past the left edge is rejected
   EXPECT_THROW(classic_arena_authority::initial(
-                   makeScriptedRandom({}),
+                   makeNoRandom(),
                    classic_arena_authority::ArenaSetup{
                        BOARD, {{PLAYER_A, classic_arena_authority::SnakeSetup{Point{2, 5}, Direction::RIGHT, 4}}}}),
                std::invalid_argument);
@@ -162,7 +162,7 @@ TEST(ClassicArenaAuthority, RejectsSetupWithSnakeOffBoard) {
 TEST(ClassicArenaAuthority, RejectsSetupWithOverlappingSnakes) {
   // When/Then: an arena whose snakes share a cell is rejected
   EXPECT_THROW(classic_arena_authority::initial(
-                   makeScriptedRandom({}),
+                   makeNoRandom(),
                    classic_arena_authority::ArenaSetup{
                        BOARD,
                        {{PLAYER_A, classic_arena_authority::SnakeSetup{Point{10, 5}, Direction::RIGHT, 3}},
