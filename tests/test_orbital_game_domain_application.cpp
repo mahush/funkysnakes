@@ -403,6 +403,20 @@ TEST(OrbitalGameDomainApplication, RunsNoStepsAfterConclusion) {
   EXPECT_TRUE(observations.steps.empty());
 }
 
+/// @brief Game time ends with the step that concludes the game, also when more time passes in the same advance
+TEST(OrbitalGameDomainApplication, StopsGameTimeAtConcludingStepOfOneAdvance) {
+  // When: two minutes and one second pass at once
+  auto [state, observations] =
+      app::apply(makeCornerRandom(), started(makeLanes({})), app::TimeElapsed{milliseconds{121000}});
+
+  // Then: the game concluded on the step at two minutes, which was the last to run, and the clock stays there
+  ASSERT_TRUE(observations.concluded.has_value());
+  ASSERT_TRUE(observations.views.has_value());
+  EXPECT_EQ(observations.steps.size(), 600U);
+  EXPECT_EQ(observations.steps.back().at, std::chrono::minutes{2});
+  EXPECT_EQ(observations.views->now, milliseconds{120000});
+}
+
 /// @subsection time
 
 /// @brief One time advance can run several steps; every step's report is kept
