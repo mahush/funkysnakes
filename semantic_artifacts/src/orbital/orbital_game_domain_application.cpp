@@ -84,7 +84,7 @@ std::tuple<State, Observations> conclude(State state, const game_authority::Game
 // One arena step, with every Authority observing its complete outcome before the next step
 std::tuple<State, Observations> runStep(const RandomIntGeneratorFn& random_int_fn, State state) {
   const GameTime at = state.clock.next_step;
-  state.clock.next_step += STEP_INTERVAL;
+  state.clock.next_step += pacing_policy::STEP_INTERVAL;
 
   std::vector<Order> eligible = order_authority::eligible(*state.orders, at);
   auto [arena, activations, events] = arena_authority::tick(random_int_fn, std::move(*state.arena), eligible);

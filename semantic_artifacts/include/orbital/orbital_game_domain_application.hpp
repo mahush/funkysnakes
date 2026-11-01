@@ -1,6 +1,5 @@
 #pragma once
 
-#include <chrono>
 #include <optional>
 #include <tuple>
 
@@ -10,6 +9,7 @@
 #include "orbital/game_authority.hpp"
 #include "orbital/game_boundary.hpp"
 #include "orbital/order_authority.hpp"
+#include "orbital/pacing_policy.hpp"
 
 namespace snake {
 namespace orbital {
@@ -28,8 +28,9 @@ using game_boundary::TimeElapsed;
  * networking or rendering. It routes boundary interactions and Authority outputs mechanically and
  * makes no gameplay decision of its own.
  *
- * One logical clock drives the round. A submission is committed (Order) at the clock's current
- * time and its commitment is passed on to Game. Each step that falls due runs:
+ * One logical clock drives the round; steps fall due at the Pacing Policy's step interval. A
+ * submission is committed (Order) at the clock's current time and its commitment is passed on to
+ * Game. Each step that falls due runs:
  *   eligible orders (Order) → step (Arena) → interpret outcomes (Order)
  *   → score, advance handover chains and check end (Game)
  *   → if concluded: end execution (Arena) → interpret endings (Order) → cancel pending (Order)
@@ -39,9 +40,6 @@ using game_boundary::TimeElapsed;
  * reflects.
  */
 
-// Interval between arena steps on the game timeline
-constexpr std::chrono::milliseconds STEP_INTERVAL{200};
-
 /**
  * @brief Virtual clock of the round
  *
@@ -49,7 +47,7 @@ constexpr std::chrono::milliseconds STEP_INTERVAL{200};
  */
 struct VirtualClock {
   GameTime now{0};
-  GameTime next_step{STEP_INTERVAL};
+  GameTime next_step{pacing_policy::STEP_INTERVAL};
 };
 
 /**

@@ -1,6 +1,5 @@
 #pragma once
 
-#include <chrono>
 #include <map>
 #include <optional>
 #include <set>
@@ -22,12 +21,12 @@ namespace game_authority {
 /**
  * Orbital Game Authority - owns the evolution of an Orbital Orders game as a whole
  *
- * Owns whether the game runs, its duration, the credited and unbanked points, each player's
- * handover chain and the final result. A game is one round. It sits beside the Arena and Order
- * Authorities: it reads what the Arena reports and the Order Authority's commitment history, uses
- * the Orbital Scoring Policy for point values and announces the conclusion as an intent, which the
- * realization routes to the Arena (end of execution) and to the Order Authority (cancel pending
- * orders).
+ * Owns whether the game runs, the credited and unbanked points, each player's handover chain and
+ * the final result. A game is one round. It sits beside the Arena and Order Authorities: it reads
+ * what the Arena reports and the Order Authority's commitment history, uses the Orbital Scoring
+ * Policy for point values and the Orbital Pacing Policy for the game duration, and announces the
+ * conclusion as an intent, which the realization routes to the Arena (end of execution) and to the
+ * Order Authority (cancel pending orders).
  *
  * Points: an event's points are applied as the Scoring Policy's point effects say; points held for
  * an order are settled when the order ends, as the Scoring Policy decides for its end reason. An
@@ -55,8 +54,6 @@ namespace game_authority {
  * way, the eventual score is the same as if every commitment had been known in time, so scores
  * shown before the histories are complete are provisional. Arena history is never rewritten.
  */
-
-constexpr std::chrono::minutes GAME_DURATION{2};
 
 /**
  * @brief Outcome of a concluded game
@@ -121,7 +118,6 @@ struct View;
 class State {
  private:
   RoundId round_;
-  GameTime duration_{GAME_DURATION};
   GameTime now_{0};               // Time of the last observed step
   Scores scores_;                 // Credited points per player, unbanked points per order
   std::optional<Result> result_;  // Set once the game concluded
@@ -167,7 +163,7 @@ State startRound(RoundId round, const std::vector<PlayerId>& players);
 /**
  * @brief Score one arena step and conclude the game if it is over
  *
- * The game is over when its duration has elapsed or no snake is alive any more.
+ * The game is over when the Pacing Policy's game duration has elapsed or no snake is alive any more.
  * Steps observed after conclusion change nothing.
  *
  * Completions of the step earn handover bonuses as far as the successors' commitments are known;
