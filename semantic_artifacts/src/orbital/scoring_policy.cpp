@@ -10,7 +10,7 @@ namespace {
 
 std::vector<PointEffect> effectsOfEvent(const FoodCollected& collected) {
   if (collected.during) {
-    return {Unbank{*collected.during, collected.player, FOOD_POINTS}};
+    return {Hold{*collected.during, collected.player, FOOD_POINTS}};
   }
   return {Credit{collected.player, FOOD_POINTS_NO_ORDER}};
 }

@@ -55,17 +55,17 @@ struct Credit {
 /**
  * @brief Points that count only once the order they are held for is banked
  */
-struct Unbank {
+struct Hold {
   OrderId order;
   PlayerId player;
   int points;
 
-  bool operator==(const Unbank& other) const noexcept {
+  bool operator==(const Hold& other) const noexcept {
     return order == other.order && player == other.player && points == other.points;
   }
 };
 
-using PointEffect = std::variant<Credit, Unbank>;
+using PointEffect = std::variant<Credit, Hold>;
 
 /**
  * @brief What happens to an ended order's unbanked points
