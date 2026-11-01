@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "orbital/arena_authority.hpp"
+#include "orbital/food_policy.hpp"
 #include "test_printers.hpp"
 
 namespace snake {
@@ -51,7 +52,7 @@ RandomIntGeneratorFn makeNoRandom() {
  * draw random positions unless food is collected.
  */
 State makeArena(SnakeSetup snake_a, FoodItems food) {
-  for (int i = static_cast<int>(food.size()); i < arena_authority::MIN_FOOD_COUNT; ++i) {
+  for (int i = static_cast<int>(food.size()); i < food_policy::MIN_FOOD_COUNT; ++i) {
     food.push_back(Point{15 + i, 9});
   }
   return arena_authority::startRound(makeNoRandom(), RoundSetup{ROUND, BOARD, {{PLAYER_A, snake_a}}, food});
@@ -61,7 +62,7 @@ State makeArena(SnakeSetup snake_a, FoodItems food) {
  * @brief Arena with the snakes of Player A and Player B, filled up with food as above
  */
 State makeArena(SnakeSetup snake_a, SnakeSetup snake_b, FoodItems food) {
-  for (int i = static_cast<int>(food.size()); i < arena_authority::MIN_FOOD_COUNT; ++i) {
+  for (int i = static_cast<int>(food.size()); i < food_policy::MIN_FOOD_COUNT; ++i) {
     food.push_back(Point{15 + i, 9});
   }
   return arena_authority::startRound(makeNoRandom(),
@@ -83,7 +84,7 @@ TEST(OrbitalArenaAuthority, TopsUpFoodToMinimumAtRoundStart) {
       RoundSetup{ROUND, BOARD, {{PLAYER_A, SnakeSetup{Point{5, 5}, Direction::RIGHT, 3}}}, {Point{0, 0}}});
 
   // Then: the board holds the minimum amount of food
-  EXPECT_EQ(arena_authority::view(state).food.size(), static_cast<size_t>(arena_authority::MIN_FOOD_COUNT));
+  EXPECT_EQ(arena_authority::view(state).food.size(), static_cast<size_t>(food_policy::MIN_FOOD_COUNT));
 }
 
 /// @section arena_authority::tick

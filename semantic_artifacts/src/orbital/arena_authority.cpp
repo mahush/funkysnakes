@@ -8,6 +8,7 @@
 #include "funkypipes/bind_front.hpp"
 #include "funkypipes/make_pipe.hpp"
 #include "orbital/board_setup_policy.hpp"
+#include "orbital/food_policy.hpp"
 #include "orbital/pursuit_policy.hpp"
 #include "snake/generic_lens.hpp"
 
@@ -184,7 +185,7 @@ State startRound(const RandomIntGeneratorFn& random_int_fn, const RoundSetup& se
   for (const auto& [player, snake] : setup.snakes) {
     state.snakes_.emplace(player, snake_model::initial(snake.head, snake.heading, snake.length));
   }
-  state.food_ = replenishFood(random_int_fn, MIN_FOOD_COUNT, setup.food, state.board_, state.snakes_);
+  state.food_ = replenishFood(random_int_fn, food_policy::MIN_FOOD_COUNT, setup.food, state.board_, state.snakes_);
   return state;
 }
 
@@ -213,7 +214,7 @@ std::tuple<State, std::vector<ActivationOutcome>, ArenaEvents> tick(const Random
           lens(mutate<&State::active_>, read<&State::snakes_>, completeFulfilledOrders)),                  // → (state, events)
       with_event_accumulation<State>(lens(mutate<&State::food_>,
                                           read<&State::board_, &State::snakes_>,
-                                          bindFront(replenishFood, random_int_fn, MIN_FOOD_COUNT))),
+                                          bindFront(replenishFood, random_int_fn, food_policy::MIN_FOOD_COUNT))),
       with_event_accumulation<State>(lens(mutate<&State::step_>, read<>, nextStep)));
   // clang-format on
 
