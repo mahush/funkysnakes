@@ -13,9 +13,6 @@ using std::chrono::milliseconds;
 
 namespace {
 
-// Board of the classic game
-const Board CLASSIC_BOARD{60, 20};
-
 // ============================================================================
 // Carrying out lifecycle intents
 // ============================================================================
@@ -131,7 +128,7 @@ State advanceClock(State state, milliseconds duration) {
 
 State initial(const RandomIntGeneratorFn& random_int_fn) {
   State state;
-  state.arena = classic_arena_authority::initial(random_int_fn, CLASSIC_BOARD);
+  state.arena = classic_arena_authority::initial(random_int_fn, classic_arena_authority::makeClassicSetup());
   state.clock.step_interval = milliseconds{difficulty_policy::stepIntervalMs(1)};
   return state;
 }

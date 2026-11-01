@@ -1,5 +1,6 @@
 #include "classic/classic_arena_authority.hpp"
 
+#include "classic/board_setup_policy.hpp"
 #include "classic/food_policy.hpp"
 #include "classic/scoring_policy.hpp"
 #include "classic_arena_authority_mechanics.hpp"
@@ -43,15 +44,22 @@ PerPlayerScores scoreEvents(PerPlayerScores scores, const ArenaEvents& events) {
 
 }  // namespace
 
-State initial(const RandomIntGeneratorFn& random_int_fn, Board board) {
-  State state;
-  state.board = board;
+ArenaSetup makeClassicSetup() {
+  namespace policy = board_setup_policy;
+  return ArenaSetup{policy::BOARD,
+                    {{PLAYER_A, SnakeSetup{policy::PLAYER_A_HEAD, policy::START_HEADING, policy::START_LENGTH}},
+                     {PLAYER_B, SnakeSetup{policy::PLAYER_B_HEAD, policy::START_HEADING, policy::START_LENGTH}}}};
+}
 
-  auto setup = makePipe(
-      over_snakes_and_scores(bindFront(addPlayer, PlayerId{PLAYER_A}, Point{5, 10}, Direction::RIGHT, 7)),
-      over_snakes_and_scores(bindFront(addPlayer, PlayerId{PLAYER_B}, Point{5, 15}, Direction::RIGHT, 7)),
-      over_food_viewing_board_and_snakes(bindFront(initializeFood, random_int_fn, food_policy::MIN_FOOD_COUNT)));
-  return setup(std::move(state));
+State initial(const RandomIntGeneratorFn& random_int_fn, const ArenaSetup& setup) {
+  State state;
+  state.board = setup.board;
+  for (const auto& [player, snake] : setup.snakes) {
+    state =
+        over_snakes_and_scores(bindFront(addPlayer, player, snake.head, snake.heading, snake.length))(std::move(state));
+  }
+  return over_food_viewing_board_and_snakes(bindFront(initializeFood, random_int_fn, food_policy::MIN_FOOD_COUNT))(
+      std::move(state));
 }
 
 State steer(State state, const DirectionCommand& cmd) {
