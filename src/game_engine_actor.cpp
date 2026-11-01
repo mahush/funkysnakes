@@ -252,7 +252,7 @@ GameEngineActor::GameEngineActor(ActorContext ctx,
       game_loop_timer_{create_timer<GameTimer>(timer_factory)},
       random_int_fn_{makeRandomIntGenerator()} {
   game_state_.game_id = "game_001";
-  game_state_.arena = classic_arena_authority::initial(random_int_fn_, Board{60, 20});
+  game_state_.arena = classic_arena_authority::initial(random_int_fn_, classic_arena_authority::makeClassicSetup());
 
   Logger::log("[GameEngineActor] Initialized " + std::to_string(game_state_.arena.food_items.size()) + " food items\n");
 }

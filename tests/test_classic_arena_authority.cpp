@@ -108,7 +108,8 @@ Snake makeSnakeAboutToBiteItself() {
 /// @brief Ensures that the classic arena starts with both players and the minimum amount of food
 TEST(ClassicArenaAuthority, PlacesBothPlayersAndMinimumFood) {
   // When: the arena is created
-  State state = classic_arena_authority::initial(makeScriptedRandom({30, 1, 31, 1, 32, 1, 33, 1, 34, 1}), BOARD);
+  State state = classic_arena_authority::initial(makeScriptedRandom({30, 1, 31, 1, 32, 1, 33, 1, 34, 1}),
+                                                 classic_arena_authority::makeClassicSetup());
 
   // Then: both players and the minimum food are placed
   EXPECT_EQ(snake_model::head(state.snakes.at(PLAYER_A)), (Point{5, 10}));

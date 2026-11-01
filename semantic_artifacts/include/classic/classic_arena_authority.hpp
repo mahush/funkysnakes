@@ -1,5 +1,7 @@
 #pragma once
 
+#include <map>
+
 #include "classic/classic_arena_events.hpp"
 #include "classic/direction_command_filter.hpp"
 #include "common/game_types.hpp"
@@ -40,15 +42,39 @@ struct State {
 };
 
 /**
+ * @brief A snake at the start
+ */
+struct SnakeSetup {
+  Point head;
+  Direction heading;
+  int length;
+};
+
+/**
+ * @brief Configuration of the arena at the start
+ */
+struct ArenaSetup {
+  Board board;
+  std::map<PlayerId, SnakeSetup> snakes;
+};
+
+/**
+ * @brief Setup the Board Setup Policy decides: its board, and Player A and Player B at their starts
+ *
+ * @return Setup of the classic game
+ */
+ArenaSetup makeClassicSetup();
+
+/**
  * @brief Create the initial classic arena
  *
- * Places Player A and Player B and spawns the initial food.
+ * Places the snakes of the setup, each with a score of 0, and spawns the initial food.
  *
  * @param random_int_fn Random number source for food placement
- * @param board Board dimensions
+ * @param setup Configuration of the arena
  * @return Initial arena state
  */
-State initial(const RandomIntGeneratorFn& random_int_fn, Board board);
+State initial(const RandomIntGeneratorFn& random_int_fn, const ArenaSetup& setup);
 
 /**
  * @brief Register a player's steering intention
