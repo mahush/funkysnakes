@@ -96,8 +96,8 @@ TEST(OrbitalGameDomainApplication, StartsOnSquareBoardWithSnakesSideBySide) {
   const arena_authority::View& arena = observations.views->arena;
   EXPECT_EQ(arena.board.width, 28);
   EXPECT_EQ(arena.board.height, 28);
-  EXPECT_EQ(snake_model::head(arena.snakes.at(PLAYER_A)), (Point{5, 11}));
-  EXPECT_EQ(snake_model::head(arena.snakes.at(PLAYER_B)), (Point{5, 16}));
+  EXPECT_EQ(snake_model::head(arena.snakes.at(PLAYER_A)), (Point{6, 11}));
+  EXPECT_EQ(snake_model::head(arena.snakes.at(PLAYER_B)), (Point{6, 16}));
   EXPECT_EQ(snake_model::length(arena.snakes.at(PLAYER_A)), 7u);
   EXPECT_EQ(snake_model::length(arena.snakes.at(PLAYER_B)), 7u);
   EXPECT_EQ(snake_model::currentDirection(arena.snakes.at(PLAYER_A)), Direction::RIGHT);
