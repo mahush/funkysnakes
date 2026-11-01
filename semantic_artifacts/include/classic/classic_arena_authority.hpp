@@ -22,9 +22,6 @@ namespace classic_arena_authority {
  * requests) or by reading its state (alive states).
  */
 
-// Minimum number of food items kept on the board
-constexpr int MIN_FOOD_COUNT = 5;
-
 /**
  * @brief Arena state owned by the Classic Arena Authority
  *
