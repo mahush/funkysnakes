@@ -111,7 +111,7 @@ TEST(OrbitalGameDomainApplication, BanksPointsOfOrderThatCompletes) {
 
   // Then: F completed and its 20 points count
   EXPECT_EQ(statusOf(state, f), Status::COMPLETED);
-  EXPECT_EQ(scoreOf(state, PLAYER_A).credited, 20);
+  EXPECT_EQ(scoreOf(state, PLAYER_A).banked, 20);
   EXPECT_EQ(scoreOf(state, PLAYER_A).held, 0);
   EXPECT_EQ(scoreOf(state, PLAYER_A).chain, 0);
 }
@@ -128,7 +128,7 @@ TEST(OrbitalGameDomainApplication, LosesPointsOfOrderInterruptedByReplacement) {
   // Then: F was interrupted and its 20 points are lost, while the snake kept its growth
   EXPECT_EQ(statusOf(state, f), Status::INTERRUPTED);
   EXPECT_EQ(statusOf(state, g), Status::EXECUTING);
-  EXPECT_EQ(scoreOf(state, PLAYER_A).credited, 0);
+  EXPECT_EQ(scoreOf(state, PLAYER_A).banked, 0);
   EXPECT_EQ(scoreOf(state, PLAYER_A).held, 0);
   EXPECT_EQ(snake_model::length(arena_authority::view(*state.arena).snakes.at(PLAYER_A)), 5U);
 }
@@ -165,7 +165,7 @@ TEST(OrbitalGameDomainApplication, AwardsHandoverBonusWhenSuccessorIsCommittedBe
   // Then: F's 20 food points and the base handover bonus count; the chain has one handover
   EXPECT_EQ(statusOf(state, f), Status::COMPLETED);
   EXPECT_EQ(statusOf(state, g), Status::EXECUTING);
-  EXPECT_EQ(scoreOf(state, PLAYER_A).credited, 20 + 10);
+  EXPECT_EQ(scoreOf(state, PLAYER_A).banked, 20 + 10);
   EXPECT_EQ(scoreOf(state, PLAYER_A).chain, 1);
   EXPECT_EQ(scoreOf(state, PLAYER_A).next_handover, 20);
 }
@@ -183,7 +183,7 @@ TEST(OrbitalGameDomainApplication, DoublesHandoverBonusForConsecutiveHandover) {
   // Then: both handovers count, the second worth twice the first
   EXPECT_EQ(statusOf(state, g), Status::COMPLETED);
   EXPECT_EQ(statusOf(state, h), Status::PENDING);
-  EXPECT_EQ(scoreOf(state, PLAYER_A).credited, 10 + 20);
+  EXPECT_EQ(scoreOf(state, PLAYER_A).banked, 10 + 20);
   EXPECT_EQ(scoreOf(state, PLAYER_A).chain, 2);
 }
 
@@ -200,7 +200,7 @@ TEST(OrbitalGameDomainApplication, BreaksChainWhenSuccessorIsCommittedAfterCompl
   // Then: only F's handover counts and the chain is broken
   EXPECT_EQ(statusOf(state, g), Status::COMPLETED);
   EXPECT_EQ(statusOf(state, h), Status::EXECUTING);
-  EXPECT_EQ(scoreOf(state, PLAYER_A).credited, 10);
+  EXPECT_EQ(scoreOf(state, PLAYER_A).banked, 10);
   EXPECT_EQ(scoreOf(state, PLAYER_A).chain, 0);
 }
 
@@ -217,7 +217,7 @@ TEST(OrbitalGameDomainApplication, BreaksChainAndLosesPointsWhenSuccessorActivat
   // Then: G was interrupted, its food points are lost, F's handover still counts and the chain is broken
   EXPECT_EQ(statusOf(state, g), Status::INTERRUPTED);
   EXPECT_EQ(statusOf(state, h), Status::EXECUTING);
-  EXPECT_EQ(scoreOf(state, PLAYER_A).credited, 10);
+  EXPECT_EQ(scoreOf(state, PLAYER_A).banked, 10);
   EXPECT_EQ(scoreOf(state, PLAYER_A).held, 0);
   EXPECT_EQ(scoreOf(state, PLAYER_A).chain, 0);
 }
@@ -235,7 +235,7 @@ TEST(OrbitalGameDomainApplication, DeniesHandoverButBanksPointsWhenPendingSucces
   // Then: G never activated, G' took over, F's food points count, and F's completion is no handover
   EXPECT_EQ(statusOf(state, g), Status::SUPERSEDED);
   EXPECT_EQ(statusOf(state, revised), Status::EXECUTING);
-  EXPECT_EQ(scoreOf(state, PLAYER_A).credited, 20);
+  EXPECT_EQ(scoreOf(state, PLAYER_A).banked, 20);
   EXPECT_EQ(scoreOf(state, PLAYER_A).chain, 0);
 }
 
@@ -250,7 +250,7 @@ TEST(OrbitalGameDomainApplication, BreaksChainWhenSuccessorIsRejected) {
 
   // Then: F's handover counts, but G was rejected and the chain is broken
   EXPECT_EQ(statusOf(state, g), Status::REJECTED);
-  EXPECT_EQ(scoreOf(state, PLAYER_A).credited, 10);
+  EXPECT_EQ(scoreOf(state, PLAYER_A).banked, 10);
   EXPECT_EQ(scoreOf(state, PLAYER_A).chain, 0);
 }
 
@@ -276,9 +276,9 @@ TEST(OrbitalGameDomainApplication, ReachesSameScoreWhenCommitmentReachesGameAfte
   game = game_authority::observeCommitment(std::move(game), *g_observations.commitment);
 
   // Then: its score and chain equal those of the canonical Domain Application
-  EXPECT_EQ(game_authority::view(game).players.at(PLAYER_A).credited, scoreOf(canonical, PLAYER_A).credited);
+  EXPECT_EQ(game_authority::view(game).players.at(PLAYER_A).banked, scoreOf(canonical, PLAYER_A).banked);
   EXPECT_EQ(game_authority::view(game).players.at(PLAYER_A).chain, scoreOf(canonical, PLAYER_A).chain);
-  EXPECT_EQ(scoreOf(canonical, PLAYER_A).credited, 20 + 10);
+  EXPECT_EQ(scoreOf(canonical, PLAYER_A).banked, 20 + 10);
 }
 
 /// @subsection pending orders
@@ -326,10 +326,10 @@ TEST(OrbitalGameDomainApplication, CompletesPositionalOrderAfterOpponentTookTheF
   // When: A's snake arrives at (8,2)
   app::State state = elapse(with_order, 1200);
 
-  // Then: B, eating without an order, was credited 5 for the food and A's order completed without points
+  // Then: B, eating without an order, banked 5 for the food and A's order completed without points
   EXPECT_EQ(statusOf(state, order), Status::COMPLETED);
-  EXPECT_EQ(scoreOf(state, PLAYER_B).credited, 5);
-  EXPECT_EQ(scoreOf(state, PLAYER_A).credited, 0);
+  EXPECT_EQ(scoreOf(state, PLAYER_B).banked, 5);
+  EXPECT_EQ(scoreOf(state, PLAYER_A).banked, 0);
 }
 
 /// @subsection conclusion
@@ -344,7 +344,7 @@ TEST(OrbitalGameDomainApplication, BanksCompletionOnFinalStepBeforeConclusion) {
 
   // Then: the order completed on the final step, its 10 points count and A wins
   EXPECT_EQ(statusOf(state, order), Status::COMPLETED);
-  EXPECT_EQ(scoreOf(state, PLAYER_A).credited, 10);
+  EXPECT_EQ(scoreOf(state, PLAYER_A).banked, 10);
   ASSERT_TRUE(observations.concluded.has_value());
   EXPECT_EQ(observations.concluded->result, (game_authority::Result{PlayerId{PLAYER_A}}));
   EXPECT_EQ(observations.steps.back().at, std::chrono::minutes{2});
@@ -464,7 +464,7 @@ auto viewedOutcome(const app::State& state) {
   game_authority::View game = game_authority::view(*state.game);
   std::map<PlayerId, std::pair<int, int>> points;
   for (const auto& [player, score] : game.players) {
-    points[player] = {score.credited, score.held};
+    points[player] = {score.banked, score.held};
   }
   return std::make_tuple(heads, arena.food, targets, arena.step, statuses, points, game.remaining);
 }

@@ -119,9 +119,9 @@ TEST(OrbitalFrame, ShowsHandoverChainAndNextBonus) {
   auto [next, handover_views] = elapsed(with_successor, 200);
   Frame frame = orbital_frame::build(handover_views, {});
 
-  // Then: the chain has one handover, credited with its bonus, and the next one would earn double
+  // Then: the chain has one handover, its bonus banked, and the next one would earn double
   EXPECT_EQ(frame.players.at(PLAYER_A).chain, 1);
-  EXPECT_EQ(frame.players.at(PLAYER_A).credited, 10);
+  EXPECT_EQ(frame.players.at(PLAYER_A).banked, 10);
   EXPECT_EQ(frame.players.at(PLAYER_A).next_handover, 20);
 }
 

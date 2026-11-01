@@ -19,7 +19,7 @@ namespace mechanics {
 // ============================================================================
 
 inline Scores applyEffect(Scores scores, const scoring_policy::Bank& bank) {
-  scores.credited[bank.player] += bank.points;
+  scores.banked[bank.player] += bank.points;
   return scores;
 }
 

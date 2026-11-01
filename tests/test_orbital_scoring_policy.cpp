@@ -34,33 +34,33 @@ TEST(OrbitalScoringPolicy, BanksFoodCollectedWithoutOrderAtOnce) {
   // When: the effects of food collected without an executing order are decided
   std::vector<PointEffect> effects = scoring_policy::effectsOf(FoodCollected{PLAYER_A, Point{1, 1}, std::nullopt});
 
-  // Then: the eater is credited five points
+  // Then: the eater banks five points
   EXPECT_EQ(effects, (std::vector<PointEffect>{Bank{PLAYER_A, 5}}));
 }
 
 /// @subsection collisions
 
-TEST(OrbitalScoringPolicy, DeductsTenCreditedPointsFromBittenVictimOnly) {
+TEST(OrbitalScoringPolicy, DeductsTenBankedPointsFromBittenVictimOnly) {
   // When: the effects of a bite are decided
   std::vector<PointEffect> effects = scoring_policy::effectsOf(Bitten{PLAYER_B, PLAYER_A});
 
-  // Then: only the victim loses ten credited points
+  // Then: only the victim loses ten banked points
   EXPECT_EQ(effects, (std::vector<PointEffect>{Bank{PLAYER_B, -10}}));
 }
 
-TEST(OrbitalScoringPolicy, DeductsTenCreditedPointsForSelfBite) {
+TEST(OrbitalScoringPolicy, DeductsTenBankedPointsForSelfBite) {
   // When: the effects of a self-bite are decided
   std::vector<PointEffect> effects = scoring_policy::effectsOf(SelfBitten{PLAYER_A});
 
-  // Then: the snake loses ten credited points
+  // Then: the snake loses ten banked points
   EXPECT_EQ(effects, (std::vector<PointEffect>{Bank{PLAYER_A, -10}}));
 }
 
-TEST(OrbitalScoringPolicy, DeductsTenCreditedPointsFromBothInMutualBite) {
+TEST(OrbitalScoringPolicy, DeductsTenBankedPointsFromBothInMutualBite) {
   // When: the effects of a mutual bite are decided
   std::vector<PointEffect> effects = scoring_policy::effectsOf(MutualBite{PLAYER_A, PLAYER_B});
 
-  // Then: both snakes lose ten credited points
+  // Then: both snakes lose ten banked points
   EXPECT_EQ(effects, (std::vector<PointEffect>{Bank{PLAYER_A, -10}, Bank{PLAYER_B, -10}}));
 }
 
