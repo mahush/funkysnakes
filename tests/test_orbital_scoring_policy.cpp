@@ -11,7 +11,7 @@ namespace orbital {
 
 namespace {
 
-using scoring_policy::Credit;
+using scoring_policy::Bank;
 using scoring_policy::Hold;
 using scoring_policy::PointEffect;
 using scoring_policy::Settlement;
@@ -30,12 +30,12 @@ TEST(OrbitalScoringPolicy, HoldsFoodCollectedDuringOrder) {
   EXPECT_EQ(effects, (std::vector<PointEffect>{Hold{OrderId{1}, PLAYER_A, 10}}));
 }
 
-TEST(OrbitalScoringPolicy, CreditsFoodCollectedWithoutOrderAtOnce) {
+TEST(OrbitalScoringPolicy, BanksFoodCollectedWithoutOrderAtOnce) {
   // When: the effects of food collected without an executing order are decided
   std::vector<PointEffect> effects = scoring_policy::effectsOf(FoodCollected{PLAYER_A, Point{1, 1}, std::nullopt});
 
   // Then: the eater is credited five points
-  EXPECT_EQ(effects, (std::vector<PointEffect>{Credit{PLAYER_A, 5}}));
+  EXPECT_EQ(effects, (std::vector<PointEffect>{Bank{PLAYER_A, 5}}));
 }
 
 /// @subsection collisions
@@ -45,7 +45,7 @@ TEST(OrbitalScoringPolicy, DeductsTenCreditedPointsFromBittenVictimOnly) {
   std::vector<PointEffect> effects = scoring_policy::effectsOf(Bitten{PLAYER_B, PLAYER_A});
 
   // Then: only the victim loses ten credited points
-  EXPECT_EQ(effects, (std::vector<PointEffect>{Credit{PLAYER_B, -10}}));
+  EXPECT_EQ(effects, (std::vector<PointEffect>{Bank{PLAYER_B, -10}}));
 }
 
 TEST(OrbitalScoringPolicy, DeductsTenCreditedPointsForSelfBite) {
@@ -53,7 +53,7 @@ TEST(OrbitalScoringPolicy, DeductsTenCreditedPointsForSelfBite) {
   std::vector<PointEffect> effects = scoring_policy::effectsOf(SelfBitten{PLAYER_A});
 
   // Then: the snake loses ten credited points
-  EXPECT_EQ(effects, (std::vector<PointEffect>{Credit{PLAYER_A, -10}}));
+  EXPECT_EQ(effects, (std::vector<PointEffect>{Bank{PLAYER_A, -10}}));
 }
 
 TEST(OrbitalScoringPolicy, DeductsTenCreditedPointsFromBothInMutualBite) {
@@ -61,7 +61,7 @@ TEST(OrbitalScoringPolicy, DeductsTenCreditedPointsFromBothInMutualBite) {
   std::vector<PointEffect> effects = scoring_policy::effectsOf(MutualBite{PLAYER_A, PLAYER_B});
 
   // Then: both snakes lose ten credited points
-  EXPECT_EQ(effects, (std::vector<PointEffect>{Credit{PLAYER_A, -10}, Credit{PLAYER_B, -10}}));
+  EXPECT_EQ(effects, (std::vector<PointEffect>{Bank{PLAYER_A, -10}, Bank{PLAYER_B, -10}}));
 }
 
 /// @subsection order endings

@@ -18,8 +18,8 @@ namespace mechanics {
 // Point accumulation - adds what a point effect names
 // ============================================================================
 
-inline Scores applyEffect(Scores scores, const scoring_policy::Credit& credit) {
-  scores.credited[credit.player] += credit.points;
+inline Scores applyEffect(Scores scores, const scoring_policy::Bank& bank) {
+  scores.credited[bank.player] += bank.points;
   return scores;
 }
 

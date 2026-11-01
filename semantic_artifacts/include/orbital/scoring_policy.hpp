@@ -45,11 +45,11 @@ constexpr int HANDOVER_BONUS_CAP = 80;   // Doubling stops here
 /**
  * @brief Points that count at once; negative for a penalty
  */
-struct Credit {
+struct Bank {
   PlayerId player;
   int points;
 
-  bool operator==(const Credit& other) const noexcept { return player == other.player && points == other.points; }
+  bool operator==(const Bank& other) const noexcept { return player == other.player && points == other.points; }
 };
 
 /**
@@ -65,7 +65,7 @@ struct Hold {
   }
 };
 
-using PointEffect = std::variant<Credit, Hold>;
+using PointEffect = std::variant<Bank, Hold>;
 
 /**
  * @brief What happens to an ended order's unbanked points
