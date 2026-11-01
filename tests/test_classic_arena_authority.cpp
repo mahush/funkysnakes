@@ -14,6 +14,7 @@
 #include <vector>
 
 #include "classic/classic_arena_authority.hpp"
+#include "classic/food_policy.hpp"
 #include "classic/game_boundary.hpp"
 #include "common/snake_model_evolve.hpp"
 #include "snake/game_messages.hpp"
@@ -66,7 +67,7 @@ State makeArena(PerPlayerSnakes snakes, FoodItems food) {
   for (const auto& entry : state.snakes) {
     state.scores[entry.first] = 0;
   }
-  for (int i = static_cast<int>(food.size()); i < classic_arena_authority::MIN_FOOD_COUNT; ++i) {
+  for (int i = static_cast<int>(food.size()); i < food_policy::MIN_FOOD_COUNT; ++i) {
     food.push_back(Point{50 + i, 0});
   }
   state.food_items = std::move(food);
@@ -218,7 +219,7 @@ TEST(ClassicArenaAuthority, GrowsScoresAndReplenishesWhenEating) {
   EXPECT_EQ(snake_model::length(state.snakes.at(PLAYER_A)), 4u);
   EXPECT_EQ(state.scores.at(PLAYER_A), 10);
   EXPECT_EQ(withoutFiller(state.food_items), (FoodItems{{20, 3}}));
-  EXPECT_EQ(state.food_items.size(), static_cast<size_t>(classic_arena_authority::MIN_FOOD_COUNT));
+  EXPECT_EQ(state.food_items.size(), static_cast<size_t>(food_policy::MIN_FOOD_COUNT));
 }
 
 /// @brief Ensures that only one of several food items on the same cell is eaten per step

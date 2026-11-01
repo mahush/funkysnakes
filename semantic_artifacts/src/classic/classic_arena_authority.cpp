@@ -1,5 +1,6 @@
 #include "classic/classic_arena_authority.hpp"
 
+#include "classic/food_policy.hpp"
 #include "classic/scoring_policy.hpp"
 #include "classic_arena_authority_mechanics.hpp"
 #include "common/game_logic.hpp"
@@ -14,6 +15,7 @@ namespace classic_arena_authority {
 using funkypipes::bindFront;
 using funkypipes::makePipe;
 using namespace mechanics;  // NOLINT(google-build-using-namespace): private plumbing of this Authority
+using food_policy::MIN_FOOD_COUNT;
 
 namespace {
 
@@ -45,10 +47,10 @@ State initial(const RandomIntGeneratorFn& random_int_fn, Board board) {
   State state;
   state.board = board;
 
-  auto setup =
-      makePipe(over_snakes_and_scores(bindFront(addPlayer, PlayerId{PLAYER_A}, Point{5, 10}, Direction::RIGHT, 7)),
-               over_snakes_and_scores(bindFront(addPlayer, PlayerId{PLAYER_B}, Point{5, 15}, Direction::RIGHT, 7)),
-               over_food_viewing_board_and_snakes(bindFront(initializeFood, random_int_fn, MIN_FOOD_COUNT)));
+  auto setup = makePipe(
+      over_snakes_and_scores(bindFront(addPlayer, PlayerId{PLAYER_A}, Point{5, 10}, Direction::RIGHT, 7)),
+      over_snakes_and_scores(bindFront(addPlayer, PlayerId{PLAYER_B}, Point{5, 15}, Direction::RIGHT, 7)),
+      over_food_viewing_board_and_snakes(bindFront(initializeFood, random_int_fn, food_policy::MIN_FOOD_COUNT)));
   return setup(std::move(state));
 }
 
