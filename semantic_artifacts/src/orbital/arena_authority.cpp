@@ -7,6 +7,7 @@
 #include "common/snake_model_evolve.hpp"
 #include "funkypipes/bind_front.hpp"
 #include "funkypipes/make_pipe.hpp"
+#include "orbital/board_setup_policy.hpp"
 #include "orbital/pursuit_policy.hpp"
 #include "snake/generic_lens.hpp"
 
@@ -168,10 +169,11 @@ StepId nextStep(StepId step) { return StepId{step.value + 1}; }
 }  // namespace
 
 RoundSetup makeOrbitalSetup(RoundId round) {
+  namespace policy = board_setup_policy;
   return RoundSetup{round,
-                    Board{ORBITAL_BOARD_SIZE, ORBITAL_BOARD_SIZE},
-                    {{PLAYER_A, SnakeSetup{Point{5, 11}, Direction::RIGHT, 7}},
-                     {PLAYER_B, SnakeSetup{Point{5, 16}, Direction::RIGHT, 7}}},
+                    policy::BOARD,
+                    {{PLAYER_A, SnakeSetup{policy::PLAYER_A_HEAD, policy::START_HEADING, policy::START_LENGTH}},
+                     {PLAYER_B, SnakeSetup{policy::PLAYER_B_HEAD, policy::START_HEADING, policy::START_LENGTH}}},
                     {}};
 }
 

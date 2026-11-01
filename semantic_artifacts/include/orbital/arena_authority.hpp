@@ -40,9 +40,6 @@ namespace arena_authority {
 // Minimum number of food items kept on the board
 constexpr int MIN_FOOD_COUNT = 5;
 
-// Width and height of the square default board
-constexpr int ORBITAL_BOARD_SIZE = 28;
-
 /**
  * @brief The order a snake currently executes
  */
@@ -114,7 +111,7 @@ class State {
 // ============================================================================
 
 /**
- * @brief Default setup: square board, start positions and snake length for Player A and Player B
+ * @brief Setup the Board Setup Policy decides: its board, and Player A and Player B at their starts
  *
  * @param round Identity of the round
  * @return Setup without initial food (food is spawned at round start)
