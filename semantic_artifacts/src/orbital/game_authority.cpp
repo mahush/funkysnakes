@@ -6,6 +6,7 @@
 #include <vector>
 
 #include "game_authority_mechanics.hpp"
+#include "orbital/pacing_policy.hpp"
 
 namespace snake {
 namespace orbital {
@@ -214,7 +215,7 @@ std::tuple<State, std::optional<GameConcluded>> observeStep(State state,
   std::tie(state.scores_.credited, state.chains_) =
       creditHandovers(std::move(state.scores_.credited), std::move(state.chains_), state.commitments_, state.steps_);
 
-  if (now < state.duration_ && !alive.empty()) {
+  if (now < pacing_policy::GAME_DURATION && !alive.empty()) {
     return {std::move(state), std::nullopt};
   }
 
@@ -253,7 +254,7 @@ View view(const State& state) {
   for (const auto& [order, unbanked] : state.scores_.unbanked) {
     result.players[unbanked.player].unbanked += unbanked.points;
   }
-  result.remaining = std::max(GameTime{0}, state.duration_ - state.now_);
+  result.remaining = std::max(GameTime{0}, pacing_policy::GAME_DURATION - state.now_);
   result.result = state.result_;
   return result;
 }
