@@ -75,6 +75,7 @@ ArenaSetup makeClassicSetup();
  * @param random_int_fn Random number source for food placement
  * @param setup Configuration of the arena
  * @return Initial arena state
+ * @throws std::invalid_argument if a snake does not lie wholly on the board or snakes overlap
  */
 State initial(const RandomIntGeneratorFn& random_int_fn, const ArenaSetup& setup);
 

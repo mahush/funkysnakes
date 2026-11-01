@@ -49,6 +49,17 @@ std::tuple<PerPlayerSnakes, PerPlayerScores> addPlayer(PlayerId player_id,
                                                        PerPlayerSnakes snakes,
                                                        PerPlayerScores scores);
 
+/**
+ * @brief Require snakes to form a valid start layout
+ *
+ * Every segment, head included, lies on the board, and no two segments share a cell.
+ *
+ * @param snakes Snakes at the start
+ * @param board Board they start on
+ * @throws std::invalid_argument if a segment lies outside the board or two segments share a cell
+ */
+void requireValidStartLayout(const PerPlayerSnakes& snakes, const Board& board);
+
 // ============================================================================
 // Snake Game Logic
 // ============================================================================

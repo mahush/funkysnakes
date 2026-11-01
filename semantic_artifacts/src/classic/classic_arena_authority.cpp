@@ -57,6 +57,7 @@ State initial(const RandomIntGeneratorFn& random_int_fn, const ArenaSetup& setup
     state =
         over_snakes_and_scores(bindFront(addPlayer, player, snake.head, snake.heading, snake.length))(std::move(state));
   }
+  requireValidStartLayout(state.snakes, state.board);
   return over_food_viewing_board_and_snakes(bindFront(initializeFood, random_int_fn, food_policy::MIN_FOOD_COUNT))(
       std::move(state));
 }

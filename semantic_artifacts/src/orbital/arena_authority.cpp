@@ -183,6 +183,7 @@ State startRound(const RandomIntGeneratorFn& random_int_fn, const RoundSetup& se
   for (const auto& [player, snake] : setup.snakes) {
     state.snakes_.emplace(player, snake_model::initial(snake.head, snake.heading, snake.length));
   }
+  requireValidStartLayout(state.snakes_, state.board_);
   state.food_ = replenishFood(random_int_fn, food_policy::MIN_FOOD_COUNT, setup.food, state.board_, state.snakes_);
   return state;
 }

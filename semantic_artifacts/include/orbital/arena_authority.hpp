@@ -123,6 +123,7 @@ RoundSetup makeOrbitalSetup(RoundId round);
  * @param random_int_fn Random number source for food placement
  * @param setup Configuration of the world
  * @return World without executing orders, food topped up to the Food Policy's minimum
+ * @throws std::invalid_argument if a snake does not lie wholly on the board or snakes overlap
  */
 State startRound(const RandomIntGeneratorFn& random_int_fn, const RoundSetup& setup);
 
