@@ -20,6 +20,8 @@ Authorities and carries out their intents.
 | Snake Authority | Nested Authority | [`snake_model`](../semantic_artifacts/include/common/snake_model.hpp) | Evolution of one snake's body and life: move, grow, cut, kill, edge wrapping, ignoring reverse turns |
 | Steering Authority | Nested Authority | [`direction_command_filter`](../semantic_artifacts/include/classic/direction_command_filter.hpp) | Evolution of buffered steering intentions: acceptance, cancellation, queue limit, one turn per step |
 | [Scoring Policy](#scoring-policy) | Policy, used by the arena | [`scoring_policy`](../semantic_artifacts/include/classic/scoring_policy.hpp) | What arena events are worth |
+| [Board Setup Policy](#board-setup-policy) | Policy, used by the arena's setup factory | [`board_setup_policy`](../semantic_artifacts/include/classic/board_setup_policy.hpp) | Board size and how the snakes start on it |
+| [Food Policy](#food-policy) | Policy, used by the arena | [`food_policy`](../semantic_artifacts/include/classic/food_policy.hpp) | How much food the board holds |
 | [Classic Game Lifecycle Authority](#classic-game-lifecycle-authority) | Authority, beside the arena | [`classic_game_lifecycle_authority`](../semantic_artifacts/include/classic/classic_game_lifecycle_authority.hpp) | Pause, conclusion, level and game-time cadences |
 | [Difficulty Policy](#difficulty-policy) | Policy, used by the lifecycle | [`difficulty_policy`](../semantic_artifacts/include/classic/difficulty_policy.hpp) | Level → step interval |
 | [Domain System Boundary](#domain-system-boundary) | Boundary semantics | [`game_boundary`](../semantic_artifacts/include/classic/game_boundary.hpp) | The game's external interactions, independent of devices |
@@ -61,11 +63,16 @@ depend on nothing outside that folder except the generic lens and pipe utilities
 ### Authority surface
 
 ```cpp
-State initial(const RandomIntGeneratorFn& random_int_fn, Board board);
+ArenaSetup makeClassicSetup();
+State initial(const RandomIntGeneratorFn& random_int_fn, const ArenaSetup& setup);
 State steer(State state, const DirectionCommand& cmd);
 State requestFoodReposition(State state);
 State tick(const RandomIntGeneratorFn& random_int_fn, State state);
 ```
+
+`initial` is the construction: it places the setup's snakes with a score of 0 each and the initial food, and
+rejects a setup whose snakes leave the board or overlap. `makeClassicSetup` is the setup factory; it builds the
+setup from the [Board Setup Policy](#board-setup-policy), while tests construct their own setups.
 
 All transitions return the resulting state only (no echo outputs). Consumers read results from the state
 (snakes, scores, food; alive states via `extractAliveStates`; `events` for what happened in the last step,
@@ -87,8 +94,8 @@ The order is meaningful and owned by the Authority:
 4. drop those segments as food;
 5. eat food under alive snake heads and report it as events;
 6. change the scores by what the Scoring Policy decides for each of the step's events;
-7. replenish food up to `MIN_FOOD_COUNT` on free cells (up to 100 random attempts per item; if none is free,
-   fewer items are placed this step);
+7. replenish food up to the [Food Policy](#food-policy)'s `MIN_FOOD_COUNT` on free cells (up to 100 random
+   attempts per item; if none is free, fewer items are placed this step);
 8. if requested, reposition one random food item, then clear the request.
 
 Step 4 only runs in `BITE_DROP_FOOD` mode, which is currently the only mode ever used.
@@ -127,6 +134,24 @@ The Policy only decides; it owns no score state. The Classic Arena Authority own
 changes for every event of a step. Purity alone does not make a Policy: a function that takes the scores and
 returns their successor would define how the score state evolves, which is Authority behavior. Orbital's
 Scoring Policy has the same split.
+
+## Board Setup Policy
+
+Stateless decisions on the board and on how the snakes start on it:
+
+- the board is 60×20;
+- Player A starts with its head at (6,10), Player B at (6,15), both heading right with 7 segments.
+
+Board and start layout must fit each other, so one Policy holds them: every snake lies wholly on the board,
+apart from the others. They need not agree with the arena's rules of evolution: another board or layout changes
+the game, not how the arena steps. The Classic Arena Authority keeps the construction: `makeClassicSetup` turns
+the Policy's values into a setup, and `initial` places the snakes and validates the layout.
+
+## Food Policy
+
+A stateless decision on how much food the board holds: at least 5 items, from the start through every step.
+The arena tops the food up to this amount in `initial` and at the end of every step; where the food goes is
+still the arena's (see [Policy candidates](#policy-candidates)).
 
 ## Classic Game Lifecycle Authority
 
@@ -214,7 +239,8 @@ timers or rendering:
 
 **Game time** comes in as `TimeElapsed`. A virtual clock accumulates it and runs whatever falls due. The clock
 is mechanics: the periods, the cadence intents and the same-instant order come from the lifecycle Authority,
-and the step interval from the Difficulty Policy. The Domain Application makes no gameplay decision of its own.
+and the step interval from the Difficulty Policy; the initial arena is constructed from the Board Setup Policy's
+setup. The Domain Application makes no gameplay decision of its own.
 
 [`test_classic_game_domain_application.cpp`](../tests/test_classic_game_domain_application.cpp) runs complete
 histories of boundary interactions against it (the Domain Harness).
@@ -296,9 +322,8 @@ explicit gameplay decision.
 
 Not extracted yet:
 
-- **Arena setup**: board size, start positions, directions and lengths of the snakes.
-- **Food placement**: where new food goes and which item gets repositioned. It could become a Policy once
-  random draws are explicit facts rather than a generator function.
+- **Food placement**: where new food goes and which item gets repositioned. It could join the
+  [Food Policy](#food-policy) once random draws are explicit facts rather than a generator function.
 
 ## Tests
 
