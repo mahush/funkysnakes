@@ -103,7 +103,8 @@ std::tuple<State, Observations> apply(State state, const Submit& submit);
 /**
  * @brief Let game time pass: run every arena step that falls due
  *
- * Game time ends with the game: once it concluded, the clock stays at the step that ended it.
+ * Carries out Game's conclusion (see game_authority::GameConcluded): the clock stops at the step
+ * that concluded the game.
  *
  * @param random_int_fn Random number source for food placement during steps
  * @param state Current state
