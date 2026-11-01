@@ -52,8 +52,7 @@ ArenaSetup makeClassicSetup() {
 }
 
 State initial(const RandomIntGeneratorFn& random_int_fn, const ArenaSetup& setup) {
-  State state;
-  state.board = setup.board;
+  State state{setup.board};
   for (const auto& [player, snake] : setup.snakes) {
     state =
         over_snakes_and_scores(bindFront(addPlayer, player, snake.head, snake.heading, snake.length))(std::move(state));

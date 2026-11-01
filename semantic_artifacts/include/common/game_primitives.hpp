@@ -21,10 +21,14 @@ struct Point {
 
 /**
  * @brief Game board dimensions
+ *
+ * A board is always created with its size; there is no default board.
  */
 struct Board {
-  int width{60};
-  int height{20};
+  constexpr Board(int board_width, int board_height) : width{board_width}, height{board_height} {}
+
+  int width;
+  int height;
 };
 
 }  // namespace snake

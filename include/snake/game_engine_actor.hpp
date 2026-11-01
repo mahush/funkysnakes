@@ -82,13 +82,13 @@ class GameEngineActor : public Actor<GameEngineActor> {
   SubscriptionPtr<FoodRepositionTriggerMsg> reposition_sub_;
   SubscriptionPtr<GameStateSummaryRequestMsg> summary_req_sub_;
 
+  // Random source for food placement (supplied to the pure core as a fact source)
+  RandomIntGeneratorFn random_int_fn_;
+
   GameState game_state_;
 
   // Timer
   GameTimerPtr game_loop_timer_;
-
-  // Random source for food placement (supplied to the pure core as a fact source)
-  RandomIntGeneratorFn random_int_fn_;
 };
 
 }  // namespace snake

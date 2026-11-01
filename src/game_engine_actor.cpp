@@ -5,6 +5,7 @@
 #include <tuple>
 
 #include "classic/classic_arena_authority.hpp"
+#include "classic/difficulty_policy.hpp"
 #include "common/game_logic.hpp"
 #include "funkypipes/bind_front.hpp"
 #include "snake/game_state_lenses.hpp"
@@ -249,11 +250,12 @@ GameEngineActor::GameEngineActor(ActorContext ctx,
       tickrate_sub_{create_sub(tickrate_topic)},
       reposition_sub_{create_sub(reposition_topic)},
       summary_req_sub_{create_sub(summary_req_topic)},
-      game_loop_timer_{create_timer<GameTimer>(timer_factory)},
-      random_int_fn_{makeRandomIntGenerator()} {
-  game_state_.game_id = "game_001";
-  game_state_.arena = classic_arena_authority::initial(random_int_fn_, classic_arena_authority::makeClassicSetup());
-
+      random_int_fn_{makeRandomIntGenerator()},
+      game_state_{"game_001",
+                  classic_arena_authority::initial(random_int_fn_, classic_arena_authority::makeClassicSetup()),
+                  difficulty_policy::stepIntervalMs(1),  // Initially for level 1
+                  {}},
+      game_loop_timer_{create_timer<GameTimer>(timer_factory)} {
   Logger::log("[GameEngineActor] Initialized " + std::to_string(game_state_.arena.food_items.size()) + " food items\n");
 }
 

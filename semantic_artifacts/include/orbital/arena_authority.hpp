@@ -76,6 +76,8 @@ struct View;
  */
 class State {
  private:
+  State(RoundId round, Board board) : round_{round}, board_{board} {}
+
   RoundId round_;
   Board board_;
   PerPlayerSnakes snakes_;
