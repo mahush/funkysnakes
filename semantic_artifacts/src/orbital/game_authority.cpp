@@ -14,7 +14,7 @@ namespace game_authority {
 
 namespace {
 
-// An ended order's unbanked points are banked or forfeited as the Scoring Policy decides for its end reason
+// An ended order's unbanked points are banked or dropped as the Scoring Policy decides for its end reason
 Scores settleOrder(Scores scores, OrderId order, EndReason reason) {
   auto it = scores.unbanked.find(order);
   if (it == scores.unbanked.end()) {
@@ -24,7 +24,7 @@ Scores settleOrder(Scores scores, OrderId order, EndReason reason) {
     case scoring_policy::Settlement::BANK:
       scores.credited[it->second.player] += it->second.points;
       break;
-    case scoring_policy::Settlement::FORFEIT:
+    case scoring_policy::Settlement::DROP:
       break;
   }
   scores.unbanked.erase(it);
@@ -150,7 +150,7 @@ Chain deriveChain(const PlayerId& player,
       }
       // Successors prepared for the ended order are the commitments made while it executed; a commitment
       // made before its activation would have superseded it. A second one revised the prepared successor,
-      // which forfeits the handover of this order however the later successor fares
+      // which costs this order its handover however the later successor fares
       auto activation = activated_at.find(ended->order);
       const std::vector<OrderId> successors =
           activation == activated_at.end() ? std::vector<OrderId>{}

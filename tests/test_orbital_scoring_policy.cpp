@@ -89,21 +89,21 @@ TEST(OrbitalScoringPolicy, BanksCompletedOrder) {
 
 namespace {
 
-class OrbitalScoringPolicyForfeit : public ::testing::TestWithParam<EndReason> {};
+class OrbitalScoringPolicyDrop : public ::testing::TestWithParam<EndReason> {};
 
 }  // namespace
 
-/// @brief Unbanked points only count on completion; any other ending, the end of the round included, forfeits them
-TEST_P(OrbitalScoringPolicyForfeit, ForfeitsOrderEndedUncompleted) {
+/// @brief Unbanked points only count on completion; any other ending, the end of the round included, drops them
+TEST_P(OrbitalScoringPolicyDrop, DropsOrderEndedUncompleted) {
   // When: the settlement of an order that ended without completing is decided
   Settlement settlement = scoring_policy::settlementOf(GetParam());
 
-  // Then: its points are forfeited
-  EXPECT_EQ(settlement, Settlement::FORFEIT);
+  // Then: its points are dropped
+  EXPECT_EQ(settlement, Settlement::DROP);
 }
 
 INSTANTIATE_TEST_SUITE_P(EndReasons,
-                         OrbitalScoringPolicyForfeit,
+                         OrbitalScoringPolicyDrop,
                          ::testing::Values(EndReason::INTERRUPTED, EndReason::ELIMINATED, EndReason::ROUND_ENDED));
 
 /// @section scoring_policy::handoverBonus

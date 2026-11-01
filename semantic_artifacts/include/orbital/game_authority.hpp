@@ -40,8 +40,8 @@ namespace game_authority {
  * it earns the Scoring Policy's bonus for its position in the chain. The prepared successor is the
  * player's one commitment made while the order executed: from the step that activated it and before
  * the completing step. It is still pending if it has not been activated or rejected by then. A
- * second commitment in that time revises the prepared successor and forfeits the handover of the
- * executing order; later commitments cannot restore it, while the executing order's unbanked points
+ * second commitment in that time revises the prepared successor and costs the executing order its
+ * handover; later commitments cannot restore it, while the executing order's unbanked points
  * are unaffected. The chain breaks with a completion that is no handover, an interruption, the
  * player's snake dying (whether or not an order was executing), a rejection of the successor or the
  * end of the game.
