@@ -12,19 +12,19 @@ std::vector<PointEffect> effectsOfEvent(const FoodCollected& collected) {
   if (collected.during) {
     return {Hold{*collected.during, collected.player, FOOD_POINTS}};
   }
-  return {Credit{collected.player, FOOD_POINTS_NO_ORDER}};
+  return {Bank{collected.player, FOOD_POINTS_NO_ORDER}};
 }
 
 std::vector<PointEffect> effectsOfEvent(const OrderEnded& /*ended*/) { return {}; }
 
-std::vector<PointEffect> effectsOfEvent(const Bitten& bitten) { return {Credit{bitten.victim, -COLLISION_PENALTY}}; }
+std::vector<PointEffect> effectsOfEvent(const Bitten& bitten) { return {Bank{bitten.victim, -COLLISION_PENALTY}}; }
 
 std::vector<PointEffect> effectsOfEvent(const SelfBitten& self_bitten) {
-  return {Credit{self_bitten.player, -COLLISION_PENALTY}};
+  return {Bank{self_bitten.player, -COLLISION_PENALTY}};
 }
 
 std::vector<PointEffect> effectsOfEvent(const MutualBite& mutual) {
-  return {Credit{mutual.first, -COLLISION_PENALTY}, Credit{mutual.second, -COLLISION_PENALTY}};
+  return {Bank{mutual.first, -COLLISION_PENALTY}, Bank{mutual.second, -COLLISION_PENALTY}};
 }
 
 }  // namespace
