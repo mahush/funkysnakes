@@ -19,16 +19,16 @@ namespace scoring_policy {
  * score is up to its user. Food and collision values follow classic snake, except that food
  * without an order is worth less: eating during an order risks its points, so it has to be worth
  * more than eating while driving straight. The timing of when points count is Orbital's own rule:
- * - FoodCollected during an order: +10 unbanked for that order
+ * - FoodCollected during an order: +10 held for that order
  * - FoodCollected without an order: +5 credited at once
  * - Bitten: the victim loses 10 credited at once, the biter gets nothing
  * - SelfBitten: the snake loses 10 credited at once
  * - MutualBite: both snakes lose 10 credited at once
- * - An order ending COMPLETED: the order's unbanked points are banked (credited)
- * - An order ending INTERRUPTED, ELIMINATED or ROUND_ENDED: the order's unbanked points are dropped
+ * - An order ending COMPLETED: the order's held points are banked (credited)
+ * - An order ending INTERRUPTED, ELIMINATED or ROUND_ENDED: the order's held points are dropped
  *
  * Submitting or superseding a pending order is no arena event and changes no points. A
- * nonlethal bite leaves an order's unbanked points intact.
+ * nonlethal bite leaves an order's held points intact.
  *
  * A completion that hands over to an already committed, still pending successor is worth a
  * handover bonus in addition; whether a completion qualifies is the Game Authority's chain. The
@@ -36,7 +36,7 @@ namespace scoring_policy {
  * Base and cap are provisional tuning values.
  */
 
-constexpr int FOOD_POINTS = 10;          // During an order, unbanked
+constexpr int FOOD_POINTS = 10;          // During an order, held
 constexpr int FOOD_POINTS_NO_ORDER = 5;  // Without an order, credited at once
 constexpr int COLLISION_PENALTY = 10;
 constexpr int HANDOVER_BONUS_BASE = 10;  // First handover of a chain
@@ -68,7 +68,7 @@ struct Hold {
 using PointEffect = std::variant<Bank, Hold>;
 
 /**
- * @brief What happens to an ended order's unbanked points
+ * @brief What happens to an ended order's held points
  */
 enum class Settlement {
   BANK,  // Credited to the order's player
@@ -78,7 +78,7 @@ enum class Settlement {
 /**
  * @brief Point effects of one arena event
  *
- * An order ending carries no effect of its own; what it means for the order's unbanked points
+ * An order ending carries no effect of its own; what it means for the order's held points
  * is decided by settlementOf.
  *
  * @param event Arena event
@@ -87,7 +87,7 @@ enum class Settlement {
 std::vector<PointEffect> effectsOf(const ArenaEvent& event);
 
 /**
- * @brief Settlement of an order's unbanked points when the order ends
+ * @brief Settlement of an order's held points when the order ends
  *
  * @param reason Why the order stopped executing
  * @return BANK for a completed order, DROP for any other ending

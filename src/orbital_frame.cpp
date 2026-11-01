@@ -92,7 +92,7 @@ PlayerPanel buildPanel(const Views& views, const PlayerId& player, const std::ma
   PlayerPanel panel;
   if (auto score = views.game.players.find(player); score != views.game.players.end()) {
     panel.credited = score->second.credited;
-    panel.unbanked = score->second.unbanked;
+    panel.held = score->second.held;
     panel.chain = score->second.chain;
     panel.next_handover = score->second.next_handover;
   }

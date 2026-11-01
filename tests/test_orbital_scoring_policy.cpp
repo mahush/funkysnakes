@@ -78,7 +78,7 @@ TEST(OrbitalScoringPolicy, LeavesOrderEndingWithoutPointEffect) {
 
 /// @section scoring_policy::settlementOf
 
-/// @brief Unbanked points count once the order actually completes
+/// @brief Held points count once the order actually completes
 TEST(OrbitalScoringPolicy, BanksCompletedOrder) {
   // When: the settlement of a completed order is decided
   Settlement settlement = scoring_policy::settlementOf(EndReason::COMPLETED);
@@ -93,7 +93,7 @@ class OrbitalScoringPolicyDrop : public ::testing::TestWithParam<EndReason> {};
 
 }  // namespace
 
-/// @brief Unbanked points only count on completion; any other ending, the end of the round included, drops them
+/// @brief Held points only count on completion; any other ending, the end of the round included, drops them
 TEST_P(OrbitalScoringPolicyDrop, DropsOrderEndedUncompleted) {
   // When: the settlement of an order that ended without completing is decided
   Settlement settlement = scoring_policy::settlementOf(GetParam());

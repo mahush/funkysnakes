@@ -99,7 +99,7 @@ TEST(OrbitalGameDomainApplication, StartsOnSquareBoardWithSnakesSideBySide) {
   EXPECT_EQ(snake_model::head(arena.snakes.at(PLAYER_B)), (Point{5, 16}));
 }
 
-/// @subsection unbanked points
+/// @subsection held points
 
 /// @brief F's food points count once F completes; no successor was prepared, so no handover bonus
 TEST(OrbitalGameDomainApplication, BanksPointsOfOrderThatCompletes) {
@@ -112,7 +112,7 @@ TEST(OrbitalGameDomainApplication, BanksPointsOfOrderThatCompletes) {
   // Then: F completed and its 20 points count
   EXPECT_EQ(statusOf(state, f), Status::COMPLETED);
   EXPECT_EQ(scoreOf(state, PLAYER_A).credited, 20);
-  EXPECT_EQ(scoreOf(state, PLAYER_A).unbanked, 0);
+  EXPECT_EQ(scoreOf(state, PLAYER_A).held, 0);
   EXPECT_EQ(scoreOf(state, PLAYER_A).chain, 0);
 }
 
@@ -129,12 +129,12 @@ TEST(OrbitalGameDomainApplication, LosesPointsOfOrderInterruptedByReplacement) {
   EXPECT_EQ(statusOf(state, f), Status::INTERRUPTED);
   EXPECT_EQ(statusOf(state, g), Status::EXECUTING);
   EXPECT_EQ(scoreOf(state, PLAYER_A).credited, 0);
-  EXPECT_EQ(scoreOf(state, PLAYER_A).unbanked, 0);
+  EXPECT_EQ(scoreOf(state, PLAYER_A).held, 0);
   EXPECT_EQ(snake_model::length(arena_authority::view(*state.arena).snakes.at(PLAYER_A)), 5U);
 }
 
 /// @brief Changing one's mind costs nothing until the replacement actually activates
-TEST(OrbitalGameDomainApplication, KeepsUnbankedPointsWhenReplacementIsOnlySubmitted) {
+TEST(OrbitalGameDomainApplication, KeepsHeldPointsWhenReplacementIsOnlySubmitted) {
   // Given: F to (10,2) collected food at (5,2) and (7,2)
   auto [with_f, f] = submit(started(makeLanes({Point{5, 2}, Point{7, 2}})), PLAYER_A, Point{10, 2});
   app::State collected = elapse(with_f, 1000);
@@ -142,8 +142,8 @@ TEST(OrbitalGameDomainApplication, KeepsUnbankedPointsWhenReplacementIsOnlySubmi
   // When: G is submitted
   auto [with_g, g] = submit(collected, PLAYER_A, Point{10, 6});
 
-  // Then: F still holds its 20 unbanked points and G waits
-  EXPECT_EQ(scoreOf(with_g, PLAYER_A).unbanked, 20);
+  // Then: F still holds its 20 points and G waits
+  EXPECT_EQ(scoreOf(with_g, PLAYER_A).held, 20);
   EXPECT_EQ(statusOf(with_g, f), Status::EXECUTING);
   EXPECT_EQ(statusOf(with_g, g), Status::PENDING);
 }
@@ -218,7 +218,7 @@ TEST(OrbitalGameDomainApplication, BreaksChainAndLosesPointsWhenSuccessorActivat
   EXPECT_EQ(statusOf(state, g), Status::INTERRUPTED);
   EXPECT_EQ(statusOf(state, h), Status::EXECUTING);
   EXPECT_EQ(scoreOf(state, PLAYER_A).credited, 10);
-  EXPECT_EQ(scoreOf(state, PLAYER_A).unbanked, 0);
+  EXPECT_EQ(scoreOf(state, PLAYER_A).held, 0);
   EXPECT_EQ(scoreOf(state, PLAYER_A).chain, 0);
 }
 
@@ -308,10 +308,10 @@ TEST(OrbitalGameDomainApplication, KeepsExecutingOrderAndItsPointsWhenReplacemen
   // When: time passes until G was evaluated
   app::State state = elapse(with_g, 600);
 
-  // Then: G is rejected, F still executes with its 10 unbanked points
+  // Then: G is rejected, F still executes with its 10 held points
   EXPECT_EQ(statusOf(state, g), Status::REJECTED);
   EXPECT_EQ(statusOf(state, f), Status::EXECUTING);
-  EXPECT_EQ(scoreOf(state, PLAYER_A).unbanked, 10);
+  EXPECT_EQ(scoreOf(state, PLAYER_A).held, 10);
 }
 
 /// @subsection shared board
@@ -464,7 +464,7 @@ auto viewedOutcome(const app::State& state) {
   game_authority::View game = game_authority::view(*state.game);
   std::map<PlayerId, std::pair<int, int>> points;
   for (const auto& [player, score] : game.players) {
-    points[player] = {score.credited, score.unbanked};
+    points[player] = {score.credited, score.held};
   }
   return std::make_tuple(heads, arena.food, targets, arena.step, statuses, points, game.remaining);
 }
