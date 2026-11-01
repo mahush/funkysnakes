@@ -100,7 +100,7 @@ TEST(OrbitalGameAuthority, BanksUnbankedPointsOnCompletion) {
   EXPECT_EQ(view.players.at(PLAYER_A).unbanked, 0);
 }
 
-TEST(OrbitalGameAuthority, ForfeitsUnbankedPointsOfInterruptedOrder) {
+TEST(OrbitalGameAuthority, DropsUnbankedPointsOfInterruptedOrder) {
   // Given: order F of A holds 10 unbanked points
   State state = step(runningGame(), 200, {}, {FoodCollected{PLAYER_A, Point{1, 1}, OrderId{1}}});
 
@@ -218,7 +218,7 @@ TEST(OrbitalGameAuthority, BanksCompletionOnFinalStepBeforeConclusion) {
   EXPECT_EQ(concluded->result, (Result{PlayerId{PLAYER_A}}));
 }
 
-/// @brief Conclusion ends the round for an order still executing; the Scoring Policy forfeits its points then
+/// @brief Conclusion ends the round for an order still executing; the Scoring Policy drops its points then
 TEST(OrbitalGameAuthority, SettlesExecutingOrderAsEndedByRoundAtConclusion) {
   // Given: B has 10 credited points and A's executing order holds 20 unbanked points
   auto [state, first] = game_authority::observeStep(runningGame(),
@@ -232,7 +232,7 @@ TEST(OrbitalGameAuthority, SettlesExecutingOrderAsEndedByRoundAtConclusion) {
   // When: the game concludes while A's order still executes
   auto [final_state, concluded] = game_authority::observeStep(state, std::chrono::minutes{2}, {}, {}, BOTH_ALIVE);
 
-  // Then: A's unbanked points are forfeited and B wins
+  // Then: A's unbanked points are dropped and B wins
   EXPECT_EQ(game_authority::view(final_state).players.at(PLAYER_A).unbanked, 0);
   EXPECT_EQ(concluded->result, (Result{PlayerId{PLAYER_B}}));
 }
@@ -389,7 +389,7 @@ TEST(OrbitalGameAuthority, KeepsChainWhenSupersededDraftIsRejected) {
 }
 
 /// @brief A handover needs one uninterrupted prepared successor; a later successor cannot restore it
-TEST(OrbitalGameAuthority, ForfeitsHandoverWhenPendingSuccessorIsRevised) {
+TEST(OrbitalGameAuthority, DeniesHandoverWhenPendingSuccessorIsRevised) {
   // Given: successor 2 was superseded by 3, which is pending
   State state = game_authority::observeCommitment(
       withPendingSuccessor(), OrderCommitted{ROUND, OrderId{3}, PLAYER_A, milliseconds{700}, OrderId{2}});

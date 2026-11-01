@@ -40,9 +40,9 @@ Settlement settlementOf(EndReason reason) {
     case EndReason::INTERRUPTED:
     case EndReason::ELIMINATED:
     case EndReason::ROUND_ENDED:
-      return Settlement::FORFEIT;
+      return Settlement::DROP;
   }
-  return Settlement::FORFEIT;
+  return Settlement::DROP;
 }
 
 int handoverBonus(int handover) {

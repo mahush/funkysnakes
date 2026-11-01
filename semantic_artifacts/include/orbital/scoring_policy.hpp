@@ -25,7 +25,7 @@ namespace scoring_policy {
  * - SelfBitten: the snake loses 10 credited at once
  * - MutualBite: both snakes lose 10 credited at once
  * - An order ending COMPLETED: the order's unbanked points are banked (credited)
- * - An order ending INTERRUPTED, ELIMINATED or ROUND_ENDED: the order's unbanked points are forfeited
+ * - An order ending INTERRUPTED, ELIMINATED or ROUND_ENDED: the order's unbanked points are dropped
  *
  * Submitting or superseding a pending order is no arena event and changes no points. A
  * nonlethal bite leaves an order's unbanked points intact.
@@ -71,8 +71,8 @@ using PointEffect = std::variant<Credit, Unbank>;
  * @brief What happens to an ended order's unbanked points
  */
 enum class Settlement {
-  BANK,    // Credited to the order's player
-  FORFEIT  // Lost
+  BANK,  // Credited to the order's player
+  DROP   // Dropped
 };
 
 /**
@@ -90,7 +90,7 @@ std::vector<PointEffect> effectsOf(const ArenaEvent& event);
  * @brief Settlement of an order's unbanked points when the order ends
  *
  * @param reason Why the order stopped executing
- * @return BANK for a completed order, FORFEIT for any other ending
+ * @return BANK for a completed order, DROP for any other ending
  */
 Settlement settlementOf(EndReason reason);
 

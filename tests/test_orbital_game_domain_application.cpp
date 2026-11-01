@@ -222,8 +222,8 @@ TEST(OrbitalGameDomainApplication, BreaksChainAndLosesPointsWhenSuccessorActivat
   EXPECT_EQ(scoreOf(state, PLAYER_A).chain, 0);
 }
 
-/// @brief A handover needs one uninterrupted prepared successor; revising it forfeits the handover
-TEST(OrbitalGameDomainApplication, ForfeitsHandoverButBanksPointsWhenPendingSuccessorIsRevised) {
+/// @brief A handover needs one uninterrupted prepared successor; revising it costs the handover
+TEST(OrbitalGameDomainApplication, DeniesHandoverButBanksPointsWhenPendingSuccessorIsRevised) {
   // Given: F collects food at (5,2) and (7,2); G is committed at 1200 ms and superseded by G' at 1400 ms
   auto [with_f, f] = submit(started(makeLanes({Point{5, 2}, Point{7, 2}})), PLAYER_A, Point{10, 2});
   auto [with_g, g] = submit(elapse(with_f, 1200), PLAYER_A, Point{10, 8});
