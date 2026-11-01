@@ -37,9 +37,6 @@ namespace arena_authority {
  * - an order completed at activation (head already at target) precedes collection without order.
  */
 
-// Minimum number of food items kept on the board
-constexpr int MIN_FOOD_COUNT = 5;
-
 /**
  * @brief The order a snake currently executes
  */
@@ -65,7 +62,7 @@ struct RoundSetup {
   RoundId round;
   Board board;
   std::map<PlayerId, SnakeSetup> snakes;
-  FoodItems food;  // Food placed at start; topped up to MIN_FOOD_COUNT
+  FoodItems food;  // Food placed at start; topped up to the Food Policy's minimum
 };
 
 struct View;
@@ -123,7 +120,7 @@ RoundSetup makeOrbitalSetup(RoundId round);
  *
  * @param random_int_fn Random number source for food placement
  * @param setup Configuration of the world
- * @return World without executing orders, food topped up to MIN_FOOD_COUNT
+ * @return World without executing orders, food topped up to the Food Policy's minimum
  */
 State startRound(const RandomIntGeneratorFn& random_int_fn, const RoundSetup& setup);
 

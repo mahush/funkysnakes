@@ -6,6 +6,7 @@
 #include <tuple>
 
 #include "common/snake_model.hpp"
+#include "orbital/food_policy.hpp"
 #include "orbital/latency_policy.hpp"
 #include "orbital/orbital_game_domain_application.hpp"
 #include "test_printers.hpp"
@@ -40,7 +41,7 @@ RandomIntGeneratorFn makeCornerRandom() {
  * Filler food in row 9 brings the food to the minimum without random draws.
  */
 RoundSetup makeLanes(FoodItems food) {
-  for (int x = 15; food.size() < static_cast<size_t>(arena_authority::MIN_FOOD_COUNT); ++x) {
+  for (int x = 15; food.size() < static_cast<size_t>(food_policy::MIN_FOOD_COUNT); ++x) {
     food.push_back(Point{x, 9});
   }
   return RoundSetup{ROUND,
