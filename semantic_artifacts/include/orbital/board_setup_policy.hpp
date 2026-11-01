@@ -17,8 +17,8 @@ namespace board_setup_policy {
 constexpr Board BOARD{28, 28};
 
 // Start heads of Player A and Player B, side by side five rows apart
-constexpr Point PLAYER_A_HEAD{5, 11};
-constexpr Point PLAYER_B_HEAD{5, 16};
+constexpr Point PLAYER_A_HEAD{6, 11};
+constexpr Point PLAYER_B_HEAD{6, 16};
 
 // Every snake starts heading right with this many segments, head included
 constexpr Direction START_HEADING = Direction::RIGHT;

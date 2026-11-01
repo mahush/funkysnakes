@@ -53,8 +53,8 @@ TEST(ClassicGameDomainApplication, StartsOnClassicBoardWithSnakesSideBySide) {
   // Then: the board is 60x20 and both snakes start with seven segments heading right, five rows apart
   EXPECT_EQ(state.arena.board.width, 60);
   EXPECT_EQ(state.arena.board.height, 20);
-  EXPECT_EQ(headOf(state, PLAYER_A), (Point{5, 10}));
-  EXPECT_EQ(headOf(state, PLAYER_B), (Point{5, 15}));
+  EXPECT_EQ(headOf(state, PLAYER_A), (Point{6, 10}));
+  EXPECT_EQ(headOf(state, PLAYER_B), (Point{6, 15}));
   EXPECT_EQ(snake_model::length(state.arena.snakes.at(PLAYER_A)), 7u);
   EXPECT_EQ(snake_model::length(state.arena.snakes.at(PLAYER_B)), 7u);
   EXPECT_EQ(snake_model::currentDirection(state.arena.snakes.at(PLAYER_A)), Direction::RIGHT);
@@ -81,7 +81,7 @@ TEST(ClassicGameDomainApplication, DoesNotStepArenaBeforeStart) {
 
   // Then: the arena does not step
   EXPECT_TRUE(observations.arena_views.empty());
-  EXPECT_EQ(headOf(state, PLAYER_A), (Point{5, 10}));
+  EXPECT_EQ(headOf(state, PLAYER_A), (Point{6, 10}));
 }
 
 /// @section TimeElapsed
@@ -95,7 +95,7 @@ TEST(ClassicGameDomainApplication, StepsArenaAtLevelOneInterval) {
 
   // Then: the arena steps five times (200 ms each)
   EXPECT_EQ(observations.arena_views.size(), 5u);
-  EXPECT_EQ(headOf(state, PLAYER_A), (Point{10, 10}));
+  EXPECT_EQ(headOf(state, PLAYER_A), (Point{11, 10}));
 }
 
 /// @brief Ensures that time is accumulated across interactions, not lost between them
@@ -203,7 +203,7 @@ TEST(ClassicGameDomainApplication, AppliesSteeredTurnOnNextStep) {
   auto [new_state, observations] = wait(std::move(state), milliseconds{200});
 
   // Then: player A moves up
-  EXPECT_EQ(headOf(new_state, PLAYER_A), (Point{5, 9}));
+  EXPECT_EQ(headOf(new_state, PLAYER_A), (Point{6, 9}));
 }
 
 /// @section Game over
@@ -211,7 +211,7 @@ TEST(ClassicGameDomainApplication, AppliesSteeredTurnOnNextStep) {
 namespace {
 
 // Steers both snakes DOWN, LEFT, UP, one turn per step: each head then lands on its own tail
-// (A on (4,10), B on (4,15)), so both snakes die in the third step
+// (A on (5,10), B on (5,15)), so both snakes die in the third step
 app::State steerBothIntoOwnTails(app::State state) {
   for (Direction dir : {Direction::DOWN, Direction::LEFT, Direction::UP}) {
     state = std::get<0>(app::apply(std::move(state), app::Steer{PLAYER_A, dir}));

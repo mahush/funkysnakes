@@ -24,6 +24,23 @@ constexpr RoundId ROUND{1};
 const Board BOARD{20, 10};
 
 /**
+ * @brief Segments of the snakes, head included, that lie outside the board
+ */
+std::vector<Point> offBoardSegments(const PerPlayerSnakes& snakes, const Board& board) {
+  std::vector<Point> off_board;
+  for (const auto& [player, snake] : snakes) {
+    std::vector<Point> segments = snake_model::tail(snake);
+    segments.push_back(snake_model::head(snake));
+    for (const Point& segment : segments) {
+      if (segment.x < 0 || segment.x >= board.width || segment.y < 0 || segment.y >= board.height) {
+        off_board.push_back(segment);
+      }
+    }
+  }
+  return off_board;
+}
+
+/**
  * @brief Deterministic random source replaying a fixed sequence of values
  */
 RandomIntGeneratorFn makeScriptedRandom(std::vector<int> values) {
@@ -85,6 +102,17 @@ TEST(OrbitalArenaAuthority, TopsUpFoodToMinimumAtRoundStart) {
 
   // Then: the board holds the minimum amount of food
   EXPECT_EQ(arena_authority::view(state).food.size(), static_cast<size_t>(food_policy::MIN_FOOD_COUNT));
+}
+
+/// @brief A snake's tail used to start one cell left of the board until its first move
+TEST(OrbitalArenaAuthority, StartsSnakesWhollyOnBoard) {
+  // When: a round starts with the Orbital setup
+  State state = arena_authority::startRound(makeScriptedRandom({20, 1, 21, 1, 22, 1, 23, 1, 24, 1}),
+                                            arena_authority::makeOrbitalSetup(ROUND));
+
+  // Then: every segment of every snake lies on the board
+  arena_authority::View view = arena_authority::view(state);
+  EXPECT_TRUE(offBoardSegments(view.snakes, view.board).empty());
 }
 
 /// @section arena_authority::tick

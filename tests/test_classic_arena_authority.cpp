@@ -29,6 +29,23 @@ using classic_arena_authority::State;
 const Board BOARD{60, 20};
 
 /**
+ * @brief Segments of the snakes, head included, that lie outside the board
+ */
+std::vector<Point> offBoardSegments(const PerPlayerSnakes& snakes, const Board& board) {
+  std::vector<Point> off_board;
+  for (const auto& [player, snake] : snakes) {
+    std::vector<Point> segments = snake_model::tail(snake);
+    segments.push_back(snake_model::head(snake));
+    for (const Point& segment : segments) {
+      if (segment.x < 0 || segment.x >= board.width || segment.y < 0 || segment.y >= board.height) {
+        off_board.push_back(segment);
+      }
+    }
+  }
+  return off_board;
+}
+
+/**
  * @brief Deterministic random source replaying a fixed sequence of values
  *
  * Ignores the requested range; tests choose values that are valid for it.
@@ -111,13 +128,23 @@ TEST(ClassicArenaAuthority, PlacesBothPlayersAndMinimumFood) {
                                                  classic_arena_authority::makeClassicSetup());
 
   // Then: both players and the minimum food are placed
-  EXPECT_EQ(snake_model::head(state.snakes.at(PLAYER_A)), (Point{5, 10}));
-  EXPECT_EQ(snake_model::head(state.snakes.at(PLAYER_B)), (Point{5, 15}));
+  EXPECT_EQ(snake_model::head(state.snakes.at(PLAYER_A)), (Point{6, 10}));
+  EXPECT_EQ(snake_model::head(state.snakes.at(PLAYER_B)), (Point{6, 15}));
   EXPECT_EQ(snake_model::length(state.snakes.at(PLAYER_A)), 7u);
   EXPECT_EQ(snake_model::length(state.snakes.at(PLAYER_B)), 7u);
   EXPECT_EQ(snake_model::currentDirection(state.snakes.at(PLAYER_A)), Direction::RIGHT);
   EXPECT_EQ(state.scores, (PerPlayerScores{{PLAYER_A, 0}, {PLAYER_B, 0}}));
   EXPECT_EQ(state.food_items, (FoodItems{{30, 1}, {31, 1}, {32, 1}, {33, 1}, {34, 1}}));
+}
+
+/// @brief A snake's tail used to start one cell left of the board until its first move
+TEST(ClassicArenaAuthority, StartsSnakesWhollyOnBoard) {
+  // When: the arena is created from the classic setup
+  State state = classic_arena_authority::initial(makeScriptedRandom({30, 1, 31, 1, 32, 1, 33, 1, 34, 1}),
+                                                 classic_arena_authority::makeClassicSetup());
+
+  // Then: every segment of every snake lies on the board
+  EXPECT_TRUE(offBoardSegments(state.snakes, state.board).empty());
 }
 
 /// @section classic_arena_authority::steer
