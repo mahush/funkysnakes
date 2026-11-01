@@ -66,6 +66,8 @@ struct Result {
 
 /**
  * @brief Intent announcing that the game concluded
+ *
+ * Conclusion ends the game's time: no step follows the one that concluded the game.
  */
 struct GameConcluded {
   RoundId round;

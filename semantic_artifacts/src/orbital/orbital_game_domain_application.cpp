@@ -156,7 +156,7 @@ std::tuple<State, Observations> apply(const RandomIntGeneratorFn& random_int_fn,
     observations = appendObservations(std::move(observations), std::move(step_observations));
   }
   if (game_authority::isRunning(*state.game)) {
-    state.clock.now = until;  // Once concluded, the clock stays at the step that ended the game
+    state.clock.now = until;
   }
 
   observations = withViews(std::move(observations), state);

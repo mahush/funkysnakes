@@ -29,6 +29,9 @@ namespace game_boundary {
  * Submission rule of the boundary: a submission is accepted while the game is running (as the
  * Game Authority says); afterwards it is rejected with ROUND_OVER. An accepted submission is
  * committed at the current time of the round's logical clock; submissions are never backdated.
+ *
+ * After conclusion, elapsed time changes nothing: no step runs and the clock stays where it is (as
+ * the Game Authority's conclusion says).
  */
 
 // ============================================================================
