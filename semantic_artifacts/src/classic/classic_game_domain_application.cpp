@@ -127,8 +127,9 @@ State advanceClock(State state, milliseconds duration) {
 }  // namespace
 
 State initial(const RandomIntGeneratorFn& random_int_fn) {
-  State state;
-  state.arena = classic_arena_authority::initial(random_int_fn, classic_arena_authority::makeClassicSetup());
+  State state{lifecycle::State{},
+              classic_arena_authority::initial(random_int_fn, classic_arena_authority::makeClassicSetup()),
+              VirtualClock{}};
   state.clock.step_interval = milliseconds{difficulty_policy::stepIntervalMs(1)};
   return state;
 }

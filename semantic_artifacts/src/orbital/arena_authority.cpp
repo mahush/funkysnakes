@@ -179,9 +179,7 @@ RoundSetup makeOrbitalSetup(RoundId round) {
 }
 
 State startRound(const RandomIntGeneratorFn& random_int_fn, const RoundSetup& setup) {
-  State state;
-  state.round_ = setup.round;
-  state.board_ = setup.board;
+  State state{setup.round, setup.board};
   for (const auto& [player, snake] : setup.snakes) {
     state.snakes_.emplace(player, snake_model::initial(snake.head, snake.heading, snake.length));
   }

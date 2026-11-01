@@ -20,7 +20,7 @@ TEST(GenericLensTest, SingleMutableField) {
 
   auto transform_fn = lens(mutate<&ArenaState::snakes>, read<>, op_fn);
 
-  ArenaState state;
+  ArenaState state{Board{60, 20}};
   state = transform_fn(state);
 
   EXPECT_EQ(state.snakes.size(), 1u);
@@ -38,7 +38,7 @@ TEST(GenericLensTest, TwoMutableFields) {
 
   auto transform_fn = lens(mutate<&ArenaState::snakes, &ArenaState::scores>, read<>, op_fn);
 
-  ArenaState state;
+  ArenaState state{Board{60, 20}};
   state = transform_fn(state);
 
   EXPECT_EQ(state.snakes.size(), 1u);
@@ -59,8 +59,7 @@ TEST(GenericLensTest, MutableWithReadonly) {
 
   auto transform_fn = lens(mutate<&ArenaState::snakes>, read<&ArenaState::board, &ArenaState::food_items>, op_fn);
 
-  ArenaState state;
-  state.board = {60, 20};
+  ArenaState state{Board{60, 20}};
   state.food_items = {{5, 5}, {10, 10}};
 
   state = transform_fn(state);
@@ -78,7 +77,7 @@ TEST(GenericLensTest, AdditionalOutput) {
 
   auto transform_fn = lens(mutate<&ArenaState::snakes, &ArenaState::scores>, read<>, op_fn);
 
-  ArenaState state;
+  ArenaState state{Board{60, 20}};
   auto [new_state, cut_tails] = transform_fn(state);
 
   EXPECT_EQ(new_state.scores["PLAYER_A"], 50);
@@ -96,7 +95,7 @@ TEST(GenericLensTest, PipelineArgumentForwarding) {
 
   auto transform_fn = lens(mutate<&ArenaState::food_items>, read<>, op_fn);
 
-  ArenaState state;
+  ArenaState state{Board{60, 20}};
   state.food_items = {{5, 5}};
 
   std::vector<Point> pipeline_arg = {{10, 10}, {15, 15}};
@@ -124,8 +123,7 @@ TEST(GenericLensTest, ComplexTransformation) {
 
   auto transform_fn = lens(mutate<&ArenaState::snakes, &ArenaState::scores>, read<&ArenaState::board>, op_fn);
 
-  ArenaState state;
-  state.board = {80, 30};
+  ArenaState state{Board{80, 30}};
 
   int bonus_points = 200;
   auto [new_state, result_data] = transform_fn(state, bonus_points);
@@ -153,8 +151,7 @@ TEST(GenericLensTest, WithBindFront) {
 
   auto transform_fn = lens(mutate<&ArenaState::food_items>, read<&ArenaState::board, &ArenaState::snakes>, bound_op_fn);
 
-  ArenaState state;
-  state.board = {20, 20};
+  ArenaState state{Board{20, 20}};
   state.food_items = {{5, 5}, {10, 10}};
 
   state = transform_fn(state);
@@ -180,7 +177,7 @@ TEST(GenericLensTest, WithBindFrontMutableLambda) {
 
   auto transform_fn = lens(mutate<&ArenaState::food_items>, read<>, bound_op_fn);
 
-  ArenaState state;
+  ArenaState state{Board{60, 20}};
   state.food_items = {{5, 5}};
 
   state = transform_fn(state);
@@ -196,8 +193,7 @@ TEST(GenericLensTest, WithBindFrontMutableLambda) {
 TEST(GenericViewTest, SingleReadonlyField) {
   auto get_board_width = view(read<&ArenaState::board>, [](const Board& board) { return board.width; });
 
-  ArenaState state;
-  state.board.width = 42;
+  ArenaState state{Board{42, 20}};
 
   int width = get_board_width(state);
 
@@ -210,9 +206,7 @@ TEST(GenericViewTest, MultipleReadonlyFields) {
         return board.width * board.height + static_cast<int>(food.size());
       });
 
-  ArenaState state;
-  state.board.width = 10;
-  state.board.height = 5;
+  ArenaState state{Board{10, 5}};
   state.food_items = {{1, 1}, {2, 2}, {3, 3}};
 
   int total = count_cells_and_food(state);
@@ -224,8 +218,7 @@ TEST(GenericViewTest, WithAdditionalArguments) {
   auto multiply_width =
       view(read<&ArenaState::board>, [](const Board& board, int multiplier) { return board.width * multiplier; });
 
-  ArenaState state;
-  state.board.width = 20;
+  ArenaState state{Board{20, 20}};
 
   int result = multiply_width(state, 3);
 
@@ -236,9 +229,7 @@ TEST(GenericViewTest, ReturningComplexType) {
   auto extract_board_copy =
       view(read<&ArenaState::board>, [](const Board& board) { return Board{board.width, board.height}; });
 
-  ArenaState state;
-  state.board.width = 30;
-  state.board.height = 15;
+  ArenaState state{Board{30, 15}};
 
   Board result = extract_board_copy(state);
 

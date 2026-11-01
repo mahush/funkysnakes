@@ -31,6 +31,8 @@ namespace classic_arena_authority {
  * callers must not modify fields or compose their own sequences of game-rule helpers.
  */
 struct State {
+  explicit State(Board arena_board) : board{arena_board} {}
+
   Board board;                                                     // Board dimensions
   PerPlayerSnakes snakes;                                          // Snakes for each player
   PerPlayerScores scores;                                          // Scores for each player

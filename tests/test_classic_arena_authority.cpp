@@ -61,8 +61,7 @@ DirectionCommand steer(const PlayerId& player_id, Direction dir) { return Direct
  * does not draw random positions unless food is eaten.
  */
 State makeArena(PerPlayerSnakes snakes, FoodItems food) {
-  State state;
-  state.board = BOARD;
+  State state{BOARD};
   state.snakes = std::move(snakes);
   for (const auto& entry : state.snakes) {
     state.scores[entry.first] = 0;

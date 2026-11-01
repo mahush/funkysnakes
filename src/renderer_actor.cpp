@@ -7,6 +7,7 @@
 #include <string>
 #include <vector>
 
+#include "classic/board_setup_policy.hpp"
 #include "common/snake_model.hpp"
 #include "snake/control_messages.hpp"
 #include "snake/process_helpers.hpp"
@@ -25,7 +26,8 @@ RendererActor::RendererActor(ActorContext ctx,
       state_sub_{create_sub(state_topic)},
       gameover_sub_{create_sub(gameover_topic)},
       metadata_sub_{create_sub(metadata_topic)},
-      flash_timer_{create_timer<FlashTimer>(timer_factory)} {}
+      flash_timer_{create_timer<FlashTimer>(timer_factory)},
+      last_state_{board_setup_policy::BOARD, {}, {}, {}} {}
 
 void RendererActor::processInputs() {
   // Process all pending state updates
