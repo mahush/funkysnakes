@@ -91,7 +91,7 @@ CellGrid buildCells(const Views& views, const std::map<PlayerId, Point>& cursors
 PlayerPanel buildPanel(const Views& views, const PlayerId& player, const std::map<PlayerId, Point>& cursors) {
   PlayerPanel panel;
   if (auto score = views.game.players.find(player); score != views.game.players.end()) {
-    panel.credited = score->second.credited;
+    panel.banked = score->second.banked;
     panel.held = score->second.held;
     panel.chain = score->second.chain;
     panel.next_handover = score->second.next_handover;

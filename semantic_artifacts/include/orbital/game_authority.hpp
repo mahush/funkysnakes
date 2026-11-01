@@ -21,7 +21,7 @@ namespace game_authority {
 /**
  * Orbital Game Authority - owns the evolution of an Orbital Orders game as a whole
  *
- * Owns whether the game runs, the credited and held points, each player's handover chain and
+ * Owns whether the game runs, the banked and held points, each player's handover chain and
  * the final result. A game is one round. It sits beside the Arena and Order Authorities: it reads
  * what the Arena reports and the Order Authority's commitment history, uses the Orbital Scoring
  * Policy for point values and the Orbital Pacing Policy for the game duration, and announces the
@@ -48,8 +48,8 @@ namespace game_authority {
  *
  * The chain is derived from both histories as far as they are known. Commitments may be learned
  * after the steps they relate to, as when a player-local Order Authority synchronizes late; the
- * chain is then derived again and the difference of the bonuses is credited when the commitment is
- * learned. Usually that adds a bonus; it withdraws one that was credited on incomplete history,
+ * chain is then derived again and the difference of the bonuses is banked when the commitment is
+ * learned. Usually that adds a bonus; it withdraws one that was banked on incomplete history,
  * when a later commitment shows that the counted successor had already been revised. Either
  * way, the eventual score is the same as if every commitment had been known in time, so scores
  * shown before the histories are complete are provisional. Arena history is never rewritten.
@@ -59,7 +59,7 @@ namespace game_authority {
  * @brief Outcome of a concluded game
  */
 struct Result {
-  std::optional<PlayerId> winner;  // Highest credited score; empty for a draw
+  std::optional<PlayerId> winner;  // Highest banked score; empty for a draw
 
   bool operator==(const Result& other) const noexcept { return winner == other.winner; }
 };
@@ -88,8 +88,8 @@ struct ObservedStep {
  * @brief A player's handover chain as derived from the known histories
  */
 struct Chain {
-  int length{0};          // Consecutive handovers of the current chain
-  int bonus_credited{0};  // Handover bonus credited so far over the whole game
+  int length{0};        // Consecutive handovers of the current chain
+  int bonus_banked{0};  // Handover bonus banked so far over the whole game
 };
 
 /**
@@ -101,10 +101,10 @@ struct Held {
 };
 
 /**
- * @brief Credited points per player and points held per executing order
+ * @brief Banked points per player and points held per executing order
  */
 struct Scores {
-  PerPlayerScores credited;
+  PerPlayerScores banked;
   std::map<OrderId, Held> held;
 };
 
@@ -121,13 +121,13 @@ class State {
  private:
   RoundId round_;
   GameTime now_{0};               // Time of the last observed step
-  Scores scores_;                 // Credited points per player, held points per order
+  Scores scores_;                 // Banked points per player, held points per order
   std::optional<Result> result_;  // Set once the game concluded
 
   // Histories the handover chain is derived from
   std::map<PlayerId, std::vector<OrderCommitted>> commitments_;  // Learned commitments per player
   std::vector<ObservedStep> steps_;                              // Observed steps, in step order
-  std::map<PlayerId, Chain> chains_;                             // Derived chain and bonus credited so far
+  std::map<PlayerId, Chain> chains_;                             // Derived chain and bonus banked so far
 
   // Construction
   friend State startRound(RoundId round, const std::vector<PlayerId>& players);
@@ -194,7 +194,7 @@ std::tuple<State, std::optional<GameConcluded>> observeStep(State state,
  *
  * The commitment counts with its own commitment time, whenever it is learned. If steps already
  * observed show that the order was a successor pending at a completion, the handover bonus earned
- * there is credited now; if it shows that a counted successor had been revised, that bonus is
+ * there is banked now; if it shows that a counted successor had been revised, that bonus is
  * withdrawn. Commitments learned after conclusion or of another round change nothing. An order's
  * commitment counts once: a later record for an already known order, also with another time,
  * changes nothing, so a commitment time cannot be rewritten by resending.
@@ -224,7 +224,7 @@ bool isRunning(const State& state);
  * @brief A player's points
  */
 struct PlayerScore {
-  int credited;
+  int banked;
   int held;           // Points of the executing order that count only if it completes
   int chain;          // Consecutive handovers of the current chain
   int next_handover;  // Bonus the next handover of the chain would earn

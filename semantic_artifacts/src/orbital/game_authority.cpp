@@ -22,7 +22,7 @@ Scores settleOrder(Scores scores, OrderId order, EndReason reason) {
   }
   switch (scoring_policy::settlementOf(reason)) {
     case scoring_policy::Settlement::BANK:
-      scores.credited[it->second.player] += it->second.points;
+      scores.banked[it->second.player] += it->second.points;
       break;
     case scoring_policy::Settlement::DROP:
       break;
@@ -58,15 +58,15 @@ Scores settleAtConclusion(Scores scores) {
   return scores;
 }
 
-// Highest credited score wins; equal highest scores draw
-Result decideResult(const PerPlayerScores& credited) {
+// Highest banked score wins; equal highest scores draw
+Result decideResult(const PerPlayerScores& banked) {
   std::optional<PlayerId> leader;
   bool tied = false;
-  for (const auto& [player, score] : credited) {
-    if (!leader || score > credited.at(*leader)) {
+  for (const auto& [player, score] : banked) {
+    if (!leader || score > banked.at(*leader)) {
       leader = player;
       tied = false;
-    } else if (score == credited.at(*leader)) {
+    } else if (score == banked.at(*leader)) {
       tied = true;
     }
   }
@@ -159,7 +159,7 @@ Chain deriveChain(const PlayerId& player,
           ended->reason == EndReason::COMPLETED && successors.size() == 1 && resolved.count(successors.front()) == 0;
       if (hands_over) {
         ++chain.length;
-        chain.bonus_credited += scoring_policy::handoverBonus(chain.length);
+        chain.bonus_banked += scoring_policy::handoverBonus(chain.length);
       } else {
         chain.length = 0;
       }
@@ -172,21 +172,21 @@ Chain deriveChain(const PlayerId& player,
   return chain;
 }
 
-// Re-derive every player's chain from the known histories and credit the change of their bonus
-std::tuple<PerPlayerScores, std::map<PlayerId, Chain>> creditHandovers(PerPlayerScores credited,
-                                                                       std::map<PlayerId, Chain> chains,
-                                                                       const Commitments& commitments,
-                                                                       const std::vector<ObservedStep>& steps) {
+// Re-derive every player's chain from the known histories and bank the change of their bonus
+std::tuple<PerPlayerScores, std::map<PlayerId, Chain>> bankHandovers(PerPlayerScores banked,
+                                                                     std::map<PlayerId, Chain> chains,
+                                                                     const Commitments& commitments,
+                                                                     const std::vector<ObservedStep>& steps) {
   const std::map<OrderId, PlayerId> players = playersOfOrders(commitments);
-  for (auto& [player, score] : credited) {
+  for (auto& [player, score] : banked) {
     auto committed = commitments.find(player);
     const Chain derived = deriveChain(
         player, committed == commitments.end() ? std::vector<OrderCommitted>{} : committed->second, players, steps);
     Chain& chain = chains[player];
-    score += derived.bonus_credited - chain.bonus_credited;
+    score += derived.bonus_banked - chain.bonus_banked;
     chain = derived;
   }
-  return {std::move(credited), std::move(chains)};
+  return {std::move(banked), std::move(chains)};
 }
 
 }  // namespace
@@ -195,7 +195,7 @@ State startRound(RoundId round, const std::vector<PlayerId>& players) {
   State state;
   state.round_ = round;
   for (const PlayerId& player : players) {
-    state.scores_.credited[player] = 0;
+    state.scores_.banked[player] = 0;
   }
   return state;
 }
@@ -212,8 +212,8 @@ std::tuple<State, std::optional<GameConcluded>> observeStep(State state,
   state.now_ = now;
   state.scores_ = scoreEvents(std::move(state.scores_), events);
   state.steps_.push_back(ObservedStep{now, activations, events, alive});
-  std::tie(state.scores_.credited, state.chains_) =
-      creditHandovers(std::move(state.scores_.credited), std::move(state.chains_), state.commitments_, state.steps_);
+  std::tie(state.scores_.banked, state.chains_) =
+      bankHandovers(std::move(state.scores_.banked), std::move(state.chains_), state.commitments_, state.steps_);
 
   if (now < pacing_policy::GAME_DURATION && !alive.empty()) {
     return {std::move(state), std::nullopt};
@@ -223,12 +223,12 @@ std::tuple<State, std::optional<GameConcluded>> observeStep(State state,
   for (auto& [player, chain] : state.chains_) {
     chain.length = 0;
   }
-  state.result_ = decideResult(state.scores_.credited);
+  state.result_ = decideResult(state.scores_.banked);
   return {state, GameConcluded{state.round_, *state.result_}};
 }
 
 State observeCommitment(State state, const OrderCommitted& committed) {
-  if (!isRunning(state) || committed.round != state.round_ || state.scores_.credited.count(committed.player) == 0) {
+  if (!isRunning(state) || committed.round != state.round_ || state.scores_.banked.count(committed.player) == 0) {
     return state;
   }
   std::vector<OrderCommitted>& known = state.commitments_[committed.player];
@@ -237,8 +237,8 @@ State observeCommitment(State state, const OrderCommitted& committed) {
     return state;
   }
   known.push_back(committed);
-  std::tie(state.scores_.credited, state.chains_) =
-      creditHandovers(std::move(state.scores_.credited), std::move(state.chains_), state.commitments_, state.steps_);
+  std::tie(state.scores_.banked, state.chains_) =
+      bankHandovers(std::move(state.scores_.banked), std::move(state.chains_), state.commitments_, state.steps_);
   return state;
 }
 
@@ -246,10 +246,10 @@ bool isRunning(const State& state) { return !state.result_.has_value(); }
 
 View view(const State& state) {
   View result;
-  for (const auto& [player, credited] : state.scores_.credited) {
+  for (const auto& [player, banked] : state.scores_.banked) {
     auto chain = state.chains_.find(player);
     const int length = chain == state.chains_.end() ? 0 : chain->second.length;
-    result.players[player] = PlayerScore{credited, 0, length, scoring_policy::handoverBonus(length + 1)};
+    result.players[player] = PlayerScore{banked, 0, length, scoring_policy::handoverBonus(length + 1)};
   }
   for (const auto& [order, held] : state.scores_.held) {
     result.players[held.player].held += held.points;

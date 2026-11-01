@@ -20,11 +20,11 @@ namespace scoring_policy {
  * without an order is worth less: eating during an order risks its points, so it has to be worth
  * more than eating while driving straight. The timing of when points count is Orbital's own rule:
  * - FoodCollected during an order: +10 held for that order
- * - FoodCollected without an order: +5 credited at once
- * - Bitten: the victim loses 10 credited at once, the biter gets nothing
- * - SelfBitten: the snake loses 10 credited at once
- * - MutualBite: both snakes lose 10 credited at once
- * - An order ending COMPLETED: the order's held points are banked (credited)
+ * - FoodCollected without an order: +5 banked at once
+ * - Bitten: the victim loses 10 banked at once, the biter gets nothing
+ * - SelfBitten: the snake loses 10 banked at once
+ * - MutualBite: both snakes lose 10 banked at once
+ * - An order ending COMPLETED: the order's held points are banked
  * - An order ending INTERRUPTED, ELIMINATED or ROUND_ENDED: the order's held points are dropped
  *
  * Submitting or superseding a pending order is no arena event and changes no points. A
@@ -37,7 +37,7 @@ namespace scoring_policy {
  */
 
 constexpr int FOOD_POINTS = 10;          // During an order, held
-constexpr int FOOD_POINTS_NO_ORDER = 5;  // Without an order, credited at once
+constexpr int FOOD_POINTS_NO_ORDER = 5;  // Without an order, banked at once
 constexpr int COLLISION_PENALTY = 10;
 constexpr int HANDOVER_BONUS_BASE = 10;  // First handover of a chain
 constexpr int HANDOVER_BONUS_CAP = 80;   // Doubling stops here
@@ -71,7 +71,7 @@ using PointEffect = std::variant<Bank, Hold>;
  * @brief What happens to an ended order's held points
  */
 enum class Settlement {
-  BANK,  // Credited to the order's player
+  BANK,  // Added to the player's banked points
   DROP   // Dropped
 };
 

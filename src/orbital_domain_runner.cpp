@@ -87,7 +87,7 @@ std::string describe(const ArenaEvent& event) {
 
 void printScore(const app::State& state) {
   const game_authority::PlayerScore score = game_authority::view(*state.game).players.at(PLAYER_A);
-  std::cout << "            A: credited " << score.credited << ", held " << score.held << ", chain " << score.chain
+  std::cout << "            A: banked " << score.banked << ", held " << score.held << ", chain " << score.chain
             << " (next handover +" << score.next_handover << ")\n";
 }
 
@@ -155,7 +155,7 @@ int main() {
   std::cout << "Orbital Orders - Domain Application traces\n"
                "Steps every 200 ms; orbital delay 0.2-2 s; food +10 during an order is held\n"
                "until the order completes, and is lost if a replacement activates first;\n"
-               "food without an order is credited +5 at once.\n"
+               "food without an order banks +5 at once.\n"
                "An order completing while its successor is already committed and still pending is a\n"
                "handover: +10 for the first of a chain, doubling for each consecutive one.\n";
 
