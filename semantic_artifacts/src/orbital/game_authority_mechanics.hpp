@@ -24,7 +24,7 @@ inline Scores applyEffect(Scores scores, const scoring_policy::Bank& bank) {
 }
 
 inline Scores applyEffect(Scores scores, const scoring_policy::Hold& hold) {
-  scores.unbanked.try_emplace(hold.order, Unbanked{hold.player, 0}).first->second.points += hold.points;
+  scores.held.try_emplace(hold.order, Held{hold.player, 0}).first->second.points += hold.points;
   return scores;
 }
 

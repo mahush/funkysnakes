@@ -55,7 +55,7 @@ using CellGrid = std::vector<std::vector<Cell>>;
  */
 struct PlayerPanel {
   int credited{0};
-  int unbanked{0};
+  int held{0};
   int chain{0};          // Consecutive handovers of the current chain
   int next_handover{0};  // Bonus the next handover would earn
   bool alive{true};

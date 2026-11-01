@@ -21,7 +21,7 @@ namespace game_authority {
 /**
  * Orbital Game Authority - owns the evolution of an Orbital Orders game as a whole
  *
- * Owns whether the game runs, the credited and unbanked points, each player's handover chain and
+ * Owns whether the game runs, the credited and held points, each player's handover chain and
  * the final result. A game is one round. It sits beside the Arena and Order Authorities: it reads
  * what the Arena reports and the Order Authority's commitment history, uses the Orbital Scoring
  * Policy for point values and the Orbital Pacing Policy for the game duration, and announces the
@@ -41,7 +41,7 @@ namespace game_authority {
  * player's one commitment made while the order executed: from the step that activated it and before
  * the completing step. It is still pending if it has not been activated or rejected by then. A
  * second commitment in that time revises the prepared successor and costs the executing order its
- * handover; later commitments cannot restore it, while the executing order's unbanked points
+ * handover; later commitments cannot restore it, while the executing order's held points
  * are unaffected. The chain breaks with a completion that is no handover, an interruption, the
  * player's snake dying (whether or not an order was executing), a rejection of the successor or the
  * end of the game.
@@ -95,7 +95,7 @@ struct Chain {
 /**
  * @brief Points held for one executing order
  */
-struct Unbanked {
+struct Held {
   PlayerId player;
   int points;
 };
@@ -105,7 +105,7 @@ struct Unbanked {
  */
 struct Scores {
   PerPlayerScores credited;
-  std::map<OrderId, Unbanked> unbanked;
+  std::map<OrderId, Held> held;
 };
 
 struct View;
@@ -121,7 +121,7 @@ class State {
  private:
   RoundId round_;
   GameTime now_{0};               // Time of the last observed step
-  Scores scores_;                 // Credited points per player, unbanked points per order
+  Scores scores_;                 // Credited points per player, held points per order
   std::optional<Result> result_;  // Set once the game concluded
 
   // Histories the handover chain is derived from
@@ -225,7 +225,7 @@ bool isRunning(const State& state);
  */
 struct PlayerScore {
   int credited;
-  int unbanked;       // Points of the executing order that count only if it completes
+  int held;           // Points of the executing order that count only if it completes
   int chain;          // Consecutive handovers of the current chain
   int next_handover;  // Bonus the next handover of the chain would earn
 };

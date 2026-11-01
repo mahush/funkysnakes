@@ -14,10 +14,10 @@ namespace game_authority {
 
 namespace {
 
-// An ended order's unbanked points are banked or dropped as the Scoring Policy decides for its end reason
+// An ended order's held points are banked or dropped as the Scoring Policy decides for its end reason
 Scores settleOrder(Scores scores, OrderId order, EndReason reason) {
-  auto it = scores.unbanked.find(order);
-  if (it == scores.unbanked.end()) {
+  auto it = scores.held.find(order);
+  if (it == scores.held.end()) {
     return scores;
   }
   switch (scoring_policy::settlementOf(reason)) {
@@ -27,7 +27,7 @@ Scores settleOrder(Scores scores, OrderId order, EndReason reason) {
     case scoring_policy::Settlement::DROP:
       break;
   }
-  scores.unbanked.erase(it);
+  scores.held.erase(it);
   return scores;
 }
 
@@ -49,7 +49,7 @@ Scores scoreEvents(Scores scores, const ArenaEvents& events) {
 // Conclusion ends the round: every order still holding points ends with it
 Scores settleAtConclusion(Scores scores) {
   std::vector<OrderId> executing;
-  for (const auto& [order, unbanked] : scores.unbanked) {
+  for (const auto& [order, held] : scores.held) {
     executing.push_back(order);
   }
   for (OrderId order : executing) {
@@ -251,8 +251,8 @@ View view(const State& state) {
     const int length = chain == state.chains_.end() ? 0 : chain->second.length;
     result.players[player] = PlayerScore{credited, 0, length, scoring_policy::handoverBonus(length + 1)};
   }
-  for (const auto& [order, unbanked] : state.scores_.unbanked) {
-    result.players[unbanked.player].unbanked += unbanked.points;
+  for (const auto& [order, held] : state.scores_.held) {
+    result.players[held.player].held += held.points;
   }
   result.remaining = std::max(GameTime{0}, pacing_policy::GAME_DURATION - state.now_);
   result.result = state.result_;
