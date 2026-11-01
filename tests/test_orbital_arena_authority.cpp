@@ -116,14 +116,26 @@ TEST(OrbitalArenaAuthority, StartsSnakesWhollyOnBoard) {
   EXPECT_TRUE(offBoardSegments(view.snakes, view.board).empty());
 }
 
+namespace {
+
+class OrbitalArenaAuthorityOffBoardSetup : public ::testing::TestWithParam<arena_authority::SnakeSetup> {};
+
+}  // namespace
+
 /// @brief An invalid start layout is a programming error in the setup, so construction refuses it
-TEST(OrbitalArenaAuthority, RejectsSetupWithSnakeOffBoard) {
-  // When/Then: a round whose snake's tail reaches past the left edge is rejected
-  EXPECT_THROW(
-      arena_authority::startRound(
-          makeNoRandom(), RoundSetup{ROUND, BOARD, {{PLAYER_A, SnakeSetup{Point{2, 5}, Direction::RIGHT, 4}}}, {}}),
-      std::invalid_argument);
+TEST_P(OrbitalArenaAuthorityOffBoardSetup, RejectsSetupWithSnakeOffBoard) {
+  // When/Then: a setup whose snake's tail ends one cell past an edge of the board is rejected
+  EXPECT_THROW(arena_authority::startRound(makeNoRandom(), RoundSetup{ROUND, BOARD, {{PLAYER_A, GetParam()}}, {}}),
+               std::invalid_argument);
 }
+
+/// The tail ends one cell past the left, right, top and bottom edge: x = -1, x = width, y = -1, y = height
+INSTANTIATE_TEST_SUITE_P(Edges,
+                         OrbitalArenaAuthorityOffBoardSetup,
+                         ::testing::Values(SnakeSetup{Point{2, 5}, Direction::RIGHT, 4},
+                                           SnakeSetup{Point{17, 5}, Direction::LEFT, 4},
+                                           SnakeSetup{Point{5, 2}, Direction::DOWN, 4},
+                                           SnakeSetup{Point{5, 7}, Direction::UP, 4}));
 
 /// @brief An invalid start layout is a programming error in the setup, so construction refuses it
 TEST(OrbitalArenaAuthority, RejectsSetupWithOverlappingSnakes) {
