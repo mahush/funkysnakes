@@ -44,16 +44,16 @@ PerPlayerScores scoreEvents(PerPlayerScores scores, const ArenaEvents& events) {
 
 }  // namespace
 
-ArenaSetup makeClassicSetup() {
+StartLayout makeClassicSetup() {
   namespace policy = board_setup_policy;
-  return ArenaSetup{policy::BOARD,
-                    {{PLAYER_A, SnakeSetup{policy::PLAYER_A_HEAD, policy::START_HEADING, policy::START_LENGTH}},
-                     {PLAYER_B, SnakeSetup{policy::PLAYER_B_HEAD, policy::START_HEADING, policy::START_LENGTH}}}};
+  return StartLayout{policy::BOARD,
+                     {{PLAYER_A, SnakeSetup{policy::PLAYER_A_HEAD, policy::START_HEADING, policy::START_LENGTH}},
+                      {PLAYER_B, SnakeSetup{policy::PLAYER_B_HEAD, policy::START_HEADING, policy::START_LENGTH}}}};
 }
 
-State initial(const RandomIntGeneratorFn& random_int_fn, const ArenaSetup& setup) {
-  State state{setup.board};
-  for (const auto& [player, snake] : setup.snakes) {
+State initial(const RandomIntGeneratorFn& random_int_fn, const StartLayout& layout) {
+  State state{layout.board};
+  for (const auto& [player, snake] : layout.snakes) {
     state =
         over_snakes_and_scores(bindFront(addPlayer, player, snake.head, snake.heading, snake.length))(std::move(state));
   }
