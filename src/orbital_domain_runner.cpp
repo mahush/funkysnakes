@@ -28,8 +28,8 @@ RandomIntGeneratorFn makeCornerRandom() {
 arena_authority::RoundSetup makeBoard() {
   return arena_authority::RoundSetup{RoundId{1},
                                      Board{20, 10},
-                                     {{PLAYER_A, arena_authority::SnakeSetup{Point{2, 2}, Direction::RIGHT, 3}},
-                                      {PLAYER_B, arena_authority::SnakeSetup{Point{2, 7}, Direction::RIGHT, 3}}},
+                                     {{PLAYER_A, SnakeSetup{Point{2, 2}, Direction::RIGHT, 3}},
+                                      {PLAYER_B, SnakeSetup{Point{2, 7}, Direction::RIGHT, 3}}},
                                      {Point{5, 2}, Point{7, 2}, Point{15, 9}, Point{16, 9}, Point{17, 9}}};
 }
 

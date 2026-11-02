@@ -18,7 +18,6 @@ namespace {
 namespace app = orbital::orbital_game_domain_application;
 using orbital::RoundId;
 using orbital::arena_authority::RoundSetup;
-using orbital::arena_authority::SnakeSetup;
 using orbital::game_boundary::Views;
 
 RandomIntGeneratorFn makeCornerRandom() {

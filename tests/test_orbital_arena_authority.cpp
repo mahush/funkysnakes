@@ -18,7 +18,6 @@ namespace orbital {
 namespace {
 
 using arena_authority::RoundSetup;
-using arena_authority::SnakeSetup;
 using arena_authority::State;
 
 constexpr RoundId ROUND{1};
@@ -118,7 +117,7 @@ TEST(OrbitalArenaAuthority, StartsSnakesWhollyOnBoard) {
 
 namespace {
 
-class OrbitalArenaAuthorityOffBoardSetup : public ::testing::TestWithParam<arena_authority::SnakeSetup> {};
+class OrbitalArenaAuthorityOffBoardSetup : public ::testing::TestWithParam<SnakeSetup> {};
 
 }  // namespace
 
