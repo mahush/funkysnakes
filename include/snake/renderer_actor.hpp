@@ -6,6 +6,7 @@
 #include <funkyactors/timer/timer.hpp>
 #include <funkyactors/topic.hpp>
 #include <memory>
+#include <optional>
 
 #include "snake/game_messages.hpp"
 
@@ -68,8 +69,8 @@ class RendererActor : public Actor<RendererActor> {
   // Timer for flashing game over overlay
   FlashTimerPtr flash_timer_;
 
-  // Last rendered arena view (for game over overlay)
-  game_boundary::ArenaView last_state_;
+  // Last received arena view, redrawn for overlays; none before the first state arrives
+  std::optional<game_boundary::ArenaView> last_state_;
 
   // Game routing and status (from GameManager)
   GameId game_id_;
