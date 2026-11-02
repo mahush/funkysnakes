@@ -317,4 +317,22 @@ TEST(RendererActor, DrawsBoardOfReceivedState) {
   EXPECT_NE(output.text().find("╚" + repeated("═", 30) + "╝"), std::string::npos);
 }
 
+/// @brief Before the first state the renderer knows no board, so it draws nothing
+TEST(RendererActor, DrawsNothingBeforeFirstState) {
+  asio::io_context io;
+  auto state_topic = std::make_shared<Topic<RenderableStateMsg>>();
+  auto gameover_topic = std::make_shared<Topic<GameOverMsg>>();
+  auto metadata_topic = std::make_shared<Topic<GameStateMetadataMsg>>();
+  auto renderer =
+      RendererActor::create(io, state_topic, gameover_topic, metadata_topic, std::make_shared<TimerFactory>(io));
+  CoutCapture output;
+
+  // When: game over arrives before any state
+  Publisher<GameOverMsg>{gameover_topic}.publish(GameOverMsg{"game_001", {}});
+  io.poll();
+
+  // Then: nothing is drawn
+  EXPECT_EQ(output.text(), "");
+}
+
 }  // namespace snake

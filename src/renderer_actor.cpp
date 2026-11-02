@@ -7,7 +7,6 @@
 #include <string>
 #include <vector>
 
-#include "classic/board_setup_policy.hpp"
 #include "common/snake_model.hpp"
 #include "snake/control_messages.hpp"
 #include "snake/process_helpers.hpp"
@@ -26,8 +25,7 @@ RendererActor::RendererActor(ActorContext ctx,
       state_sub_{create_sub(state_topic)},
       gameover_sub_{create_sub(gameover_topic)},
       metadata_sub_{create_sub(metadata_topic)},
-      flash_timer_{create_timer<FlashTimer>(timer_factory)},
-      last_state_{board_setup_policy::BOARD, {}, {}, {}} {}
+      flash_timer_{create_timer<FlashTimer>(timer_factory)} {}
 
 void RendererActor::processInputs() {
   // Process all pending state updates
@@ -51,15 +49,15 @@ void RendererActor::processInputs() {
 
 void RendererActor::onRenderableState(const RenderableStateMsg& msg) {
   last_state_ = msg.view;
-  renderBoard(last_state_, false, status_.paused);
+  renderBoard(*last_state_, false, status_.paused);
 }
 
 void RendererActor::onGameStateMetadata(const GameStateMetadataMsg& msg) {
   game_id_ = msg.game_id;
   status_ = msg.status;
   // Re-render if we have state (to show updated level/pause state)
-  if (!last_state_.snakes.empty()) {
-    renderBoard(last_state_, game_over_active_, status_.paused);
+  if (last_state_ && !last_state_->snakes.empty()) {
+    renderBoard(*last_state_, game_over_active_, status_.paused);
   }
 }
 
@@ -280,8 +278,10 @@ void RendererActor::onGameOver(const GameOverMsg& /* msg */) {
   // Start flash timer (750ms interval for flashing effect)
   flash_timer_->execute_command(make_periodic_command<FlashTimerTag>(std::chrono::milliseconds(750)));
 
-  // Re-render the last state with "GAME OVER" overlay
-  renderBoard(last_state_, true, status_.paused);
+  // Re-render the last state with "GAME OVER" overlay; there is nothing to draw before the first state
+  if (last_state_) {
+    renderBoard(*last_state_, true, status_.paused);
+  }
 }
 
 void RendererActor::onFlashTimer() {
@@ -293,7 +293,9 @@ void RendererActor::onFlashTimer() {
   flash_visible_ = !flash_visible_;
 
   // Re-render with current flash state
-  renderBoard(last_state_, true, status_.paused);
+  if (last_state_) {
+    renderBoard(*last_state_, true, status_.paused);
+  }
 }
 
 }  // namespace snake
