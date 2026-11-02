@@ -20,7 +20,6 @@ namespace {
 
 namespace app = orbital_game_domain_application;
 using arena_authority::RoundSetup;
-using arena_authority::SnakeSetup;
 using game_boundary::SubmissionAccepted;
 using game_boundary::SubmissionRejected;
 using game_boundary::SubmissionRejectionReason;

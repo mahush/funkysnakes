@@ -6,6 +6,7 @@
 #include "classic/direction_command_filter.hpp"
 #include "common/game_types.hpp"
 #include "common/random_source.hpp"
+#include "common/start_layout.hpp"
 
 namespace snake {
 namespace classic_arena_authority {
@@ -41,15 +42,6 @@ struct State {
   CollisionMode collision_mode{CollisionMode::BITE_DROP_FOOD};     // Collision handling mode
   bool should_reposition_food{false};                              // Reposition requested for next step
   ArenaEvents events;                                              // What happened during the last step
-};
-
-/**
- * @brief A snake at the start
- */
-struct SnakeSetup {
-  Point head;
-  Direction heading;
-  int length;
 };
 
 /**

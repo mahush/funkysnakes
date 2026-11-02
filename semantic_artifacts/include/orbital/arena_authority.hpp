@@ -9,6 +9,7 @@
 #include "common/game_time.hpp"
 #include "common/game_types.hpp"
 #include "common/random_source.hpp"
+#include "common/start_layout.hpp"
 #include "orbital/arena_events.hpp"
 #include "orbital/identities.hpp"
 #include "orbital/order.hpp"
@@ -44,15 +45,6 @@ struct ActiveOrder {
   OrderId id;
   Point target;
   std::vector<Direction> remaining_route;  // Moves still to take, one per step
-};
-
-/**
- * @brief A snake at round start
- */
-struct SnakeSetup {
-  Point head;
-  Direction heading;
-  int length;
 };
 
 /**

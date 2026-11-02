@@ -150,7 +150,7 @@ TEST(ClassicArenaAuthority, StartsSnakesWhollyOnBoard) {
 
 namespace {
 
-class ClassicArenaAuthorityOffBoardSetup : public ::testing::TestWithParam<classic_arena_authority::SnakeSetup> {};
+class ClassicArenaAuthorityOffBoardSetup : public ::testing::TestWithParam<SnakeSetup> {};
 
 }  // namespace
 
@@ -165,20 +165,19 @@ TEST_P(ClassicArenaAuthorityOffBoardSetup, RejectsSetupWithSnakeOffBoard) {
 /// The tail ends one cell past the left, right, top and bottom edge: x = -1, x = width, y = -1, y = height
 INSTANTIATE_TEST_SUITE_P(Edges,
                          ClassicArenaAuthorityOffBoardSetup,
-                         ::testing::Values(classic_arena_authority::SnakeSetup{Point{2, 5}, Direction::RIGHT, 4},
-                                           classic_arena_authority::SnakeSetup{Point{57, 5}, Direction::LEFT, 4},
-                                           classic_arena_authority::SnakeSetup{Point{5, 2}, Direction::DOWN, 4},
-                                           classic_arena_authority::SnakeSetup{Point{5, 17}, Direction::UP, 4}));
+                         ::testing::Values(SnakeSetup{Point{2, 5}, Direction::RIGHT, 4},
+                                           SnakeSetup{Point{57, 5}, Direction::LEFT, 4},
+                                           SnakeSetup{Point{5, 2}, Direction::DOWN, 4},
+                                           SnakeSetup{Point{5, 17}, Direction::UP, 4}));
 
 /// @brief An invalid start layout is a programming error in the setup, so construction refuses it
 TEST(ClassicArenaAuthority, RejectsSetupWithOverlappingSnakes) {
   // When/Then: an arena whose snakes share a cell is rejected
   EXPECT_THROW(classic_arena_authority::initial(
                    makeNoRandom(),
-                   classic_arena_authority::ArenaSetup{
-                       BOARD,
-                       {{PLAYER_A, classic_arena_authority::SnakeSetup{Point{10, 5}, Direction::RIGHT, 3}},
-                        {PLAYER_B, classic_arena_authority::SnakeSetup{Point{9, 5}, Direction::UP, 2}}}}),
+                   classic_arena_authority::ArenaSetup{BOARD,
+                                                       {{PLAYER_A, SnakeSetup{Point{10, 5}, Direction::RIGHT, 3}},
+                                                        {PLAYER_B, SnakeSetup{Point{9, 5}, Direction::UP, 2}}}}),
                std::invalid_argument);
 }
 
