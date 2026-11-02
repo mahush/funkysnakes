@@ -44,9 +44,9 @@ RoundSetup makeLanes(FoodItems food) {
     food.push_back(Point{x, 9});
   }
   return RoundSetup{ROUND,
-                    Board{20, 10},
-                    {{PLAYER_A, SnakeSetup{Point{2, 2}, Direction::RIGHT, 3}},
-                     {PLAYER_B, SnakeSetup{Point{2, 7}, Direction::RIGHT, 3}}},
+                    StartLayout{Board{20, 10},
+                                {{PLAYER_A, SnakeSetup{Point{2, 2}, Direction::RIGHT, 3}},
+                                 {PLAYER_B, SnakeSetup{Point{2, 7}, Direction::RIGHT, 3}}}},
                     food};
 }
 
@@ -324,7 +324,7 @@ TEST(OrbitalGameDomainApplication, KeepsExecutingOrderAndItsPointsWhenReplacemen
 TEST(OrbitalGameDomainApplication, CompletesPositionalOrderAfterOpponentTookTheFood) {
   // Given: A orders its snake to the food at (8,2); B heads down column 8 and takes the food at once
   RoundSetup setup = makeLanes({Point{8, 2}});
-  setup.snakes.at(PLAYER_B) = SnakeSetup{Point{8, 1}, Direction::DOWN, 2};
+  setup.layout.snakes.at(PLAYER_B) = SnakeSetup{Point{8, 1}, Direction::DOWN, 2};
   auto [with_order, order] = submit(started(setup), PLAYER_A, Point{8, 2});
 
   // When: A's snake arrives at (8,2)
@@ -357,8 +357,8 @@ TEST(OrbitalGameDomainApplication, BanksCompletionOnFinalStepBeforeConclusion) {
 TEST(OrbitalGameDomainApplication, ConcludesWithDrawWhenBothSnakesDie) {
   // Given: A and B head towards each other in row 5
   RoundSetup setup = makeLanes({});
-  setup.snakes.at(PLAYER_A) = SnakeSetup{Point{5, 5}, Direction::RIGHT, 2};
-  setup.snakes.at(PLAYER_B) = SnakeSetup{Point{7, 5}, Direction::LEFT, 2};
+  setup.layout.snakes.at(PLAYER_A) = SnakeSetup{Point{5, 5}, Direction::RIGHT, 2};
+  setup.layout.snakes.at(PLAYER_B) = SnakeSetup{Point{7, 5}, Direction::LEFT, 2};
 
   // When: their heads meet
   auto [state, observations] = app::apply(makeCornerRandom(), started(setup), app::TimeElapsed{milliseconds{200}});
@@ -564,7 +564,7 @@ TEST(OrbitalGameDomainApplication, StartsFreshGameAfterConclusion) {
 
   // When: a new game starts
   auto [state, observations] =
-      app::startWithSetup(makeCornerRandom(), over, RoundSetup{RoundId{2}, Board{20, 10}, makeLanes({}).snakes, {}});
+      app::startWithSetup(makeCornerRandom(), over, RoundSetup{RoundId{2}, makeLanes({}).layout, {}});
 
   // Then: it runs from time zero with no orders and the full duration remaining
   ASSERT_TRUE(observations.views.has_value());

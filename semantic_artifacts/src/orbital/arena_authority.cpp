@@ -171,16 +171,17 @@ StepId nextStep(StepId step) { return StepId{step.value + 1}; }
 
 RoundSetup makeOrbitalSetup(RoundId round) {
   namespace policy = board_setup_policy;
-  return RoundSetup{round,
-                    policy::BOARD,
-                    {{PLAYER_A, SnakeSetup{policy::PLAYER_A_HEAD, policy::START_HEADING, policy::START_LENGTH}},
-                     {PLAYER_B, SnakeSetup{policy::PLAYER_B_HEAD, policy::START_HEADING, policy::START_LENGTH}}},
-                    {}};
+  return RoundSetup{
+      round,
+      StartLayout{policy::BOARD,
+                  {{PLAYER_A, SnakeSetup{policy::PLAYER_A_HEAD, policy::START_HEADING, policy::START_LENGTH}},
+                   {PLAYER_B, SnakeSetup{policy::PLAYER_B_HEAD, policy::START_HEADING, policy::START_LENGTH}}}},
+      {}};
 }
 
 State startRound(const RandomIntGeneratorFn& random_int_fn, const RoundSetup& setup) {
-  State state{setup.round, setup.board};
-  for (const auto& [player, snake] : setup.snakes) {
+  State state{setup.round, setup.layout.board};
+  for (const auto& [player, snake] : setup.layout.snakes) {
     state.snakes_.emplace(player, snake_model::initial(snake.head, snake.heading, snake.length));
   }
   requireValidStartLayout(state.snakes_, state.board_);

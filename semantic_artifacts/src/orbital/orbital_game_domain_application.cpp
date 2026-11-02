@@ -50,7 +50,7 @@ Observations withViews(Observations observations, const State& state) {
 
 std::vector<PlayerId> playersOf(const arena_authority::RoundSetup& setup) {
   std::vector<PlayerId> players;
-  for (const auto& [player, snake] : setup.snakes) {
+  for (const auto& [player, snake] : setup.layout.snakes) {
     players.push_back(player);
   }
   return players;
