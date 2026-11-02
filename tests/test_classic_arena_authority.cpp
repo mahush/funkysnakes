@@ -157,8 +157,7 @@ class ClassicArenaAuthorityOffBoardSetup : public ::testing::TestWithParam<Snake
 /// @brief An invalid start layout is a programming error in the setup, so construction refuses it
 TEST_P(ClassicArenaAuthorityOffBoardSetup, RejectsSetupWithSnakeOffBoard) {
   // When/Then: a setup whose snake's tail ends one cell past an edge of the board is rejected
-  EXPECT_THROW(classic_arena_authority::initial(makeNoRandom(),
-                                                classic_arena_authority::ArenaSetup{BOARD, {{PLAYER_A, GetParam()}}}),
+  EXPECT_THROW(classic_arena_authority::initial(makeNoRandom(), StartLayout{BOARD, {{PLAYER_A, GetParam()}}}),
                std::invalid_argument);
 }
 
@@ -173,11 +172,10 @@ INSTANTIATE_TEST_SUITE_P(Edges,
 /// @brief An invalid start layout is a programming error in the setup, so construction refuses it
 TEST(ClassicArenaAuthority, RejectsSetupWithOverlappingSnakes) {
   // When/Then: an arena whose snakes share a cell is rejected
-  EXPECT_THROW(classic_arena_authority::initial(
-                   makeNoRandom(),
-                   classic_arena_authority::ArenaSetup{BOARD,
-                                                       {{PLAYER_A, SnakeSetup{Point{10, 5}, Direction::RIGHT, 3}},
-                                                        {PLAYER_B, SnakeSetup{Point{9, 5}, Direction::UP, 2}}}}),
+  EXPECT_THROW(classic_arena_authority::initial(makeNoRandom(),
+                                                StartLayout{BOARD,
+                                                            {{PLAYER_A, SnakeSetup{Point{10, 5}, Direction::RIGHT, 3}},
+                                                             {PLAYER_B, SnakeSetup{Point{9, 5}, Direction::UP, 2}}}}),
                std::invalid_argument);
 }
 
