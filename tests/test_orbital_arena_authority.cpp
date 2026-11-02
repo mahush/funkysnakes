@@ -72,7 +72,8 @@ State makeArena(SnakeSetup snake_a, FoodItems food) {
   for (int i = static_cast<int>(food.size()); i < food_policy::MIN_FOOD_COUNT; ++i) {
     food.push_back(Point{15 + i, 9});
   }
-  return arena_authority::startRound(makeNoRandom(), RoundSetup{ROUND, BOARD, {{PLAYER_A, snake_a}}, food});
+  return arena_authority::startRound(makeNoRandom(),
+                                     RoundSetup{ROUND, StartLayout{BOARD, {{PLAYER_A, snake_a}}}, food});
 }
 
 /**
@@ -82,8 +83,8 @@ State makeArena(SnakeSetup snake_a, SnakeSetup snake_b, FoodItems food) {
   for (int i = static_cast<int>(food.size()); i < food_policy::MIN_FOOD_COUNT; ++i) {
     food.push_back(Point{15 + i, 9});
   }
-  return arena_authority::startRound(makeNoRandom(),
-                                     RoundSetup{ROUND, BOARD, {{PLAYER_A, snake_a}, {PLAYER_B, snake_b}}, food});
+  return arena_authority::startRound(
+      makeNoRandom(), RoundSetup{ROUND, StartLayout{BOARD, {{PLAYER_A, snake_a}, {PLAYER_B, snake_b}}}, food});
 }
 
 Order orderOfA(int id, Point target) { return Order{ROUND, OrderId{id}, PLAYER_A, target}; }
@@ -98,7 +99,7 @@ TEST(OrbitalArenaAuthority, TopsUpFoodToMinimumAtRoundStart) {
   // When: a round starts with one food item
   State state = arena_authority::startRound(
       makeScriptedRandom({1, 1, 2, 1, 3, 1, 4, 1}),
-      RoundSetup{ROUND, BOARD, {{PLAYER_A, SnakeSetup{Point{5, 5}, Direction::RIGHT, 3}}}, {Point{0, 0}}});
+      RoundSetup{ROUND, StartLayout{BOARD, {{PLAYER_A, SnakeSetup{Point{5, 5}, Direction::RIGHT, 3}}}}, {Point{0, 0}}});
 
   // Then: the board holds the minimum amount of food
   EXPECT_EQ(arena_authority::view(state).food.size(), static_cast<size_t>(food_policy::MIN_FOOD_COUNT));
@@ -124,8 +125,9 @@ class OrbitalArenaAuthorityOffBoardSetup : public ::testing::TestWithParam<Snake
 /// @brief An invalid start layout is a programming error in the setup, so construction refuses it
 TEST_P(OrbitalArenaAuthorityOffBoardSetup, RejectsSetupWithSnakeOffBoard) {
   // When/Then: a setup whose snake's tail ends one cell past an edge of the board is rejected
-  EXPECT_THROW(arena_authority::startRound(makeNoRandom(), RoundSetup{ROUND, BOARD, {{PLAYER_A, GetParam()}}, {}}),
-               std::invalid_argument);
+  EXPECT_THROW(
+      arena_authority::startRound(makeNoRandom(), RoundSetup{ROUND, StartLayout{BOARD, {{PLAYER_A, GetParam()}}}, {}}),
+      std::invalid_argument);
 }
 
 /// The tail ends one cell past the left, right, top and bottom edge: x = -1, x = width, y = -1, y = height
@@ -139,13 +141,14 @@ INSTANTIATE_TEST_SUITE_P(Edges,
 /// @brief An invalid start layout is a programming error in the setup, so construction refuses it
 TEST(OrbitalArenaAuthority, RejectsSetupWithOverlappingSnakes) {
   // When/Then: a round whose snakes share a cell is rejected
-  EXPECT_THROW(arena_authority::startRound(makeNoRandom(),
-                                           RoundSetup{ROUND,
-                                                      BOARD,
-                                                      {{PLAYER_A, SnakeSetup{Point{10, 5}, Direction::RIGHT, 3}},
-                                                       {PLAYER_B, SnakeSetup{Point{9, 5}, Direction::UP, 2}}},
-                                                      {}}),
-               std::invalid_argument);
+  EXPECT_THROW(
+      arena_authority::startRound(makeNoRandom(),
+                                  RoundSetup{ROUND,
+                                             StartLayout{BOARD,
+                                                         {{PLAYER_A, SnakeSetup{Point{10, 5}, Direction::RIGHT, 3}},
+                                                          {PLAYER_B, SnakeSetup{Point{9, 5}, Direction::UP, 2}}}},
+                                             {}}),
+      std::invalid_argument);
 }
 
 /// @section arena_authority::tick

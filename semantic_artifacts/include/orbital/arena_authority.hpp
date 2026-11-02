@@ -52,8 +52,7 @@ struct ActiveOrder {
  */
 struct RoundSetup {
   RoundId round;
-  Board board;
-  std::map<PlayerId, SnakeSetup> snakes;
+  StartLayout layout;
   FoodItems food;  // Food placed at start; topped up to the Food Policy's minimum
 };
 

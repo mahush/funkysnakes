@@ -27,9 +27,9 @@ RandomIntGeneratorFn makeCornerRandom() {
 // Board 20x10: A at (4,2) heading right, B at (4,7) heading right, food at (10,5) and filler in row 9
 std::tuple<app::State, Views> started() {
   RoundSetup setup{RoundId{1},
-                   Board{20, 10},
-                   {{PLAYER_A, SnakeSetup{Point{4, 2}, Direction::RIGHT, 3}},
-                    {PLAYER_B, SnakeSetup{Point{4, 7}, Direction::RIGHT, 3}}},
+                   StartLayout{Board{20, 10},
+                               {{PLAYER_A, SnakeSetup{Point{4, 2}, Direction::RIGHT, 3}},
+                                {PLAYER_B, SnakeSetup{Point{4, 7}, Direction::RIGHT, 3}}}},
                    {Point{10, 5}, Point{15, 9}, Point{16, 9}, Point{17, 9}, Point{18, 9}}};
   auto [state, observations] = app::startWithSetup(makeCornerRandom(), app::initial(), setup);
   return {std::move(state), *observations.views};
