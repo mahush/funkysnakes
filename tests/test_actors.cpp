@@ -3,6 +3,9 @@
 #include <funkyactors/publisher.hpp>
 #include <funkyactors/timer/timer_factory.hpp>
 #include <funkyactors/topic.hpp>
+#include <iostream>
+#include <sstream>
+#include <string>
 
 #include "mock_actors.hpp"
 #include "snake/game_engine_actor.hpp"
@@ -265,6 +268,53 @@ TEST(ActorTest, GameManagerActor_SendsClockCommands) {
   ASSERT_EQ(mock_clock_subscriber->clock_commands.size(), 1u);
   EXPECT_EQ(mock_clock_subscriber->clock_commands[0].state, GameClockState::START);
   EXPECT_EQ(mock_clock_subscriber->clock_commands[0].interval_ms, 170);
+}
+
+namespace {
+
+// Redirects std::cout into a buffer while it lives
+class CoutCapture {
+ public:
+  CoutCapture() : previous_{std::cout.rdbuf(buffer_.rdbuf())} {}
+  ~CoutCapture() { std::cout.rdbuf(previous_); }
+  CoutCapture(const CoutCapture&) = delete;
+  CoutCapture& operator=(const CoutCapture&) = delete;
+
+  std::string text() const { return buffer_.str(); }
+
+ private:
+  std::ostringstream buffer_;
+  std::streambuf* previous_;
+};
+
+std::string repeated(const std::string& unit, int count) {
+  std::string result;
+  for (int i = 0; i < count; ++i) {
+    result += unit;
+  }
+  return result;
+}
+
+}  // namespace
+
+/// @section RendererActor
+
+/// @brief The renderer draws the board it receives, not a board of its own
+TEST(RendererActor, DrawsBoardOfReceivedState) {
+  asio::io_context io;
+  auto state_topic = std::make_shared<Topic<RenderableStateMsg>>();
+  auto gameover_topic = std::make_shared<Topic<GameOverMsg>>();
+  auto metadata_topic = std::make_shared<Topic<GameStateMetadataMsg>>();
+  auto renderer =
+      RendererActor::create(io, state_topic, gameover_topic, metadata_topic, std::make_shared<TimerFactory>(io));
+  CoutCapture output;
+
+  // When: a state on a 30x8 board arrives
+  Publisher<RenderableStateMsg>{state_topic}.publish(RenderableStateMsg{{Board{30, 8}, {}, {}, {}}});
+  io.poll();
+
+  // Then: the drawing is 30 cells wide
+  EXPECT_NE(output.text().find("╚" + repeated("═", 30) + "╝"), std::string::npos);
 }
 
 }  // namespace snake
