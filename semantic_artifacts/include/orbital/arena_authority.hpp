@@ -101,14 +101,6 @@ class State {
 // ============================================================================
 
 /**
- * @brief Setup the Board Setup Policy decides: its board, and Player A and Player B at their starts
- *
- * @param round Identity of the round
- * @return Setup without initial food (food is spawned at round start)
- */
-RoundSetup makeOrbitalSetup(RoundId round);
-
-/**
  * @brief Start the world of a round
  *
  * @param random_int_fn Random number source for food placement
