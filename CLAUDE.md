@@ -164,11 +164,11 @@ std::optional<Message> tryTakeMessage();
 
 **Factory Functions**: prefix with `make` - functions whose purpose is to build a value or configuration from parameters
 ```cpp
-RoundSetup makeClassicSetup(RoundId round);
+RoundSetup makeLanes(FoodItems food);
 RandomIntGeneratorFn makeRandomIntGenerator();
 ```
-Authority construction transitions keep their domain names (`startRound`, `initial`); queries and transitions are not
-factories just because they return a value.
+Authority construction transitions and Policy answers keep their domain names (`startRound`, `initial`,
+`startLayout`); queries, transitions and Policy answers are not factories just because they return a value.
 
 **Member Variables**: `snake_case_` - lowercase with trailing underscore
 ```cpp

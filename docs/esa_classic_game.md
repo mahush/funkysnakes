@@ -20,7 +20,7 @@ Authorities and carries out their intents.
 | Snake Authority | Nested Authority | [`snake_model`](../semantic_artifacts/include/common/snake_model.hpp) | Evolution of one snake's body and life: move, grow, cut, kill, edge wrapping, ignoring reverse turns |
 | Steering Authority | Nested Authority | [`direction_command_filter`](../semantic_artifacts/include/classic/direction_command_filter.hpp) | Evolution of buffered steering intentions: acceptance, cancellation, queue limit, one turn per step |
 | [Scoring Policy](#scoring-policy) | Policy, used by the arena | [`scoring_policy`](../semantic_artifacts/include/classic/scoring_policy.hpp) | What arena events are worth |
-| [Board Setup Policy](#board-setup-policy) | Policy, used by the arena's setup factory | [`board_setup_policy`](../semantic_artifacts/include/classic/board_setup_policy.hpp) | Board size and how the snakes start on it |
+| [Board Setup Policy](#board-setup-policy) | Policy, its start layout passed to the arena by composition | [`board_setup_policy`](../semantic_artifacts/include/classic/board_setup_policy.hpp) | Board size and how the snakes start on it |
 | [Food Policy](#food-policy) | Policy, used by the arena | [`food_policy`](../semantic_artifacts/include/classic/food_policy.hpp) | How much food the board holds |
 | [Classic Game Lifecycle Authority](#classic-game-lifecycle-authority) | Authority, beside the arena | [`classic_game_lifecycle_authority`](../semantic_artifacts/include/classic/classic_game_lifecycle_authority.hpp) | Pause, conclusion, level and game-time cadences |
 | [Difficulty Policy](#difficulty-policy) | Policy, used by the lifecycle | [`difficulty_policy`](../semantic_artifacts/include/classic/difficulty_policy.hpp) | Level → step interval |
@@ -63,16 +63,17 @@ depend on nothing outside that folder except the generic lens and pipe utilities
 ### Authority surface
 
 ```cpp
-ArenaSetup makeClassicSetup();
-State initial(const RandomIntGeneratorFn& random_int_fn, const ArenaSetup& setup);
+State initial(const RandomIntGeneratorFn& random_int_fn, const StartLayout& layout);
 State steer(State state, const DirectionCommand& cmd);
 State requestFoodReposition(State state);
 State tick(const RandomIntGeneratorFn& random_int_fn, State state);
 ```
 
-`initial` is the construction: it places the setup's snakes with a score of 0 each and the initial food, and
-rejects a setup whose snakes leave the board or overlap. `makeClassicSetup` is the setup factory; it builds the
-setup from the [Board Setup Policy](#board-setup-policy), while tests construct their own setups.
+`initial` is the construction: it places the layout's snakes with a score of 0 each and the initial food, and
+rejects a layout whose snakes leave the board or overlap. Composition passes it the start layout of the
+[Board Setup Policy](#board-setup-policy); tests construct their own layouts. `StartLayout` and `SnakeSetup` are
+shared vocabulary in [`start_layout`](../semantic_artifacts/include/common/start_layout.hpp), so neither the
+Policy nor the arena depends on the other.
 
 All transitions return the resulting state only (no echo outputs). Consumers read results from the state
 (snakes, scores, food; alive states via `extractAliveStates`; `events` for what happened in the last step,
@@ -137,15 +138,16 @@ Scoring Policy has the same split.
 
 ## Board Setup Policy
 
-Stateless decisions on the board and on how the snakes start on it:
+Stateless decisions on the board and on how the snakes start on it, returned as one value by `startLayout()`:
 
 - the board is 60×20;
 - Player A starts with its head at (6,10), Player B at (6,15), both heading right with 7 segments.
 
 Board and start layout must fit each other, so one Policy holds them: every snake lies wholly on the board,
 apart from the others. They need not agree with the arena's rules of evolution: another board or layout changes
-the game, not how the arena steps. The Classic Arena Authority keeps the construction: `makeClassicSetup` turns
-the Policy's values into a setup, and `initial` places the snakes and validates the layout.
+the game, not how the arena steps. The Classic Arena Authority keeps the construction: `initial` places the snakes
+of the layout and validates it. Turning the Policy's values into a layout is part of the Policy, not of the arena,
+so the arena does not include the Policy.
 
 ## Food Policy
 
@@ -240,7 +242,7 @@ timers or rendering:
 **Game time** comes in as `TimeElapsed`. A virtual clock accumulates it and runs whatever falls due. The clock
 is mechanics: the periods, the cadence intents and the same-instant order come from the lifecycle Authority,
 and the step interval from the Difficulty Policy; the initial arena is constructed from the Board Setup Policy's
-setup. The Domain Application makes no gameplay decision of its own.
+start layout. The Domain Application makes no gameplay decision of its own.
 
 [`test_classic_game_domain_application.cpp`](../tests/test_classic_game_domain_application.cpp) runs complete
 histories of boundary interactions against it (the Domain Harness).
