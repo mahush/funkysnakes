@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "orbital/arena_authority.hpp"
+#include "orbital/board_setup_policy.hpp"
 #include "orbital/food_policy.hpp"
 #include "test_printers.hpp"
 
@@ -107,9 +108,9 @@ TEST(OrbitalArenaAuthority, TopsUpFoodToMinimumAtRoundStart) {
 
 /// @brief A snake's tail used to start one cell left of the board until its first move
 TEST(OrbitalArenaAuthority, StartsSnakesWhollyOnBoard) {
-  // When: a round starts with the Orbital setup
+  // When: a round starts with the Orbital start layout
   State state = arena_authority::startRound(makeScriptedRandom({20, 1, 21, 1, 22, 1, 23, 1, 24, 1}),
-                                            arena_authority::makeOrbitalSetup(ROUND));
+                                            RoundSetup{ROUND, board_setup_policy::startLayout(), {}});
 
   // Then: every segment of every snake lies on the board
   arena_authority::View view = arena_authority::view(state);

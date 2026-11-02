@@ -68,7 +68,7 @@ struct State {
 State initial();
 
 /**
- * @brief Begin a new game with the classic setup
+ * @brief Begin a new game with the start layout of the Board Setup Policy
  *
  * Parameter order: bound parameters first (for bindFront), then state and interaction.
  *

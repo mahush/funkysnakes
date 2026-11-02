@@ -3,6 +3,7 @@
 #include <iterator>
 #include <vector>
 
+#include "orbital/board_setup_policy.hpp"
 #include "orbital/latency_policy.hpp"
 
 namespace snake {
@@ -109,7 +110,8 @@ std::tuple<State, Observations> runStep(const RandomIntGeneratorFn& random_int_f
 State initial() { return State{}; }
 
 std::tuple<State, Observations> apply(const RandomIntGeneratorFn& random_int_fn, State state, const Start& start) {
-  return startWithSetup(random_int_fn, std::move(state), arena_authority::makeOrbitalSetup(start.round));
+  return startWithSetup(
+      random_int_fn, std::move(state), arena_authority::RoundSetup{start.round, board_setup_policy::startLayout(), {}});
 }
 
 std::tuple<State, Observations> startWithSetup(const RandomIntGeneratorFn& random_int_fn,
