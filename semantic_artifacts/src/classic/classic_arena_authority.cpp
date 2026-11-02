@@ -1,6 +1,5 @@
 #include "classic/classic_arena_authority.hpp"
 
-#include "classic/board_setup_policy.hpp"
 #include "classic/food_policy.hpp"
 #include "classic/scoring_policy.hpp"
 #include "classic_arena_authority_mechanics.hpp"
@@ -43,13 +42,6 @@ PerPlayerScores scoreEvents(PerPlayerScores scores, const ArenaEvents& events) {
 }
 
 }  // namespace
-
-StartLayout makeClassicSetup() {
-  namespace policy = board_setup_policy;
-  return StartLayout{policy::BOARD,
-                     {{PLAYER_A, SnakeSetup{policy::PLAYER_A_HEAD, policy::START_HEADING, policy::START_LENGTH}},
-                      {PLAYER_B, SnakeSetup{policy::PLAYER_B_HEAD, policy::START_HEADING, policy::START_LENGTH}}}};
-}
 
 State initial(const RandomIntGeneratorFn& random_int_fn, const StartLayout& layout) {
   State state{layout.board};
