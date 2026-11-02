@@ -14,6 +14,7 @@
 #include <stdexcept>
 #include <vector>
 
+#include "classic/board_setup_policy.hpp"
 #include "classic/classic_arena_authority.hpp"
 #include "classic/food_policy.hpp"
 #include "classic/game_boundary.hpp"
@@ -126,7 +127,7 @@ Snake makeSnakeAboutToBiteItself() {
 TEST(ClassicArenaAuthority, PlacesBothPlayersAndMinimumFood) {
   // When: the arena is created
   State state = classic_arena_authority::initial(makeScriptedRandom({30, 1, 31, 1, 32, 1, 33, 1, 34, 1}),
-                                                 classic_arena_authority::makeClassicSetup());
+                                                 board_setup_policy::startLayout());
 
   // Then: both players and the minimum food are placed
   EXPECT_EQ(snake_model::head(state.snakes.at(PLAYER_A)), (Point{6, 10}));
@@ -140,9 +141,9 @@ TEST(ClassicArenaAuthority, PlacesBothPlayersAndMinimumFood) {
 
 /// @brief A snake's tail used to start one cell left of the board until its first move
 TEST(ClassicArenaAuthority, StartsSnakesWhollyOnBoard) {
-  // When: the arena is created from the classic setup
+  // When: the arena is created from the classic start layout
   State state = classic_arena_authority::initial(makeScriptedRandom({30, 1, 31, 1, 32, 1, 33, 1, 34, 1}),
-                                                 classic_arena_authority::makeClassicSetup());
+                                                 board_setup_policy::startLayout());
 
   // Then: every segment of every snake lies on the board
   EXPECT_TRUE(offBoardSegments(state.snakes, state.board).empty());

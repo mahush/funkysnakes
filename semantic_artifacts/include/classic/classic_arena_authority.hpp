@@ -43,13 +43,6 @@ struct State {
 };
 
 /**
- * @brief Setup the Board Setup Policy decides: its board, and Player A and Player B at their starts
- *
- * @return Setup of the classic game
- */
-StartLayout makeClassicSetup();
-
-/**
  * @brief Create the initial classic arena
  *
  * Places the snakes of the layout, each with a score of 0, and spawns the initial food.

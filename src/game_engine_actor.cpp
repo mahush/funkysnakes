@@ -4,6 +4,7 @@
 #include <optional>
 #include <tuple>
 
+#include "classic/board_setup_policy.hpp"
 #include "classic/classic_arena_authority.hpp"
 #include "classic/difficulty_policy.hpp"
 #include "common/game_logic.hpp"
@@ -252,7 +253,7 @@ GameEngineActor::GameEngineActor(ActorContext ctx,
       summary_req_sub_{create_sub(summary_req_topic)},
       random_int_fn_{makeRandomIntGenerator()},
       game_state_{"game_001",
-                  classic_arena_authority::initial(random_int_fn_, classic_arena_authority::makeClassicSetup()),
+                  classic_arena_authority::initial(random_int_fn_, board_setup_policy::startLayout()),
                   difficulty_policy::stepIntervalMs(1),  // Initially for level 1
                   {}},
       game_loop_timer_{create_timer<GameTimer>(timer_factory)} {

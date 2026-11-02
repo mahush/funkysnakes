@@ -2,6 +2,7 @@
 
 #include <algorithm>
 
+#include "classic/board_setup_policy.hpp"
 #include "classic/difficulty_policy.hpp"
 #include "common/game_logic.hpp"
 
@@ -128,7 +129,7 @@ State advanceClock(State state, milliseconds duration) {
 
 State initial(const RandomIntGeneratorFn& random_int_fn) {
   State state{lifecycle::State{},
-              classic_arena_authority::initial(random_int_fn, classic_arena_authority::makeClassicSetup()),
+              classic_arena_authority::initial(random_int_fn, board_setup_policy::startLayout()),
               VirtualClock{}};
   state.clock.step_interval = milliseconds{difficulty_policy::stepIntervalMs(1)};
   return state;
