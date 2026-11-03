@@ -287,6 +287,30 @@ TEST(OrbitalGameDomainApplication, ReachesSameScoreWhenCommitmentReachesGameAfte
 
 /// @subsection pending orders
 
+/// @brief An order whose release time falls exactly on a step activates on that step
+TEST(OrbitalGameDomainApplication, ActivatesOrderOnStepAtItsReleaseTime) {
+  // Given: G is committed at 0 ms, so it is released at 200 ms
+  auto [with_g, g] = submit(started(makeLanes({})), PLAYER_A, Point{10, 6});
+
+  // When: the step at 200 ms runs
+  app::State state = elapse(with_g, 200);
+
+  // Then: G executes
+  EXPECT_EQ(statusOf(state, g), Status::EXECUTING);
+}
+
+/// @brief An order can activate only at the first step at or after its release time, not at a step before it
+TEST(OrbitalGameDomainApplication, KeepsOrderPendingAtStepBeforeItsReleaseTime) {
+  // Given: G is committed at 1 ms, so it is released at 201 ms
+  auto [with_g, g] = submit(elapse(started(makeLanes({})), 1), PLAYER_A, Point{10, 6});
+
+  // When: the step at 200 ms runs
+  app::State state = elapse(with_g, 199);
+
+  // Then: G is still pending
+  EXPECT_EQ(statusOf(state, g), Status::PENDING);
+}
+
 /// @brief A revision handled before the activation step prevents the old pending order from activating
 TEST(OrbitalGameDomainApplication, SupersedesEligibleOrderWithRevisionBeforeItsStep) {
   // Given: G was submitted at 0 ms (eligible at 200 ms) and time is at 199 ms
