@@ -31,6 +31,15 @@ std::vector<Order> releasedOrders(const order_authority::State& orders, GameTime
   return released;
 }
 
+// Release time of each pending order, as the Order Release Policy decides it
+std::map<PlayerId, GameTime> pendingReleaseTimes(const order_authority::State& orders) {
+  std::map<PlayerId, GameTime> release_times;
+  for (const order_authority::OrderRecord& pending : order_authority::pendingOrders(orders)) {
+    release_times[pending.order.player] = order_release_policy::releaseTime(pending.committed_at);
+  }
+  return release_times;
+}
+
 // Route each pending order would get from the snake's current position
 std::map<PlayerId, std::vector<Direction>> pendingRoutes(const arena_authority::State& arena,
                                                          const order_authority::View& orders) {
@@ -50,12 +59,14 @@ Observations withViews(Observations observations, const State& state) {
   if (isStarted(state)) {
     order_authority::View orders = order_authority::view(*state.orders);
     std::map<PlayerId, std::vector<Direction>> pending_routes = pendingRoutes(*state.arena, orders);
+    std::map<PlayerId, GameTime> pending_release_times = pendingReleaseTimes(*state.orders);
     observations.views = Views{arena_authority::view(*state.arena),
                                std::move(orders),
                                game_authority::view(*state.game),
                                state.clock.now,
                                order_release_policy::delayAt(state.clock.now),
-                               std::move(pending_routes)};
+                               std::move(pending_routes),
+                               std::move(pending_release_times)};
   }
   return observations;
 }

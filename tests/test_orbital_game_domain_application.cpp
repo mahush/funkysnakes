@@ -564,6 +564,16 @@ TEST(OrbitalGameDomainApplication, StopsGameTimeAndLinkDelayAtConclusion) {
   EXPECT_EQ(observations.views->submission_delay, order_release_policy::delayAt(milliseconds{120000}));
 }
 
+/// @brief Presentation shows when a pending order is released without asking the Order Release Policy itself
+TEST(OrbitalGameDomainApplication, ViewsReleaseTimeOfPendingOrder) {
+  // When: A orders (8,5) at 0 ms
+  auto [state, observations] = app::apply(started(makeLanes({})), app::Submit{PLAYER_A, Point{8, 5}});
+
+  // Then: the views show its release time of 200 ms
+  ASSERT_TRUE(observations.views.has_value());
+  EXPECT_EQ(observations.views->pending_release_times.at(PLAYER_A), milliseconds{200});
+}
+
 /// @brief The preview of an order in transit follows the snake until the order activates
 TEST(OrbitalGameDomainApplication, ViewsPendingRouteFromCurrentSnakePosition) {
   // Given: at 200 ms, with A's snake at (3,2) heading right, A ordered (8,5) (eligible after 424 ms)

@@ -1,4 +1,4 @@
-// Tests for the Order Authority: submission, supersession, eligibility and order status.
+// Tests for the Order Authority: submission, supersession, pending orders and order status.
 
 #include <gtest/gtest.h>
 
@@ -51,16 +51,6 @@ TEST(OrderAuthority, AssignsNewIdentityToEachSubmission) {
 
   // Then: the second order has its own identity
   EXPECT_NE(first, second);
-}
-
-/// @brief The deadline is fixed when the order is issued and taken from the Order Release Policy
-TEST(OrderAuthority, StoresDeadlineFromIssueTime) {
-  // When: an order is submitted at the peak of the orbital cycle
-  auto [state, id] =
-      submitOrder(order_authority::startRound(ROUND), Submission{PLAYER_A, Point{3, 4}, milliseconds{30000}});
-
-  // Then: its deadline lies the peak delay after its issue time
-  EXPECT_EQ(order_authority::view(state).players.at(PLAYER_A).pending->deadline, milliseconds{32000});
 }
 
 /// @brief A player can change their mind; the superseded order never activates
@@ -125,64 +115,6 @@ TEST(OrderAuthority, SupersedesNothingWhenOnlyAnOrderExecutes) {
 
   // Then: G's commitment supersedes nothing
   EXPECT_FALSE(g.superseded.has_value());
-}
-
-/// @section order_authority::eligible
-
-TEST(OrderAuthority, HoldsBackOrderBeforeItsDeadline) {
-  // Given: an order issued at 0 ms, eligible after 200 ms
-  auto [state, id] =
-      submitOrder(order_authority::startRound(ROUND), Submission{PLAYER_A, Point{3, 4}, milliseconds{0}});
-
-  // When: eligibility is checked just before the deadline
-  std::vector<Order> orders = order_authority::eligible(state, milliseconds{199});
-
-  // Then: nothing is eligible
-  EXPECT_TRUE(orders.empty());
-}
-
-TEST(OrderAuthority, ReleasesOrderOnceItsDeadlineHasElapsed) {
-  // Given: an order issued at 0 ms, eligible after 200 ms
-  auto [state, id] =
-      submitOrder(order_authority::startRound(ROUND), Submission{PLAYER_A, Point{3, 4}, milliseconds{0}});
-
-  // When: eligibility is checked at the deadline
-  std::vector<Order> orders = order_authority::eligible(state, milliseconds{200});
-
-  // Then: the order is eligible with its round, identity, player and target
-  ASSERT_EQ(orders.size(), 1U);
-  EXPECT_EQ(orders[0].round, ROUND);
-  EXPECT_EQ(orders[0].id, id);
-  EXPECT_EQ(orders[0].player, PLAYER_A);
-  EXPECT_EQ(orders[0].target, (Point{3, 4}));
-}
-
-/// @brief Revising postpones activation: the new order waits for its own deadline, not the old one
-TEST(OrderAuthority, DoesNotInheritDeadlineOfSupersededOrder) {
-  // Given: G issued at 0 ms (eligible at 200 ms), superseded by H issued at 300 ms (eligible at 536 ms)
-  auto [state, g] = submitOrder(order_authority::startRound(ROUND), Submission{PLAYER_A, Point{3, 4}, milliseconds{0}});
-  auto [revised_state, h] = submitOrder(state, Submission{PLAYER_A, Point{8, 1}, milliseconds{300}});
-
-  // When: eligibility is checked after G's but before H's deadline
-  std::vector<Order> orders = order_authority::eligible(revised_state, milliseconds{500});
-
-  // Then: nothing is eligible
-  EXPECT_TRUE(orders.empty());
-}
-
-/// @brief Asking is not consuming: only the Arena's outcome resolves a pending order
-TEST(OrderAuthority, KeepsOrderPendingWhenEligibilityIsQueried) {
-  // Given: an eligible order whose eligibility was queried
-  auto [state, id] =
-      submitOrder(order_authority::startRound(ROUND), Submission{PLAYER_A, Point{3, 4}, milliseconds{0}});
-  order_authority::eligible(state, milliseconds{400});
-
-  // When: eligibility is queried again
-  std::vector<Order> orders = order_authority::eligible(state, milliseconds{400});
-
-  // Then: the order is still eligible and pending
-  EXPECT_EQ(orders.size(), 1U);
-  EXPECT_EQ(statusOf(state, id), Status::PENDING);
 }
 
 /// @section order_authority::pendingOrders
@@ -404,10 +336,10 @@ TEST(OrderAuthority, CancelsPendingOrders) {
   // When: the orders are cancelled
   order_authority::State cancelled = order_authority::cancel(both_state);
 
-  // Then: both are cancelled and nothing is eligible any more
+  // Then: both are cancelled and none is pending any more
   EXPECT_EQ(statusOf(cancelled, a), Status::CANCELLED);
   EXPECT_EQ(statusOf(cancelled, b), Status::CANCELLED);
-  EXPECT_TRUE(order_authority::eligible(cancelled, milliseconds{10000}).empty());
+  EXPECT_TRUE(order_authority::pendingOrders(cancelled).empty());
 }
 
 /// @brief In a distributed realization the Arena's report of the last step may arrive after the cancel

@@ -117,9 +117,8 @@ app::State submit(app::State state, Point target, const std::string& name) {
     return next;
   }
   const OrderCommitted& committed = *observations.commitment;
-  const order_authority::View orders = order_authority::view(*next.orders);
   std::cout << "  " << committed.committed_at.count() << " ms  A commits " << name << " to " << point(target)
-            << ", eligible from " << orders.players.at(PLAYER_A).pending->deadline.count() << " ms\n";
+            << ", eligible from " << observations.views->pending_release_times.at(PLAYER_A).count() << " ms\n";
   return next;
 }
 

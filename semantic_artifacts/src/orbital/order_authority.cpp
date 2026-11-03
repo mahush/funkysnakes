@@ -2,8 +2,6 @@
 
 #include <tuple>
 
-#include "orbital/order_release_policy.hpp"
-
 namespace snake {
 namespace orbital {
 namespace order_authority {
@@ -99,26 +97,10 @@ std::tuple<State, OrderCommitted> submit(State state, const Submission& submissi
   }
 
   const Order order{state.round_, id, submission.player, submission.target};
-  state.orders_.emplace(id,
-                        OrderRecord{order,
-                                    submission.committed_at,
-                                    order_release_policy::releaseTime(submission.committed_at),
-                                    Status::PENDING,
-                                    std::nullopt});
+  state.orders_.emplace(id, OrderRecord{order, submission.committed_at, Status::PENDING, std::nullopt});
   state.pending_[submission.player] = id;
   const OrderCommitted committed{state.round_, id, submission.player, submission.committed_at, superseded};
   return {std::move(state), committed};
-}
-
-std::vector<Order> eligible(const State& state, GameTime now) {
-  std::vector<Order> result;
-  for (const auto& [player, id] : state.pending_) {
-    const OrderRecord& record = state.orders_.at(id);
-    if (record.deadline <= now) {
-      result.push_back(record.order);
-    }
-  }
-  return result;
 }
 
 std::vector<OrderRecord> pendingOrders(const State& state) {

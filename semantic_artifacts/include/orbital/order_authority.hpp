@@ -16,18 +16,19 @@ namespace order_authority {
 /**
  * Order Authority - owns the delayed lifecycle of the players' orders
  *
- * Owns the committed orders with their commitment times, the latest pending order per player, its
- * fixed eligibility deadline, supersession, eligibility and the status of every order interpreted
- * from what the Arena reports. It does not own the actual executing route (Arena) or any points
+ * Owns the committed orders with their commitment times, the latest pending order per player until
+ * the Arena resolves it, supersession and the status of every order interpreted from what the Arena
+ * reports. It does not own the actual executing route (Arena) or any points
  * (Game).
  *
  * - A submission is committed where the player's input is accepted; its commitment time is part
  *   of the domain history and is published as OrderCommitted, so that Game can relate it to the
- *   Arena's completions. Commitment, supersession and the deadline are one lifecycle.
- * - The Order Release Policy calculates a submission's deadline; this Authority stores it.
+ *   Arena's completions. Commitment and supersession are one lifecycle.
+ * - When a pending order is released for activation is the Order Release Policy's decision, taken
+ *   from its commitment time; this Authority keeps no release time.
  * - A new submission supersedes the player's pending order; the superseded order never activates.
- * - Eligibility is a query: it does not consume the pending order. The pending order is resolved
- *   only when the Arena's outcome for it is observed.
+ * - Querying the pending orders does not consume them. A pending order is resolved only when the
+ *   Arena's outcome for it is observed.
  * - What the Arena actually did wins over this Authority's own expectation, and late reports for
  *   executing orders still count after pending orders were cancelled.
  */
@@ -36,7 +37,7 @@ namespace order_authority {
  * @brief Status of one order
  */
 enum class Status {
-  PENDING,         // Waiting for its deadline and activation
+  PENDING,         // Waiting for release and activation
   SUPERSEDED,      // Replaced by a newer submission before it activated
   CANCELLED,       // Still pending when the round concluded
   REJECTED,        // The Arena refused to activate it
@@ -53,7 +54,6 @@ enum class Status {
 struct OrderRecord {
   Order order;
   GameTime committed_at;
-  GameTime deadline;
   Status status;
   std::optional<RejectionReason> rejection;
 };
@@ -84,7 +84,6 @@ class State {
   friend State cancel(State state);
 
   // Queries
-  friend std::vector<Order> eligible(const State& state, GameTime now);
   friend std::vector<OrderRecord> pendingOrders(const State& state);
   friend View view(const State& state);
 };
@@ -117,8 +116,7 @@ State startRound(RoundId round);
 /**
  * @brief Commit a submission as a new order
  *
- * The order gets a new identity and a deadline from the Order Release Policy. A pending order
- * of the same player is superseded.
+ * The order gets a new identity. A pending order of the same player is superseded.
  *
  * @param state Current order state
  * @param submission The player's request
@@ -164,17 +162,6 @@ State cancel(State state);
 // ============================================================================
 // Queries: read the state without evolving it
 // ============================================================================
-
-/**
- * @brief Pending orders whose deadline has elapsed
- *
- * At most one per player: the latest pending order. Does not change the state.
- *
- * @param state Current order state
- * @param now Current time on the round's timeline
- * @return Eligible orders, ordered by player
- */
-std::vector<Order> eligible(const State& state, GameTime now);
 
 /**
  * @brief The pending orders, with their commitment times

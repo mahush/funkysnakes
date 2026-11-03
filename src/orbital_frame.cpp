@@ -103,7 +103,9 @@ PlayerPanel buildPanel(const Views& views, const PlayerId& player, const std::ma
     }
     if (const std::optional<OrderRecord>& pending = orders->second.pending) {
       panel.pending_target = pending->order.target;
-      panel.pending_remaining = std::max(pending->deadline - views.now, std::chrono::milliseconds{0});
+      if (auto release = views.pending_release_times.find(player); release != views.pending_release_times.end()) {
+        panel.pending_remaining = std::max(release->second - views.now, std::chrono::milliseconds{0});
+      }
     }
   }
   if (auto cursor = cursors.find(player); cursor != cursors.end()) {
