@@ -550,6 +550,17 @@ TEST(OrbitalGameDomainApplication, ViewsDelayOfSubmissionIssuedNow) {
   EXPECT_EQ(observations.views->submission_delay, milliseconds{1100});
 }
 
+/// @brief Presentation scales the delay gauge without asking the Order Release Policy itself
+TEST(OrbitalGameDomainApplication, ViewsRangeOfOrderDelay) {
+  // When: a game starts
+  auto [state, observations] = app::apply(makeCornerRandom(), app::initial(), app::Start{RoundId{1}});
+
+  // Then: the views show the Order Delay's range of 0.2-2 s
+  ASSERT_TRUE(observations.views.has_value());
+  EXPECT_EQ(observations.views->min_delay, milliseconds{200});
+  EXPECT_EQ(observations.views->max_delay, milliseconds{2000});
+}
+
 /// @brief Game time ends with the game, so the link condition shown at the end stays as it was
 TEST(OrbitalGameDomainApplication, StopsGameTimeAndLinkDelayAtConclusion) {
   // Given: the game ended at 120000 ms

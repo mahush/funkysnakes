@@ -65,6 +65,8 @@ Observations withViews(Observations observations, const State& state) {
                                game_authority::view(*state.game),
                                state.clock.now,
                                order_release_policy::delayAt(state.clock.now),
+                               order_release_policy::MIN_DELAY,
+                               order_release_policy::MAX_DELAY,
                                std::move(pending_routes),
                                std::move(pending_release_times)};
   }
