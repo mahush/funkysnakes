@@ -114,6 +114,7 @@ struct Views {
   GameTime now;                                // Current time of the round's logical clock
   std::chrono::milliseconds submission_delay;  // Order Delay of a submission issued now (Order Release Policy)
   std::map<PlayerId, std::vector<Direction>> pending_routes;  // Route each pending order would get if it activated now
+  std::map<PlayerId, GameTime> pending_release_times;  // Release time of each pending order (Order Release Policy)
 };
 
 /**
