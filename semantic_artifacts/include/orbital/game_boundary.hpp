@@ -105,7 +105,10 @@ struct StepReport {
 /**
  * @brief Current views of the three Authorities, the game time and the orbital link condition
  *
- * A combined presentation is a projection of these views; it owns no meaning of its own.
+ * The link condition is what the Order Release Policy decides: the Order Delay of a submission
+ * issued now, the range of that delay, and the release time of each pending order. A combined
+ * presentation is a projection of these views; it owns no meaning of its own and does not ask the
+ * Policy itself.
  */
 struct Views {
   arena_authority::View arena;
@@ -113,6 +116,8 @@ struct Views {
   game_authority::View game;
   GameTime now;                                // Current time of the round's logical clock
   std::chrono::milliseconds submission_delay;  // Order Delay of a submission issued now (Order Release Policy)
+  std::chrono::milliseconds min_delay;         // Lowest Order Delay (Order Release Policy)
+  std::chrono::milliseconds max_delay;         // Highest Order Delay (Order Release Policy)
   std::map<PlayerId, std::vector<Direction>> pending_routes;  // Route each pending order would get if it activated now
   std::map<PlayerId, GameTime> pending_release_times;  // Release time of each pending order (Order Release Policy)
 };
