@@ -15,7 +15,7 @@ namespace orbital {
 /**
  * Order vocabulary shared by the Order Authority and the Arena Authority
  *
- * The Order Authority hands eligible orders to the Arena and publishes its commitment history;
+ * The Order Authority's pending orders reach the Arena once released, and it publishes its commitment history;
  * the Arena reports what actually happened to the orders. Every item carries the identities needed to correlate it,
  * also when it arrives late in a distributed realization.
  */
@@ -67,7 +67,7 @@ struct OrderCommitted {
 };
 
 // ============================================================================
-// Activation outcomes: what the Arena did with an eligible order
+// Activation outcomes: what the Arena did with a released order
 // ============================================================================
 
 /**

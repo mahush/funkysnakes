@@ -22,12 +22,12 @@ namespace arena_authority {
  * Orbital Arena Authority - owns the actual world of an Orbital Orders round
  *
  * Owns the board, the snakes, the food and the executing order of each snake with its route.
- * It decides whether an eligible order actually activates, and owns the complete sequence of one
+ * It decides whether a released order actually activates, and owns the complete sequence of one
  * step: activation, movement along routes (or straight on), collisions with dropped segments,
  * food collection, order completion and food replenishment. Growth and collision rules are classic's. The nested
  * snake_model owns the body and life of one snake.
  *
- * Out of scope: pending orders and eligibility (Order Authority), points, round duration and
+ * Out of scope: pending orders (Order Authority) and their release (Order Release Policy), points, round duration and
  * conclusion (Game Authority). The Arena reports events; it does not value them.
  *
  * Within the events of one step:
@@ -83,7 +83,7 @@ class State {
   // Transitions
   friend std::tuple<State, std::vector<ActivationOutcome>, ArenaEvents> tick(const RandomIntGeneratorFn& random_int_fn,
                                                                              State state,
-                                                                             const std::vector<Order>& eligible);
+                                                                             const std::vector<Order>& released);
   friend std::tuple<State, ArenaEvents> endRound(State state);
 
   // Queries
@@ -117,7 +117,7 @@ State startRound(const RandomIntGeneratorFn& random_int_fn, const RoundSetup& se
 /**
  * @brief Advance the world by one step
  *
- * Eligible orders (at most one per player) are evaluated first; a valid one replaces whatever its
+ * Released orders (at most one per player) are evaluated first; a valid one replaces whatever its
  * snake executes. Then all snakes move and the step's consequences are established.
  *
  * Orders of another round, and every order once execution has ended, are rejected with
@@ -127,12 +127,12 @@ State startRound(const RandomIntGeneratorFn& random_int_fn, const RoundSetup& se
  *
  * @param random_int_fn Random number source for food placement
  * @param state Current world
- * @param eligible Orders to try to activate, at most one per player, tried in the given order
+ * @param released Orders to try to activate, at most one per player, tried in the given order
  * @return Tuple of (world after the step, activation outcomes, events of the step in order)
  */
 std::tuple<State, std::vector<ActivationOutcome>, ArenaEvents> tick(const RandomIntGeneratorFn& random_int_fn,
                                                                     State state,
-                                                                    const std::vector<Order>& eligible);
+                                                                    const std::vector<Order>& released);
 
 /**
  * @brief End execution of the round

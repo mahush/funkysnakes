@@ -81,8 +81,8 @@ game_authority::PlayerScore scoreOf(const app::State& state, const PlayerId& pla
 
 /// @section orbital_game_domain_application::apply
 ///
-/// Whole-game histories: Order eligibility → Arena execution → Game scoring.
-/// Timing: an order issued at 0 ms is eligible after 200 ms; steps run every 200 ms.
+/// Whole-game histories: Order release → Arena execution → Game scoring.
+/// Timing: an order issued at 0 ms is released at 200 ms; steps run every 200 ms.
 
 /// @subsection start
 
@@ -122,7 +122,7 @@ TEST(OrbitalGameDomainApplication, BanksPointsOfOrderThatCompletes) {
 
 /// @brief The defining history: F collects +20 while G is pending, and G activates first
 TEST(OrbitalGameDomainApplication, LosesPointsOfOrderInterruptedByReplacement) {
-  // Given: F to (10,2) collected food at (5,2); G is submitted at 800 ms (eligible after 1096 ms)
+  // Given: F to (10,2) collected food at (5,2); G is submitted at 800 ms (released at 1048 ms)
   auto [with_f, f] = submit(started(makeLanes({Point{5, 2}, Point{7, 2}})), PLAYER_A, Point{10, 2});
   auto [with_g, g] = submit(elapse(with_f, 800), PLAYER_A, Point{10, 6});
 
@@ -155,7 +155,7 @@ TEST(OrbitalGameDomainApplication, KeepsHeldPointsWhenReplacementIsOnlySubmitted
 /// @subsection handover chain
 ///
 /// F to (10,2) activates at 200 ms and arrives at 1600 ms. A successor committed at 1400 ms is
-/// eligible after 1684 ms and so still pending when F completes.
+/// released at 1684 ms and so still pending when F completes.
 
 /// @brief The defining history of the refinement: G is committed before F completes and still pending then
 TEST(OrbitalGameDomainApplication, AwardsHandoverBonusWhenSuccessorIsCommittedBeforeCompletion) {
@@ -176,7 +176,7 @@ TEST(OrbitalGameDomainApplication, AwardsHandoverBonusWhenSuccessorIsCommittedBe
 
 TEST(OrbitalGameDomainApplication, DoublesHandoverBonusForConsecutiveHandover) {
   // Given: F hands over to G, which activates at 1800 ms towards (10,6) and arrives at 2400 ms;
-  //        H is committed at 2200 ms (eligible after 2530 ms)
+  //        H is committed at 2200 ms (released at 2532 ms)
   auto [with_f, f] = submit(started(makeLanes({})), PLAYER_A, Point{10, 2});
   auto [with_g, g] = submit(elapse(with_f, 1400), PLAYER_A, Point{10, 6});
   auto [with_h, h] = submit(elapse(with_g, 800), PLAYER_A, Point{3, 6});
@@ -312,8 +312,8 @@ TEST(OrbitalGameDomainApplication, KeepsOrderPendingAtStepBeforeItsReleaseTime) 
 }
 
 /// @brief A revision handled before the activation step prevents the old pending order from activating
-TEST(OrbitalGameDomainApplication, SupersedesEligibleOrderWithRevisionBeforeItsStep) {
-  // Given: G was submitted at 0 ms (eligible at 200 ms) and time is at 199 ms
+TEST(OrbitalGameDomainApplication, SupersedesPendingOrderWithRevisionBeforeItsActivationStep) {
+  // Given: G was submitted at 0 ms (released at 200 ms) and time is at 199 ms
   auto [with_g, g] = submit(started(makeLanes({})), PLAYER_A, Point{10, 6});
   app::State before_step = elapse(with_g, 199);
 
@@ -321,7 +321,7 @@ TEST(OrbitalGameDomainApplication, SupersedesEligibleOrderWithRevisionBeforeItsS
   auto [with_h, h] = submit(before_step, PLAYER_A, Point{12, 2});
   app::State state = elapse(with_h, 1);
 
-  // Then: G never activated and H waits for its own deadline
+  // Then: G never activated and H waits for its own release time
   EXPECT_EQ(statusOf(state, g), Status::SUPERSEDED);
   EXPECT_EQ(statusOf(state, h), Status::PENDING);
   EXPECT_TRUE(arena_authority::view(*state.arena).active.empty());
@@ -394,7 +394,7 @@ TEST(OrbitalGameDomainApplication, ConcludesWithDrawWhenBothSnakesDie) {
 
 /// @brief Once the game is over, executing orders end with it and pending ones are cancelled
 TEST(OrbitalGameDomainApplication, EndsExecutingAndCancelsPendingOrdersAtConclusion) {
-  // Given: F executes since 118600 ms, and G submitted at 119800 ms (eligible after 120024 ms) is still
+  // Given: F executes since 118400 ms, and G submitted at 119800 ms (released at 120012 ms) is still
   //        pending at the end
   auto [with_f, f] = submit(elapse(started(makeLanes({})), 118000), PLAYER_A, Point{12, 6});
   auto [with_g, g] = submit(elapse(with_f, 1800), PLAYER_A, Point{3, 3});
@@ -576,7 +576,7 @@ TEST(OrbitalGameDomainApplication, ViewsReleaseTimeOfPendingOrder) {
 
 /// @brief The preview of an order in transit follows the snake until the order activates
 TEST(OrbitalGameDomainApplication, ViewsPendingRouteFromCurrentSnakePosition) {
-  // Given: at 200 ms, with A's snake at (3,2) heading right, A ordered (8,5) (eligible after 424 ms)
+  // Given: at 200 ms, with A's snake at (3,2) heading right, A ordered (8,5) (released at 412 ms)
   auto [with_order, order] = submit(elapse(started(makeLanes({})), 200), PLAYER_A, Point{8, 5});
 
   // When: the step at 400 ms moved the snake to (4,2)
