@@ -53,7 +53,7 @@ TEST(OrderAuthority, AssignsNewIdentityToEachSubmission) {
   EXPECT_NE(first, second);
 }
 
-/// @brief The deadline is fixed when the order is issued and taken from the Orbital Latency Policy
+/// @brief The deadline is fixed when the order is issued and taken from the Order Release Policy
 TEST(OrderAuthority, StoresDeadlineFromIssueTime) {
   // When: an order is submitted at the peak of the orbital cycle
   auto [state, id] =

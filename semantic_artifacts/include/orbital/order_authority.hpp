@@ -24,7 +24,7 @@ namespace order_authority {
  * - A submission is committed where the player's input is accepted; its commitment time is part
  *   of the domain history and is published as OrderCommitted, so that Game can relate it to the
  *   Arena's completions. Commitment, supersession and the deadline are one lifecycle.
- * - The Orbital Latency Policy calculates a submission's deadline; this Authority stores it.
+ * - The Order Release Policy calculates a submission's deadline; this Authority stores it.
  * - A new submission supersedes the player's pending order; the superseded order never activates.
  * - Eligibility is a query: it does not consume the pending order. The pending order is resolved
  *   only when the Arena's outcome for it is observed.
@@ -116,7 +116,7 @@ State startRound(RoundId round);
 /**
  * @brief Commit a submission as a new order
  *
- * The order gets a new identity and a deadline from the Orbital Latency Policy. A pending order
+ * The order gets a new identity and a deadline from the Order Release Policy. A pending order
  * of the same player is superseded.
  *
  * @param state Current order state

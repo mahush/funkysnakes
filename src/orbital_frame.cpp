@@ -3,7 +3,7 @@
 #include <algorithm>
 
 #include "common/snake_model.hpp"
-#include "orbital/latency_policy.hpp"
+#include "orbital/order_release_policy.hpp"
 
 namespace snake {
 namespace orbital_frame {
@@ -117,8 +117,8 @@ PlayerPanel buildPanel(const Views& views, const PlayerId& player, const std::ma
 Frame build(const Views& views, const std::map<PlayerId, Point>& cursors) {
   Frame frame;
   frame.cells = buildCells(views, cursors);
-  frame.delay =
-      DelayGauge{views.submission_delay, orbital::latency_policy::MIN_DELAY, orbital::latency_policy::MAX_DELAY};
+  frame.delay = DelayGauge{
+      views.submission_delay, orbital::order_release_policy::MIN_DELAY, orbital::order_release_policy::MAX_DELAY};
   frame.remaining = views.game.remaining;
   if (views.game.result) {
     frame.game_over = GameOver{views.game.result->winner};
