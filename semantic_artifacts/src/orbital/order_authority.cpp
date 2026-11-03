@@ -121,6 +121,14 @@ std::vector<Order> eligible(const State& state, GameTime now) {
   return result;
 }
 
+std::vector<OrderRecord> pendingOrders(const State& state) {
+  std::vector<OrderRecord> result;
+  for (const auto& [player, id] : state.pending_) {
+    result.push_back(state.orders_.at(id));
+  }
+  return result;
+}
+
 State observe(State state, const std::vector<ActivationOutcome>& outcomes, const ArenaEvents& events) {
   for (const ActivationOutcome& outcome : outcomes) {
     std::tie(state.orders_, state.pending_) = std::visit(

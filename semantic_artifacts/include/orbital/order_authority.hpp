@@ -85,6 +85,7 @@ class State {
 
   // Queries
   friend std::vector<Order> eligible(const State& state, GameTime now);
+  friend std::vector<OrderRecord> pendingOrders(const State& state);
   friend View view(const State& state);
 };
 
@@ -174,6 +175,17 @@ State cancel(State state);
  * @return Eligible orders, ordered by player
  */
 std::vector<Order> eligible(const State& state, GameTime now);
+
+/**
+ * @brief The pending orders, with their commitment times
+ *
+ * At most one per player: the latest pending order. Does not change the state; a pending order is
+ * resolved only when the Arena's outcome for it is observed.
+ *
+ * @param state Current order state
+ * @return Pending orders, ordered by player
+ */
+std::vector<OrderRecord> pendingOrders(const State& state);
 
 /**
  * @brief A player's current order situation

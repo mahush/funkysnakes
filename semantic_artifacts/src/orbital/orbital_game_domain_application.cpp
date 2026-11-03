@@ -20,6 +20,17 @@ using game_boundary::Views;
 
 bool isStarted(const State& state) { return state.game.has_value(); }
 
+// Pending orders the Order Release Policy releases at the given time
+std::vector<Order> releasedOrders(const order_authority::State& orders, GameTime now) {
+  std::vector<Order> released;
+  for (const order_authority::OrderRecord& pending : order_authority::pendingOrders(orders)) {
+    if (order_release_policy::isReleased(pending.committed_at, now)) {
+      released.push_back(pending.order);
+    }
+  }
+  return released;
+}
+
 // Route each pending order would get from the snake's current position
 std::map<PlayerId, std::vector<Direction>> pendingRoutes(const arena_authority::State& arena,
                                                          const order_authority::View& orders) {
@@ -87,8 +98,8 @@ std::tuple<State, Observations> runStep(const RandomIntGeneratorFn& random_int_f
   const GameTime at = state.clock.next_step;
   state.clock.next_step += pacing_policy::STEP_INTERVAL;
 
-  std::vector<Order> eligible = order_authority::eligible(*state.orders, at);
-  auto [arena, activations, events] = arena_authority::tick(random_int_fn, std::move(*state.arena), eligible);
+  std::vector<Order> released = releasedOrders(*state.orders, at);
+  auto [arena, activations, events] = arena_authority::tick(random_int_fn, std::move(*state.arena), released);
   state.arena = std::move(arena);
   state.orders = order_authority::observe(std::move(*state.orders), activations, events);
   auto [game, concluded] = game_authority::observeStep(

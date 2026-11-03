@@ -185,6 +185,40 @@ TEST(OrderAuthority, KeepsOrderPendingWhenEligibilityIsQueried) {
   EXPECT_EQ(statusOf(state, id), Status::PENDING);
 }
 
+/// @section order_authority::pendingOrders
+
+/// @brief A superseded order is no longer pending; only each player's latest order is
+TEST(OrderAuthority, ListsLatestPendingOrderOfEachPlayer) {
+  // Given: A committed G and then H, B committed K
+  auto [with_g, g] =
+      submitOrder(order_authority::startRound(ROUND), Submission{PLAYER_A, Point{3, 4}, milliseconds{0}});
+  auto [with_h, h] = submitOrder(with_g, Submission{PLAYER_A, Point{8, 1}, milliseconds{300}});
+  auto [state, k] = submitOrder(with_h, Submission{PLAYER_B, Point{5, 5}, milliseconds{400}});
+
+  // When: the pending orders are queried
+  std::vector<order_authority::OrderRecord> pending = order_authority::pendingOrders(state);
+
+  // Then: H and K are pending, each with its commitment time
+  ASSERT_EQ(pending.size(), 2U);
+  EXPECT_EQ(pending[0].order.id, h);
+  EXPECT_EQ(pending[0].committed_at, milliseconds{300});
+  EXPECT_EQ(pending[1].order.id, k);
+  EXPECT_EQ(pending[1].committed_at, milliseconds{400});
+}
+
+TEST(OrderAuthority, DropsActivatedOrderFromPendingOrders) {
+  // Given: an order the Arena activated
+  auto [state, id] =
+      submitOrder(order_authority::startRound(ROUND), Submission{PLAYER_A, Point{3, 4}, milliseconds{0}});
+  order_authority::State observed = order_authority::observe(state, {OrderActivated{id, std::nullopt, {}}}, {});
+
+  // When: the pending orders are queried
+  std::vector<order_authority::OrderRecord> pending = order_authority::pendingOrders(observed);
+
+  // Then: none is pending
+  EXPECT_TRUE(pending.empty());
+}
+
 /// @section order_authority::observe
 
 /// @subsection activation outcomes
