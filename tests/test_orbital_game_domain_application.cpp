@@ -7,8 +7,8 @@
 
 #include "common/snake_model.hpp"
 #include "orbital/food_policy.hpp"
-#include "orbital/latency_policy.hpp"
 #include "orbital/orbital_game_domain_application.hpp"
+#include "orbital/order_release_policy.hpp"
 #include "test_printers.hpp"
 
 namespace snake {
@@ -561,7 +561,7 @@ TEST(OrbitalGameDomainApplication, StopsGameTimeAndLinkDelayAtConclusion) {
   // Then: the views still show the time and delay of the end of the game
   ASSERT_TRUE(observations.views.has_value());
   EXPECT_EQ(observations.views->now, milliseconds{120000});
-  EXPECT_EQ(observations.views->submission_delay, latency_policy::delayAt(milliseconds{120000}));
+  EXPECT_EQ(observations.views->submission_delay, order_release_policy::delayAt(milliseconds{120000}));
 }
 
 /// @brief The preview of an order in transit follows the snake until the order activates

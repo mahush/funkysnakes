@@ -4,7 +4,7 @@
 #include <vector>
 
 #include "orbital/board_setup_policy.hpp"
-#include "orbital/latency_policy.hpp"
+#include "orbital/order_release_policy.hpp"
 
 namespace snake {
 namespace orbital {
@@ -43,7 +43,7 @@ Observations withViews(Observations observations, const State& state) {
                                std::move(orders),
                                game_authority::view(*state.game),
                                state.clock.now,
-                               latency_policy::delayAt(state.clock.now),
+                               order_release_policy::delayAt(state.clock.now),
                                std::move(pending_routes)};
   }
   return observations;

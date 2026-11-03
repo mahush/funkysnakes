@@ -111,8 +111,8 @@ struct Views {
   arena_authority::View arena;
   order_authority::View orders;
   game_authority::View game;
-  GameTime now;                                               // Current time of the round's logical clock
-  std::chrono::milliseconds submission_delay;                 // Delay of a submission issued now (Latency Policy)
+  GameTime now;                                // Current time of the round's logical clock
+  std::chrono::milliseconds submission_delay;  // Order Delay of a submission issued now (Order Release Policy)
   std::map<PlayerId, std::vector<Direction>> pending_routes;  // Route each pending order would get if it activated now
 };
 

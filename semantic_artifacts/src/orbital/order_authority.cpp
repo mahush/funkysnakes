@@ -2,7 +2,7 @@
 
 #include <tuple>
 
-#include "orbital/latency_policy.hpp"
+#include "orbital/order_release_policy.hpp"
 
 namespace snake {
 namespace orbital {
@@ -102,7 +102,7 @@ std::tuple<State, OrderCommitted> submit(State state, const Submission& submissi
   state.orders_.emplace(id,
                         OrderRecord{order,
                                     submission.committed_at,
-                                    latency_policy::deadlineFor(submission.committed_at),
+                                    order_release_policy::releaseTime(submission.committed_at),
                                     Status::PENDING,
                                     std::nullopt});
   state.pending_[submission.player] = id;
