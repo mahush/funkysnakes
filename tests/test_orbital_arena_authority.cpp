@@ -333,7 +333,7 @@ TEST(OrbitalArenaAuthority, ReportsInterruptionBeforeCollectionUnderReplacement)
                          FoodCollected{PLAYER_A, Point{7, 5}, OrderId{2}}}));
 }
 
-/// @brief An eligible replacement on the arrival step interrupts the old order before it can arrive
+/// @brief A released replacement on the arrival step interrupts the old order before it can arrive
 TEST(OrbitalArenaAuthority, InterruptsOrderThatWouldArriveOnActivationStep) {
   // Given: F to (7,5) executes and would arrive on the next step
   auto [state, outcomes, events] = arena_authority::tick(
@@ -527,7 +527,7 @@ TEST(OrbitalArenaAuthority, EndsExecutingOrdersWhenRoundEnds) {
   EXPECT_EQ(headOfA(ended), headOfA(state));
 }
 
-/// @brief In a distributed realization an eligible order may arrive after the round ended
+/// @brief In a distributed realization a released order may arrive after the round ended
 TEST(OrbitalArenaAuthority, RejectsOrdersAndKeepsWorldAfterRoundEnded) {
   // Given: the round ended
   auto [ended, end_events] = arena_authority::endRound(makeArena(SnakeSetup{Point{5, 5}, Direction::RIGHT, 3}, {}));

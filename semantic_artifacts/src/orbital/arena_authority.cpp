@@ -78,17 +78,17 @@ std::tuple<ActiveOrders, ActivationOutcome, ArenaEvents> tryActivate(ActiveOrder
   return {std::move(active), std::move(activated), std::move(events)};
 }
 
-// Eligible orders are tried in the order supplied; each sees the executing orders the previous one left
+// Released orders are tried in the order supplied; each sees the executing orders the previous one left
 std::tuple<ActiveOrders, std::vector<ActivationOutcome>, ArenaEvents> tryActivateEach(
     ActiveOrders active,
     bool ended,
     RoundId round,
     const PerPlayerSnakes& snakes,
     const Board& board,
-    const std::vector<Order>& eligible) {
+    const std::vector<Order>& released) {
   std::vector<ActivationOutcome> outcomes;
   ArenaEvents events;
-  for (const Order& order : eligible) {
+  for (const Order& order : released) {
     auto [next, outcome, activation_events] = tryActivate(std::move(active), ended, round, snakes, board, order);
     active = std::move(next);
     outcomes.push_back(std::move(outcome));
@@ -180,9 +180,9 @@ State startRound(const RandomIntGeneratorFn& random_int_fn, const RoundSetup& se
 
 std::tuple<State, std::vector<ActivationOutcome>, ArenaEvents> tick(const RandomIntGeneratorFn& random_int_fn,
                                                                     State state,
-                                                                    const std::vector<Order>& eligible) {
+                                                                    const std::vector<Order>& released) {
   auto [active, outcomes, activation_events] =
-      tryActivateEach(std::move(state.active_), state.ended_, state.round_, state.snakes_, state.board_, eligible);
+      tryActivateEach(std::move(state.active_), state.ended_, state.round_, state.snakes_, state.board_, released);
   state.active_ = std::move(active);
   if (state.ended_) {
     return {std::move(state), std::move(outcomes), std::move(activation_events)};

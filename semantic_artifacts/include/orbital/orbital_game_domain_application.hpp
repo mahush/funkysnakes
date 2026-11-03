@@ -31,7 +31,7 @@ using game_boundary::TimeElapsed;
  * One logical clock drives the round; steps fall due at the Pacing Policy's step interval. A
  * submission is committed (Order) at the clock's current time and its commitment is passed on to
  * Game. Each step that falls due runs:
- *   eligible orders (Order) → step (Arena) → interpret outcomes (Order)
+ *   pending orders (Order) released by the Order Release Policy → step (Arena) → interpret outcomes (Order)
  *   → score, advance handover chains and check end (Game)
  *   → if concluded: end execution (Arena) → interpret endings (Order) → cancel pending (Order)
  * The clock never stands on a step that has not run, so every commitment lies strictly before the

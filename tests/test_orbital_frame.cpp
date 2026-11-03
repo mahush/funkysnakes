@@ -77,7 +77,7 @@ TEST(OrbitalFrame, ShowsPendingTargetRouteAndCountdown) {
   // Given: a game started
   auto [state, views] = started();
 
-  // When: A orders the snake to (8,5) at 0 ms, eligible after 200 ms
+  // When: A orders the snake to (8,5) at 0 ms, released at 200 ms
   auto [next, pending_views] = submitted(state, PLAYER_A, Point{8, 5});
   Frame frame = orbital_frame::build(pending_views, {});
 

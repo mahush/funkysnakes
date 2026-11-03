@@ -118,7 +118,7 @@ app::State submit(app::State state, Point target, const std::string& name) {
   }
   const OrderCommitted& committed = *observations.commitment;
   std::cout << "  " << committed.committed_at.count() << " ms  A commits " << name << " to " << point(target)
-            << ", eligible from " << observations.views->pending_release_times.at(PLAYER_A).count() << " ms\n";
+            << ", released at " << observations.views->pending_release_times.at(PLAYER_A).count() << " ms\n";
   return next;
 }
 
