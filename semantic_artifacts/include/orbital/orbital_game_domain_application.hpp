@@ -28,6 +28,9 @@ using game_boundary::TimeElapsed;
  * networking or rendering. It routes boundary interactions and Authority outputs mechanically and
  * makes no gameplay decision of its own.
  *
+ * One Domain Application plays one game. Which interaction it admits in which phase of the game (not
+ * started, running, concluded) is the Admission Policy's answer, which it passes on as the outcome.
+ *
  * One logical clock drives the round; steps fall due at the Pacing Policy's step interval. A
  * submission is committed (Order Authority) at the clock's current time and its commitment is passed on
  * to the Game Authority. Each step that falls due runs:
@@ -70,7 +73,11 @@ struct State {
 State initial();
 
 /**
- * @brief Begin a new game with the start layout of the Board Setup Policy
+ * @brief Begin the game with the start layout of the Board Setup Policy
+ *
+ * Admitted as the Admission Policy decides: only before a game has started. A refused start leaves
+ * the state unchanged and is observed as StartRejected, with the views of the game that already
+ * started.
  *
  * Parameter order: bound parameters first (for bindFront), then state and interaction.
  *
@@ -82,7 +89,9 @@ State initial();
 std::tuple<State, Observations> apply(const RandomIntGeneratorFn& random_int_fn, State state, const Start& start);
 
 /**
- * @brief Begin a new game with a given world setup
+ * @brief Begin the game with a given world setup
+ *
+ * Admitted like Start: only before a game has started.
  *
  * @param random_int_fn Random number source for initial food placement
  * @param state Current state
@@ -96,6 +105,9 @@ std::tuple<State, Observations> startWithSetup(const RandomIntGeneratorFn& rando
 /**
  * @brief Submit an order
  *
+ * Admitted as the Admission Policy decides: only while the game is running; otherwise it is
+ * rejected with the Policy's reason and the state is unchanged.
+ *
  * @param state Current state
  * @param submit The submission
  * @return Tuple of (state, observations with the submission outcome)
@@ -106,12 +118,14 @@ std::tuple<State, Observations> apply(State state, const Submit& submit);
  * @brief Let game time pass: run every arena step that falls due
  *
  * Carries out the Game Authority's conclusion (see game_authority::GameConcluded): the clock stops at the step
- * that concluded the game.
+ * that concluded the game, and time passing afterwards changes nothing. Before a game has started there
+ * is no game time: the state stays unchanged and the observations are empty.
  *
  * @param random_int_fn Random number source for food placement during steps
  * @param state Current state
- * @param elapsed Elapsed game time
+ * @param elapsed Elapsed game time, not negative
  * @return Tuple of (state, observations with a report for every step that ran)
+ * @throws std::invalid_argument if the elapsed time is negative
  */
 std::tuple<State, Observations> apply(const RandomIntGeneratorFn& random_int_fn,
                                       State state,

@@ -165,6 +165,7 @@ if(SNAKE_BUILD_TESTS)
     tests/test_scoring_policy.cpp
     tests/test_difficulty_policy.cpp
     tests/test_orbital_order_release_policy.cpp
+    tests/test_orbital_admission_policy.cpp
     tests/test_orbital_pursuit_policy.cpp
     tests/test_orbital_order_authority.cpp
     semantic_artifacts/src/orbital/order_authority.cpp

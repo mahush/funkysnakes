@@ -142,8 +142,8 @@ int main() {
     if (const auto* submit = std::get_if<Submit>(&*intent)) {
       std::tie(state, observations) = app::apply(std::move(state), *submit);
     } else if (std::holds_alternative<orbital_controls::NewGame>(*intent)) {
-      std::tie(state, observations) =
-          app::apply(random_int_fn, std::move(state), app::Start{orbital::RoundId{++round}});
+      // One Domain Application plays one game, so a new game starts in a fresh one
+      std::tie(state, observations) = app::apply(random_int_fn, app::initial(), app::Start{orbital::RoundId{++round}});
       cursors = orbital_controls::makeCursors(*observations.views);
     } else {
       screen.Exit();

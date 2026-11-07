@@ -1,8 +1,10 @@
 #include "orbital/orbital_game_domain_application.hpp"
 
 #include <iterator>
+#include <stdexcept>
 #include <vector>
 
+#include "orbital/admission_policy.hpp"
 #include "orbital/board_setup_policy.hpp"
 #include "orbital/order_release_policy.hpp"
 
@@ -12,13 +14,22 @@ namespace orbital_game_domain_application {
 
 namespace {
 
+using admission_policy::GamePhase;
+using game_boundary::StartRejected;
 using game_boundary::StepReport;
 using game_boundary::SubmissionAccepted;
 using game_boundary::SubmissionRejected;
-using game_boundary::SubmissionRejectionReason;
 using game_boundary::Views;
 
 bool isStarted(const State& state) { return state.game.has_value(); }
+
+// Phase of the game, read from whether one started and from the Game Authority
+GamePhase phaseOf(const State& state) {
+  if (!isStarted(state)) {
+    return GamePhase::NOT_STARTED;
+  }
+  return game_authority::isRunning(*state.game) ? GamePhase::RUNNING : GamePhase::CONCLUDED;
+}
 
 // Pending orders the Order Release Policy releases at the given time
 std::vector<Order> releasedOrders(const order_authority::State& orders, GameTime now) {
@@ -141,6 +152,13 @@ std::tuple<State, Observations> apply(const RandomIntGeneratorFn& random_int_fn,
 std::tuple<State, Observations> startWithSetup(const RandomIntGeneratorFn& random_int_fn,
                                                State state,
                                                const arena_authority::RoundSetup& setup) {
+  if (std::optional<game_boundary::StartRejectionReason> reason = admission_policy::startRejectionIn(phaseOf(state))) {
+    Observations observations;
+    observations.start_rejected = StartRejected{*reason};
+    observations = withViews(std::move(observations), state);
+    return {std::move(state), std::move(observations)};
+  }
+
   state.arena = arena_authority::startRound(random_int_fn, setup);
   state.orders = order_authority::startRound(setup.round);
   state.game = game_authority::startRound(setup.round, playersOf(setup));
@@ -151,9 +169,11 @@ std::tuple<State, Observations> startWithSetup(const RandomIntGeneratorFn& rando
 
 std::tuple<State, Observations> apply(State state, const Submit& submit) {
   Observations observations;
-  if (!isStarted(state) || !game_authority::isRunning(*state.game)) {
-    observations.submission = SubmissionRejected{SubmissionRejectionReason::ROUND_OVER};
-    return {std::move(state), withViews(std::move(observations), state)};
+  if (std::optional<game_boundary::SubmissionRejectionReason> reason =
+          admission_policy::submissionRejectionIn(phaseOf(state))) {
+    observations.submission = SubmissionRejected{*reason};
+    observations = withViews(std::move(observations), state);
+    return {std::move(state), std::move(observations)};
   }
 
   auto [orders, committed] = order_authority::submit(
@@ -169,6 +189,10 @@ std::tuple<State, Observations> apply(State state, const Submit& submit) {
 std::tuple<State, Observations> apply(const RandomIntGeneratorFn& random_int_fn,
                                       State state,
                                       const TimeElapsed& elapsed) {
+  if (elapsed.duration < std::chrono::milliseconds{0}) {
+    throw std::invalid_argument{"elapsed time must not be negative"};
+  }
+
   Observations observations;
   if (!isStarted(state)) {
     return {std::move(state), std::move(observations)};
