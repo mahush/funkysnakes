@@ -24,14 +24,9 @@ namespace game_boundary {
  * Domain System Boundary of Orbital Orders
  *
  * The game's external interactions, expressed as intents and observations rather than devices or
- * messages. Every realization offers the same interactions.
- *
- * Submission rule of the boundary: a submission is accepted while the game is running (as the
- * Game Authority says); afterwards it is rejected with ROUND_OVER. An accepted submission is
- * committed at the current time of the round's logical clock; submissions are never backdated.
- *
- * After conclusion, elapsed time changes nothing: no step runs and the clock stays where it is (as
- * the Game Authority's conclusion says).
+ * messages. Every realization offers the same interactions. The boundary owns no rules: which
+ * interaction a game admits in which phase is the Admission Policy's decision, and what an admitted
+ * interaction does is decided by the Authorities it reaches.
  */
 
 // ============================================================================
@@ -61,12 +56,26 @@ struct Submit {
  * @brief Game time has passed
  */
 struct TimeElapsed {
-  std::chrono::milliseconds duration;
+  std::chrono::milliseconds duration;  // Not negative
 };
 
 // ============================================================================
 // Domain System Boundary - players end, outbound
 // ============================================================================
+
+/**
+ * @brief Why a start was refused
+ */
+enum class StartRejectionReason {
+  ALREADY_STARTED  // A game has already started; a new game needs a new Domain Application
+};
+
+/**
+ * @brief A start was refused; the game that already started is unchanged
+ */
+struct StartRejected {
+  StartRejectionReason reason;
+};
 
 /**
  * @brief A submission was committed as an order
@@ -80,7 +89,8 @@ struct SubmissionAccepted {
  * @brief Why a submission was refused
  */
 enum class SubmissionRejectionReason {
-  ROUND_OVER  // The game is not running (not started or already concluded)
+  NOT_STARTED,  // No game has started yet
+  ROUND_OVER    // The game has concluded
 };
 
 /**
@@ -126,6 +136,7 @@ struct Views {
  * @brief Everything observable at the boundary after one interaction, in order of occurrence
  */
 struct Observations {
+  std::optional<StartRejected> start_rejected;  // For a refused Start
   std::optional<SubmissionOutcome> submission;  // For Submit
   std::optional<OrderCommitted> commitment;     // For an accepted Submit: the Order Authority's commitment record
   std::vector<StepReport> steps;                // Every step that ran, oldest first

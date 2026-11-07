@@ -3,6 +3,7 @@
 #include <gtest/gtest.h>
 
 #include <chrono>
+#include <stdexcept>
 #include <tuple>
 
 #include "common/snake_model.hpp"
@@ -101,6 +102,37 @@ TEST(OrbitalGameDomainApplication, StartsOnSquareBoardWithSnakesSideBySide) {
   EXPECT_EQ(snake_model::length(arena.snakes.at(PLAYER_B)), 7u);
   EXPECT_EQ(snake_model::currentDirection(arena.snakes.at(PLAYER_A)), Direction::RIGHT);
   EXPECT_EQ(snake_model::currentDirection(arena.snakes.at(PLAYER_B)), Direction::RIGHT);
+}
+
+/// @brief One Domain Application plays one game; a start while it runs must not silently replace it
+TEST(OrbitalGameDomainApplication, RejectsStartWhileGameIsRunning) {
+  // Given: 1300 ms into a game, A's order is pending
+  auto [running, order] = submit(elapse(started(makeLanes({})), 1300), PLAYER_A, Point{3, 3});
+
+  // When: a game is started again
+  auto [state, observations] = app::apply(makeCornerRandom(), running, app::Start{RoundId{2}});
+
+  // Then: the start is refused and the running game goes on unchanged
+  ASSERT_TRUE(observations.start_rejected.has_value());
+  EXPECT_EQ(observations.start_rejected->reason, game_boundary::StartRejectionReason::ALREADY_STARTED);
+  ASSERT_TRUE(observations.views.has_value());
+  EXPECT_EQ(observations.views->now, milliseconds{1300});
+  EXPECT_EQ(statusOf(state, order), Status::PENDING);
+}
+
+/// @brief A new game needs a new Domain Application, also after the game concluded
+TEST(OrbitalGameDomainApplication, RejectsStartAfterConclusion) {
+  // Given: the game is over
+  app::State over = elapse(started(makeLanes({})), 120000);
+
+  // When: a game is started again
+  auto [state, observations] = app::apply(makeCornerRandom(), over, app::Start{RoundId{2}});
+
+  // Then: the start is refused and the concluded game keeps its result
+  ASSERT_TRUE(observations.start_rejected.has_value());
+  EXPECT_EQ(observations.start_rejected->reason, game_boundary::StartRejectionReason::ALREADY_STARTED);
+  ASSERT_TRUE(observations.views.has_value());
+  EXPECT_TRUE(observations.views->game.result.has_value());
 }
 
 /// @subsection held points
@@ -408,6 +440,16 @@ TEST(OrbitalGameDomainApplication, EndsExecutingAndCancelsPendingOrdersAtConclus
   EXPECT_TRUE(arena_authority::view(*state.arena).active.empty());
 }
 
+TEST(OrbitalGameDomainApplication, RejectsSubmissionBeforeStart) {
+  // When: a player submits an order before a game has started
+  auto [state, observations] = app::apply(app::initial(), app::Submit{PLAYER_A, Point{3, 3}});
+
+  // Then: it is rejected because no game has started, and nothing is committed
+  ASSERT_TRUE(observations.submission.has_value());
+  EXPECT_EQ(std::get<SubmissionRejected>(*observations.submission).reason, SubmissionRejectionReason::NOT_STARTED);
+  EXPECT_FALSE(observations.commitment.has_value());
+}
+
 TEST(OrbitalGameDomainApplication, RejectsSubmissionAfterConclusion) {
   // Given: the game is over
   app::State over = elapse(started(makeLanes({})), 120000);
@@ -457,6 +499,24 @@ TEST(OrbitalGameDomainApplication, ReportsEveryStepOfOneTimeAdvance) {
   ASSERT_EQ(observations.steps.size(), 5U);
   EXPECT_EQ(observations.steps.front().at, milliseconds{200});
   EXPECT_EQ(observations.steps.back().at, milliseconds{1000});
+}
+
+/// @brief Before a game has started there is no game time that could pass
+TEST(OrbitalGameDomainApplication, IgnoresTimeBeforeStart) {
+  // When: one second passes before a game has started
+  auto [state, observations] = app::apply(makeCornerRandom(), app::initial(), app::TimeElapsed{milliseconds{1000}});
+
+  // Then: no step runs, nothing is observed and no game exists
+  EXPECT_TRUE(observations.steps.empty());
+  EXPECT_FALSE(observations.views.has_value());
+  EXPECT_FALSE(state.game.has_value());
+}
+
+/// @brief Game time cannot run backward, so a later submission is never committed earlier
+TEST(OrbitalGameDomainApplication, RefusesNegativeElapsedTime) {
+  // When/Then: a negative elapsed time is refused
+  EXPECT_THROW(app::apply(makeCornerRandom(), started(makeLanes({})), app::TimeElapsed{milliseconds{-1}}),
+               std::invalid_argument);
 }
 
 namespace {
@@ -602,21 +662,20 @@ TEST(OrbitalGameDomainApplication, ViewsPendingRouteFromCurrentSnakePosition) {
 
 /// @section orbital_game_domain_application::startWithSetup
 
-/// @brief A concluded game can be followed by a fresh one
-TEST(OrbitalGameDomainApplication, StartsFreshGameAfterConclusion) {
-  // Given: the first game is over
+/// @brief A start with a given setup is admitted like any start: only before a game has started
+TEST(OrbitalGameDomainApplication, RejectsStartWithSetupOnceAGameStarted) {
+  // Given: the game is over
   app::State over = elapse(started(makeLanes({})), 120000);
 
-  // When: a new game starts
+  // When: a game with another setup is started
   auto [state, observations] =
       app::startWithSetup(makeCornerRandom(), over, RoundSetup{RoundId{2}, makeLanes({}).layout, {}});
 
-  // Then: it runs from time zero with no orders and the full duration remaining
+  // Then: the start is refused and the concluded game stays where it ended
+  ASSERT_TRUE(observations.start_rejected.has_value());
+  EXPECT_EQ(observations.start_rejected->reason, game_boundary::StartRejectionReason::ALREADY_STARTED);
   ASSERT_TRUE(observations.views.has_value());
-  EXPECT_TRUE(game_authority::isRunning(*state.game));
-  EXPECT_EQ(observations.views->now, milliseconds{0});
-  EXPECT_TRUE(observations.views->orders.orders.empty());
-  EXPECT_EQ(observations.views->game.remaining, game_authority::view(*started(makeLanes({})).game).remaining);
+  EXPECT_EQ(observations.views->now, milliseconds{120000});
 }
 
 }  // namespace orbital
