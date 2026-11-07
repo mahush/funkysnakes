@@ -55,6 +55,9 @@ app::State started(const RoundSetup& setup) {
   return std::get<0>(app::startWithSetup(makeCornerRandom(), app::initial(), setup));
 }
 
+/**
+ * @brief Let the given game time pass, supplied through the execution interface with fixed randomness
+ */
 app::State elapse(app::State state, int ms) {
   return std::get<0>(app::apply(makeCornerRandom(), std::move(state), app::TimeElapsed{milliseconds{ms}}));
 }

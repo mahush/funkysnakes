@@ -27,6 +27,10 @@ namespace game_boundary {
  * messages. Every realization offers the same interactions. The boundary owns no rules: which
  * interaction a game admits in which phase is the Admission Policy's decision, and what an admitted
  * interaction does is decided by the Authorities it reaches.
+ *
+ * Its only counterparts are the players. Time passing and randomness are no interactions: no
+ * counterpart controls them, so they reach the game as execution inputs from whoever runs it. What
+ * they cause, such as steps, the conclusion and the views, is still observed here.
  */
 
 // ============================================================================
@@ -46,17 +50,6 @@ struct Start {
 struct Submit {
   PlayerId player;
   Point target;
-};
-
-// ============================================================================
-// Domain System Boundary - external facts, inbound
-// ============================================================================
-
-/**
- * @brief Game time has passed
- */
-struct TimeElapsed {
-  std::chrono::milliseconds duration;  // Not negative
 };
 
 // ============================================================================

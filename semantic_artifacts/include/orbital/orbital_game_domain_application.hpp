@@ -1,5 +1,6 @@
 #pragma once
 
+#include <chrono>
 #include <optional>
 #include <tuple>
 
@@ -15,11 +16,10 @@ namespace snake {
 namespace orbital {
 namespace orbital_game_domain_application {
 
-// The Domain System Boundary is this application's interface
+// Players' interactions and their observations: the Domain System Boundary
 using game_boundary::Observations;
 using game_boundary::Start;
 using game_boundary::Submit;
-using game_boundary::TimeElapsed;
 
 /**
  * Orbital Game Domain Application - canonical single-process realization of Orbital Orders
@@ -27,6 +27,15 @@ using game_boundary::TimeElapsed;
  * Composes the Arena, Order and Game Authorities and their Policies without actors, timers,
  * networking or rendering. It routes boundary interactions and Authority outputs mechanically and
  * makes no gameplay decision of its own.
+ *
+ * It has two interfaces. The Domain System Boundary (game_boundary) carries the players'
+ * interactions and everything they observe. The execution interface below carries what no
+ * counterpart controls and whoever runs the Domain Application supplies: time passing (TimeElapsed)
+ * and randomness (the random_int_fn parameters). A test simulates both; a front end measures real
+ * time and seeds an engine. A third execution input is implicit: interactions take effect one at a
+ * time, in the order of the calls, so the caller fixes their delivery order. Observations caused by
+ * execution inputs, such as step reports, the conclusion and the views, still go out through the
+ * boundary.
  *
  * One Domain Application plays one game. Which interaction it admits in which phase of the game (not
  * started, running, concluded) is the Admission Policy's answer, which it passes on as the outcome.
@@ -44,6 +53,21 @@ using game_boundary::TimeElapsed;
  * that step, which the Game Authority's rule for handovers (committed strictly before the completing step)
  * reflects.
  */
+
+// ============================================================================
+// Execution interface - supplied by whoever runs the Domain Application
+// ============================================================================
+
+/**
+ * @brief Game time has passed
+ */
+struct TimeElapsed {
+  std::chrono::milliseconds duration;  // Not negative
+};
+
+// ============================================================================
+// State and operations
+// ============================================================================
 
 /**
  * @brief Virtual clock of the round
@@ -117,9 +141,11 @@ std::tuple<State, Observations> apply(State state, const Submit& submit);
 /**
  * @brief Let game time pass: run every arena step that falls due
  *
- * Carries out the Game Authority's conclusion (see game_authority::GameConcluded): the clock stops at the step
- * that concluded the game, and time passing afterwards changes nothing. Before a game has started there
- * is no game time: the state stays unchanged and the observations are empty.
+ * Takes time passing through the execution interface; the steps it runs are observed at the
+ * boundary. Carries out the Game Authority's conclusion (see game_authority::GameConcluded): the
+ * clock stops at the step that concluded the game, and time passing afterwards changes nothing.
+ * Before a game has started there is no game time: the state stays unchanged and the observations
+ * are empty.
  *
  * @param random_int_fn Random number source for food placement during steps
  * @param state Current state
