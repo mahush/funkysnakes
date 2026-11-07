@@ -16,7 +16,7 @@ namespace orbital {
 /**
  * Arena events - what happened in the Orbital arena during a step, in order
  *
- * The Arena reports physical and execution events only; what they are worth is decided by the
+ * The Arena Authority reports physical and execution events only; what they are worth is decided by the
  * Scoring Policy, and their effect on order status by the Order Authority.
  *
  * Collisions use the shared arena event vocabulary (Bitten, SelfBitten, MutualBite), since the

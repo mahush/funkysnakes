@@ -1,6 +1,6 @@
 // Orbital Orders domain runner: plays the defining histories through the Domain Application and
-// prints what happened, step by step: commitments (Order), activations and endings (Arena) and the
-// resulting score and handover chain (Game). No actors, timers, networking or rendering.
+// prints what happened, step by step: commitments (Order Authority), activations and endings (Arena Authority)
+// and the resulting score and handover chain (Game Authority). No actors, timers, networking or rendering.
 
 #include <chrono>
 #include <iostream>

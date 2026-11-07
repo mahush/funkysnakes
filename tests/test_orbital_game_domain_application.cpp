@@ -1,4 +1,4 @@
-// Tests for the Orbital Game Domain Application: whole-game histories across Order, Arena and Game.
+// Tests for the Orbital Game Domain Application: whole-game histories across the Order, Arena and Game Authorities.
 
 #include <gtest/gtest.h>
 
@@ -81,7 +81,7 @@ game_authority::PlayerScore scoreOf(const app::State& state, const PlayerId& pla
 
 /// @section orbital_game_domain_application::apply
 ///
-/// Whole-game histories: Order release → Arena execution → Game scoring.
+/// Whole-game histories: release (Order Authority) → execution (Arena Authority) → scoring (Game Authority).
 /// Timing: an order issued at 0 ms is released at 200 ms; steps run every 200 ms.
 
 /// @subsection start
@@ -243,7 +243,7 @@ TEST(OrbitalGameDomainApplication, DeniesHandoverButBanksPointsWhenPendingSucces
   EXPECT_EQ(scoreOf(state, PLAYER_A).chain, 0);
 }
 
-/// @brief A prepared successor that the Arena refuses ends the chain it was prepared for
+/// @brief A prepared successor that the Arena Authority refuses ends the chain it was prepared for
 TEST(OrbitalGameDomainApplication, BreaksChainWhenSuccessorIsRejected) {
   // Given: G, with a target outside the board, is committed at 1400 ms
   auto [with_f, f] = submit(started(makeLanes({})), PLAYER_A, Point{10, 2});
@@ -258,15 +258,15 @@ TEST(OrbitalGameDomainApplication, BreaksChainWhenSuccessorIsRejected) {
   EXPECT_EQ(scoreOf(state, PLAYER_A).chain, 0);
 }
 
-/// @brief Distributed ordering: Game learns the player's earlier commitment only after the Arena's completion
-TEST(OrbitalGameDomainApplication, ReachesSameScoreWhenCommitmentReachesGameAfterCompletion) {
+/// @brief Distributed ordering: the Game Authority learns the player's earlier commitment only after the completion
+TEST(OrbitalGameDomainApplication, ReachesSameScoreWhenCommitmentReachesGameAuthorityAfterCompletion) {
   // Given: the canonical history, in which G is committed at 1400 ms and F completes at 1600 ms
   auto [with_f, f_observations] =
       app::apply(started(makeLanes({Point{5, 2}, Point{7, 2}})), app::Submit{PLAYER_A, Point{10, 2}});
   auto [before_g, early] = app::apply(makeCornerRandom(), std::move(with_f), app::TimeElapsed{milliseconds{1400}});
   auto [with_g, g_observations] = app::apply(std::move(before_g), app::Submit{PLAYER_A, Point{10, 6}});
   auto [canonical, late] = app::apply(makeCornerRandom(), std::move(with_g), app::TimeElapsed{milliseconds{400}});
-  //        and a Game that learns F's commitment and all steps first
+  //        and a Game Authority that learns F's commitment and all steps first
   game_authority::State game = game_authority::observeCommitment(
       game_authority::startRound(ROUND, {PLAYER_A, PLAYER_B}), *f_observations.commitment);
   for (const auto* steps : {&early.steps, &late.steps}) {
@@ -276,7 +276,7 @@ TEST(OrbitalGameDomainApplication, ReachesSameScoreWhenCommitmentReachesGameAfte
     }
   }
 
-  // When: G's commitment record reaches that Game after F's completion
+  // When: G's commitment record reaches that Game Authority after F's completion
   game = game_authority::observeCommitment(std::move(game), *g_observations.commitment);
 
   // Then: its score and chain equal those of the canonical Domain Application

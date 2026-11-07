@@ -28,7 +28,7 @@ namespace arena_authority {
  * snake_model owns the body and life of one snake.
  *
  * Out of scope: pending orders (Order Authority) and their release (Order Release Policy), points, round duration and
- * conclusion (Game Authority). The Arena reports events; it does not value them.
+ * conclusion (Game Authority). The Arena Authority reports events; it does not value them.
  *
  * Within the events of one step:
  * - interruption of an executing order precedes collection under its replacement;

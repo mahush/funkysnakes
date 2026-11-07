@@ -245,7 +245,7 @@ TEST(OrbitalGameAuthority, DrawsOnEqualBankedScores) {
   EXPECT_EQ(concluded->result, (Result{std::nullopt}));
 }
 
-/// @brief The Arena's ROUND_ENDED events after conclusion must not change the final scores
+/// @brief The Arena Authority's ROUND_ENDED events after conclusion must not change the final scores
 TEST(OrbitalGameAuthority, IgnoresStepsAfterConclusion) {
   // Given: a concluded game in which B leads
   auto [state, concluded] = game_authority::observeStep(
@@ -363,7 +363,7 @@ TEST(OrbitalGameAuthority, BreaksChainWhenSuccessorIsRejected) {
   // Given: order 1 handed over to 2
   State state = step(withPendingSuccessor(), 1000, {}, {completed(1)});
 
-  // When: the Arena rejects 2
+  // When: the Arena Authority rejects 2
   State observed = step(std::move(state), 1200, {OrderRejected{OrderId{2}, RejectionReason::TARGET_OFF_BOARD}}, {});
 
   // Then: the earned bonus stays banked, but the chain is broken
@@ -381,7 +381,7 @@ TEST(OrbitalGameAuthority, KeepsChainWhenSupersededDraftIsRejected) {
   state = game_authority::observeCommitment(
       std::move(state), OrderCommitted{ROUND, OrderId{4}, PLAYER_A, milliseconds{1400}, OrderId{3}});
 
-  // When: the Arena reports a refusal of draft 3
+  // When: the Arena Authority reports a refusal of draft 3
   State observed = step(std::move(state), 1600, {OrderRejected{OrderId{3}, RejectionReason::ROUND_ENDED}}, {});
 
   // Then: the chain still has its handover
@@ -447,7 +447,7 @@ TEST(OrbitalGameAuthority, BreaksChainAtConclusion) {
 
 /// @section game_authority::observeCommitment
 
-/// @brief A player-local Order Authority may synchronize its history after the Arena reported the completion
+/// @brief A player-local Order Authority may synchronize its history after the Arena Authority reported the completion
 TEST(OrbitalGameAuthority, BanksHandoverWhenSuccessorCommitmentIsLearnedLate) {
   // Given: order 1 activated and completed, before any commitment of a successor is known
   State state = game_authority::observeCommitment(runningGame(), committedByA(1, 0));

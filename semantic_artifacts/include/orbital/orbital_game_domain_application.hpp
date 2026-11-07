@@ -29,14 +29,16 @@ using game_boundary::TimeElapsed;
  * makes no gameplay decision of its own.
  *
  * One logical clock drives the round; steps fall due at the Pacing Policy's step interval. A
- * submission is committed (Order) at the clock's current time and its commitment is passed on to
- * Game. Each step that falls due runs:
- *   pending orders (Order) released by the Order Release Policy → step (Arena) → interpret outcomes (Order)
- *   → score, advance handover chains and check end (Game)
- *   → if concluded: end execution (Arena) → interpret endings (Order) → cancel pending (Order)
+ * submission is committed (Order Authority) at the clock's current time and its commitment is passed on
+ * to the Game Authority. Each step that falls due runs:
+ *   pending orders (Order Authority) released by the Order Release Policy → step (Arena Authority)
+ *   → interpret outcomes (Order Authority)
+ *   → score, advance handover chains and check end (Game Authority)
+ *   → if concluded: end execution (Arena Authority) → interpret endings (Order Authority)
+ *   → cancel pending (Order Authority)
  * The clock never stands on a step that has not run, so every commitment lies strictly before the
  * next step. A commitment can share the time of the last step that ran; it was still made after
- * that step, which Game's rule for handovers (committed strictly before the completing step)
+ * that step, which the Game Authority's rule for handovers (committed strictly before the completing step)
  * reflects.
  */
 
@@ -103,7 +105,7 @@ std::tuple<State, Observations> apply(State state, const Submit& submit);
 /**
  * @brief Let game time pass: run every arena step that falls due
  *
- * Carries out Game's conclusion (see game_authority::GameConcluded): the clock stops at the step
+ * Carries out the Game Authority's conclusion (see game_authority::GameConcluded): the clock stops at the step
  * that concluded the game.
  *
  * @param random_int_fn Random number source for food placement during steps

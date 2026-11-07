@@ -12,7 +12,7 @@ namespace pursuit_policy {
  * Pursuit Policy - decides the route a snake takes towards an order's target position
  *
  * Stateless decision taken once, when an order activates. A route is the sequence of moves, one
- * direction per tick, that leads the head from its position to the target. The Arena keeps the
+ * direction per tick, that leads the head from its position to the target. The Arena Authority keeps the
  * route of the executing order and takes one move per tick; it does not interpret the route.
  *
  * Current route shape: follow the current heading until aligned with the target, wrapping at the
