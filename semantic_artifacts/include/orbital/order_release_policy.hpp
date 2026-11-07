@@ -16,7 +16,7 @@ namespace order_release_policy {
  * the lowest delay at the end of the cycle; the cycle then repeats.
  *
  * An order's release time is fixed by its own commitment time; a later change of the orbital phase
- * does not move it. A released order is only available for activation: the Arena tries to activate
+ * does not move it. A released order is only available for activation: the Arena Authority tries to activate
  * it at the first step at or after its release time and may refuse it. The Policy keeps no orders;
  * the pending orders are the Order Authority's.
  */

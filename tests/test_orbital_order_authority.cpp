@@ -78,7 +78,7 @@ TEST(OrderAuthority, KeepsPendingOrdersOfOtherPlayers) {
   EXPECT_EQ(statusOf(next_state, b), Status::PENDING);
 }
 
-/// @brief The commitment time is the domain fact Game relates to the Arena's completions
+/// @brief The commitment time is the domain fact the Game Authority relates to the Arena Authority's completions
 TEST(OrderAuthority, PublishesCommitmentWithItsTime) {
   // When: player A commits an order at 1300 ms
   auto [state, committed] = order_authority::submit(order_authority::startRound(ROUND),
@@ -104,7 +104,7 @@ TEST(OrderAuthority, PublishesSupersededOrderWithCommitment) {
   EXPECT_EQ(h.superseded, g);
 }
 
-/// @brief Only a pending order is superseded; an executing order is replaced in the Arena, not here
+/// @brief Only a pending order is superseded; an executing order is replaced in the Arena Authority, not here
 TEST(OrderAuthority, SupersedesNothingWhenOnlyAnOrderExecutes) {
   // Given: F executes
   auto [state, f] = submitOrder(order_authority::startRound(ROUND), Submission{PLAYER_A, Point{3, 4}, milliseconds{0}});
@@ -139,7 +139,7 @@ TEST(OrderAuthority, ListsLatestPendingOrderOfEachPlayer) {
 }
 
 TEST(OrderAuthority, DropsActivatedOrderFromPendingOrders) {
-  // Given: an order the Arena activated
+  // Given: an order the Arena Authority activated
   auto [state, id] =
       submitOrder(order_authority::startRound(ROUND), Submission{PLAYER_A, Point{3, 4}, milliseconds{0}});
   order_authority::State observed = order_authority::observe(state, {OrderActivated{id, std::nullopt, {}}}, {});
@@ -160,7 +160,7 @@ TEST(OrderAuthority, MarksActivatedOrderAsExecuting) {
   auto [state, id] =
       submitOrder(order_authority::startRound(ROUND), Submission{PLAYER_A, Point{3, 4}, milliseconds{0}});
 
-  // When: the Arena reports its activation
+  // When: the Arena Authority reports its activation
   order_authority::State observed = order_authority::observe(state, {OrderActivated{id, std::nullopt, {}}}, {});
 
   // Then: it executes and is no longer pending
@@ -174,7 +174,7 @@ TEST(OrderAuthority, RecordsReasonOfRejectedOrder) {
   auto [state, id] =
       submitOrder(order_authority::startRound(ROUND), Submission{PLAYER_A, Point{3, 4}, milliseconds{0}});
 
-  // When: the Arena reports its rejection
+  // When: the Arena Authority reports its rejection
   order_authority::State observed =
       order_authority::observe(state, {OrderRejected{id, RejectionReason::SNAKE_DEAD}}, {});
 
@@ -191,7 +191,7 @@ TEST(OrderAuthority, KeepsExecutingOrderWhenReplacementIsRejected) {
   order_authority::State executing = order_authority::observe(state, {OrderActivated{f, std::nullopt, {}}}, {});
   auto [pending_state, g] = submitOrder(executing, Submission{PLAYER_A, Point{8, 1}, milliseconds{500}});
 
-  // When: the Arena rejects G
+  // When: the Arena Authority rejects G
   order_authority::State observed =
       order_authority::observe(pending_state, {OrderRejected{g, RejectionReason::TARGET_OFF_BOARD}}, {});
 
@@ -200,12 +200,12 @@ TEST(OrderAuthority, KeepsExecutingOrderWhenReplacementIsRejected) {
 }
 
 /// @brief In a distributed realization H may still be in transit when G activates; the world decides
-TEST(OrderAuthority, FollowsArenaWhenSupersededOrderWasActivated) {
+TEST(OrderAuthority, FollowsArenaAuthorityWhenSupersededOrderWasActivated) {
   // Given: G was superseded by pending H
   auto [state, g] = submitOrder(order_authority::startRound(ROUND), Submission{PLAYER_A, Point{3, 4}, milliseconds{0}});
   auto [revised_state, h] = submitOrder(state, Submission{PLAYER_A, Point{8, 1}, milliseconds{300}});
 
-  // When: the Arena reports that it activated G
+  // When: the Arena Authority reports that it activated G
   order_authority::State observed = order_authority::observe(revised_state, {OrderActivated{g, std::nullopt, {}}}, {});
 
   // Then: G executes and H stays pending
@@ -218,7 +218,7 @@ TEST(OrderAuthority, IgnoresOutcomesOfUnknownOrders) {
   auto [state, id] =
       submitOrder(order_authority::startRound(ROUND), Submission{PLAYER_A, Point{3, 4}, milliseconds{0}});
 
-  // When: the Arena reports outcomes for an order this round never issued
+  // When: the Arena Authority reports outcomes for an order this round never issued
   order_authority::State observed =
       order_authority::observe(state,
                                {OrderActivated{OrderId{42}, std::nullopt, {}}},
@@ -248,7 +248,7 @@ TEST_P(OrderAuthorityEnding, RecordsHowExecutingOrderEnded) {
       submitOrder(order_authority::startRound(ROUND), Submission{PLAYER_A, Point{3, 4}, milliseconds{0}});
   order_authority::State executing = order_authority::observe(state, {OrderActivated{id, std::nullopt, {}}}, {});
 
-  // When: the Arena reports how it ended
+  // When: the Arena Authority reports how it ended
   order_authority::State observed =
       order_authority::observe(executing, {}, {OrderEnded{id, GetParam().reason, std::nullopt}});
 
@@ -271,7 +271,7 @@ TEST(OrderAuthority, InterpretsReplacementAndInterruptionOfOneStep) {
   order_authority::State executing = order_authority::observe(state, {OrderActivated{f, std::nullopt, {}}}, {});
   auto [pending_state, g] = submitOrder(executing, Submission{PLAYER_A, Point{8, 1}, milliseconds{500}});
 
-  // When: the Arena activates G, interrupting F, in one step
+  // When: the Arena Authority activates G, interrupting F, in one step
   order_authority::State observed =
       order_authority::observe(pending_state, {OrderActivated{g, f, {}}}, {OrderEnded{f, EndReason::INTERRUPTED, g}});
 
@@ -288,7 +288,7 @@ TEST(OrderAuthority, KeepsPendingOrderWhenExecutingOrderCompletes) {
   order_authority::State executing = order_authority::observe(state, {OrderActivated{f, std::nullopt, {}}}, {});
   auto [pending_state, h] = submitOrder(executing, Submission{PLAYER_A, Point{8, 1}, milliseconds{500}});
 
-  // When: the Arena reports that F completed
+  // When: the Arena Authority reports that F completed
   order_authority::State observed =
       order_authority::observe(pending_state, {}, {OrderEnded{f, EndReason::COMPLETED, std::nullopt}});
 
@@ -312,7 +312,7 @@ TEST_P(OrderAuthorityWorldEvent, KeepsOrderStatusOnWorldEvent) {
       submitOrder(order_authority::startRound(ROUND), Submission{PLAYER_A, Point{3, 4}, milliseconds{0}});
   order_authority::State executing = order_authority::observe(state, {OrderActivated{id, std::nullopt, {}}}, {});
 
-  // When: the Arena reports a world event of that player
+  // When: the Arena Authority reports a world event of that player
   order_authority::State observed = order_authority::observe(executing, {}, {GetParam()});
 
   // Then: the order still executes
@@ -342,14 +342,14 @@ TEST(OrderAuthority, CancelsPendingOrders) {
   EXPECT_TRUE(order_authority::pendingOrders(cancelled).empty());
 }
 
-/// @brief In a distributed realization the Arena's report of the last step may arrive after the cancel
+/// @brief In a distributed realization the Arena Authority's report of the last step may arrive after the cancel
 TEST(OrderAuthority, AppliesLateEndingOfExecutingOrderAfterCancel) {
   // Given: an executing order, and the pending orders were cancelled
   auto [state, f] = submitOrder(order_authority::startRound(ROUND), Submission{PLAYER_A, Point{3, 4}, milliseconds{0}});
   order_authority::State cancelled =
       order_authority::cancel(order_authority::observe(state, {OrderActivated{f, std::nullopt, {}}}, {}));
 
-  // When: the Arena reports that the order completed
+  // When: the Arena Authority reports that the order completed
   order_authority::State observed =
       order_authority::observe(cancelled, {}, {OrderEnded{f, EndReason::COMPLETED, std::nullopt}});
 
@@ -364,7 +364,7 @@ TEST(OrderAuthority, KeepsCancelledOrderCancelledWhenRejectionArrivesLate) {
       submitOrder(order_authority::startRound(ROUND), Submission{PLAYER_A, Point{3, 4}, milliseconds{0}});
   order_authority::State cancelled = order_authority::cancel(state);
 
-  // When: the Arena reports that it refused the order because the round ended
+  // When: the Arena Authority reports that it refused the order because the round ended
   order_authority::State observed =
       order_authority::observe(cancelled, {OrderRejected{id, RejectionReason::ROUND_ENDED}}, {});
 

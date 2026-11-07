@@ -23,14 +23,14 @@ namespace game_authority {
  *
  * Owns whether the game runs, the banked and held points, each player's handover chain and
  * the final result. A game is one round. It sits beside the Arena and Order Authorities: it reads
- * what the Arena reports and the Order Authority's commitment history, uses the Orbital Scoring
+ * what the Arena Authority reports and the Order Authority's commitment history, uses the Orbital Scoring
  * Policy for point values and the Orbital Pacing Policy for the game duration, and announces the
- * conclusion as an intent, which the realization routes to the Arena (end of execution) and to the
+ * conclusion as an intent, which the realization routes to the Arena Authority (end of execution) and to the
  * Order Authority (cancel pending orders).
  *
  * Points: an event's points are applied as the Scoring Policy's point effects say; points held for
  * an order are settled when the order ends, as the Scoring Policy decides for its end reason. An
- * order ends when the Arena reports its ending, or with the round when the game concludes while it
+ * order ends when the Arena Authority reports its ending, or with the round when the game concludes while it
  * still executes.
  *
  * Within one step, the step's events are scored before conclusion is checked, so a step due at
@@ -52,7 +52,7 @@ namespace game_authority {
  * learned. Usually that adds a bonus; it withdraws one that was banked on incomplete history,
  * when a later commitment shows that the counted successor had already been revised. Either
  * way, the eventual score is the same as if every commitment had been known in time, so scores
- * shown before the histories are complete are provisional. Arena history is never rewritten.
+ * shown before the histories are complete are provisional. The Arena Authority's history is never rewritten.
  */
 
 /**
@@ -172,7 +172,7 @@ State startRound(RoundId round, const std::vector<PlayerId>& players);
  * see observeCommitment for commitments learned later.
  *
  * Admitted input: every step of this round exactly once, in step order, with its events in the
- * order the Arena reported them. A step observed twice is scored twice, and steps out of order
+ * order the Arena Authority reported them. A step observed twice is scored twice, and steps out of order
  * can attribute food to an order that already ended; delivering complete steps once and in order
  * is the realization's guarantee.
  *

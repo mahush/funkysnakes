@@ -15,9 +15,9 @@ namespace orbital {
 /**
  * Order vocabulary shared by the Order Authority and the Arena Authority
  *
- * The Order Authority's pending orders reach the Arena once released, and it publishes its commitment history;
- * the Arena reports what actually happened to the orders. Every item carries the identities needed to correlate it,
- * also when it arrives late in a distributed realization.
+ * The Order Authority's pending orders reach the Arena Authority once released, and it publishes its commitment
+ * history; the Arena Authority reports what actually happened to the orders. Every item carries the identities needed
+ * to correlate it, also when it arrives late in a distributed realization.
  */
 
 /**
@@ -45,11 +45,11 @@ struct Order {
  *
  * Commitment happens where the player's input is accepted; `committed_at` is that time on the
  * round's timeline, and it stays the order's commitment time however late the record travels.
- * `superseded` names the player's previously pending order that this commitment replaced. Game
+ * `superseded` names the player's previously pending order that this commitment replaced. The Game Authority
  * does not need it, since it relates commitments to orders by their times; it lets a consumer of a
  * possibly incomplete or reordered history, such as a transport, recognize the replaced order.
  *
- * Together with the Arena's activations and order endings, this history tells whether an order
+ * Together with the Arena Authority's activations and order endings, this history tells whether an order
  * completed while exactly one successor of the same player, committed while it executed, was still
  * pending.
  */
@@ -67,7 +67,7 @@ struct OrderCommitted {
 };
 
 // ============================================================================
-// Activation outcomes: what the Arena did with a released order
+// Activation outcomes: what the Arena Authority did with a released order
 // ============================================================================
 
 /**
@@ -86,7 +86,7 @@ struct OrderActivated {
 };
 
 /**
- * @brief Why the Arena refused to activate an order
+ * @brief Why the Arena Authority refused to activate an order
  */
 enum class RejectionReason {
   SNAKE_DEAD,        // The player's snake is no longer alive

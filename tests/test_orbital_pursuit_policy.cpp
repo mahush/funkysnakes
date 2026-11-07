@@ -121,7 +121,7 @@ class PursuitPolicyReach : public ::testing::TestWithParam<ReachCase> {};
 
 }  // namespace
 
-/// @brief The Arena executes routes with the snake model, which ignores reversals for longer snakes
+/// @brief The Arena Authority executes routes with the snake model, which ignores reversals for longer snakes
 TEST_P(PursuitPolicyReach, LeadsLongSnakeToTarget) {
   // Given: a snake of length four heading in some direction
   snake_model::Snake snake = snake_model::initial(Point{3, 3}, GetParam().heading, 4);

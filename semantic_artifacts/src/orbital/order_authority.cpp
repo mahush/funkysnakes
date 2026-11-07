@@ -34,7 +34,7 @@ PendingOrders dropPendingOrder(PendingOrders pending, const PlayerId& player, Or
   return pending;
 }
 
-// The Arena actually activated the order: it executes, whatever this Authority expected
+// The Arena Authority actually activated the order: it executes, whatever this Authority expected
 std::tuple<Orders, PendingOrders> applyOutcome(Orders orders, PendingOrders pending, const OrderActivated& activated) {
   auto it = orders.find(activated.order);
   if (it == orders.end()) {

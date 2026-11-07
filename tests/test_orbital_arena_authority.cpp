@@ -477,7 +477,7 @@ TEST(OrbitalArenaAuthority, ReportsNoSnakeAliveAfterBothDied) {
       makeArena(SnakeSetup{Point{5, 5}, Direction::RIGHT, 2}, SnakeSetup{Point{7, 5}, Direction::LEFT, 2}, {}),
       {});
 
-  // When: the Arena is asked whether a snake is alive
+  // When: the Arena Authority is asked whether a snake is alive
   bool alive = arena_authority::anySnakeAlive(state);
 
   // Then: none is

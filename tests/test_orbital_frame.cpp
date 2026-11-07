@@ -89,7 +89,7 @@ TEST(OrbitalFrame, ShowsPendingTargetRouteAndCountdown) {
   EXPECT_EQ(frame.players.at(PLAYER_A).pending_remaining, milliseconds{200});
 }
 
-/// @brief Players see the route the Arena follows for an executing order
+/// @brief Players see the route the Arena Authority follows for an executing order
 TEST(OrbitalFrame, ShowsExecutingTargetAndRemainingRoute) {
   // Given: A ordered the snake to (8,5)
   auto [state, views] = started();

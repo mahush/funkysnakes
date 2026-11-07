@@ -17,19 +17,19 @@ namespace order_authority {
  * Order Authority - owns the delayed lifecycle of the players' orders
  *
  * Owns the committed orders with their commitment times, the latest pending order per player until
- * the Arena resolves it, supersession and the status of every order interpreted from what the Arena
- * reports. It does not own the actual executing route (Arena) or any points
- * (Game).
+ * the Arena Authority resolves it, supersession and the status of every order interpreted from what
+ * the Arena Authority reports. It does not own the actual executing route (Arena Authority) or any
+ * points (Game Authority).
  *
  * - A submission is committed where the player's input is accepted; its commitment time is part
- *   of the domain history and is published as OrderCommitted, so that Game can relate it to the
- *   Arena's completions. Commitment and supersession are one lifecycle.
+ *   of the domain history and is published as OrderCommitted, so that the Game Authority can relate it to the
+ *   Arena Authority's completions. Commitment and supersession are one lifecycle.
  * - When a pending order is released for activation is the Order Release Policy's decision, taken
  *   from its commitment time; this Authority keeps no release time.
  * - A new submission supersedes the player's pending order; the superseded order never activates.
  * - Querying the pending orders does not consume them. A pending order is resolved only when the
- *   Arena's outcome for it is observed.
- * - What the Arena actually did wins over this Authority's own expectation, and late reports for
+ *   Arena Authority's outcome for it is observed.
+ * - What the Arena Authority actually did wins over this Authority's own expectation, and late reports for
  *   executing orders still count after pending orders were cancelled.
  */
 
@@ -40,8 +40,8 @@ enum class Status {
   PENDING,         // Waiting for release and activation
   SUPERSEDED,      // Replaced by a newer submission before it activated
   CANCELLED,       // Still pending when the round concluded
-  REJECTED,        // The Arena refused to activate it
-  EXECUTING,       // The Arena executes it
+  REJECTED,        // The Arena Authority refused to activate it
+  EXECUTING,       // The Arena Authority executes it
   COMPLETED,       // Reached its target
   INTERRUPTED,     // Replaced while executing
   FAILED,          // Its snake died while executing it
@@ -125,7 +125,7 @@ State startRound(RoundId round);
 std::tuple<State, OrderCommitted> submit(State state, const Submission& submission);
 
 /**
- * @brief Interpret what the Arena reported for one step
+ * @brief Interpret what the Arena Authority reported for one step
  *
  * Activation outcomes resolve pending orders; order endings resolve executing orders.
  * Reports about unknown orders are ignored.
@@ -137,7 +137,7 @@ std::tuple<State, OrderCommitted> submit(State state, const Submission& submissi
  *
  * Valid status transitions:
  * - PENDING → SUPERSEDED (submit), CANCELLED (cancel), REJECTED or EXECUTING (outcome)
- * - SUPERSEDED → EXECUTING: the Arena actually activated it; what the Arena did wins
+ * - SUPERSEDED → EXECUTING: the Arena Authority actually activated it; what the Arena Authority did wins
  * - EXECUTING → COMPLETED, INTERRUPTED, FAILED or ENDED_BY_ROUND (OrderEnded), also after cancel
  * - A rejection reported for an order that is no longer pending changes nothing.
  * Final statuses are not yet protected against late OrderActivated or OrderEnded reports (Known Issues #3).
@@ -167,7 +167,7 @@ State cancel(State state);
  * @brief The pending orders, with their commitment times
  *
  * At most one per player: the latest pending order. Does not change the state; a pending order is
- * resolved only when the Arena's outcome for it is observed.
+ * resolved only when the Arena Authority's outcome for it is observed.
  *
  * @param state Current order state
  * @return Pending orders, ordered by player
@@ -179,7 +179,7 @@ std::vector<OrderRecord> pendingOrders(const State& state);
  */
 struct PlayerOrders {
   std::optional<OrderRecord> pending;    // Waiting for activation
-  std::optional<OrderRecord> executing;  // Executing according to the Arena
+  std::optional<OrderRecord> executing;  // Executing according to the Arena Authority
 };
 
 /**
