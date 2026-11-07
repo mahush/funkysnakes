@@ -1,7 +1,8 @@
 // Orbital Orders in the terminal: a thin shell around the Orbital Game Domain Application.
 //
-// The shell measures real time and feeds it as game time, turns keys into submissions and draws the
-// views. Every game decision stays in the Domain Application.
+// The shell uses both interfaces of the Domain Application: through the execution interface it supplies
+// real time as passing game time and a seeded random engine; through the boundary it turns keys into
+// submissions and draws the views. Every game decision stays in the Domain Application.
 
 #include <algorithm>
 #include <chrono>
