@@ -28,9 +28,11 @@ namespace game_boundary {
  * interaction a game admits in which phase is the Admission Policy's decision, and what an admitted
  * interaction does is decided by the Authorities it reaches.
  *
- * Its only counterparts are the players. Time passing and randomness are no interactions: no
- * counterpart controls them, so they reach the game as execution inputs from whoever runs it. What
- * they cause, such as steps, the conclusion and the views, is still observed here.
+ * Its only counterparts are the players, so it has one end with an interface per direction:
+ * PlayersEndInbound, implemented by the game, and PlayersEndOutbound, implemented by the players'
+ * side. Time passing and randomness are no interactions: no counterpart controls them, so they
+ * reach the game as execution inputs from whoever runs it. What they cause, such as steps, the
+ * conclusion and the views, still goes out through PlayersEndOutbound.
  */
 
 // ============================================================================
@@ -125,17 +127,94 @@ struct Views {
   std::map<PlayerId, GameTime> pending_release_times;  // Release time of each pending order (Order Release Policy)
 };
 
+// ============================================================================
+// Domain System Boundary - players end, interfaces
+// ============================================================================
+
 /**
- * @brief Everything observable at the boundary after one interaction, in order of occurrence
+ * @brief The players' end, inbound: what the game offers the players
+ *
+ * Implemented by the game. Whether an interaction is admitted is the Admission Policy's answer; a
+ * refused one is reported through PlayersEndOutbound like any other outcome.
  */
-struct Observations {
-  std::optional<StartRejected> start_rejected;  // For a refused Start
-  std::optional<SubmissionOutcome> submission;  // For Submit
-  std::optional<OrderCommitted> commitment;     // For an accepted Submit: the Order Authority's commitment record
-  std::vector<StepReport> steps;                // Every step that ran, oldest first
-  ArenaEvents end_of_round_events;              // Orders ended because the game concluded
-  std::optional<game_authority::GameConcluded> concluded;
-  std::optional<Views> views;  // Views after the interaction, once started
+class PlayersEndInbound {
+ public:
+  virtual ~PlayersEndInbound() = default;
+
+  /**
+   * @brief Begin the game
+   *
+   * @param start The start interaction
+   */
+  virtual void start(const Start& start) = 0;
+
+  /**
+   * @brief Submit an order
+   *
+   * @param submit The submission
+   */
+  virtual void submit(const Submit& submit) = 0;
+};
+
+/**
+ * @brief The players' end, outbound: what the players learn from the game
+ *
+ * Implemented by the players' side. For each interaction or execution input, the game calls these
+ * in order of occurrence: the start or submission outcome, the commitment, every step that ran
+ * (oldest first), the orders that ended with the round, the conclusion, and finally the views.
+ */
+class PlayersEndOutbound {
+ public:
+  virtual ~PlayersEndOutbound() = default;
+
+  /**
+   * @brief A start was refused
+   *
+   * @param rejected Why
+   */
+  virtual void startRejected(const StartRejected& rejected) = 0;
+
+  /**
+   * @brief Outcome of a submission: committed as an order, or refused
+   *
+   * @param outcome The outcome
+   */
+  virtual void submissionOutcome(const SubmissionOutcome& outcome) = 0;
+
+  /**
+   * @brief The Order Authority's commitment record of an accepted submission
+   *
+   * @param committed The commitment record
+   */
+  virtual void orderCommitted(const OrderCommitted& committed) = 0;
+
+  /**
+   * @brief One arena step ran
+   *
+   * @param step What happened in it
+   */
+  virtual void stepReported(const StepReport& step) = 0;
+
+  /**
+   * @brief Executing orders ended because the game concluded; called only when there were any
+   *
+   * @param events Their endings
+   */
+  virtual void ordersEndedWithRound(const ArenaEvents& events) = 0;
+
+  /**
+   * @brief The game concluded
+   *
+   * @param concluded Its result
+   */
+  virtual void concluded(const game_authority::GameConcluded& concluded) = 0;
+
+  /**
+   * @brief Views after an interaction or execution input, once the game started
+   *
+   * @param views The current views
+   */
+  virtual void viewsUpdated(const Views& views) = 0;
 };
 
 }  // namespace game_boundary
