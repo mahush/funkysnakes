@@ -1,8 +1,11 @@
 #pragma once
 
 #include <chrono>
+#include <deque>
 #include <optional>
-#include <tuple>
+#include <stdexcept>
+#include <utility>
+#include <variant>
 
 #include "common/game_time.hpp"
 #include "common/random_source.hpp"
@@ -16,8 +19,7 @@ namespace snake {
 namespace orbital {
 namespace orbital_game_domain_application {
 
-// Players' interactions and their observations: the Domain System Boundary
-using game_boundary::Observations;
+// The players' interactions, from the Domain System Boundary
 using game_boundary::Start;
 using game_boundary::Submit;
 
@@ -25,17 +27,19 @@ using game_boundary::Submit;
  * Orbital Game Domain Application - canonical single-process realization of Orbital Orders
  *
  * Composes the Arena, Order and Game Authorities and their Policies without actors, timers,
- * networking or rendering. It routes boundary interactions and Authority outputs mechanically and
- * makes no gameplay decision of its own.
+ * networking or rendering. The owners hold all of the game's meaning and stay pure; the Domain
+ * Application keeps the game's state, routes interactions and Authority outputs mechanically through
+ * pure composition, and makes no gameplay decision of its own. Its only effects are calls of the
+ * players' outbound interface, which its caller supplies, so a run stays deterministic.
  *
- * It has two interfaces. The Domain System Boundary (game_boundary) carries the players'
- * interactions and everything they observe. The execution interface below carries what no
- * counterpart controls and whoever runs the Domain Application supplies: time passing (TimeElapsed)
- * and randomness (the random_int_fn parameters). A test simulates both; a front end measures real
- * time and seeds an engine. A third execution input is implicit: interactions take effect one at a
- * time, in the order of the calls, so the caller fixes their delivery order. Observations caused by
- * execution inputs, such as step reports, the conclusion and the views, still go out through the
- * boundary.
+ * It has two interfaces. The Domain System Boundary carries the players' interactions: it implements
+ * game_boundary::PlayersEndInbound and reports through game_boundary::PlayersEndOutbound. The
+ * ExecutionInterface carries what no counterpart controls and whoever runs the Domain Application
+ * supplies: randomness, given at construction, and time passing. A test simulates both; a front end
+ * measures real time and seeds an engine. A third execution input is implicit: interactions take
+ * effect one at a time, in the order of the calls, so the caller fixes their delivery order.
+ * Observations caused by execution inputs, such as step reports, the conclusion and the views, still
+ * go out through the boundary.
  *
  * One Domain Application plays one game. Which interaction it admits in which phase of the game (not
  * started, running, concluded) is the Admission Policy's answer, which it passes on as the outcome.
@@ -65,8 +69,47 @@ struct TimeElapsed {
   std::chrono::milliseconds duration;  // Not negative
 };
 
+/**
+ * @brief Execution interface: what whoever runs the game supplies
+ *
+ * Randomness is given at construction and drawn from whenever an owner needs it, at the start as
+ * well as during steps; time passing is supplied through elapse. Unlike a pure interface, it holds
+ * the random source: that the game cannot exist without one is part of the contract.
+ */
+class ExecutionInterface {
+ public:
+  virtual ~ExecutionInterface() = default;
+
+  /**
+   * @brief Let game time pass
+   *
+   * @param elapsed Elapsed game time, not negative
+   * @throws std::invalid_argument if the elapsed time is negative
+   */
+  virtual void elapse(const TimeElapsed& elapsed) = 0;
+
+ protected:
+  /**
+   * @param random_int_fn Random number source the owners draw from
+   * @throws std::invalid_argument if the random number source is empty
+   */
+  explicit ExecutionInterface(RandomIntGeneratorFn random_int_fn) : random_int_fn_{std::move(random_int_fn)} {
+    if (!random_int_fn_) {
+      throw std::invalid_argument{"a random number source is required"};
+    }
+  }
+
+  /**
+   * @brief Random number source given at construction
+   */
+  const RandomIntGeneratorFn& randomIntFn() const { return random_int_fn_; }
+
+ private:
+  RandomIntGeneratorFn random_int_fn_;
+};
+
 // ============================================================================
-// State and operations
+// Domain Application
 // ============================================================================
 
 /**
@@ -90,72 +133,80 @@ struct State {
 };
 
 /**
- * @brief Create a Domain Application before any game has started
+ * @brief The Orbital Orders game in one process, before any game has started
  *
- * @return Initial state
+ * Every call reports what it caused to the players' outbound interface before it returns, in order
+ * of occurrence. A call made while the game is reporting, from within an outbound callback, is the
+ * next interaction: it takes effect once the current report is complete, so a report never mixes
+ * two interactions and the last views reported are always the current ones. If a callback throws,
+ * the exception propagates: the input being reported has taken effect, the rest of its report and
+ * the calls still waiting are dropped, and later calls are taken as usual. If an owner throws while
+ * an input takes effect, such as a random source that fails, that input takes no effect and nothing
+ * of it is reported.
  */
-State initial();
+class DomainApplication : public game_boundary::PlayersEndInbound, public ExecutionInterface {
+ public:
+  /**
+   * @param players The players' side; must outlive the Domain Application
+   * @param random_int_fn Random number source the owners draw from
+   */
+  DomainApplication(game_boundary::PlayersEndOutbound& players, RandomIntGeneratorFn random_int_fn);
 
-/**
- * @brief Begin the game with the start layout of the Board Setup Policy
- *
- * Admitted as the Admission Policy decides: only before a game has started. A refused start leaves
- * the state unchanged and is observed as StartRejected, with the views of the game that already
- * started.
- *
- * Parameter order: bound parameters first (for bindFront), then state and interaction.
- *
- * @param random_int_fn Random number source for initial food placement
- * @param state Current state
- * @param start The start interaction
- * @return Tuple of (state, observations)
- */
-std::tuple<State, Observations> apply(const RandomIntGeneratorFn& random_int_fn, State state, const Start& start);
+  // One game reporting to one players' side: neither copied nor moved
+  DomainApplication(const DomainApplication&) = delete;
+  DomainApplication& operator=(const DomainApplication&) = delete;
+  DomainApplication(DomainApplication&&) = delete;
+  DomainApplication& operator=(DomainApplication&&) = delete;
 
-/**
- * @brief Begin the game with a given world setup
- *
- * Admitted like Start: only before a game has started.
- *
- * @param random_int_fn Random number source for initial food placement
- * @param state Current state
- * @param setup World at round start; its round identity names the game
- * @return Tuple of (state, observations)
- */
-std::tuple<State, Observations> startWithSetup(const RandomIntGeneratorFn& random_int_fn,
-                                               State state,
-                                               const arena_authority::RoundSetup& setup);
+  /**
+   * @brief Begin the game with the start layout of the Board Setup Policy
+   *
+   * Admitted as the Admission Policy decides: only before a game has started. A refused start
+   * leaves the game unchanged and is reported as StartRejected, with the views of the game that
+   * already started.
+   */
+  void start(const Start& start) override;
 
-/**
- * @brief Submit an order
- *
- * Admitted as the Admission Policy decides: only while the game is running; otherwise it is
- * rejected with the Policy's reason and the state is unchanged.
- *
- * @param state Current state
- * @param submit The submission
- * @return Tuple of (state, observations with the submission outcome)
- */
-std::tuple<State, Observations> apply(State state, const Submit& submit);
+  /**
+   * @brief Submit an order
+   *
+   * Admitted as the Admission Policy decides: only while the game is running; otherwise it is
+   * rejected with the Policy's reason and the game is unchanged.
+   */
+  void submit(const Submit& submit) override;
 
-/**
- * @brief Let game time pass: run every arena step that falls due
- *
- * Takes time passing through the execution interface; the steps it runs are observed at the
- * boundary. Carries out the Game Authority's conclusion (see game_authority::GameConcluded): the
- * clock stops at the step that concluded the game, and time passing afterwards changes nothing.
- * Before a game has started there is no game time: the state stays unchanged and the observations
- * are empty.
- *
- * @param random_int_fn Random number source for food placement during steps
- * @param state Current state
- * @param elapsed Elapsed game time, not negative
- * @return Tuple of (state, observations with a report for every step that ran)
- * @throws std::invalid_argument if the elapsed time is negative
- */
-std::tuple<State, Observations> apply(const RandomIntGeneratorFn& random_int_fn,
-                                      State state,
-                                      const TimeElapsed& elapsed);
+  /**
+   * @brief Let game time pass: run every arena step that falls due
+   *
+   * Carries out the Game Authority's conclusion (see game_authority::GameConcluded): the clock stops
+   * at the step that concluded the game, and time passing afterwards changes nothing. Before a game
+   * has started there is no game time: nothing changes and nothing is reported. A negative elapsed
+   * time is refused before anything changes.
+   */
+  void elapse(const TimeElapsed& elapsed) override;
+
+  /**
+   * @brief Begin the game with a given world setup instead of the Board Setup Policy's start layout
+   *
+   * Test entry, part of neither interface: it lets a history start from a hand-picked world.
+   * Admitted like start: only before a game has started.
+   *
+   * @param setup World at round start; its round identity names the game
+   */
+  void startWithSetup(const arena_authority::RoundSetup& setup);
+
+ private:
+  // An interaction, an execution input or a start with a given setup, waiting to take effect
+  using Input = std::variant<Start, Submit, TimeElapsed, arena_authority::RoundSetup>;
+
+  // Let the input take effect and report it, after every earlier input has been reported
+  void take(Input input);
+
+  game_boundary::PlayersEndOutbound& players_;
+  State state_;
+  std::deque<Input> waiting_;  // Inputs that arrived during a report, oldest first
+  bool reporting_{false};      // Whether inputs are being taken and reported
+};
 
 }  // namespace orbital_game_domain_application
 }  // namespace orbital

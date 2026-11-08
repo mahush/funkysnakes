@@ -1,8 +1,9 @@
 // Orbital Orders in the terminal: a thin shell around the Orbital Game Domain Application.
 //
 // The shell uses both interfaces of the Domain Application: through the execution interface it supplies
-// real time as passing game time and a seeded random engine; through the boundary it turns keys into
-// submissions and draws the views. Every game decision stays in the Domain Application.
+// a seeded random engine and real time as passing game time; at the boundary it turns keys into
+// submissions and, as the players' side, draws the views it receives. Every game decision stays in the
+// Domain Application.
 
 #include <algorithm>
 #include <chrono>
@@ -93,6 +94,24 @@ class NulDroppingCout {
   NulDroppingBuffer buffer_;
 };
 
+// The players' side in the terminal: it shows the game through its views, which carry every outcome
+class TerminalPlayers : public orbital::game_boundary::PlayersEndOutbound {
+ public:
+  void startRejected(const orbital::game_boundary::StartRejected& /* rejected */) override {}
+  void submissionOutcome(const orbital::game_boundary::SubmissionOutcome& /* outcome */) override {}
+  void orderCommitted(const orbital::OrderCommitted& /* committed */) override {}
+  void stepReported(const orbital::game_boundary::StepReport& /* step */) override {}
+  void ordersEndedWithRound(const orbital::ArenaEvents& /* events */) override {}
+  void concluded(const orbital::game_authority::GameConcluded& /* concluded */) override {}
+  void viewsUpdated(const Views& views) override { views_ = views; }
+
+  // Views of the current game; the game reports them once it started
+  const Views& views() const { return *views_; }
+
+ private:
+  std::optional<Views> views_;
+};
+
 // Key of a terminal event, if the shell has a use for it
 std::optional<Key> tryKey(const ftxui::Event& event) {
   if (event == ftxui::Event::ArrowUp) {
@@ -124,42 +143,43 @@ int main() {
     return std::uniform_int_distribution<int>{min, max}(engine);
   };
 
+  TerminalPlayers players;
   int round = 0;
-  // Named variables, not a structured binding: lambdas may only capture bindings since C++20
-  app::State state;
-  orbital::game_boundary::Observations observations;
-  std::tie(state, observations) = app::apply(random_int_fn, app::initial(), app::Start{orbital::RoundId{++round}});
-  Views views = *observations.views;
-  orbital_controls::Cursors cursors = orbital_controls::makeCursors(views);
+  std::optional<app::DomainApplication> game;
+  // One Domain Application plays one game, so every game starts in a fresh one
+  auto start_new_game = [&] {
+    game.emplace(players, random_int_fn);
+    game->start(app::Start{orbital::RoundId{++round}});
+  };
+  start_new_game();
+  orbital_controls::Cursors cursors = orbital_controls::makeCursors(players.views());
 
   const NulDroppingCout nul_dropping_cout;  // Outlives the screen, which writes on teardown too
   auto screen = ftxui::ScreenInteractive::FullscreenAlternateScreen();
   auto on_key = [&](const Key& key) {
-    auto [next_cursors, intent] = orbital_controls::interpretKey(views.arena.board, std::move(cursors), key);
+    auto [next_cursors, intent] = orbital_controls::interpretKey(players.views().arena.board, std::move(cursors), key);
     cursors = std::move(next_cursors);
     if (!intent) {
       return;
     }
     if (const auto* submit = std::get_if<Submit>(&*intent)) {
-      std::tie(state, observations) = app::apply(std::move(state), *submit);
+      game->submit(*submit);
     } else if (std::holds_alternative<orbital_controls::NewGame>(*intent)) {
-      // One Domain Application plays one game, so a new game starts in a fresh one
-      std::tie(state, observations) = app::apply(random_int_fn, app::initial(), app::Start{orbital::RoundId{++round}});
-      cursors = orbital_controls::makeCursors(*observations.views);
+      start_new_game();
+      cursors = orbital_controls::makeCursors(players.views());
     } else {
       screen.Exit();
     }
-    views = *observations.views;
   };
-  auto component =
-      ftxui::CatchEvent(ftxui::Renderer([&] { return orbital_view::draw(orbital_frame::build(views, cursors)); }),
-                        [&](const ftxui::Event& event) {
-                          if (auto key = tryKey(event)) {
-                            on_key(*key);
-                            return true;
-                          }
-                          return false;
-                        });
+  auto component = ftxui::CatchEvent(
+      ftxui::Renderer([&] { return orbital_view::draw(orbital_frame::build(players.views(), cursors)); }),
+      [&](const ftxui::Event& event) {
+        if (auto key = tryKey(event)) {
+          on_key(*key);
+          return true;
+        }
+        return false;
+      });
 
   ftxui::Loop loop{&screen, component};
   auto last = std::chrono::steady_clock::now();
@@ -167,8 +187,7 @@ int main() {
     const auto now = std::chrono::steady_clock::now();
     const auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(now - last);
     last += elapsed;  // Keep the sub-millisecond remainder for the next frame
-    std::tie(state, observations) = app::apply(random_int_fn, std::move(state), app::TimeElapsed{elapsed});
-    views = *observations.views;
+    game->elapse(app::TimeElapsed{elapsed});
 
     screen.PostEvent(ftxui::Event::Custom);  // Redraw even without keys
     loop.RunOnce();                          // Handles the pending keys, then draws

@@ -4,9 +4,10 @@
 
 #include <chrono>
 #include <iostream>
+#include <optional>
 #include <string>
-#include <tuple>
 #include <type_traits>
+#include <utility>
 #include <variant>
 #include <vector>
 
@@ -85,48 +86,66 @@ std::string describe(const ArenaEvent& event) {
       event);
 }
 
-void printScore(const app::State& state) {
-  const game_authority::PlayerScore score = game_authority::view(*state.game).players.at(PLAYER_A);
-  std::cout << "            A: banked " << score.banked << ", held " << score.held << ", chain " << score.chain
-            << " (next handover +" << score.next_handover << ")\n";
-}
-
-void printSteps(const app::Observations& observations, const app::State& state) {
-  if (observations.steps.empty()) {
-    return;
+// The players' side of the runner: prints what A learns, step by step. A commitment and the score
+// after a run of steps are printed once the views that follow them arrive.
+class PrintingPlayers : public game_boundary::PlayersEndOutbound {
+ public:
+  // Name and target of the next submission, for the trace
+  void name(std::string order_name, Point target) {
+    order_name_ = std::move(order_name);
+    target_ = target;
   }
-  for (const game_boundary::StepReport& step : observations.steps) {
-    std::vector<std::string> lines;
+
+  void startRejected(const game_boundary::StartRejected& /* rejected */) override {
+    std::cout << "  start rejected: a game already started\n";
+  }
+
+  void submissionOutcome(const game_boundary::SubmissionOutcome& outcome) override {
+    if (std::holds_alternative<game_boundary::SubmissionRejected>(outcome)) {
+      std::cout << "  A's order " << order_name_ << " to " << point(target_) << " is rejected: the game is over\n";
+    }
+  }
+
+  void orderCommitted(const OrderCommitted& committed) override { committed_ = committed; }
+
+  void stepReported(const game_boundary::StepReport& step) override {
     for (const ActivationOutcome& outcome : step.activations) {
-      lines.push_back(describe(outcome));
+      std::cout << "  " << step.at.count() << " ms  " << describe(outcome) << "\n";
     }
     for (const ArenaEvent& event : step.events) {
-      lines.push_back(describe(event));
+      std::cout << "  " << step.at.count() << " ms  " << describe(event) << "\n";
     }
-    for (const std::string& line : lines) {
-      std::cout << "  " << step.at.count() << " ms  " << line << "\n";
+    stepped_ = true;
+  }
+
+  void ordersEndedWithRound(const ArenaEvents& events) override {
+    for (const ArenaEvent& event : events) {
+      std::cout << "  end of game  " << describe(event) << "\n";
     }
   }
-  printScore(state);
-}
 
-app::State submit(app::State state, Point target, const std::string& name) {
-  auto [next, observations] = app::apply(std::move(state), app::Submit{PLAYER_A, target});
-  if (!observations.commitment) {
-    std::cout << "  A's order " << name << " to " << point(target) << " is rejected: the game is over\n";
-    return next;
+  void concluded(const game_authority::GameConcluded& /* concluded */) override { std::cout << "  game over\n"; }
+
+  void viewsUpdated(const game_boundary::Views& views) override {
+    if (committed_) {
+      std::cout << "  " << committed_->committed_at.count() << " ms  A commits " << order_name_ << " to "
+                << point(target_) << ", released at " << views.pending_release_times.at(PLAYER_A).count() << " ms\n";
+      committed_.reset();
+    }
+    if (stepped_) {
+      const game_authority::PlayerScore& score = views.game.players.at(PLAYER_A);
+      std::cout << "            A: banked " << score.banked << ", held " << score.held << ", chain " << score.chain
+                << " (next handover +" << score.next_handover << ")\n";
+      stepped_ = false;
+    }
   }
-  const OrderCommitted& committed = *observations.commitment;
-  std::cout << "  " << committed.committed_at.count() << " ms  A commits " << name << " to " << point(target)
-            << ", released at " << observations.views->pending_release_times.at(PLAYER_A).count() << " ms\n";
-  return next;
-}
 
-app::State elapse(app::State state, int ms) {
-  auto [next, observations] = app::apply(makeCornerRandom(), std::move(state), app::TimeElapsed{milliseconds{ms}});
-  printSteps(observations, next);
-  return next;
-}
+ private:
+  std::string order_name_;
+  Point target_{0, 0};
+  std::optional<OrderCommitted> committed_;
+  bool stepped_{false};
+};
 
 struct Commit {
   int at_ms;
@@ -138,14 +157,17 @@ struct Commit {
 // whether F's +20 counts and whether completions hand over
 void runHistory(const std::string& title, const std::vector<Commit>& commits, int until_ms) {
   std::cout << "\n" << title << "\n";
-  app::State state = std::get<0>(app::startWithSetup(makeCornerRandom(), app::initial(), makeBoard()));
+  PrintingPlayers players;
+  app::DomainApplication game{players, makeCornerRandom()};
+  game.startWithSetup(makeBoard());
   int now_ms = 0;
   for (const Commit& commit : commits) {
-    state = elapse(std::move(state), commit.at_ms - now_ms);
-    state = submit(std::move(state), commit.target, commit.name);
+    game.elapse(app::TimeElapsed{milliseconds{commit.at_ms - now_ms}});
+    players.name(commit.name, commit.target);
+    game.submit(app::Submit{PLAYER_A, commit.target});
     now_ms = commit.at_ms;
   }
-  state = elapse(std::move(state), until_ms - now_ms);
+  game.elapse(app::TimeElapsed{milliseconds{until_ms - now_ms}});
 }
 
 }  // namespace

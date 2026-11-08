@@ -1,12 +1,14 @@
 #include "orbital/orbital_game_domain_application.hpp"
 
-#include <iterator>
 #include <stdexcept>
+#include <tuple>
+#include <variant>
 #include <vector>
 
 #include "orbital/admission_policy.hpp"
 #include "orbital/board_setup_policy.hpp"
 #include "orbital/order_release_policy.hpp"
+#include "orbital_game_domain_application_mechanics.hpp"
 
 namespace snake {
 namespace orbital {
@@ -20,6 +22,8 @@ using game_boundary::StepReport;
 using game_boundary::SubmissionAccepted;
 using game_boundary::SubmissionRejected;
 using game_boundary::Views;
+using mechanics::appendObservations;
+using mechanics::Observations;
 
 bool isStarted(const State& state) { return state.game.has_value(); }
 
@@ -92,19 +96,6 @@ std::vector<PlayerId> playersOf(const arena_authority::RoundSetup& setup) {
   return players;
 }
 
-// Observations produced so far, followed by a later batch
-Observations appendObservations(Observations observations, Observations later) {
-  observations.steps.insert(observations.steps.end(),
-                            std::make_move_iterator(later.steps.begin()),
-                            std::make_move_iterator(later.steps.end()));
-  observations.end_of_round_events.insert(
-      observations.end_of_round_events.end(), later.end_of_round_events.begin(), later.end_of_round_events.end());
-  if (later.concluded) {
-    observations.concluded = later.concluded;
-  }
-  return observations;
-}
-
 // Carry out the Game Authority's conclusion intent: end execution, then cancel what is still pending
 std::tuple<State, Observations> conclude(State state, const game_authority::GameConcluded& concluded) {
   auto [arena, end_events] = arena_authority::endRound(std::move(*state.arena));
@@ -140,18 +131,10 @@ std::tuple<State, Observations> runStep(const RandomIntGeneratorFn& random_int_f
   return {std::move(concluded_state), appendObservations(std::move(observations), std::move(conclusion))};
 }
 
-}  // namespace
-
-State initial() { return State{}; }
-
-std::tuple<State, Observations> apply(const RandomIntGeneratorFn& random_int_fn, State state, const Start& start) {
-  return startWithSetup(
-      random_int_fn, std::move(state), arena_authority::RoundSetup{start.round, board_setup_policy::startLayout(), {}});
-}
-
-std::tuple<State, Observations> startWithSetup(const RandomIntGeneratorFn& random_int_fn,
-                                               State state,
-                                               const arena_authority::RoundSetup& setup) {
+// Begin the game with a given world, as far as the Admission Policy admits a start
+std::tuple<State, Observations> startGame(const RandomIntGeneratorFn& random_int_fn,
+                                          State state,
+                                          const arena_authority::RoundSetup& setup) {
   if (std::optional<game_boundary::StartRejectionReason> reason = admission_policy::startRejectionIn(phaseOf(state))) {
     Observations observations;
     observations.start_rejected = StartRejected{*reason};
@@ -165,6 +148,11 @@ std::tuple<State, Observations> startWithSetup(const RandomIntGeneratorFn& rando
   state.clock = VirtualClock{};
   Observations observations = withViews({}, state);
   return {std::move(state), std::move(observations)};
+}
+
+std::tuple<State, Observations> apply(const RandomIntGeneratorFn& random_int_fn, State state, const Start& start) {
+  return startGame(
+      random_int_fn, std::move(state), arena_authority::RoundSetup{start.round, board_setup_policy::startLayout(), {}});
 }
 
 std::tuple<State, Observations> apply(State state, const Submit& submit) {
@@ -186,13 +174,10 @@ std::tuple<State, Observations> apply(State state, const Submit& submit) {
   return {std::move(state), std::move(observations)};
 }
 
+// Elapsed time is not negative here; DomainApplication::elapse refuses negative time
 std::tuple<State, Observations> apply(const RandomIntGeneratorFn& random_int_fn,
                                       State state,
                                       const TimeElapsed& elapsed) {
-  if (elapsed.duration < std::chrono::milliseconds{0}) {
-    throw std::invalid_argument{"elapsed time must not be negative"};
-  }
-
   Observations observations;
   if (!isStarted(state)) {
     return {std::move(state), std::move(observations)};
@@ -211,6 +196,72 @@ std::tuple<State, Observations> apply(const RandomIntGeneratorFn& random_int_fn,
 
   observations = withViews(std::move(observations), state);
   return {std::move(state), std::move(observations)};
+}
+
+// The transition each kind of input takes
+std::tuple<State, Observations> takeEffect(const RandomIntGeneratorFn& random_int_fn, State state, const Start& start) {
+  return apply(random_int_fn, std::move(state), start);
+}
+
+std::tuple<State, Observations> takeEffect(const RandomIntGeneratorFn& /* random_int_fn */,
+                                           State state,
+                                           const Submit& submit) {
+  return apply(std::move(state), submit);
+}
+
+std::tuple<State, Observations> takeEffect(const RandomIntGeneratorFn& random_int_fn,
+                                           State state,
+                                           const TimeElapsed& elapsed) {
+  return apply(random_int_fn, std::move(state), elapsed);
+}
+
+std::tuple<State, Observations> takeEffect(const RandomIntGeneratorFn& random_int_fn,
+                                           State state,
+                                           const arena_authority::RoundSetup& setup) {
+  return startGame(random_int_fn, std::move(state), setup);
+}
+
+}  // namespace
+
+DomainApplication::DomainApplication(game_boundary::PlayersEndOutbound& players, RandomIntGeneratorFn random_int_fn)
+    : ExecutionInterface{std::move(random_int_fn)}, players_{players} {}
+
+void DomainApplication::start(const Start& start) { take(start); }
+
+void DomainApplication::submit(const Submit& submit) { take(submit); }
+
+void DomainApplication::elapse(const TimeElapsed& elapsed) {
+  if (elapsed.duration < std::chrono::milliseconds{0}) {
+    throw std::invalid_argument{"elapsed time must not be negative"};
+  }
+  take(elapsed);
+}
+
+void DomainApplication::startWithSetup(const arena_authority::RoundSetup& setup) { take(setup); }
+
+void DomainApplication::take(Input input) {
+  waiting_.push_back(std::move(input));
+  if (reporting_) {
+    return;  // A callback of the report under way called; the input waits for its turn
+  }
+
+  reporting_ = true;
+  try {
+    while (!waiting_.empty()) {
+      const Input next = std::move(waiting_.front());
+      waiting_.pop_front();
+      // The transition gets a copy, so an owner that throws leaves the game as it was
+      auto [state, observations] =
+          std::visit([this](const auto& item) { return takeEffect(randomIntFn(), state_, item); }, next);
+      state_ = std::move(state);
+      mechanics::deliver(observations, players_);
+    }
+  } catch (...) {
+    waiting_.clear();
+    reporting_ = false;
+    throw;
+  }
+  reporting_ = false;
 }
 
 }  // namespace orbital_game_domain_application
