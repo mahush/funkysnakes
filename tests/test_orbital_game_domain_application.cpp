@@ -15,9 +15,9 @@
 #include <vector>
 
 #include "common/snake_model.hpp"
-#include "orbital/food_policy.hpp"
 #include "orbital/orbital_game_domain_application.hpp"
 #include "orbital/order_release_policy.hpp"
+#include "orbital_lanes.hpp"
 #include "orbital_recording_players.hpp"
 #include "test_printers.hpp"
 
@@ -36,31 +36,6 @@ using game_boundary::SubmissionRejected;
 using game_boundary::SubmissionRejectionReason;
 using game_boundary::Views;
 using order_authority::Status;
-
-constexpr RoundId ROUND{1};
-
-/**
- * @brief Random source that always picks the far corner of the board for new food
- */
-RandomIntGeneratorFn makeCornerRandom() {
-  return [](int /* min */, int max) { return max; };
-}
-
-/**
- * @brief Board 20x10: A in row 2 heading right, B in row 7 heading right, the given food
- *
- * Filler food in row 9 brings the food to the minimum without random draws.
- */
-RoundSetup makeLanes(FoodItems food) {
-  for (int x = 15; food.size() < static_cast<size_t>(food_policy::MIN_FOOD_COUNT); ++x) {
-    food.push_back(Point{x, 9});
-  }
-  return RoundSetup{ROUND,
-                    StartLayout{Board{20, 10},
-                                {{PLAYER_A, SnakeSetup{Point{2, 2}, Direction::RIGHT, 3}},
-                                 {PLAYER_B, SnakeSetup{Point{2, 7}, Direction::RIGHT, 3}}}},
-                    food};
-}
 
 Status statusOf(const Views& views, OrderId id) {
   for (const order_authority::OrderRecord& record : views.orders.orders) {
@@ -413,31 +388,6 @@ TEST_F(OrbitalGameDomainApplication, BreaksChainWhenSuccessorIsRejected) {
   EXPECT_EQ(statusOf(g), Status::REJECTED);
   EXPECT_EQ(scoreOf(PLAYER_A).banked, 10);
   EXPECT_EQ(scoreOf(PLAYER_A).chain, 0);
-}
-
-/// @brief Distributed ordering: the Game Authority learns the player's earlier commitment only after the completion
-TEST_F(OrbitalGameDomainApplication, ReachesSameScoreWhenCommitmentReachesGameAuthorityAfterCompletion) {
-  // Given: the canonical history, in which G is committed at 1400 ms and F completes at 1600 ms
-  start(makeLanes({Point{5, 2}, Point{7, 2}}));
-  submit(PLAYER_A, Point{10, 2});
-  elapse(1400);
-  submit(PLAYER_A, Point{10, 6});
-  elapse(400);
-  //        and a Game Authority that learns F's commitment and all steps first
-  game_authority::State game = game_authority::observeCommitment(
-      game_authority::startRound(ROUND, {PLAYER_A, PLAYER_B}), players_.commitments.at(0));
-  for (const game_boundary::StepReport& report : players_.steps) {
-    game = std::get<0>(game_authority::observeStep(
-        std::move(game), report.at, report.activations, report.events, {PLAYER_A, PLAYER_B}));
-  }
-
-  // When: G's commitment record reaches that Game Authority after F's completion
-  game = game_authority::observeCommitment(std::move(game), players_.commitments.at(1));
-
-  // Then: its score and chain equal those of the canonical Domain Application
-  EXPECT_EQ(game_authority::view(game).players.at(PLAYER_A).banked, scoreOf(PLAYER_A).banked);
-  EXPECT_EQ(game_authority::view(game).players.at(PLAYER_A).chain, scoreOf(PLAYER_A).chain);
-  EXPECT_EQ(scoreOf(PLAYER_A).banked, 20 + 10);
 }
 
 /// @subsection pending orders

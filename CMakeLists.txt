@@ -176,6 +176,7 @@ if(SNAKE_BUILD_TESTS)
     tests/test_orbital_game_authority.cpp
     semantic_artifacts/src/orbital/game_authority.cpp
     tests/test_orbital_game_domain_application.cpp
+    tests/test_orbital_delivery_order.cpp
     tests/test_orbital_frame.cpp
     src/orbital_frame.cpp
     tests/test_orbital_controls.cpp
