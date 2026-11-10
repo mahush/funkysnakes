@@ -42,7 +42,7 @@ using game_boundary::Submit;
  * go out through the boundary.
  *
  * Starting in a hand-picked world is neither an interaction nor an execution input; it is the test
- * setup seam TestSeam (orbital_game_domain_application_test_seam.hpp), outside both interfaces.
+ * setup seam TestAccess (orbital_game_domain_application_test_access.hpp), outside both interfaces.
  *
  * One Domain Application plays one game. Which interaction it admits in which phase of the game (not
  * started, running, concluded) is the Admission Policy's answer, which it passes on as the outcome.
@@ -190,7 +190,7 @@ class DomainApplication : public game_boundary::PlayersEndInbound, public Execut
 
  private:
   // Test setup seam: starts the game in a hand-picked world
-  friend struct TestSeam;
+  friend struct TestAccess;
 
   // An interaction, an execution input or a start through the test setup seam, waiting to take effect
   using Input = std::variant<Start, Submit, TimeElapsed, arena_authority::RoundSetup>;
