@@ -36,11 +36,13 @@ using game_boundary::Submit;
  * game_boundary::PlayersEndInbound and reports through game_boundary::PlayersEndOutbound. The
  * ExecutionInterface carries what no counterpart controls and whoever runs the Domain Application
  * supplies: randomness, given at construction, and time passing. A test simulates both; a front end
- * measures real time and seeds an engine. Whoever runs it may also begin the game in a hand-picked
- * world instead of the Board Setup Policy's start layout, as a test or a trace does. A further
- * execution input is implicit: interactions take effect one at a time, in the order of the calls, so
- * the caller fixes their delivery order. Observations caused by execution inputs, such as step
- * reports, the conclusion and the views, still go out through the boundary.
+ * measures real time and seeds an engine. A third execution input is implicit: interactions take
+ * effect one at a time, in the order of the calls, so the caller fixes their delivery order.
+ * Observations caused by execution inputs, such as step reports, the conclusion and the views, still
+ * go out through the boundary.
+ *
+ * Starting in a hand-picked world is neither an interaction nor an execution input; it is the test
+ * setup seam TestSeam (orbital_game_domain_application_test_seam.hpp), outside both interfaces.
  *
  * One Domain Application plays one game. Which interaction it admits in which phase of the game (not
  * started, running, concluded) is the Admission Policy's answer, which it passes on as the outcome.
@@ -74,9 +76,8 @@ struct TimeElapsed {
  * @brief Execution interface: what whoever runs the game supplies
  *
  * Randomness is given at construction and drawn from whenever an owner needs it, at the start as
- * well as during steps; time passing is supplied through elapse. A hand-picked world can be supplied
- * through startWithSetup in place of the Board Setup Policy's start layout. Unlike a pure interface,
- * it holds the random source: that the game cannot exist without one is part of the contract.
+ * well as during steps; time passing is supplied through elapse. Unlike a pure interface, it holds
+ * the random source: that the game cannot exist without one is part of the contract.
  */
 class ExecutionInterface {
  public:
@@ -89,16 +90,6 @@ class ExecutionInterface {
    * @throws std::invalid_argument if the elapsed time is negative
    */
   virtual void elapse(const TimeElapsed& elapsed) = 0;
-
-  /**
-   * @brief Begin the game in a given world instead of the Board Setup Policy's start layout
-   *
-   * Admitted like the players' start: only before a game has started. A refused start is reported
-   * through the boundary like a refused start of the players.
-   *
-   * @param setup World at round start; its round identity names the game
-   */
-  virtual void startWithSetup(const arena_authority::RoundSetup& setup) = 0;
 
  protected:
   /**
@@ -197,17 +188,11 @@ class DomainApplication : public game_boundary::PlayersEndInbound, public Execut
    */
   void elapse(const TimeElapsed& elapsed) override;
 
-  /**
-   * @brief Begin the game in a given world instead of the Board Setup Policy's start layout
-   *
-   * Admitted as the Admission Policy decides, like start: only before a game has started. A refused
-   * start leaves the game unchanged and is reported as StartRejected, with the views of the game that
-   * already started.
-   */
-  void startWithSetup(const arena_authority::RoundSetup& setup) override;
-
  private:
-  // An interaction or an execution input, waiting to take effect
+  // Test setup seam: starts the game in a hand-picked world
+  friend struct TestSeam;
+
+  // An interaction, an execution input or a start through the test setup seam, waiting to take effect
   using Input = std::variant<Start, Submit, TimeElapsed, arena_authority::RoundSetup>;
 
   // Let the input take effect and report it, after every earlier input has been reported

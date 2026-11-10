@@ -1,8 +1,9 @@
 // Tests for the delivery order of Orbital Orders: the same history, delivered to an owner in another order than the
 // canonical Domain Application delivers it, leads to the same outcome.
 //
-// The canonical history comes from the Domain Application, driven through its two interfaces and observed through what
-// its players' side received. The owner under test is fed those observations in the other order.
+// The canonical history comes from the Domain Application: started in a hand-picked world through the test setup seam,
+// then driven through its two interfaces and observed through what its players' side received. The owner under test is
+// fed those observations in the other order.
 
 #include <gtest/gtest.h>
 
@@ -12,6 +13,7 @@
 
 #include "orbital/game_authority.hpp"
 #include "orbital/orbital_game_domain_application.hpp"
+#include "orbital/orbital_game_domain_application_test_seam.hpp"
 #include "orbital_lanes.hpp"
 #include "orbital_recording_players.hpp"
 
@@ -34,7 +36,7 @@ TEST(OrbitalDeliveryOrder, ReachesCanonicalScoreWhenCommitmentReachesGameAuthori
   RecordingPlayers players;
   app::DomainApplication canonical{players, makeCornerRandom()};
   const arena_authority::RoundSetup setup = makeLanes({Point{5, 2}, Point{7, 2}});
-  canonical.startWithSetup(setup);
+  app::TestSeam::startWithSetup(canonical, setup);
   canonical.submit(app::Submit{PLAYER_A, Point{10, 2}});
   canonical.elapse(app::TimeElapsed{milliseconds{1400}});
   canonical.submit(app::Submit{PLAYER_A, Point{10, 6}});
