@@ -6,7 +6,7 @@
 #include <optional>
 
 #include "orbital/orbital_game_domain_application.hpp"
-#include "orbital/orbital_game_domain_application_test_seam.hpp"
+#include "orbital/orbital_game_domain_application_test_access.hpp"
 #include "orbital_recording_players.hpp"
 #include "snake/orbital_frame.hpp"
 
@@ -39,12 +39,12 @@ class OrbitalFrame : public ::testing::Test {
  protected:
   // Board 20x10: A at (4,2) heading right, B at (4,7) heading right, food at (10,5) and filler in row 9
   void start() {
-    app::TestSeam::startWithSetup(game_,
-                                  RoundSetup{RoundId{1},
-                                             StartLayout{Board{20, 10},
-                                                         {{PLAYER_A, SnakeSetup{Point{4, 2}, Direction::RIGHT, 3}},
-                                                          {PLAYER_B, SnakeSetup{Point{4, 7}, Direction::RIGHT, 3}}}},
-                                             {Point{10, 5}, Point{15, 9}, Point{16, 9}, Point{17, 9}, Point{18, 9}}});
+    app::TestAccess::startWithSetup(game_,
+                                    RoundSetup{RoundId{1},
+                                               StartLayout{Board{20, 10},
+                                                           {{PLAYER_A, SnakeSetup{Point{4, 2}, Direction::RIGHT, 3}},
+                                                            {PLAYER_B, SnakeSetup{Point{4, 7}, Direction::RIGHT, 3}}}},
+                                               {Point{10, 5}, Point{15, 9}, Point{16, 9}, Point{17, 9}, Point{18, 9}}});
   }
 
   void submit(const PlayerId& player, Point target) { game_.submit(app::Submit{player, target}); }

@@ -13,7 +13,7 @@
 
 #include "orbital/game_authority.hpp"
 #include "orbital/orbital_game_domain_application.hpp"
-#include "orbital/orbital_game_domain_application_test_seam.hpp"
+#include "orbital/orbital_game_domain_application_test_access.hpp"
 #include "orbital_lanes.hpp"
 #include "orbital_recording_players.hpp"
 
@@ -36,7 +36,7 @@ TEST(OrbitalDeliveryOrder, ReachesCanonicalScoreWhenCommitmentReachesGameAuthori
   RecordingPlayers players;
   app::DomainApplication canonical{players, makeCornerRandom()};
   const arena_authority::RoundSetup setup = makeLanes({Point{5, 2}, Point{7, 2}});
-  app::TestSeam::startWithSetup(canonical, setup);
+  app::TestAccess::startWithSetup(canonical, setup);
   canonical.submit(app::Submit{PLAYER_A, Point{10, 2}});
   canonical.elapse(app::TimeElapsed{milliseconds{1400}});
   canonical.submit(app::Submit{PLAYER_A, Point{10, 6}});

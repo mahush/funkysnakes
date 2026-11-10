@@ -22,7 +22,7 @@ namespace orbital_game_domain_application {
  * interfaces. After the start, a history through this seam uses the game only through its interfaces
  * as well.
  */
-struct TestSeam {
+struct TestAccess {
   /**
    * @brief Begin the game in a given world instead of the Board Setup Policy's start layout
    *
