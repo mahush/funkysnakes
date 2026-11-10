@@ -1,6 +1,8 @@
 // Orbital Orders domain runner: plays the defining histories through the Domain Application and
-// prints what happened, step by step: commitments (Order Authority), activations and endings (Arena Authority)
-// and the resulting score and handover chain (Game Authority). No actors, timers, networking or rendering.
+// prints what happened, step by step: commitments (Order Authority), activations and endings (Arena
+// Authority) and the resulting score and handover chain (Game Authority). No actors, timers, networking
+// or rendering. Each history starts in a small hand-picked world through the Domain Application's test
+// setup seam, so the traces are reference-only (see TestSeam).
 
 #include <chrono>
 #include <iostream>
@@ -12,6 +14,7 @@
 #include <vector>
 
 #include "orbital/orbital_game_domain_application.hpp"
+#include "orbital/orbital_game_domain_application_test_seam.hpp"
 
 namespace {
 
@@ -159,7 +162,7 @@ void runHistory(const std::string& title, const std::vector<Commit>& commits, in
   std::cout << "\n" << title << "\n";
   PrintingPlayers players;
   app::DomainApplication game{players, makeCornerRandom()};
-  game.startWithSetup(makeBoard());
+  app::TestSeam::startWithSetup(game, makeBoard());
   int now_ms = 0;
   for (const Commit& commit : commits) {
     game.elapse(app::TimeElapsed{milliseconds{commit.at_ms - now_ms}});

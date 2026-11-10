@@ -1,7 +1,8 @@
 // Tests for the Orbital Game Domain Application: whole-game histories across the Order, Arena and Game Authorities.
 //
-// The tests use the Domain Application through its two interfaces only: they drive it at the boundary and
-// through the execution interface, and observe what its players' side received.
+// Most histories start in a small hand-picked world through the test setup seam, so they are reference-only (see
+// TestSeam). Apart from that start, the tests use the Domain Application through its two interfaces only: they drive
+// it at the boundary and through the execution interface, and observe what its players' side received.
 
 #include <gtest/gtest.h>
 
@@ -16,6 +17,7 @@
 
 #include "common/snake_model.hpp"
 #include "orbital/orbital_game_domain_application.hpp"
+#include "orbital/orbital_game_domain_application_test_seam.hpp"
 #include "orbital/order_release_policy.hpp"
 #include "orbital_lanes.hpp"
 #include "orbital_recording_players.hpp"
@@ -119,7 +121,7 @@ struct FailingAfterSubmittingOnFirstStep : RecordingPlayers {
  */
 class OrbitalGameDomainApplication : public ::testing::Test {
  protected:
-  void start(const RoundSetup& setup) { game_.startWithSetup(setup); }
+  void start(const RoundSetup& setup) { app::TestSeam::startWithSetup(game_, setup); }
 
   /**
    * @brief Let the given game time pass, supplied through the execution interface
@@ -621,7 +623,7 @@ TEST_F(OrbitalGameDomainApplication, ReportsSameStepsAndViewsForOneAdvanceAndIts
   RecordingPlayers in_parts_players;
   app::DomainApplication in_parts{in_parts_players, makeCornerRandom()};
   for (app::DomainApplication* game : {&at_once, &in_parts}) {
-    game->startWithSetup(makeLanes({Point{6, 2}}));
+    app::TestSeam::startWithSetup(*game, makeLanes({Point{6, 2}}));
     game->submit(app::Submit{PLAYER_A, Point{7, 2}});
   }
 
@@ -699,7 +701,7 @@ TEST_F(OrbitalGameDomainApplication, TakesCallDuringReportAsNextInteraction) {
   SubmittingOnFirstStep players;
   app::DomainApplication game{players, makeCornerRandom()};
   players.game = &game;
-  game.startWithSetup(makeLanes({}));
+  app::TestSeam::startWithSetup(game, makeLanes({}));
   players.clear();
 
   // When: two steps' worth of time passes
@@ -721,7 +723,7 @@ TEST_F(OrbitalGameDomainApplication, DropsWaitingCallsWhenReportFails) {
   FailingAfterSubmittingOnFirstStep players;
   app::DomainApplication game{players, makeCornerRandom()};
   players.game = &game;
-  game.startWithSetup(makeLanes({}));
+  app::TestSeam::startWithSetup(game, makeLanes({}));
   players.clear();
 
   // When/Then: the failure of the players' side propagates
@@ -738,7 +740,7 @@ TEST_F(OrbitalGameDomainApplication, KeepsTakingCallsAfterReportFailed) {
   FailingAfterSubmittingOnFirstStep players;
   app::DomainApplication game{players, makeCornerRandom()};
   players.game = &game;
-  game.startWithSetup(makeLanes({}));
+  app::TestSeam::startWithSetup(game, makeLanes({}));
   EXPECT_THROW(game.elapse(app::TimeElapsed{milliseconds{400}}), std::runtime_error);
 
   // When: a player submits an order
@@ -756,7 +758,7 @@ TEST_F(OrbitalGameDomainApplication, ReportsNothingOfAdvanceThatAnOwnerFailed) {
   auto failing = std::make_shared<bool>(false);
   RecordingPlayers players;
   app::DomainApplication game{players, makeSwitchableRandom(failing)};
-  game.startWithSetup(makeLanes({Point{5, 2}}));
+  app::TestSeam::startWithSetup(game, makeLanes({Point{5, 2}}));
   game.elapse(app::TimeElapsed{milliseconds{200}});
   *failing = true;
   players.clear();
@@ -775,7 +777,7 @@ TEST_F(OrbitalGameDomainApplication, ResumesFromBeforeAdvanceThatAnOwnerFailed) 
   auto failing = std::make_shared<bool>(false);
   RecordingPlayers players;
   app::DomainApplication game{players, makeSwitchableRandom(failing)};
-  game.startWithSetup(makeLanes({Point{5, 2}}));
+  app::TestSeam::startWithSetup(game, makeLanes({Point{5, 2}}));
   game.elapse(app::TimeElapsed{milliseconds{200}});
   *failing = true;
   EXPECT_THROW(game.elapse(app::TimeElapsed{milliseconds{400}}), std::runtime_error);
@@ -862,7 +864,7 @@ TEST_F(OrbitalGameDomainApplication, ViewsPendingRouteFromCurrentSnakePosition) 
             (std::vector<Direction>{D::RIGHT, D::RIGHT, D::RIGHT, D::RIGHT, D::DOWN, D::DOWN, D::DOWN}));
 }
 
-/// @section DomainApplication::startWithSetup
+/// @section TestSeam::startWithSetup
 
 /// @brief A start with a given setup is admitted like any start: only before a game has started
 TEST_F(OrbitalGameDomainApplication, RejectsStartWithSetupOnceAGameStarted) {
@@ -872,7 +874,7 @@ TEST_F(OrbitalGameDomainApplication, RejectsStartWithSetupOnceAGameStarted) {
   players_.clear();
 
   // When: a game with another setup is started
-  game_.startWithSetup(RoundSetup{RoundId{2}, makeLanes({}).layout, {}});
+  app::TestSeam::startWithSetup(game_, RoundSetup{RoundId{2}, makeLanes({}).layout, {}});
 
   // Then: the start is refused, and the views it reports show the concluded game where it ended
   ASSERT_EQ(players_.calls, (std::vector<std::string>{"startRejected", "viewsUpdated"}));

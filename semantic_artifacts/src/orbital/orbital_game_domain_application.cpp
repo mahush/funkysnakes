@@ -237,8 +237,6 @@ void DomainApplication::elapse(const TimeElapsed& elapsed) {
   take(elapsed);
 }
 
-void DomainApplication::startWithSetup(const arena_authority::RoundSetup& setup) { take(setup); }
-
 void DomainApplication::take(Input input) {
   waiting_.push_back(std::move(input));
   if (reporting_) {
