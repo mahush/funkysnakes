@@ -51,8 +51,10 @@ CellGrid buildCells(const Views& views, const std::map<PlayerId, Point>& cursors
   const Board& board = views.arena.board;
   CellGrid cells(board.height, std::vector<Cell>(board.width));
 
-  for (const auto& [player, route] : views.pending_routes) {
-    putRoute(cells, snake_model::head(views.arena.snakes.at(player)), route, board, CellRole::PENDING_ROUTE, player);
+  for (const auto& routes : {views.selected_routes, views.transmitted_routes}) {
+    for (const auto& [player, route] : routes) {
+      putRoute(cells, snake_model::head(views.arena.snakes.at(player)), route, board, CellRole::PENDING_ROUTE, player);
+    }
   }
   for (const auto& [player, active] : views.arena.active) {
     putRoute(cells,
@@ -66,8 +68,10 @@ CellGrid buildCells(const Views& views, const std::map<PlayerId, Point>& cursors
     put(cells, food, Cell{CellRole::FOOD, std::nullopt});
   }
   for (const auto& [player, orders] : views.orders.players) {
-    if (orders.pending) {
-      put(cells, orders.pending->order.target, Cell{CellRole::TARGET, player});
+    for (const auto& order : {orders.selected, orders.transmitted}) {
+      if (order) {
+        put(cells, order->order.target, Cell{CellRole::TARGET, player});
+      }
     }
   }
   for (const auto& [player, active] : views.arena.active) {
@@ -100,11 +104,11 @@ PlayerPanel buildPanel(const Views& views, const PlayerId& player, const std::ma
     if (const std::optional<OrderRecord>& executing = orders->second.executing) {
       panel.executing_target = executing->order.target;
     }
-    if (const std::optional<OrderRecord>& pending = orders->second.pending) {
+    const std::optional<OrderRecord>& pending =
+        orders->second.transmitted ? orders->second.transmitted : orders->second.selected;
+    if (pending) {
       panel.pending_target = pending->order.target;
-      if (auto release = views.pending_release_times.find(player); release != views.pending_release_times.end()) {
-        panel.pending_remaining = std::max(release->second - views.now, std::chrono::milliseconds{0});
-      }
+      panel.pending_remaining = views.next_transmissions.front() - views.now;
     }
   }
   if (auto cursor = cursors.find(player); cursor != cursors.end()) {
@@ -118,7 +122,7 @@ PlayerPanel buildPanel(const Views& views, const PlayerId& player, const std::ma
 Frame build(const Views& views, const std::map<PlayerId, Point>& cursors) {
   Frame frame;
   frame.cells = buildCells(views, cursors);
-  frame.delay = DelayGauge{views.submission_delay, views.min_delay, views.max_delay};
+  frame.delay = DelayGauge{views.next_transmissions.front() - views.now, views.min_interval, views.max_interval};
   frame.remaining = views.game.remaining;
   if (views.game.result) {
     frame.game_over = GameOver{views.game.result->winner};

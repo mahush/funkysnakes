@@ -15,9 +15,9 @@ namespace orbital {
 /**
  * Order vocabulary shared by the Order Authority and the Arena Authority
  *
- * The Order Authority's pending orders reach the Arena Authority once released, and it publishes its commitment
- * history; the Arena Authority reports what actually happened to the orders. Every item carries the identities needed
- * to correlate it, also when it arrives late in a distributed realization.
+ * The Order Authority's transmitted orders reach the Arena Authority, and it publishes its submission and
+ * transmission history; the Arena Authority reports what actually happened to the orders. Every item carries the
+ * identities needed to correlate it, also when it arrives late in a distributed realization.
  */
 
 /**
@@ -37,37 +37,53 @@ struct Order {
 };
 
 // ============================================================================
-// Commitment history: what the Order Authority accepted from a player
+// Submission history: what the Order Authority accepted from a player
 // ============================================================================
 
 /**
- * @brief A player committed an order
+ * @brief A player submitted an order, which became their selected order
  *
- * Commitment happens where the player's input is accepted; `committed_at` is that time on the
- * round's timeline, and it stays the order's commitment time however late the record travels.
- * `superseded` names the player's previously pending order that this commitment replaced. The Game Authority
- * does not need it, since it relates commitments to orders by their times; it lets a consumer of a
- * possibly incomplete or reordered history, such as a transport, recognize the replaced order.
- *
- * Together with the Arena Authority's activations and order endings, this history tells whether an order
- * completed while exactly one successor of the same player, committed while it executed, was still
- * pending.
+ * Submission happens where the player's input is accepted; `submitted_at` is that time on the
+ * round's timeline, and it stays the order's submission time however late the record travels.
+ * `replaced` names the player's previously selected, not yet transmitted order that this submission
+ * replaced; a replaced order is never transmitted.
  */
-struct OrderCommitted {
+struct OrderSubmitted {
   RoundId round;
   OrderId order;
   PlayerId player;
-  GameTime committed_at;
-  std::optional<OrderId> superseded;
+  GameTime submitted_at;
+  std::optional<OrderId> replaced;
 
-  bool operator==(const OrderCommitted& other) const noexcept {
+  bool operator==(const OrderSubmitted& other) const noexcept {
     return round == other.round && order == other.order && player == other.player &&
-           committed_at == other.committed_at && superseded == other.superseded;
+           submitted_at == other.submitted_at && replaced == other.replaced;
+  }
+};
+
+/**
+ * @brief A selected order was transmitted at an opportunity of the orbital link and became irrevocable
+ *
+ * It keeps its own submission time and names the selected order it replaced, if any. Together with the
+ * Arena Authority's activations and order endings, this history tells whether an order took over from
+ * its predecessor as a handover, without the submissions that were never transmitted.
+ */
+struct OrderTransmitted {
+  RoundId round;
+  OrderId order;
+  PlayerId player;
+  GameTime submitted_at;
+  GameTime transmitted_at;
+  std::optional<OrderId> replaced;
+
+  bool operator==(const OrderTransmitted& other) const noexcept {
+    return round == other.round && order == other.order && player == other.player &&
+           submitted_at == other.submitted_at && transmitted_at == other.transmitted_at && replaced == other.replaced;
   }
 };
 
 // ============================================================================
-// Activation outcomes: what the Arena Authority did with a released order
+// Activation outcomes: what the Arena Authority did with a transmitted order
 // ============================================================================
 
 /**

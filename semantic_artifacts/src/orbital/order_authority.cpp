@@ -9,7 +9,8 @@ namespace order_authority {
 namespace {
 
 using Orders = std::map<OrderId, OrderRecord>;
-using PendingOrders = std::map<PlayerId, OrderId>;
+using SelectedOrders = std::map<PlayerId, OrderId>;
+using TransmittedOrders = std::set<OrderId>;
 
 Status statusAfterEnding(EndReason reason) {
   switch (reason) {
@@ -25,37 +26,44 @@ Status statusAfterEnding(EndReason reason) {
   return Status::FAILED;
 }
 
-// Drops the player's pending entry if it is this order; a newer pending order of the player is kept
-PendingOrders dropPendingOrder(PendingOrders pending, const PlayerId& player, OrderId order) {
-  auto it = pending.find(player);
-  if (it != pending.end() && it->second == order) {
-    pending.erase(it);
+// Drops the player's selected entry if it is this order; a newer selected order of the player is kept
+SelectedOrders dropSelectedOrder(SelectedOrders selected, const PlayerId& player, OrderId order) {
+  auto it = selected.find(player);
+  if (it != selected.end() && it->second == order) {
+    selected.erase(it);
   }
-  return pending;
+  return selected;
 }
 
 // The Arena Authority actually activated the order: it executes, whatever this Authority expected
-std::tuple<Orders, PendingOrders> applyOutcome(Orders orders, PendingOrders pending, const OrderActivated& activated) {
+std::tuple<Orders, SelectedOrders, TransmittedOrders> applyOutcome(Orders orders,
+                                                                   SelectedOrders selected,
+                                                                   TransmittedOrders transmitted,
+                                                                   const OrderActivated& activated) {
   auto it = orders.find(activated.order);
   if (it == orders.end()) {
-    return {std::move(orders), std::move(pending)};
+    return {std::move(orders), std::move(selected), std::move(transmitted)};
   }
   it->second.status = Status::EXECUTING;
-  pending = dropPendingOrder(std::move(pending), it->second.order.player, it->second.order.id);
-  return {std::move(orders), std::move(pending)};
+  selected = dropSelectedOrder(std::move(selected), it->second.order.player, it->second.order.id);
+  transmitted.erase(activated.order);
+  return {std::move(orders), std::move(selected), std::move(transmitted)};
 }
 
-// A refusal resolves a pending order; an order already superseded or cancelled keeps that status,
-// because nothing happened to it in the world
-std::tuple<Orders, PendingOrders> applyOutcome(Orders orders, PendingOrders pending, const OrderRejected& rejected) {
+// A refusal resolves a transmitted order; any other order keeps its status, because nothing happened
+// to it in the world
+std::tuple<Orders, SelectedOrders, TransmittedOrders> applyOutcome(Orders orders,
+                                                                   SelectedOrders selected,
+                                                                   TransmittedOrders transmitted,
+                                                                   const OrderRejected& rejected) {
   auto it = orders.find(rejected.order);
-  if (it == orders.end() || it->second.status != Status::PENDING) {
-    return {std::move(orders), std::move(pending)};
+  if (it == orders.end() || it->second.status != Status::TRANSMITTED) {
+    return {std::move(orders), std::move(selected), std::move(transmitted)};
   }
   it->second.status = Status::REJECTED;
   it->second.rejection = rejected.reason;
-  pending = dropPendingOrder(std::move(pending), it->second.order.player, it->second.order.id);
-  return {std::move(orders), std::move(pending)};
+  transmitted.erase(rejected.order);
+  return {std::move(orders), std::move(selected), std::move(transmitted)};
 }
 
 Orders applyEvent(Orders orders, const OrderEnded& ended) {
@@ -85,36 +93,53 @@ State startRound(RoundId round) {
   return state;
 }
 
-std::tuple<State, OrderCommitted> submit(State state, const Submission& submission) {
+std::tuple<State, OrderSubmitted> submit(State state, const Submission& submission) {
   const OrderId id{state.next_order_id_};
   ++state.next_order_id_;
 
-  std::optional<OrderId> superseded;
-  auto pending = state.pending_.find(submission.player);
-  if (pending != state.pending_.end()) {
-    state.orders_.at(pending->second).status = Status::SUPERSEDED;
-    superseded = pending->second;
+  std::optional<OrderId> replaced;
+  auto selected = state.selected_.find(submission.player);
+  if (selected != state.selected_.end()) {
+    state.orders_.at(selected->second).status = Status::REPLACED;
+    replaced = selected->second;
   }
 
   const Order order{state.round_, id, submission.player, submission.target};
-  state.orders_.emplace(id, OrderRecord{order, submission.committed_at, Status::PENDING, std::nullopt});
-  state.pending_[submission.player] = id;
-  const OrderCommitted committed{state.round_, id, submission.player, submission.committed_at, superseded};
-  return {std::move(state), committed};
+  state.orders_.emplace(
+      id, OrderRecord{order, submission.submitted_at, std::nullopt, replaced, Status::SELECTED, std::nullopt});
+  state.selected_[submission.player] = id;
+  const OrderSubmitted submitted{state.round_, id, submission.player, submission.submitted_at, replaced};
+  return {std::move(state), submitted};
 }
 
-std::vector<OrderRecord> pendingOrders(const State& state) {
-  std::vector<OrderRecord> result;
-  for (const auto& [player, id] : state.pending_) {
-    result.push_back(state.orders_.at(id));
+std::tuple<State, std::vector<OrderTransmitted>> transmit(State state, GameTime at) {
+  std::vector<OrderTransmitted> transmissions;
+  for (const auto& [player, id] : state.selected_) {
+    OrderRecord& record = state.orders_.at(id);
+    record.status = Status::TRANSMITTED;
+    record.transmitted_at = at;
+    state.transmitted_.insert(id);
+    transmissions.push_back(OrderTransmitted{state.round_, id, player, record.submitted_at, at, record.replaced});
+  }
+  state.selected_.clear();
+  return {std::move(state), std::move(transmissions)};
+}
+
+std::vector<Order> transmittedOrders(const State& state) {
+  std::vector<Order> result;
+  for (OrderId id : state.transmitted_) {
+    result.push_back(state.orders_.at(id).order);
   }
   return result;
 }
 
 State observe(State state, const std::vector<ActivationOutcome>& outcomes, const ArenaEvents& events) {
   for (const ActivationOutcome& outcome : outcomes) {
-    std::tie(state.orders_, state.pending_) = std::visit(
-        [&state](const auto& item) { return applyOutcome(std::move(state.orders_), std::move(state.pending_), item); },
+    std::tie(state.orders_, state.selected_, state.transmitted_) = std::visit(
+        [&state](const auto& item) {
+          return applyOutcome(
+              std::move(state.orders_), std::move(state.selected_), std::move(state.transmitted_), item);
+        },
         outcome);
   }
   for (const ArenaEvent& event : events) {
@@ -125,10 +150,14 @@ State observe(State state, const std::vector<ActivationOutcome>& outcomes, const
 }
 
 State cancel(State state) {
-  for (const auto& [player, id] : state.pending_) {
+  for (const auto& [player, id] : state.selected_) {
     state.orders_.at(id).status = Status::CANCELLED;
   }
-  state.pending_.clear();
+  for (OrderId id : state.transmitted_) {
+    state.orders_.at(id).status = Status::CANCELLED;
+  }
+  state.selected_.clear();
+  state.transmitted_.clear();
   return state;
 }
 
@@ -141,8 +170,12 @@ View view(const State& state) {
       player.executing = record;
     }
   }
-  for (const auto& [player, id] : state.pending_) {
-    result.players[player].pending = state.orders_.at(id);
+  for (OrderId id : state.transmitted_) {
+    const OrderRecord& record = state.orders_.at(id);
+    result.players[record.order.player].transmitted = record;
+  }
+  for (const auto& [player, id] : state.selected_) {
+    result.players[player].selected = state.orders_.at(id);
   }
   return result;
 }

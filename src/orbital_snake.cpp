@@ -99,7 +99,7 @@ class TerminalPlayers : public orbital::game_boundary::PlayersEndOutbound {
  public:
   void startRejected(const orbital::game_boundary::StartRejected& /* rejected */) override {}
   void submissionOutcome(const orbital::game_boundary::SubmissionOutcome& /* outcome */) override {}
-  void orderCommitted(const orbital::OrderCommitted& /* committed */) override {}
+  void orderSubmitted(const orbital::OrderSubmitted& /* submitted */) override {}
   void stepReported(const orbital::game_boundary::StepReport& /* step */) override {}
   void ordersEndedWithRound(const orbital::ArenaEvents& /* events */) override {}
   void concluded(const orbital::game_authority::GameConcluded& /* concluded */) override {}

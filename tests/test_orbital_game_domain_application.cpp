@@ -6,6 +6,7 @@
 
 #include <gtest/gtest.h>
 
+#include <algorithm>
 #include <chrono>
 #include <map>
 #include <memory>
@@ -18,7 +19,6 @@
 #include "common/snake_model.hpp"
 #include "orbital/orbital_game_domain_application.hpp"
 #include "orbital/orbital_game_domain_application_test_access.hpp"
-#include "orbital/order_release_policy.hpp"
 #include "orbital_lanes.hpp"
 #include "orbital_recording_players.hpp"
 #include "test_printers.hpp"
@@ -46,7 +46,7 @@ Status statusOf(const Views& views, OrderId id) {
     }
   }
   ADD_FAILURE() << "order " << id.value << " is not known";
-  return Status::PENDING;
+  return Status::SELECTED;
 }
 
 // The comparable content of the three views: heads, food, executing targets and step; order statuses; points and
@@ -89,14 +89,14 @@ RandomIntGeneratorFn makeSwitchableRandom(std::shared_ptr<bool> failing) {
 struct SubmittingOnFirstStep : RecordingPlayers {
   void stepReported(const game_boundary::StepReport& step) override {
     RecordingPlayers::stepReported(step);
-    if (!submitted) {
-      submitted = true;
+    if (!has_submitted) {
+      has_submitted = true;
       game->submit(app::Submit{PLAYER_A, Point{3, 3}});
     }
   }
 
   app::DomainApplication* game{nullptr};
-  bool submitted{false};
+  bool has_submitted{false};
 };
 
 /**
@@ -131,7 +131,7 @@ class OrbitalGameDomainApplication : public ::testing::Test {
   /**
    * @brief Submit an order that is expected to be accepted
    *
-   * @return Identity of the committed order
+   * @return Identity of the selected order
    */
   OrderId submit(const PlayerId& player, Point target) {
     game_.submit(app::Submit{player, target});
@@ -154,8 +154,10 @@ class OrbitalGameDomainApplication : public ::testing::Test {
 
 /// @section DomainApplication
 ///
-/// Whole-game histories: release (Order Authority) → execution (Arena Authority) → scoring (Game Authority).
-/// Timing: an order issued at 0 ms is released at 200 ms; steps run every 200 ms.
+/// Whole-game histories: selection and transmission (Order Authority) → execution (Arena Authority) → scoring
+/// (Game Authority). Timing: steps run every 200 ms; the first transmission opportunities come at 200 ms, 4200 ms and
+/// 8000 ms, so an order submitted at 0 ms is transmitted at 200 ms and activates at 400 ms, and one submitted later
+/// in the first 4 s activates at 4400 ms.
 
 /// @subsection construction
 
@@ -185,7 +187,7 @@ TEST_F(OrbitalGameDomainApplication, StartsOnSquareBoardWithSnakesSideBySide) {
 
 /// @brief One Domain Application plays one game; a start while it runs must not silently replace it
 TEST_F(OrbitalGameDomainApplication, RejectsStartWhileGameIsRunning) {
-  // Given: 1300 ms into a game, A's order is pending, and only what follows is observed
+  // Given: 1300 ms into a game, A's order is selected, and only what follows is observed
   start(makeLanes({}));
   elapse(1300);
   OrderId order = submit(PLAYER_A, Point{3, 3});
@@ -198,7 +200,7 @@ TEST_F(OrbitalGameDomainApplication, RejectsStartWhileGameIsRunning) {
   ASSERT_EQ(players_.calls, (std::vector<std::string>{"startRejected", "viewsUpdated"}));
   EXPECT_EQ(players_.start_rejections.front().reason, StartRejectionReason::ALREADY_STARTED);
   EXPECT_EQ(players_.views->now, milliseconds{1300});
-  EXPECT_EQ(statusOf(order), Status::PENDING);
+  EXPECT_EQ(statusOf(order), Status::SELECTED);
 }
 
 /// @brief A new game needs a new Domain Application, also after the game concluded
@@ -221,7 +223,7 @@ TEST_F(OrbitalGameDomainApplication, RejectsStartAfterConclusion) {
 
 /// @brief F's food points count once F completes; no successor was prepared, so no handover bonus
 TEST_F(OrbitalGameDomainApplication, BanksPointsOfOrderThatCompletes) {
-  // Given: F to (10,2) activates at 200 ms and collects food at (5,2) and (7,2)
+  // Given: F to (10,2) activates at 400 ms and collects food at (5,2) and (7,2)
   start(makeLanes({Point{5, 2}, Point{7, 2}}));
   OrderId f = submit(PLAYER_A, Point{10, 2});
 
@@ -235,16 +237,17 @@ TEST_F(OrbitalGameDomainApplication, BanksPointsOfOrderThatCompletes) {
   EXPECT_EQ(scoreOf(PLAYER_A).chain, 0);
 }
 
-/// @brief The defining history: F collects +20 while G is pending, and G activates first
+/// @brief The defining history: F collects +20 while G is on its way, and G activates first
 TEST_F(OrbitalGameDomainApplication, LosesPointsOfOrderInterruptedByReplacement) {
-  // Given: F to (10,2) collected food at (5,2); G is submitted at 800 ms (released at 1048 ms)
+  // Given: F to (2,5), around the wrapping row 2, collected food at (5,2) and (7,2); G is submitted at 1000 ms
+  //        (transmitted at 4200 ms)
   start(makeLanes({Point{5, 2}, Point{7, 2}}));
-  OrderId f = submit(PLAYER_A, Point{10, 2});
-  elapse(800);
+  OrderId f = submit(PLAYER_A, Point{2, 5});
+  elapse(1000);
   OrderId g = submit(PLAYER_A, Point{10, 6});
 
-  // When: time passes until G has activated at 1200 ms, after F collected the second food
-  elapse(400);
+  // When: time passes until G has activated at 4400 ms, before F could arrive at 4600 ms
+  elapse(3400);
 
   // Then: F was interrupted and its 20 points are lost, while the snake kept its growth
   EXPECT_EQ(statusOf(f), Status::INTERRUPTED);
@@ -264,190 +267,269 @@ TEST_F(OrbitalGameDomainApplication, KeepsHeldPointsWhenReplacementIsOnlySubmitt
   // When: G is submitted
   OrderId g = submit(PLAYER_A, Point{10, 6});
 
-  // Then: F still holds its 20 points and G waits
+  // Then: F still holds its 20 points and G waits for a transmission
   EXPECT_EQ(scoreOf(PLAYER_A).held, 20);
   EXPECT_EQ(statusOf(f), Status::EXECUTING);
-  EXPECT_EQ(statusOf(g), Status::PENDING);
+  EXPECT_EQ(statusOf(g), Status::SELECTED);
 }
 
 /// @subsection handover chain
 ///
-/// F to (10,2) activates at 200 ms and arrives at 1600 ms. A successor committed at 1400 ms is
-/// released at 1684 ms and so still pending when F completes.
+/// F to (19,2) activates at 400 ms and arrives at 3400 ms. A successor submitted at 3000 ms is transmitted at the
+/// opportunity at 4200 ms, after F's completion, and activates at 4400 ms with the snake at (3,2); towards (4,6) it
+/// arrives at 5200 ms.
 
-/// @brief The defining history of the refinement: G is committed before F completes and still pending then
-TEST_F(OrbitalGameDomainApplication, AwardsHandoverBonusWhenSuccessorIsCommittedBeforeCompletion) {
-  // Given: F collects food at (5,2) and (7,2); G is committed at 1400 ms
+/// @brief The defining history: G is submitted while F executes and takes over after F completed
+TEST_F(OrbitalGameDomainApplication, AwardsHandoverBonusWhenSuccessorSubmittedBeforeCompletionCompletes) {
+  // Given: F collects food at (5,2) and (7,2); G is submitted at 3000 ms
   start(makeLanes({Point{5, 2}, Point{7, 2}}));
-  OrderId f = submit(PLAYER_A, Point{10, 2});
-  elapse(1400);
-  OrderId g = submit(PLAYER_A, Point{10, 6});
+  OrderId f = submit(PLAYER_A, Point{19, 2});
+  elapse(3000);
+  OrderId g = submit(PLAYER_A, Point{4, 6});
 
-  // When: time passes until G has activated at 1800 ms
-  elapse(400);
+  // When: time passes until G has completed at 5200 ms
+  elapse(2200);
 
   // Then: F's 20 food points and the base handover bonus count; the chain has one handover
   EXPECT_EQ(statusOf(f), Status::COMPLETED);
-  EXPECT_EQ(statusOf(g), Status::EXECUTING);
+  EXPECT_EQ(statusOf(g), Status::COMPLETED);
   EXPECT_EQ(scoreOf(PLAYER_A).banked, 20 + 10);
   EXPECT_EQ(scoreOf(PLAYER_A).chain, 1);
   EXPECT_EQ(scoreOf(PLAYER_A).next_handover, 20);
 }
 
-TEST_F(OrbitalGameDomainApplication, DoublesHandoverBonusForConsecutiveHandover) {
-  // Given: F hands over to G, which activates at 1800 ms towards (10,6) and arrives at 2400 ms;
-  //        H is committed at 2200 ms (released at 2532 ms)
+/// @brief The bonus is the successor's: decided when it takes over, held until it reaches its target
+TEST_F(OrbitalGameDomainApplication, HoldsHandoverBonusWhileSuccessorExecutes) {
+  // Given: G is submitted at 3000 ms while F executes
   start(makeLanes({}));
-  submit(PLAYER_A, Point{10, 2});
-  elapse(1400);
-  OrderId g = submit(PLAYER_A, Point{10, 6});
-  elapse(800);
-  OrderId h = submit(PLAYER_A, Point{3, 6});
+  submit(PLAYER_A, Point{19, 2});
+  elapse(3000);
+  OrderId g = submit(PLAYER_A, Point{4, 6});
 
-  // When: time passes until G has completed
-  elapse(200);
+  // When: time passes until G has activated at 4400 ms
+  elapse(1400);
+
+  // Then: G executes, the chain has one handover and its bonus is held, not yet banked
+  EXPECT_EQ(statusOf(g), Status::EXECUTING);
+  EXPECT_EQ(scoreOf(PLAYER_A).chain, 1);
+  EXPECT_EQ(scoreOf(PLAYER_A).held, 10);
+  EXPECT_EQ(scoreOf(PLAYER_A).banked, 0);
+}
+
+TEST_F(OrbitalGameDomainApplication, DoublesHandoverBonusForConsecutiveHandover) {
+  // Given: F hands over to G, which executes from 4400 ms to 5200 ms; H to (4,5) is submitted at 4600 ms,
+  //        transmitted at the opportunity at 8000 ms and activates at 8200 ms
+  start(makeLanes({}));
+  submit(PLAYER_A, Point{19, 2});
+  elapse(3000);
+  submit(PLAYER_A, Point{4, 6});
+  elapse(1600);
+  OrderId h = submit(PLAYER_A, Point{4, 5});
+
+  // When: time passes until H has completed
+  elapse(5400);
 
   // Then: both handovers count, the second worth twice the first
-  EXPECT_EQ(statusOf(g), Status::COMPLETED);
-  EXPECT_EQ(statusOf(h), Status::PENDING);
+  EXPECT_EQ(statusOf(h), Status::COMPLETED);
   EXPECT_EQ(scoreOf(PLAYER_A).banked, 10 + 20);
   EXPECT_EQ(scoreOf(PLAYER_A).chain, 2);
 }
 
-/// @brief Committing too late: F completes before its successor exists
-TEST_F(OrbitalGameDomainApplication, BreaksChainWhenSuccessorIsCommittedAfterCompletion) {
-  // Given: F hands over to G, which arrives at 2400 ms; H is committed only at 2400 ms, after that step
+/// @brief The window reaches past G's arrival: a successor chosen before the next opportunity still follows G
+TEST_F(OrbitalGameDomainApplication, AwardsHandoverToSuccessorSubmittedAfterCompletionBeforeOpportunity) {
+  // Given: F hands over to G, which arrives at 5200 ms; H is submitted only at 5200 ms, after that step, and
+  //        transmitted at the next opportunity at 8000 ms
   start(makeLanes({}));
-  submit(PLAYER_A, Point{10, 2});
-  elapse(1400);
-  OrderId g = submit(PLAYER_A, Point{10, 6});
-  elapse(1000);
-  OrderId h = submit(PLAYER_A, Point{3, 6});
+  submit(PLAYER_A, Point{19, 2});
+  elapse(3000);
+  OrderId g = submit(PLAYER_A, Point{4, 6});
+  elapse(2200);
+  OrderId h = submit(PLAYER_A, Point{4, 5});
 
-  // When: time passes until H has activated
-  elapse(600);
+  // When: time passes until H has completed
+  elapse(4800);
 
-  // Then: only F's handover counts and the chain is broken
+  // Then: both handovers count
   EXPECT_EQ(statusOf(g), Status::COMPLETED);
-  EXPECT_EQ(statusOf(h), Status::EXECUTING);
+  EXPECT_EQ(statusOf(h), Status::COMPLETED);
+  EXPECT_EQ(scoreOf(PLAYER_A).banked, 10 + 20);
+  EXPECT_EQ(scoreOf(PLAYER_A).chain, 2);
+}
+
+/// @brief Submitting too late: the opportunity after G's arrival has passed before the successor exists
+TEST_F(OrbitalGameDomainApplication, BreaksChainWhenSuccessorMissesOpportunityAfterCompletion) {
+  // Given: F hands over to G, which arrives at 5200 ms; H is submitted only at 8000 ms, after the opportunity of that
+  //        step, and transmitted at 11800 ms
+  start(makeLanes({}));
+  submit(PLAYER_A, Point{19, 2});
+  elapse(3000);
+  OrderId g = submit(PLAYER_A, Point{4, 6});
+  elapse(5000);
+  OrderId h = submit(PLAYER_A, Point{4, 5});
+
+  // When: time passes until H has completed at 13000 ms
+  elapse(5200);
+
+  // Then: only G's handover counts and the chain is broken
+  EXPECT_EQ(statusOf(g), Status::COMPLETED);
+  EXPECT_EQ(statusOf(h), Status::COMPLETED);
   EXPECT_EQ(scoreOf(PLAYER_A).banked, 10);
   EXPECT_EQ(scoreOf(PLAYER_A).chain, 0);
 }
 
-/// @brief Committing too early: the successor activates first and interrupts G
-TEST_F(OrbitalGameDomainApplication, BreaksChainAndLosesPointsWhenSuccessorActivatesFirst) {
-  // Given: F hands over to G, which collects food at (10,4) on its way to (10,6); H is committed at 1900 ms
-  start(makeLanes({Point{10, 4}}));
-  submit(PLAYER_A, Point{10, 2});
-  elapse(1400);
-  OrderId g = submit(PLAYER_A, Point{10, 6});
-  elapse(500);
+/// @brief Submitting too early: an opportunity before G's arrival sends H, which then interrupts G and costs its
+/// handover
+TEST_F(OrbitalGameDomainApplication, BreaksChainWhenSuccessorActivatesFirst) {
+  // Given: F with food at (5,2) and (7,2) hands over to G, which takes the long way round to (2,5) from 4400 ms;
+  //        H is submitted at 4600 ms and transmitted at the opportunity at 8000 ms
+  start(makeLanes({Point{5, 2}, Point{7, 2}}));
+  submit(PLAYER_A, Point{19, 2});
+  elapse(3000);
+  OrderId g = submit(PLAYER_A, Point{2, 5});
+  elapse(1600);
   OrderId h = submit(PLAYER_A, Point{3, 6});
 
-  // When: time passes until H has activated at 2400 ms, the step at which G would have arrived
-  elapse(500);
+  // When: time passes until H has activated at 8200 ms, before G could arrive
+  elapse(3600);
 
-  // Then: G was interrupted, its food points are lost, F's handover still counts and the chain is broken
+  // Then: G was interrupted, so its handover is lost: only F's 20 points count and the chain is broken
   EXPECT_EQ(statusOf(g), Status::INTERRUPTED);
   EXPECT_EQ(statusOf(h), Status::EXECUTING);
-  EXPECT_EQ(scoreOf(PLAYER_A).banked, 10);
-  EXPECT_EQ(scoreOf(PLAYER_A).held, 0);
-  EXPECT_EQ(scoreOf(PLAYER_A).chain, 0);
-}
-
-/// @brief A handover needs one uninterrupted prepared successor; revising it costs the handover
-TEST_F(OrbitalGameDomainApplication, DeniesHandoverButBanksPointsWhenPendingSuccessorIsRevised) {
-  // Given: F collects food at (5,2) and (7,2); G is committed at 1200 ms and superseded by G' at 1400 ms
-  start(makeLanes({Point{5, 2}, Point{7, 2}}));
-  submit(PLAYER_A, Point{10, 2});
-  elapse(1200);
-  OrderId g = submit(PLAYER_A, Point{10, 8});
-  elapse(200);
-  OrderId revised = submit(PLAYER_A, Point{10, 6});
-
-  // When: time passes until G' has activated
-  elapse(400);
-
-  // Then: G never activated, G' took over, F's food points count, and F's completion is no handover
-  EXPECT_EQ(statusOf(g), Status::SUPERSEDED);
-  EXPECT_EQ(statusOf(revised), Status::EXECUTING);
   EXPECT_EQ(scoreOf(PLAYER_A).banked, 20);
   EXPECT_EQ(scoreOf(PLAYER_A).chain, 0);
 }
 
-/// @brief A prepared successor that the Arena Authority refuses ends the chain it was prepared for
-TEST_F(OrbitalGameDomainApplication, BreaksChainWhenSuccessorIsRejected) {
-  // Given: G, with a target outside the board, is committed at 1400 ms
-  start(makeLanes({}));
-  submit(PLAYER_A, Point{10, 2});
-  elapse(1400);
-  OrderId g = submit(PLAYER_A, Point{25, 2});
+/// @brief Changing one's mind about the successor before it is sent costs its handover, not the predecessor's points
+TEST_F(OrbitalGameDomainApplication, DeniesHandoverButBanksPointsWhenSelectedSuccessorIsReplaced) {
+  // Given: F collects food at (5,2) and (7,2); G is submitted at 3000 ms and replaced by G' at 3100 ms, before the
+  //        opportunity at 4200 ms
+  start(makeLanes({Point{5, 2}, Point{7, 2}}));
+  submit(PLAYER_A, Point{19, 2});
+  elapse(3000);
+  OrderId g = submit(PLAYER_A, Point{4, 8});
+  elapse(100);
+  OrderId replacement = submit(PLAYER_A, Point{4, 6});
 
-  // When: time passes until G was evaluated at 1800 ms
-  elapse(400);
+  // When: time passes until G' has completed at 5200 ms
+  elapse(2100);
 
-  // Then: F's handover counts, but G was rejected and the chain is broken
-  EXPECT_EQ(statusOf(g), Status::REJECTED);
-  EXPECT_EQ(scoreOf(PLAYER_A).banked, 10);
+  // Then: G was never sent, G' took over and completed, F's food points count, and G' earned no handover
+  EXPECT_EQ(statusOf(g), Status::REPLACED);
+  EXPECT_EQ(statusOf(replacement), Status::COMPLETED);
+  EXPECT_EQ(scoreOf(PLAYER_A).banked, 20);
   EXPECT_EQ(scoreOf(PLAYER_A).chain, 0);
 }
 
-/// @subsection pending orders
+/// @brief A refused order never executed, so the successor that follows it still hands over from F
+TEST_F(OrbitalGameDomainApplication, AwardsHandoverPastRejectedOrder) {
+  // Given: F takes the long way round to (2,5) until 4600 ms; G, with a target outside the board, is submitted at
+  //        600 ms, transmitted at 4200 ms and rejected at 4400 ms; H is submitted at 4400 ms while F still executes
+  start(makeLanes({}));
+  submit(PLAYER_A, Point{2, 5});
+  elapse(600);
+  OrderId g = submit(PLAYER_A, Point{25, 2});
+  elapse(3800);
+  OrderId h = submit(PLAYER_A, Point{2, 6});
 
-/// @brief An order whose release time falls exactly on a step activates on that step
-TEST_F(OrbitalGameDomainApplication, ActivatesOrderOnStepAtItsReleaseTime) {
-  // Given: G is committed at 0 ms, so it is released at 200 ms
+  // When: time passes until H, transmitted at 8000 ms, has completed
+  elapse(6000);
+
+  // Then: G was rejected, and H's completion is a handover from F
+  EXPECT_EQ(statusOf(g), Status::REJECTED);
+  EXPECT_EQ(statusOf(h), Status::COMPLETED);
+  EXPECT_EQ(scoreOf(PLAYER_A).banked, 10);
+  EXPECT_EQ(scoreOf(PLAYER_A).chain, 1);
+}
+
+/// @subsection transmission and activation
+
+TEST_F(OrbitalGameDomainApplication, TransmitsSelectedOrderAtOpportunity) {
+  // Given: G is submitted at 0 ms
   start(makeLanes({}));
   OrderId g = submit(PLAYER_A, Point{10, 6});
 
-  // When: the step at 200 ms runs
+  // When: the step at 200 ms, an opportunity, runs
   elapse(200);
 
-  // Then: G executes
-  EXPECT_EQ(statusOf(g), Status::EXECUTING);
+  // Then: G is transmitted at the end of that step, with its submission time
+  EXPECT_EQ(statusOf(g), Status::TRANSMITTED);
+  ASSERT_EQ(players_.steps.back().transmissions.size(), 1U);
+  EXPECT_EQ(players_.steps.back().transmissions.front().order, g);
+  EXPECT_EQ(players_.steps.back().transmissions.front().submitted_at, milliseconds{0});
 }
 
-/// @brief An order can activate only at the first step at or after its release time, not at a step before it
-TEST_F(OrbitalGameDomainApplication, KeepsOrderPendingAtStepBeforeItsReleaseTime) {
-  // Given: G is committed at 1 ms, so it is released at 201 ms
+/// @brief An order transmitted at a step is tried at the next step, before that step's movement
+TEST_F(OrbitalGameDomainApplication, ActivatesTransmittedOrderAtNextStep) {
+  // Given: G was transmitted at 200 ms
   start(makeLanes({}));
-  elapse(1);
   OrderId g = submit(PLAYER_A, Point{10, 6});
+  elapse(200);
+
+  // When: the step at 400 ms runs
+  elapse(200);
+
+  // Then: G was activated in that step
+  EXPECT_EQ(statusOf(g), Status::EXECUTING);
+  ASSERT_EQ(players_.steps.back().activations.size(), 1U);
+}
+
+/// @brief Without an opportunity the selection waits; a submission at the time of an opportunity's step came after it
+TEST_F(OrbitalGameDomainApplication, KeepsOrderSelectedUntilNextOpportunity) {
+  // Given: the step at 200 ms was an opportunity, and the next one comes at 4200 ms; G is submitted at 200 ms
+  start(makeLanes({}));
+  elapse(200);
+  OrderId g = submit(PLAYER_A, Point{10, 6});
+
+  // When: time passes until just before the next opportunity
+  elapse(3800);
+
+  // Then: G is still selected
+  EXPECT_EQ(statusOf(g), Status::SELECTED);
+}
+
+/// @brief Only the latest selection is sent; earlier ones never leave the player
+TEST_F(OrbitalGameDomainApplication, TransmitsOnlyLatestSelection) {
+  // Given: G and then H were submitted before the opportunity at 200 ms
+  start(makeLanes({}));
+  OrderId g = submit(PLAYER_A, Point{10, 6});
+  elapse(100);
+  OrderId h = submit(PLAYER_A, Point{12, 2});
 
   // When: the step at 200 ms runs
-  elapse(199);
+  elapse(100);
 
-  // Then: G is still pending
-  EXPECT_EQ(statusOf(g), Status::PENDING);
+  // Then: G was replaced and H transmitted
+  EXPECT_EQ(statusOf(g), Status::REPLACED);
+  EXPECT_EQ(statusOf(h), Status::TRANSMITTED);
 }
 
-/// @brief A revision handled before the activation step prevents the old pending order from activating
-TEST_F(OrbitalGameDomainApplication, SupersedesPendingOrderWithRevisionBeforeItsActivationStep) {
-  // Given: G was submitted at 0 ms (released at 200 ms) and time is at 199 ms
+/// @brief A transmitted order cannot be recalled; a correction follows it at a later opportunity
+TEST_F(OrbitalGameDomainApplication, ActivatesTransmittedOrderDespiteLaterSubmission) {
+  // Given: G was transmitted at 200 ms, and H is submitted at 200 ms
   start(makeLanes({}));
   OrderId g = submit(PLAYER_A, Point{10, 6});
-  elapse(199);
-
-  // When: H is submitted and the step at 200 ms runs
+  elapse(200);
   OrderId h = submit(PLAYER_A, Point{12, 2});
-  elapse(1);
 
-  // Then: G never activated and H waits for its own release time
-  EXPECT_EQ(statusOf(g), Status::SUPERSEDED);
-  EXPECT_EQ(statusOf(h), Status::PENDING);
-  EXPECT_TRUE(arena().active.empty());
+  // When: time passes until the next opportunity at 4200 ms
+  elapse(4000);
+
+  // Then: G activated at 400 ms and H was transmitted after it
+  EXPECT_NE(statusOf(g), Status::TRANSMITTED);
+  EXPECT_NE(statusOf(g), Status::REPLACED);
+  EXPECT_EQ(statusOf(h), Status::TRANSMITTED);
 }
 
 /// @brief A refused replacement neither stops the executing order nor costs its points
 TEST_F(OrbitalGameDomainApplication, KeepsExecutingOrderAndItsPointsWhenReplacementIsRejected) {
-  // Given: F to (10,2) collected food at (5,2), and G with a target outside the board was submitted
+  // Given: F to (2,5) collected food at (5,2), and G with a target outside the board was submitted at 600 ms
   start(makeLanes({Point{5, 2}}));
-  OrderId f = submit(PLAYER_A, Point{10, 2});
+  OrderId f = submit(PLAYER_A, Point{2, 5});
   elapse(600);
   OrderId g = submit(PLAYER_A, Point{25, 2});
 
-  // When: time passes until G was evaluated
-  elapse(600);
+  // When: time passes until G, transmitted at 4200 ms, was evaluated at 4400 ms
+  elapse(3800);
 
   // Then: G is rejected, F still executes with its 10 held points
   EXPECT_EQ(statusOf(g), Status::REJECTED);
@@ -509,10 +591,10 @@ TEST_F(OrbitalGameDomainApplication, ConcludesWithDrawWhenBothSnakesDie) {
   EXPECT_EQ(players_.conclusions.front().result, (game_authority::Result{std::nullopt}));
 }
 
-/// @brief Once the game is over, executing orders end with it and pending ones are cancelled
-TEST_F(OrbitalGameDomainApplication, EndsExecutingAndCancelsPendingOrdersAtConclusion) {
-  // Given: F executes since 118400 ms, and G submitted at 119800 ms (released at 120012 ms) is still
-  //        pending at the end
+/// @brief Once the game is over, executing orders end with it and orders not yet executing are cancelled
+TEST_F(OrbitalGameDomainApplication, EndsExecutingAndCancelsWaitingOrdersAtConclusion) {
+  // Given: F executes since 118400 ms, and G submitted at 119800 ms would be transmitted only at the end of the step
+  //        that concludes the game
   start(makeLanes({}));
   elapse(118000);
   OrderId f = submit(PLAYER_A, Point{12, 6});
@@ -532,10 +614,10 @@ TEST_F(OrbitalGameDomainApplication, RejectsSubmissionBeforeStart) {
   // When: a player submits an order before a game has started
   game_.submit(app::Submit{PLAYER_A, Point{3, 3}});
 
-  // Then: it is rejected because no game has started, and nothing is committed
+  // Then: it is rejected because no game has started, and nothing is selected
   ASSERT_EQ(players_.submissions.size(), 1U);
   EXPECT_EQ(std::get<SubmissionRejected>(players_.submissions.front()).reason, SubmissionRejectionReason::NOT_STARTED);
-  EXPECT_TRUE(players_.commitments.empty());
+  EXPECT_TRUE(players_.submitted.empty());
 }
 
 TEST_F(OrbitalGameDomainApplication, RejectsSubmissionAfterConclusion) {
@@ -605,7 +687,7 @@ TEST_F(OrbitalGameDomainApplication, IgnoresTimeBeforeStart) {
   EXPECT_FALSE(players_.views.has_value());
 }
 
-/// @brief Game time cannot run backward, so a later submission is never committed earlier
+/// @brief Game time cannot run backward, so a later submission is never submitted earlier
 TEST_F(OrbitalGameDomainApplication, RefusesNegativeElapsedTime) {
   // Given: a game started
   start(makeLanes({}));
@@ -616,8 +698,8 @@ TEST_F(OrbitalGameDomainApplication, RefusesNegativeElapsedTime) {
 
 /// @brief Cutting the same game time into smaller advances does not change what happens
 TEST_F(OrbitalGameDomainApplication, ReportsSameStepsAndViewsForOneAdvanceAndItsParts) {
-  // Given: in two games, A's order to (7,2) is pending; it activates at 200 ms and collects the food at (6,2) on
-  //        its way
+  // Given: in two games, A's order to (7,2) is selected; it is transmitted at 200 ms, activates at 400 ms and
+  //        collects the food at (6,2) on its way
   RecordingPlayers at_once_players;
   app::DomainApplication at_once{at_once_players, makeCornerRandom()};
   RecordingPlayers in_parts_players;
@@ -637,7 +719,8 @@ TEST_F(OrbitalGameDomainApplication, ReportsSameStepsAndViewsForOneAdvanceAndIts
   const std::vector<game_boundary::StepReport>& at_once_steps = at_once_players.steps;
   const std::vector<game_boundary::StepReport>& in_parts_steps = in_parts_players.steps;
   ASSERT_EQ(at_once_steps.size(), 5U);
-  ASSERT_EQ(at_once_steps[0].activations.size(), 1U);
+  ASSERT_EQ(at_once_steps[0].transmissions.size(), 1U);
+  ASSERT_EQ(at_once_steps[1].activations.size(), 1U);
   ASSERT_FALSE(at_once_steps[3].events.empty());
   ASSERT_EQ(in_parts_steps.size(), at_once_steps.size());
   for (size_t i = 0; i < at_once_steps.size(); ++i) {
@@ -645,12 +728,13 @@ TEST_F(OrbitalGameDomainApplication, ReportsSameStepsAndViewsForOneAdvanceAndIts
     EXPECT_EQ(in_parts_steps[i].at, at_once_steps[i].at);
     EXPECT_EQ(in_parts_steps[i].activations, at_once_steps[i].activations);
     EXPECT_EQ(in_parts_steps[i].events, at_once_steps[i].events);
+    EXPECT_EQ(in_parts_steps[i].transmissions, at_once_steps[i].transmissions);
   }
   EXPECT_EQ(viewedOutcome(*in_parts_players.views), viewedOutcome(*at_once_players.views));
 }
 
-/// @brief A submission's commitment time is the current time of the game clock
-TEST_F(OrbitalGameDomainApplication, CommitsSubmissionAtCurrentGameTime) {
+/// @brief A submission's time is the current time of the game clock
+TEST_F(OrbitalGameDomainApplication, SubmitsAtCurrentGameTime) {
   // Given: 1300 ms have passed
   start(makeLanes({}));
   elapse(1300);
@@ -658,9 +742,9 @@ TEST_F(OrbitalGameDomainApplication, CommitsSubmissionAtCurrentGameTime) {
   // When: a player submits an order
   game_.submit(app::Submit{PLAYER_A, Point{3, 3}});
 
-  // Then: it is committed at 1300 ms
+  // Then: it is submitted at 1300 ms
   ASSERT_EQ(players_.submissions.size(), 1U);
-  EXPECT_EQ(std::get<SubmissionAccepted>(players_.submissions.front()).committed_at, milliseconds{1300});
+  EXPECT_EQ(std::get<SubmissionAccepted>(players_.submissions.front()).submitted_at, milliseconds{1300});
 }
 
 /// @subsection order of occurrence
@@ -674,8 +758,8 @@ TEST_F(OrbitalGameDomainApplication, ReportsAcceptedSubmissionInOrderOfOccurrenc
   // When: a player submits an order
   game_.submit(app::Submit{PLAYER_A, Point{3, 3}});
 
-  // Then: the outcome comes first, then the commitment, then the views
-  EXPECT_EQ(players_.calls, (std::vector<std::string>{"submissionOutcome", "orderCommitted", "viewsUpdated"}));
+  // Then: the outcome comes first, then the submission record, then the views
+  EXPECT_EQ(players_.calls, (std::vector<std::string>{"submissionOutcome", "orderSubmitted", "viewsUpdated"}));
 }
 
 /// @brief The step that concludes the game is reported before the orders that end with it and the conclusion
@@ -707,14 +791,14 @@ TEST_F(OrbitalGameDomainApplication, TakesCallDuringReportAsNextInteraction) {
   // When: two steps' worth of time passes
   game.elapse(app::TimeElapsed{milliseconds{400}});
 
-  // Then: the report of both steps completes first; the submission follows, committed at the time after them
+  // Then: the report of both steps completes first; the submission follows, submitted at the time after them
   EXPECT_EQ(
       players.calls,
       (std::vector<std::string>{
-          "stepReported", "stepReported", "viewsUpdated", "submissionOutcome", "orderCommitted", "viewsUpdated"}));
-  ASSERT_EQ(players.commitments.size(), 1U);
-  EXPECT_EQ(players.commitments.front().committed_at, milliseconds{400});
-  EXPECT_EQ(players.views->pending_release_times.at(PLAYER_A), order_release_policy::releaseTime(milliseconds{400}));
+          "stepReported", "stepReported", "viewsUpdated", "submissionOutcome", "orderSubmitted", "viewsUpdated"}));
+  ASSERT_EQ(players.submitted.size(), 1U);
+  EXPECT_EQ(players.submitted.front().submitted_at, milliseconds{400});
+  EXPECT_TRUE(players.views->orders.players.at(PLAYER_A).selected.has_value());
 }
 
 /// @brief A failing players' side must not let a call it made during the failed report take effect later
@@ -731,7 +815,7 @@ TEST_F(OrbitalGameDomainApplication, DropsWaitingCallsWhenReportFails) {
 
   // Then: the submission made during the failed report never took effect
   EXPECT_TRUE(players.submissions.empty());
-  EXPECT_TRUE(players.commitments.empty());
+  EXPECT_TRUE(players.submitted.empty());
 }
 
 /// @brief After a failed report the game goes on from where the reported input left it
@@ -746,9 +830,9 @@ TEST_F(OrbitalGameDomainApplication, KeepsTakingCallsAfterReportFailed) {
   // When: a player submits an order
   game.submit(app::Submit{PLAYER_A, Point{5, 5}});
 
-  // Then: it is committed at the time the two steps reached
-  ASSERT_EQ(players.commitments.size(), 1U);
-  EXPECT_EQ(players.commitments.front().committed_at, milliseconds{400});
+  // Then: it is submitted at the time the two steps reached
+  ASSERT_EQ(players.submitted.size(), 1U);
+  EXPECT_EQ(players.submitted.front().submitted_at, milliseconds{400});
 }
 
 /// @brief An advance that an owner cannot complete is reported not even in part
@@ -797,33 +881,33 @@ TEST_F(OrbitalGameDomainApplication, ResumesFromBeforeAdvanceThatAnOwnerFailed) 
 
 /// @subsection views
 
-/// @brief Players see how long a submission sent now would travel, so they can time it
-TEST_F(OrbitalGameDomainApplication, ViewsDelayOfSubmissionIssuedNow) {
-  // Given: 14900 ms have passed
+/// @brief Players see the coming opportunities, so they can time a submission around a predecessor's arrival
+TEST_F(OrbitalGameDomainApplication, ViewsNextTwoTransmissionOpportunities) {
+  // Given: 2800 ms have passed
   start(makeLanes({}));
-  elapse(14900);
+  elapse(2800);
 
-  // When: 100 ms more pass, reaching a quarter of the orbital cycle
-  elapse(100);
+  // When: 200 ms more pass
+  elapse(200);
 
-  // Then: the views carry the current time and the delay halfway between 200 ms and 2000 ms
-  EXPECT_EQ(players_.views->now, milliseconds{15000});
-  EXPECT_EQ(players_.views->submission_delay, milliseconds{1100});
+  // Then: the views carry the current time and the two opportunities after it
+  EXPECT_EQ(players_.views->now, milliseconds{3000});
+  EXPECT_EQ(players_.views->next_transmissions, (std::vector<milliseconds>{milliseconds{4200}, milliseconds{8000}}));
 }
 
-/// @brief Presentation scales the delay gauge without asking the Order Release Policy itself
-TEST_F(OrbitalGameDomainApplication, ViewsRangeOfOrderDelay) {
+/// @brief Presentation scales the opportunity gauge without asking the Transmission Schedule Policy itself
+TEST_F(OrbitalGameDomainApplication, ViewsRangeOfTransmissionInterval) {
   // When: a game starts
   game_.start(app::Start{RoundId{1}});
 
-  // Then: the views show the Order Delay's range of 0.2-2 s
+  // Then: the views show the interval's range of 0.5-4 s
   ASSERT_TRUE(players_.views.has_value());
-  EXPECT_EQ(players_.views->min_delay, milliseconds{200});
-  EXPECT_EQ(players_.views->max_delay, milliseconds{2000});
+  EXPECT_EQ(players_.views->min_interval, milliseconds{500});
+  EXPECT_EQ(players_.views->max_interval, milliseconds{4000});
 }
 
-/// @brief Game time ends with the game, so the link condition shown at the end stays as it was
-TEST_F(OrbitalGameDomainApplication, StopsGameTimeAndLinkDelayAtConclusion) {
+/// @brief Game time ends with the game, so the time shown at the end stays as it was
+TEST_F(OrbitalGameDomainApplication, StopsGameTimeAtConclusion) {
   // Given: the game ended at 120000 ms
   start(makeLanes({}));
   elapse(120000);
@@ -831,37 +915,37 @@ TEST_F(OrbitalGameDomainApplication, StopsGameTimeAndLinkDelayAtConclusion) {
   // When: five more seconds pass
   elapse(5000);
 
-  // Then: the views still show the time and delay of the end of the game
+  // Then: the views still show the time of the end of the game
   EXPECT_EQ(players_.views->now, milliseconds{120000});
-  EXPECT_EQ(players_.views->submission_delay, order_release_policy::delayAt(milliseconds{120000}));
 }
 
-/// @brief Presentation shows when a pending order is released without asking the Order Release Policy itself
-TEST_F(OrbitalGameDomainApplication, ViewsReleaseTimeOfPendingOrder) {
-  // Given: a game started
+TEST_F(OrbitalGameDomainApplication, ViewsRouteOfSelectedOrder) {
+  // Given: a game started, with A's snake at (2,2) heading right
   start(makeLanes({}));
 
-  // When: A orders (8,5) at 0 ms
-  game_.submit(app::Submit{PLAYER_A, Point{8, 5}});
-
-  // Then: the views show its release time of 200 ms
-  EXPECT_EQ(players_.views->pending_release_times.at(PLAYER_A), milliseconds{200});
-}
-
-/// @brief The preview of an order in transit follows the snake until the order activates
-TEST_F(OrbitalGameDomainApplication, ViewsPendingRouteFromCurrentSnakePosition) {
-  // Given: at 200 ms, with A's snake at (3,2) heading right, A ordered (8,5) (released at 412 ms)
-  start(makeLanes({}));
-  elapse(200);
+  // When: A selects (8,5)
   submit(PLAYER_A, Point{8, 5});
 
-  // When: the step at 400 ms moved the snake to (4,2)
+  // Then: the selected route starts from (2,2): six moves right, three down
+  using D = Direction;
+  EXPECT_EQ(
+      players_.views->selected_routes.at(PLAYER_A),
+      (std::vector<Direction>{D::RIGHT, D::RIGHT, D::RIGHT, D::RIGHT, D::RIGHT, D::RIGHT, D::DOWN, D::DOWN, D::DOWN}));
+}
+
+/// @brief The preview of a transmitted order starts from the snake where it is when the order was sent
+TEST_F(OrbitalGameDomainApplication, ViewsRouteOfTransmittedOrderFromCurrentSnakePosition) {
+  // Given: with A's snake at (2,2) heading right, A selected (8,5)
+  start(makeLanes({}));
+  submit(PLAYER_A, Point{8, 5});
+
+  // When: the step at 200 ms moved the snake to (3,2) and transmitted the order
   elapse(200);
 
-  // Then: the pending route starts from (4,2): four moves right, three down
+  // Then: the transmitted route starts from (3,2): five moves right, three down
   using D = Direction;
-  EXPECT_EQ(players_.views->pending_routes.at(PLAYER_A),
-            (std::vector<Direction>{D::RIGHT, D::RIGHT, D::RIGHT, D::RIGHT, D::DOWN, D::DOWN, D::DOWN}));
+  EXPECT_EQ(players_.views->transmitted_routes.at(PLAYER_A),
+            (std::vector<Direction>{D::RIGHT, D::RIGHT, D::RIGHT, D::RIGHT, D::RIGHT, D::DOWN, D::DOWN, D::DOWN}));
 }
 
 /// @section TestAccess::startWithSetup
