@@ -23,6 +23,7 @@ using orbital_frame::UplinkTimeline;
 
 // Gruvbox dark palette
 namespace gruvbox {
+ftxui::Color bg0() { return ftxui::Color::RGB(0x28, 0x28, 0x28); }
 ftxui::Color bg2() { return ftxui::Color::RGB(0x50, 0x49, 0x45); }
 ftxui::Color gray() { return ftxui::Color::RGB(0x92, 0x83, 0x74); }
 ftxui::Color fg4() { return ftxui::Color::RGB(0xa8, 0x99, 0x84); }
@@ -40,6 +41,7 @@ ftxui::Color textColor() { return gruvbox::fg(); }
 ftxui::Color labelColor() { return gruvbox::gray(); }
 ftxui::Color foodColor() { return gruvbox::green(); }
 ftxui::Color uplinkColor() { return gruvbox::fg4(); }
+ftxui::Color flashTextColor() { return gruvbox::bg0(); }
 ftxui::Color elapsedColor() { return gruvbox::bg2(); }
 
 ftxui::Color playerColor(const PlayerId& player) { return player == PLAYER_A ? gruvbox::purple() : gruvbox::yellow(); }
@@ -121,11 +123,23 @@ ftxui::Element padded(ftxui::Element content) {
 // Rounded box whose title starts after one line character of the top border, e.g. "╭─ Title ───╮"
 // The border is drawn in a muted colour; title and content are drawn over it in the text colour,
 // where their own colours, such as the snakes', take precedence
-ftxui::Element box(ftxui::Element title, ftxui::Element content) {
+ftxui::Element box(ftxui::Element title,
+                   ftxui::Element content,
+                   ftxui::Color border = borderColor(),
+                   ftxui::Color text = textColor()) {
   ftxui::Element framed_title =
-      ftxui::hbox({ftxui::text("─ "), std::move(title) | ftxui::color(textColor()), ftxui::text(" ")});
-  return ftxui::window(std::move(framed_title), padded(std::move(content) | ftxui::color(textColor()))) |
-         ftxui::color(borderColor());
+      ftxui::hbox({ftxui::text("─ "), std::move(title) | ftxui::color(text), ftxui::text(" ")});
+  return ftxui::window(std::move(framed_title), padded(std::move(content) | ftxui::color(text))) | ftxui::color(border);
+}
+
+// Player whose just granted handover lights up the board, if any
+std::optional<PlayerId> flashingPlayer(const Frame& frame) {
+  for (const auto& [player, panel] : frame.players) {
+    if (panel.handover_flash) {
+      return player;
+    }
+  }
+  return std::nullopt;
 }
 
 std::string targetText(Point target) { return "(" + std::to_string(target.x) + "," + std::to_string(target.y) + ")"; }
@@ -149,7 +163,10 @@ ftxui::Element board(const Frame& frame) {
     }
     rows.push_back(ftxui::hbox(std::move(cells)));
   }
-  return box(ftxui::text("Orbital Orders · " + statusText(frame)), ftxui::vbox(std::move(rows)));
+  const std::optional<PlayerId> flashing = flashingPlayer(frame);
+  return box(ftxui::text("Orbital Orders · " + statusText(frame)),
+             ftxui::vbox(std::move(rows)),
+             flashing ? playerColor(*flashing) : borderColor());
 }
 
 // Shade of an overview stretch by the share of its steps that are opportunities, e.g. "▓▓"
@@ -241,7 +258,7 @@ ftxui::Element uplink(const UplinkTimeline& timeline, const std::vector<PlayerId
 }
 
 // The player's orders, latest stage first: the one executing, the one sent, the one waiting to be sent
-std::vector<ftxui::Element> orderLines(const PlayerPanel& panel) {
+std::vector<ftxui::Element> orderLines(const PlayerPanel& panel, ftxui::Color selected_color) {
   if (!panel.alive) {
     return {ftxui::text("dead")};
   }
@@ -251,7 +268,7 @@ std::vector<ftxui::Element> orderLines(const PlayerPanel& panel) {
     lines.push_back(ftxui::text("sent     " + targetText(*panel.transmitted_target)));
   }
   if (panel.selected_target) {
-    lines.push_back(ftxui::text("selected " + targetText(*panel.selected_target)) | ftxui::color(labelColor()));
+    lines.push_back(ftxui::text("selected " + targetText(*panel.selected_target)) | ftxui::color(selected_color));
   }
   if (panel.handover_hint == HandoverHint::CHOOSE_NOW) {
     lines.push_back(ftxui::text("handover window: choose now") | ftxui::bold);
@@ -266,8 +283,16 @@ ftxui::Element playerPanel(const PlayerId& player, const PlayerPanel& panel, int
       ftxui::text(std::to_string(panel.banked) + " pts   +" + std::to_string(panel.held) + " held"),
       ftxui::text("chain " + std::to_string(panel.chain) + "   next handover +" + std::to_string(panel.next_handover)),
   };
-  for (ftxui::Element& line : orderLines(panel)) {
+  // A just granted handover lights the panel up in the player's colour, with all text dark on it
+  const bool flashing = panel.handover_flash.has_value();
+  for (ftxui::Element& line : orderLines(panel, flashing ? flashTextColor() : labelColor())) {
     lines.push_back(std::move(line));
+  }
+  if (flashing) {
+    lines.push_back(ftxui::text("HANDOVER +" + std::to_string(*panel.handover_flash)) | ftxui::bold);
+    ftxui::Element title = ftxui::text("● " + player) | ftxui::bold;
+    return box(std::move(title), ftxui::vbox(std::move(lines)), playerColor(player), flashTextColor()) |
+           ftxui::bgcolor(playerColor(player)) | ftxui::size(ftxui::WIDTH, ftxui::EQUAL, width);
   }
   ftxui::Element title = ftxui::hbox({
       ftxui::text("●") | ftxui::color(playerColor(player)),

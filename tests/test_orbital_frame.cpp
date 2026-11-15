@@ -384,6 +384,20 @@ TEST_F(OrbitalFrame, PromisesNoHandoverWhileSentOrderIsAboutToTakeOver) {
   EXPECT_EQ(frame.players.at(PLAYER_A).handover_hint, HandoverHint::NONE);
 }
 
+/// @subsection handover flash
+
+TEST_F(OrbitalFrame, ShowsBonusOfFlashingHandover) {
+  // Given: a game started
+  start();
+
+  // When: the frame is built while A's handover worth 20 is to be highlighted
+  Frame frame = orbital_frame::build(views(), {}, {{PLAYER_A, 20}});
+
+  // Then: A's panel carries the bonus and B's none
+  EXPECT_EQ(frame.players.at(PLAYER_A).handover_flash, 20);
+  EXPECT_FALSE(frame.players.at(PLAYER_B).handover_flash.has_value());
+}
+
 /// @subsection game over
 
 TEST_F(OrbitalFrame, ShowsResultOnceGameIsOver) {
