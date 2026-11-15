@@ -23,10 +23,11 @@ namespace game_authority {
  *
  * Owns whether the game runs, the banked and held points, each player's handover chain and
  * the final result. A game is one round. It sits beside the Arena and Order Authorities: it reads
- * what the Arena Authority reports and the Order Authority's commitment history, uses the Orbital Scoring
- * Policy for point values and the Orbital Pacing Policy for the game duration, and announces the
+ * what the Arena Authority reports and the Order Authority's transmission history, uses the Orbital Scoring
+ * Policy for point values, the Orbital Pacing Policy for the game duration and the Transmission Schedule
+ * Policy for the handover window, and announces the
  * conclusion as an intent, which the realization routes to the Arena Authority (end of execution) and to the
- * Order Authority (cancel pending orders).
+ * Order Authority (cancel the orders not yet executing).
  *
  * Points: an event's points are applied as the Scoring Policy's point effects say; points held for
  * an order are settled when the order ends, as the Scoring Policy decides for its end reason. An
@@ -36,23 +37,26 @@ namespace game_authority {
  * Within one step, the step's events are scored before conclusion is checked, so a step due at
  * the end of the game still counts.
  *
- * Handover chain: an order completing while its prepared successor is still pending is a handover;
- * it earns the Scoring Policy's bonus for its position in the chain. The prepared successor is the
- * player's one commitment made while the order executed: from the step that activated it and before
- * the completing step. It is still pending if it has not been activated or rejected by then. A
- * second commitment in that time revises the prepared successor and costs the executing order its
- * handover; later commitments cannot restore it, while the executing order's held points
- * are unaffected. The chain breaks with a completion that is no handover, an interruption, the
- * player's snake dying (whether or not an order was executing), a rejection of the successor or the
- * end of the game.
+ * Handover chain: a successor H that completes is a handover from its predecessor F, the
+ * player's order that executed last before H activated, when
+ * - F completed (H activated without interrupting it; an idle gap between them is fine),
+ * - H was submitted at or after the step that activated F and transmitted at the first opportunity at
+ *   or after the step that completed F (Transmission Schedule Policy): so H was chosen in the interval
+ *   around F's arrival, from the opportunity before it to the one after it, and
+ * - H replaced no earlier selection before it was transmitted.
+ * Whether H hands over is known when H activates: the handover then counts in the chain and earns the
+ * Scoring Policy's bonus for its position in it, held for H like its food points: banked when H completes,
+ * dropped when H ends otherwise, which breaks the chain. An order activating without handing over, an
+ * interruption, the player's snake dying (whether or not an order was executing) and the end of the game
+ * break the chain; a rejected order never executed and changes nothing.
+ * F's held points are settled by F's own ending and are not affected by its successor.
  *
- * The chain is derived from both histories as far as they are known. Commitments may be learned
+ * The chain is derived from both histories as far as they are known. Transmissions may be learned
  * after the steps they relate to, as when a player-local Order Authority synchronizes late; the
- * chain is then derived again and the difference of the bonuses is banked when the commitment is
- * learned. Usually that adds a bonus; it withdraws one that was banked on incomplete history,
- * when a later commitment shows that the counted successor had already been revised. Either
- * way, the eventual score is the same as if every commitment had been known in time, so scores
- * shown before the histories are complete are provisional. The Arena Authority's history is never rewritten.
+ * chain is then derived again and the difference of the bonuses is banked when the transmission is
+ * learned, so the eventual score is the same as if every transmission had been known in time.
+ * Scores shown before the histories are complete are provisional. The Arena Authority's history
+ * is never rewritten.
  */
 
 /**
@@ -90,6 +94,10 @@ struct ObservedStep {
 struct Chain {
   int length{0};        // Consecutive handovers of the current chain
   int bonus_banked{0};  // Handover bonus banked so far over the whole game
+  int bonus_held{0};    // Handover bonus held for the executing order, banked if it completes
+  // Completion of the player's last executed order while no other order executed since: a successor
+  // may still hand over from it
+  std::optional<GameTime> open_completion;
 };
 
 /**
@@ -125,9 +133,9 @@ class State {
   std::optional<Result> result_;  // Set once the game concluded
 
   // Histories the handover chain is derived from
-  std::map<PlayerId, std::vector<OrderCommitted>> commitments_;  // Learned commitments per player
-  std::vector<ObservedStep> steps_;                              // Observed steps, in step order
-  std::map<PlayerId, Chain> chains_;                             // Derived chain and bonus banked so far
+  std::map<PlayerId, std::vector<OrderTransmitted>> transmissions_;  // Learned transmissions per player
+  std::vector<ObservedStep> steps_;                                  // Observed steps, in step order
+  std::map<PlayerId, Chain> chains_;                                 // Derived chain and bonus banked so far
 
   // Construction
   friend State startRound(RoundId round, const std::vector<PlayerId>& players);
@@ -138,7 +146,7 @@ class State {
                                                                      const std::vector<ActivationOutcome>& activations,
                                                                      const ArenaEvents& events,
                                                                      const std::set<PlayerId>& alive);
-  friend State observeCommitment(State state, const OrderCommitted& committed);
+  friend State observeTransmission(State state, const OrderTransmitted& transmitted);
 
   // Queries
   friend bool isRunning(const State& state);
@@ -168,8 +176,8 @@ State startRound(RoundId round, const std::vector<PlayerId>& players);
  * The game is over when the Pacing Policy's game duration has elapsed or no snake is alive any more.
  * Steps observed after conclusion change nothing.
  *
- * Completions of the step earn handover bonuses as far as the successors' commitments are known;
- * see observeCommitment for commitments learned later.
+ * Completions of the step earn handover bonuses as far as the completing orders' transmissions are
+ * known; see observeTransmission for transmissions learned later.
  *
  * Admitted input: every step of this round exactly once, in step order, with its events in the
  * order the Arena Authority reported them. A step observed twice is scored twice, and steps out of order
@@ -190,23 +198,23 @@ std::tuple<State, std::optional<GameConcluded>> observeStep(State state,
                                                             const std::set<PlayerId>& alive);
 
 /**
- * @brief Learn that a player committed an order
+ * @brief Learn that a player's order was transmitted
  *
- * The commitment counts with its own commitment time, whenever it is learned. If steps already
- * observed show that the order was a successor pending at a completion, the handover bonus earned
- * there is banked now; if it shows that a counted successor had been revised, that bonus is
- * withdrawn. Commitments learned after conclusion or of another round change nothing. An order's
- * commitment counts once: a later record for an already known order, also with another time,
- * changes nothing, so a commitment time cannot be rewritten by resending.
+ * The transmission counts with its own submission time, whenever it is learned. If steps already
+ * observed show that the order completed as a handover, its bonus is banked now; if it changes which
+ * order preceded a counted handover, that bonus is withdrawn. Transmissions learned after conclusion
+ * or of another round change nothing. An order's transmission counts once: a later record for an
+ * already known order, also with other times, changes nothing, so a submission time cannot be
+ * rewritten by resending.
  *
- * Admitted input: the Order Authority's commitments of this round, in any order relative to the
+ * Admitted input: the Order Authority's transmissions of this round, in any order relative to the
  * steps.
  *
  * @param state Current game state
- * @param committed The commitment
+ * @param transmitted The transmission
  * @return Updated game state
  */
-State observeCommitment(State state, const OrderCommitted& committed);
+State observeTransmission(State state, const OrderTransmitted& transmitted);
 
 // ============================================================================
 // Queries: read the state without evolving it
@@ -228,6 +236,9 @@ struct PlayerScore {
   int held;           // Points of the executing order that count only if it completes
   int chain;          // Consecutive handovers of the current chain
   int next_handover;  // Bonus the next handover of the chain would earn
+  // Time of the step that completed the player's last executed order, while no other order activated
+  // since and the snake lives: a successor sent at the first opportunity from then on hands over
+  std::optional<GameTime> open_completion;
 };
 
 /**

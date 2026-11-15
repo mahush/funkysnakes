@@ -21,7 +21,7 @@ namespace mechanics {
 struct Observations {
   std::optional<game_boundary::StartRejected> start_rejected;  // For a refused Start
   std::optional<game_boundary::SubmissionOutcome> submission;  // For Submit
-  std::optional<OrderCommitted> commitment;      // For an accepted Submit: the Order Authority's commitment record
+  std::optional<OrderSubmitted> submitted;       // For an accepted Submit: the Order Authority's submission record
   std::vector<game_boundary::StepReport> steps;  // Every step that ran, oldest first
   ArenaEvents end_of_round_events;               // Orders ended because the game concluded
   std::optional<game_authority::GameConcluded> concluded;
@@ -61,8 +61,8 @@ inline void deliver(const Observations& observations, game_boundary::PlayersEndO
   if (observations.submission) {
     players.submissionOutcome(*observations.submission);
   }
-  if (observations.commitment) {
-    players.orderCommitted(*observations.commitment);
+  if (observations.submitted) {
+    players.orderSubmitted(*observations.submitted);
   }
   for (const game_boundary::StepReport& step : observations.steps) {
     players.stepReported(step);

@@ -2,6 +2,7 @@
 
 #include <map>
 #include <optional>
+#include <set>
 #include <tuple>
 #include <vector>
 
@@ -14,32 +15,35 @@ namespace orbital {
 namespace order_authority {
 
 /**
- * Order Authority - owns the delayed lifecycle of the players' orders
+ * Order Authority - owns the lifecycle of the players' orders from submission to transmission
  *
- * Owns the committed orders with their commitment times, the latest pending order per player until
- * the Arena Authority resolves it, supersession and the status of every order interpreted from what
- * the Arena Authority reports. It does not own the actual executing route (Arena Authority) or any
- * points (Game Authority).
+ * Owns the submitted orders with their submission and transmission times, each player's selected
+ * order until it is transmitted, the transmitted orders until the Arena Authority resolves them, and
+ * the status of every order interpreted from what the Arena Authority reports. It does not own the
+ * actual executing route (Arena Authority), when the orbital link offers an opportunity
+ * (Transmission Schedule Policy) or any points (Game Authority).
  *
- * - A submission is committed where the player's input is accepted; its commitment time is part
- *   of the domain history and is published as OrderCommitted, so that the Game Authority can relate it to the
- *   Arena Authority's completions. Commitment and supersession are one lifecycle.
- * - When a pending order is released for activation is the Order Release Policy's decision, taken
- *   from its commitment time; this Authority keeps no release time.
- * - A new submission supersedes the player's pending order; the superseded order never activates.
- * - Querying the pending orders does not consume them. A pending order is resolved only when the
- *   Arena Authority's outcome for it is observed.
+ * - A submission takes effect where the player's input is accepted: it becomes the player's selected
+ *   order at once, with its own submission time, which is part of the domain history and published
+ *   as OrderSubmitted.
+ * - A new submission replaces the player's selected order; the replaced order is never transmitted.
+ * - At a transmission, each player's selected order becomes irrevocable and is published as
+ *   OrderTransmitted, keeping its own submission time. A transmitted order is never recalled; a
+ *   correction is a new submission, transmitted later.
+ * - Querying the transmitted orders does not consume them. A transmitted order is resolved only when
+ *   the Arena Authority's outcome for it is observed.
  * - What the Arena Authority actually did wins over this Authority's own expectation, and late reports for
- *   executing orders still count after pending orders were cancelled.
+ *   executing orders still count after the remaining orders were cancelled.
  */
 
 /**
  * @brief Status of one order
  */
 enum class Status {
-  PENDING,         // Waiting for release and activation
-  SUPERSEDED,      // Replaced by a newer submission before it activated
-  CANCELLED,       // Still pending when the round concluded
+  SELECTED,        // Submitted, waiting for a transmission
+  REPLACED,        // Replaced by a newer submission before it was transmitted
+  TRANSMITTED,     // Transmitted, waiting for activation
+  CANCELLED,       // Still selected or transmitted when the round concluded
   REJECTED,        // The Arena Authority refused to activate it
   EXECUTING,       // The Arena Authority executes it
   COMPLETED,       // Reached its target
@@ -53,7 +57,9 @@ enum class Status {
  */
 struct OrderRecord {
   Order order;
-  GameTime committed_at;
+  GameTime submitted_at;
+  std::optional<GameTime> transmitted_at;  // Set once transmitted
+  std::optional<OrderId> replaced;         // The selected order this submission replaced
   Status status;
   std::optional<RejectionReason> rejection;
 };
@@ -73,18 +79,20 @@ class State {
   RoundId round_;
   int next_order_id_{1};
   std::map<OrderId, OrderRecord> orders_;  // Every order of the round by identity
-  std::map<PlayerId, OrderId> pending_;    // The latest pending order per player
+  std::map<PlayerId, OrderId> selected_;   // The selected, not yet transmitted order per player
+  std::set<OrderId> transmitted_;          // Transmitted orders the Arena Authority has not resolved yet
 
   // Construction
   friend State startRound(RoundId round);
 
   // Transitions
-  friend std::tuple<State, OrderCommitted> submit(State state, const Submission& submission);
+  friend std::tuple<State, OrderSubmitted> submit(State state, const Submission& submission);
+  friend std::tuple<State, std::vector<OrderTransmitted>> transmit(State state, GameTime at);
   friend State observe(State state, const std::vector<ActivationOutcome>& outcomes, const ArenaEvents& events);
   friend State cancel(State state);
 
   // Queries
-  friend std::vector<OrderRecord> pendingOrders(const State& state);
+  friend std::vector<Order> transmittedOrders(const State& state);
   friend View view(const State& state);
 };
 
@@ -94,7 +102,7 @@ class State {
 struct Submission {
   PlayerId player;
   Point target;
-  GameTime committed_at;  // When the player committed it, on the round's timeline
+  GameTime submitted_at;  // When the player submitted it, on the round's timeline
 };
 
 // ============================================================================
@@ -114,20 +122,36 @@ State startRound(RoundId round);
 // ============================================================================
 
 /**
- * @brief Commit a submission as a new order
+ * @brief Select a submission as the player's new order
  *
- * The order gets a new identity. A pending order of the same player is superseded.
+ * The order gets a new identity and becomes the player's selected order. A selected, not yet
+ * transmitted order of the same player is replaced; transmitted and executing orders are unaffected.
  *
  * @param state Current order state
  * @param submission The player's request
- * @return Tuple of (updated state, commitment record with the new order's identity)
+ * @return Tuple of (updated state, submission record with the new order's identity)
  */
-std::tuple<State, OrderCommitted> submit(State state, const Submission& submission);
+std::tuple<State, OrderSubmitted> submit(State state, const Submission& submission);
+
+/**
+ * @brief Transmit every player's selected order
+ *
+ * Each selected order becomes transmitted and irrevocable, keeping its own submission time and the
+ * order it replaced; players
+ * without a selected order transmit nothing, so an order is transmitted once.
+ *
+ * Admitted input: a time of a transmission opportunity, not earlier than the submissions it transmits.
+ *
+ * @param state Current order state
+ * @param at Time of the transmission on the round's timeline
+ * @return Tuple of (updated state, transmission records ordered by player)
+ */
+std::tuple<State, std::vector<OrderTransmitted>> transmit(State state, GameTime at);
 
 /**
  * @brief Interpret what the Arena Authority reported for one step
  *
- * Activation outcomes resolve pending orders; order endings resolve executing orders.
+ * Activation outcomes resolve transmitted orders; order endings resolve executing orders.
  * Reports about unknown orders are ignored.
  *
  * Admitted input: the complete report of one step of this round, each step once and in step
@@ -136,10 +160,11 @@ std::tuple<State, OrderCommitted> submit(State state, const Submission& submissi
  * reordered steps are a concern of the realization delivering the reports.
  *
  * Valid status transitions:
- * - PENDING → SUPERSEDED (submit), CANCELLED (cancel), REJECTED or EXECUTING (outcome)
- * - SUPERSEDED → EXECUTING: the Arena Authority actually activated it; what the Arena Authority did wins
+ * - SELECTED → REPLACED (submit), TRANSMITTED (transmit) or CANCELLED (cancel)
+ * - TRANSMITTED → CANCELLED (cancel), REJECTED or EXECUTING (outcome)
+ * - Any status → EXECUTING: the Arena Authority actually activated it; what the Arena Authority did wins
  * - EXECUTING → COMPLETED, INTERRUPTED, FAILED or ENDED_BY_ROUND (OrderEnded), also after cancel
- * - A rejection reported for an order that is no longer pending changes nothing.
+ * - A rejection reported for an order that is not transmitted changes nothing.
  * Final statuses are not yet protected against late OrderActivated or OrderEnded reports (Known Issues #3).
  *
  * @param state Current order state
@@ -150,12 +175,12 @@ std::tuple<State, OrderCommitted> submit(State state, const Submission& submissi
 State observe(State state, const std::vector<ActivationOutcome>& outcomes, const ArenaEvents& events);
 
 /**
- * @brief Cancel all pending orders
+ * @brief Cancel all selected and transmitted orders
  *
  * Executing orders are left unchanged; their ending still counts when it is observed.
  *
  * @param state Current order state
- * @return Order state without pending orders
+ * @return Order state without selected or transmitted orders
  */
 State cancel(State state);
 
@@ -164,22 +189,24 @@ State cancel(State state);
 // ============================================================================
 
 /**
- * @brief The pending orders, with their commitment times
+ * @brief The transmitted orders the Arena Authority has not resolved yet
  *
- * At most one per player: the latest pending order. Does not change the state; a pending order is
- * resolved only when the Arena Authority's outcome for it is observed.
+ * Does not change the state; a transmitted order is resolved only when the Arena Authority's outcome
+ * for it is observed. A player has several only if transmissions follow each other before the
+ * outcome of the earlier one was observed.
  *
  * @param state Current order state
- * @return Pending orders, ordered by player
+ * @return Transmitted orders, by identity
  */
-std::vector<OrderRecord> pendingOrders(const State& state);
+std::vector<Order> transmittedOrders(const State& state);
 
 /**
  * @brief A player's current order situation
  */
 struct PlayerOrders {
-  std::optional<OrderRecord> pending;    // Waiting for activation
-  std::optional<OrderRecord> executing;  // Executing according to the Arena Authority
+  std::optional<OrderRecord> selected;     // Waiting for a transmission
+  std::optional<OrderRecord> transmitted;  // Latest transmitted order waiting for activation
+  std::optional<OrderRecord> executing;    // Executing according to the Arena Authority
 };
 
 /**
@@ -194,7 +221,7 @@ struct View {
  * @brief Project the order state
  *
  * @param state Current order state
- * @return Pending and executing order per player, and all orders with their status
+ * @return Selected, transmitted and executing order per player, and all orders with their status
  */
 View view(const State& state);
 

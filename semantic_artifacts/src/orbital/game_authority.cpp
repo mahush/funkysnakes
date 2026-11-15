@@ -7,6 +7,7 @@
 
 #include "game_authority_mechanics.hpp"
 #include "orbital/pacing_policy.hpp"
+#include "orbital/transmission_schedule_policy.hpp"
 
 namespace snake {
 namespace orbital {
@@ -73,101 +74,113 @@ Result decideResult(const PerPlayerScores& banked) {
   return Result{tied ? std::nullopt : leader};
 }
 
-using Commitments = std::map<PlayerId, std::vector<OrderCommitted>>;
+using Transmissions = std::map<PlayerId, std::vector<OrderTransmitted>>;
 
-// Player of every order whose commitment is known
-std::map<OrderId, PlayerId> playersOfOrders(const Commitments& commitments) {
+// Player of every order whose transmission is known
+std::map<OrderId, PlayerId> playersOfOrders(const Transmissions& transmissions) {
   std::map<OrderId, PlayerId> players;
-  for (const auto& [player, committed] : commitments) {
-    for (const OrderCommitted& commitment : committed) {
-      players.emplace(commitment.order, player);
+  for (const auto& [player, transmitted] : transmissions) {
+    for (const OrderTransmitted& transmission : transmitted) {
+      players.emplace(transmission.order, player);
     }
   }
   return players;
 }
 
-// The player's latest commitment before the given time; identities break ties in commitment order
-std::optional<OrderId> latestCommittedBefore(const std::vector<OrderCommitted>& committed, GameTime at) {
-  std::optional<OrderCommitted> latest;
-  for (const OrderCommitted& commitment : committed) {
-    if (commitment.committed_at < at &&
-        (!latest || latest->committed_at < commitment.committed_at ||
-         (latest->committed_at == commitment.committed_at && latest->order < commitment.order))) {
-      latest = commitment;
-    }
-  }
-  return latest ? std::optional<OrderId>{latest->order} : std::nullopt;
+// How a player's order executed, as far as the observed steps tell
+struct Execution {
+  GameTime activated_at;
+  std::optional<GameTime> ended_at;
+  std::optional<EndReason> end_reason;
+};
+
+// First transmission opportunity at or after a time; one at the time itself comes after that step's completions
+GameTime firstOpportunityFrom(GameTime at) {
+  return transmission_schedule_policy::isOpportunity(at) ? at : transmission_schedule_policy::nextOpportunityAfter(at);
 }
 
-// The player's commitments from the given time on and before the other, apart from the given order
-std::vector<OrderId> committedBetween(const std::vector<OrderCommitted>& committed,
-                                      OrderId except,
-                                      GameTime from,
-                                      GameTime until) {
-  std::vector<OrderId> orders;
-  for (const OrderCommitted& commitment : committed) {
-    if (commitment.order != except && from <= commitment.committed_at && commitment.committed_at < until) {
-      orders.push_back(commitment.order);
-    }
-  }
-  return orders;
-}
-
-OrderId orderOf(const ActivationOutcome& outcome) {
-  return std::visit([](const auto& item) { return item.order; }, outcome);
+// A completing order is a handover when its predecessor completed, and the order, submitted after the
+// predecessor activated and replacing no earlier selection, was sent at the first opportunity at or after
+// the predecessor's completion: a choice made earlier would have been sent before and interrupted it
+bool handsOver(const OrderTransmitted& successor, const std::optional<Execution>& predecessor) {
+  return predecessor && predecessor->end_reason == EndReason::COMPLETED && !successor.replaced &&
+         predecessor->activated_at <= successor.submitted_at &&
+         successor.transmitted_at == firstOpportunityFrom(*predecessor->ended_at);
 }
 
 // The player's chain as the known histories determine it, with the bonus it earned over the game
 Chain deriveChain(const PlayerId& player,
-                  const std::vector<OrderCommitted>& committed,
+                  const std::vector<OrderTransmitted>& transmitted,
                   const std::map<OrderId, PlayerId>& players,
                   const std::vector<ObservedStep>& steps) {
   auto belongsToPlayer = [&players, &player](OrderId order) {
     auto it = players.find(order);
     return it != players.end() && it->second == player;
   };
+  std::map<OrderId, OrderTransmitted> transmissions;
+  for (const OrderTransmitted& transmission : transmitted) {
+    transmissions.emplace(transmission.order, transmission);
+  }
 
   Chain chain;
-  std::set<OrderId> resolved;                // Orders activated or rejected so far: no longer pending
-  std::map<OrderId, GameTime> activated_at;  // Step time at which each order became executing
+  std::map<OrderId, int> held_bonuses;  // Handover bonus held per handing over order until it ends
+  std::map<OrderId, Execution> executions;
+  std::optional<OrderId> executed_last;                      // The player's order that executed most recently
+  std::map<OrderId, std::optional<Execution>> predecessors;  // Predecessor of each order when it activated
   for (const ObservedStep& step : steps) {
     for (const ActivationOutcome& outcome : step.activations) {
-      const OrderId order = orderOf(outcome);
-      resolved.insert(order);
-      if (std::holds_alternative<OrderActivated>(outcome)) {
-        activated_at.emplace(order, step.at);
+      const auto* activated = std::get_if<OrderActivated>(&outcome);
+      if (activated == nullptr || !belongsToPlayer(activated->order)) {
+        continue;
       }
-      // Only a refusal of the prepared successor ends the chain; a superseded draft was never prepared
-      if (std::holds_alternative<OrderRejected>(outcome) && belongsToPlayer(order) &&
-          latestCommittedBefore(committed, step.at) == order) {
+      // An order activating over an executing one interrupts it, so it has no completed predecessor
+      std::optional<Execution> predecessor;
+      if (!activated->replaced && executed_last) {
+        predecessor = executions.at(*executed_last);
+      }
+      predecessors[activated->order] = predecessor;
+      // Taking over is where a handover is decided; its bonus is held until the order ends
+      if (handsOver(transmissions.at(activated->order), predecessor)) {
+        ++chain.length;
+        held_bonuses[activated->order] = scoring_policy::handoverBonus(chain.length);
+      } else {
         chain.length = 0;
       }
+      executions[activated->order] = Execution{step.at, std::nullopt, std::nullopt};
+      executed_last = activated->order;
+      chain.open_completion.reset();
     }
     for (const ArenaEvent& event : step.events) {
       const auto* ended = std::get_if<OrderEnded>(&event);
       if (ended == nullptr || !belongsToPlayer(ended->order)) {
         continue;
       }
-      // Successors prepared for the ended order are the commitments made while it executed; a commitment
-      // made before its activation would have superseded it. A second one revised the prepared successor,
-      // which costs this order its handover however the later successor fares
-      auto activation = activated_at.find(ended->order);
-      const std::vector<OrderId> successors =
-          activation == activated_at.end() ? std::vector<OrderId>{}
-                                           : committedBetween(committed, ended->order, activation->second, step.at);
-      const bool hands_over =
-          ended->reason == EndReason::COMPLETED && successors.size() == 1 && resolved.count(successors.front()) == 0;
-      if (hands_over) {
-        ++chain.length;
-        chain.bonus_banked += scoring_policy::handoverBonus(chain.length);
-      } else {
+      auto execution = executions.find(ended->order);
+      if (execution != executions.end()) {
+        execution->second.ended_at = step.at;
+        execution->second.end_reason = ended->reason;
+      }
+      // A handover's held bonus is banked by completion; any other ending drops it and breaks the chain
+      auto held = held_bonuses.find(ended->order);
+      if (held != held_bonuses.end()) {
+        if (ended->reason == EndReason::COMPLETED) {
+          chain.bonus_banked += held->second;
+        }
+        held_bonuses.erase(held);
+      }
+      if (ended->reason != EndReason::COMPLETED) {
         chain.length = 0;
       }
+      chain.open_completion = ended->reason == EndReason::COMPLETED ? std::optional<GameTime>{step.at} : std::nullopt;
     }
     // Elimination ends the chain, also when the snake died with no order executing
     if (step.alive.count(player) == 0) {
       chain.length = 0;
+      chain.open_completion.reset();
     }
+  }
+  for (const auto& [order, bonus] : held_bonuses) {
+    chain.bonus_held += bonus;
   }
   return chain;
 }
@@ -175,13 +188,16 @@ Chain deriveChain(const PlayerId& player,
 // Re-derive every player's chain from the known histories and bank the change of their bonus
 std::tuple<PerPlayerScores, std::map<PlayerId, Chain>> bankHandovers(PerPlayerScores banked,
                                                                      std::map<PlayerId, Chain> chains,
-                                                                     const Commitments& commitments,
+                                                                     const Transmissions& transmissions,
                                                                      const std::vector<ObservedStep>& steps) {
-  const std::map<OrderId, PlayerId> players = playersOfOrders(commitments);
+  const std::map<OrderId, PlayerId> players = playersOfOrders(transmissions);
   for (auto& [player, score] : banked) {
-    auto committed = commitments.find(player);
-    const Chain derived = deriveChain(
-        player, committed == commitments.end() ? std::vector<OrderCommitted>{} : committed->second, players, steps);
+    auto transmitted = transmissions.find(player);
+    const Chain derived =
+        deriveChain(player,
+                    transmitted == transmissions.end() ? std::vector<OrderTransmitted>{} : transmitted->second,
+                    players,
+                    steps);
     Chain& chain = chains[player];
     score += derived.bonus_banked - chain.bonus_banked;
     chain = derived;
@@ -213,7 +229,7 @@ std::tuple<State, std::optional<GameConcluded>> observeStep(State state,
   state.scores_ = scoreEvents(std::move(state.scores_), events);
   state.steps_.push_back(ObservedStep{now, activations, events, alive});
   std::tie(state.scores_.banked, state.chains_) =
-      bankHandovers(std::move(state.scores_.banked), std::move(state.chains_), state.commitments_, state.steps_);
+      bankHandovers(std::move(state.scores_.banked), std::move(state.chains_), state.transmissions_, state.steps_);
 
   if (now < pacing_policy::GAME_DURATION && !alive.empty()) {
     return {std::move(state), std::nullopt};
@@ -222,23 +238,24 @@ std::tuple<State, std::optional<GameConcluded>> observeStep(State state,
   state.scores_ = settleAtConclusion(std::move(state.scores_));
   for (auto& [player, chain] : state.chains_) {
     chain.length = 0;
+    chain.bonus_held = 0;
   }
   state.result_ = decideResult(state.scores_.banked);
   return {state, GameConcluded{state.round_, *state.result_}};
 }
 
-State observeCommitment(State state, const OrderCommitted& committed) {
-  if (!isRunning(state) || committed.round != state.round_ || state.scores_.banked.count(committed.player) == 0) {
+State observeTransmission(State state, const OrderTransmitted& transmitted) {
+  if (!isRunning(state) || transmitted.round != state.round_ || state.scores_.banked.count(transmitted.player) == 0) {
     return state;
   }
-  std::vector<OrderCommitted>& known = state.commitments_[committed.player];
-  auto same_order = [&committed](const OrderCommitted& other) { return other.order == committed.order; };
+  std::vector<OrderTransmitted>& known = state.transmissions_[transmitted.player];
+  auto same_order = [&transmitted](const OrderTransmitted& other) { return other.order == transmitted.order; };
   if (std::any_of(known.begin(), known.end(), same_order)) {
     return state;
   }
-  known.push_back(committed);
+  known.push_back(transmitted);
   std::tie(state.scores_.banked, state.chains_) =
-      bankHandovers(std::move(state.scores_.banked), std::move(state.chains_), state.commitments_, state.steps_);
+      bankHandovers(std::move(state.scores_.banked), std::move(state.chains_), state.transmissions_, state.steps_);
   return state;
 }
 
@@ -249,10 +266,15 @@ View view(const State& state) {
   for (const auto& [player, banked] : state.scores_.banked) {
     auto chain = state.chains_.find(player);
     const int length = chain == state.chains_.end() ? 0 : chain->second.length;
-    result.players[player] = PlayerScore{banked, 0, length, scoring_policy::handoverBonus(length + 1)};
+    const std::optional<GameTime> open_completion =
+        chain == state.chains_.end() || !isRunning(state) ? std::nullopt : chain->second.open_completion;
+    result.players[player] = PlayerScore{banked, 0, length, scoring_policy::handoverBonus(length + 1), open_completion};
   }
   for (const auto& [order, held] : state.scores_.held) {
     result.players[held.player].held += held.points;
+  }
+  for (const auto& [player, chain] : state.chains_) {
+    result.players[player].held += chain.bonus_held;
   }
   result.remaining = std::max(GameTime{0}, pacing_policy::GAME_DURATION - state.now_);
   result.result = state.result_;

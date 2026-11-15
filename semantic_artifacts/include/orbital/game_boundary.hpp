@@ -73,11 +73,11 @@ struct StartRejected {
 };
 
 /**
- * @brief A submission was committed as an order
+ * @brief A submission became the player's selected order
  */
 struct SubmissionAccepted {
   OrderId order;
-  GameTime committed_at;
+  GameTime submitted_at;
 };
 
 /**
@@ -105,26 +105,26 @@ struct StepReport {
   GameTime at;
   std::vector<ActivationOutcome> activations;
   ArenaEvents events;
+  std::vector<OrderTransmitted> transmissions;  // Orders transmitted at the end of the step
 };
 
 /**
  * @brief Current views of the three Authorities, the game time and the orbital link condition
  *
- * The link condition is what the Order Release Policy decides: the Order Delay of a submission
- * issued now, the range of that delay, and the release time of each pending order. A combined
- * presentation is a projection of these views; it owns no meaning of its own and does not ask the
- * Policy itself.
+ * The link condition is what the Transmission Schedule Policy decides: the coming transmission
+ * opportunities and the range of the interval between two of them. A combined presentation is a
+ * projection of these views; it owns no meaning of its own and does not ask the Policy itself.
  */
 struct Views {
   arena_authority::View arena;
   order_authority::View orders;
   game_authority::View game;
-  GameTime now;                                // Current time of the round's logical clock
-  std::chrono::milliseconds submission_delay;  // Order Delay of a submission issued now (Order Release Policy)
-  std::chrono::milliseconds min_delay;         // Lowest Order Delay (Order Release Policy)
-  std::chrono::milliseconds max_delay;         // Highest Order Delay (Order Release Policy)
-  std::map<PlayerId, std::vector<Direction>> pending_routes;  // Route each pending order would get if it activated now
-  std::map<PlayerId, GameTime> pending_release_times;  // Release time of each pending order (Order Release Policy)
+  GameTime now;                                                   // Current time of the round's logical clock
+  std::vector<GameTime> next_transmissions;                       // The next two transmission opportunities after now
+  std::chrono::milliseconds min_interval;                         // Shortest interval between opportunities
+  std::chrono::milliseconds max_interval;                         // Longest interval between opportunities
+  std::map<PlayerId, std::vector<Direction>> selected_routes;     // Route each selected order would get now
+  std::map<PlayerId, std::vector<Direction>> transmitted_routes;  // Route each transmitted order would get now
 };
 
 // ============================================================================
@@ -160,8 +160,9 @@ class PlayersEndInbound {
  * @brief The players' end, outbound: what the players learn from the game
  *
  * Implemented by the players' side. For each interaction or execution input, the game calls these
- * in order of occurrence: the start or submission outcome, the commitment, every step that ran
- * (oldest first), the orders that ended with the round, the conclusion, and finally the views.
+ * in order of occurrence: the start or submission outcome, the submission record, every step that ran
+ * (oldest first, each with the orders transmitted at its end), the orders that ended with the round, the
+ * conclusion, and finally the views.
  */
 class PlayersEndOutbound {
  public:
@@ -175,18 +176,18 @@ class PlayersEndOutbound {
   virtual void startRejected(const StartRejected& rejected) = 0;
 
   /**
-   * @brief Outcome of a submission: committed as an order, or refused
+   * @brief Outcome of a submission: selected as an order, or refused
    *
    * @param outcome The outcome
    */
   virtual void submissionOutcome(const SubmissionOutcome& outcome) = 0;
 
   /**
-   * @brief The Order Authority's commitment record of an accepted submission
+   * @brief The Order Authority's submission record of an accepted submission
    *
-   * @param committed The commitment record
+   * @param submitted The submission record
    */
-  virtual void orderCommitted(const OrderCommitted& committed) = 0;
+  virtual void orderSubmitted(const OrderSubmitted& submitted) = 0;
 
   /**
    * @brief One arena step ran

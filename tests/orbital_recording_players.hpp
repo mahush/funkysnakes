@@ -23,9 +23,9 @@ struct RecordingPlayers : game_boundary::PlayersEndOutbound {
     submissions.push_back(outcome);
   }
 
-  void orderCommitted(const OrderCommitted& committed) override {
-    calls.push_back("orderCommitted");
-    commitments.push_back(committed);
+  void orderSubmitted(const OrderSubmitted& record) override {
+    calls.push_back("orderSubmitted");
+    submitted.push_back(record);
   }
 
   void stepReported(const game_boundary::StepReport& step) override {
@@ -55,7 +55,7 @@ struct RecordingPlayers : game_boundary::PlayersEndOutbound {
     calls.clear();
     start_rejections.clear();
     submissions.clear();
-    commitments.clear();
+    submitted.clear();
     steps.clear();
     ended_with_round.clear();
     conclusions.clear();
@@ -65,7 +65,7 @@ struct RecordingPlayers : game_boundary::PlayersEndOutbound {
   std::vector<std::string> calls;  // Names of the outbound calls, in the order they were made
   std::vector<game_boundary::StartRejected> start_rejections;
   std::vector<game_boundary::SubmissionOutcome> submissions;
-  std::vector<OrderCommitted> commitments;
+  std::vector<OrderSubmitted> submitted;
   std::vector<game_boundary::StepReport> steps;
   std::vector<ArenaEvents> ended_with_round;
   std::vector<game_authority::GameConcluded> conclusions;

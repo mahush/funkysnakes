@@ -6,6 +6,7 @@
 
 #include <chrono>
 #include <iostream>
+#include <map>
 #include <optional>
 #include <string>
 #include <type_traits>
@@ -109,7 +110,11 @@ class PrintingPlayers : public game_boundary::PlayersEndOutbound {
     }
   }
 
-  void orderCommitted(const OrderCommitted& committed) override { committed_ = committed; }
+  void orderSubmitted(const OrderSubmitted& submitted) override {
+    std::cout << "  " << submitted.submitted_at.count() << " ms  A selects " << order_name_ << " to " << point(target_)
+              << "\n";
+    names_[submitted.order] = order_name_;
+  }
 
   void stepReported(const game_boundary::StepReport& step) override {
     for (const ActivationOutcome& outcome : step.activations) {
@@ -117,6 +122,9 @@ class PrintingPlayers : public game_boundary::PlayersEndOutbound {
     }
     for (const ArenaEvent& event : step.events) {
       std::cout << "  " << step.at.count() << " ms  " << describe(event) << "\n";
+    }
+    for (const OrderTransmitted& transmitted : step.transmissions) {
+      std::cout << "  " << step.at.count() << " ms  A transmits " << names_.at(transmitted.order) << "\n";
     }
     stepped_ = true;
   }
@@ -130,11 +138,6 @@ class PrintingPlayers : public game_boundary::PlayersEndOutbound {
   void concluded(const game_authority::GameConcluded& /* concluded */) override { std::cout << "  game over\n"; }
 
   void viewsUpdated(const game_boundary::Views& views) override {
-    if (committed_) {
-      std::cout << "  " << committed_->committed_at.count() << " ms  A commits " << order_name_ << " to "
-                << point(target_) << ", released at " << views.pending_release_times.at(PLAYER_A).count() << " ms\n";
-      committed_.reset();
-    }
     if (stepped_) {
       const game_authority::PlayerScore& score = views.game.players.at(PLAYER_A);
       std::cout << "            A: banked " << score.banked << ", held " << score.held << ", chain " << score.chain
@@ -146,7 +149,7 @@ class PrintingPlayers : public game_boundary::PlayersEndOutbound {
  private:
   std::string order_name_;
   Point target_{0, 0};
-  std::optional<OrderCommitted> committed_;
+  std::map<OrderId, std::string> names_;  // Name of each submitted order, for the trace
   bool stepped_{false};
 };
 

@@ -27,11 +27,11 @@ namespace scoring_policy {
  * - An order ending COMPLETED: the order's held points are banked
  * - An order ending INTERRUPTED, ELIMINATED or ROUND_ENDED: the order's held points are dropped
  *
- * Submitting or superseding a pending order is no arena event and changes no points. A
+ * Submitting, replacing or transmitting an order is no arena event and changes no points. A
  * nonlethal bite leaves an order's held points intact.
  *
- * A completion that hands over to an already committed, still pending successor is worth a
- * handover bonus in addition; whether a completion qualifies is the Game Authority's chain. The
+ * A completion that takes over from a completed predecessor is worth a handover bonus in
+ * addition; whether a completion qualifies is the Game Authority's chain. The
  * first handover of a chain is worth the base bonus, each consecutive one doubles it, up to a cap.
  * Base and cap are provisional tuning values.
  */

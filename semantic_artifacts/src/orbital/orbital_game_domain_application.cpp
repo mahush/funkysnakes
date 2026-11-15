@@ -7,7 +7,7 @@
 
 #include "orbital/admission_policy.hpp"
 #include "orbital/board_setup_policy.hpp"
-#include "orbital/order_release_policy.hpp"
+#include "orbital/transmission_schedule_policy.hpp"
 #include "orbital_game_domain_application_mechanics.hpp"
 
 namespace snake {
@@ -35,55 +35,46 @@ GamePhase phaseOf(const State& state) {
   return game_authority::isRunning(*state.game) ? GamePhase::RUNNING : GamePhase::CONCLUDED;
 }
 
-// Pending orders the Order Release Policy releases at the given time
-std::vector<Order> releasedOrders(const order_authority::State& orders, GameTime now) {
-  std::vector<Order> released;
-  for (const order_authority::OrderRecord& pending : order_authority::pendingOrders(orders)) {
-    if (order_release_policy::isReleased(pending.committed_at, now)) {
-      released.push_back(pending.order);
-    }
-  }
-  return released;
-}
-
-// Release time of each pending order, as the Order Release Policy decides it
-std::map<PlayerId, GameTime> pendingReleaseTimes(const order_authority::State& orders) {
-  std::map<PlayerId, GameTime> release_times;
-  for (const order_authority::OrderRecord& pending : order_authority::pendingOrders(orders)) {
-    release_times[pending.order.player] = order_release_policy::releaseTime(pending.committed_at);
-  }
-  return release_times;
-}
-
-// Route each pending order would get from the snake's current position
-std::map<PlayerId, std::vector<Direction>> pendingRoutes(const arena_authority::State& arena,
-                                                         const order_authority::View& orders) {
+// Route each order of one kind would get from the snake's current position
+std::map<PlayerId, std::vector<Direction>> routesOf(
+    const arena_authority::State& arena,
+    const order_authority::View& orders,
+    std::optional<order_authority::OrderRecord> order_authority::PlayerOrders::* order) {
   std::map<PlayerId, std::vector<Direction>> routes;
   for (const auto& [player, player_orders] : orders.players) {
-    if (!player_orders.pending) {
+    const std::optional<order_authority::OrderRecord>& record = player_orders.*order;
+    if (!record) {
       continue;
     }
-    if (auto route = arena_authority::routeIfActivatedNow(arena, player, player_orders.pending->order.target)) {
+    if (auto route = arena_authority::routeIfActivatedNow(arena, player, record->order.target)) {
       routes[player] = std::move(*route);
     }
   }
   return routes;
 }
 
+// The next two transmission opportunities, as the Transmission Schedule Policy decides them
+std::vector<GameTime> nextTransmissions(GameTime now) {
+  const GameTime next = transmission_schedule_policy::nextOpportunityAfter(now);
+  return {next, transmission_schedule_policy::nextOpportunityAfter(next)};
+}
+
 Observations withViews(Observations observations, const State& state) {
   if (isStarted(state)) {
     order_authority::View orders = order_authority::view(*state.orders);
-    std::map<PlayerId, std::vector<Direction>> pending_routes = pendingRoutes(*state.arena, orders);
-    std::map<PlayerId, GameTime> pending_release_times = pendingReleaseTimes(*state.orders);
+    std::map<PlayerId, std::vector<Direction>> selected_routes =
+        routesOf(*state.arena, orders, &order_authority::PlayerOrders::selected);
+    std::map<PlayerId, std::vector<Direction>> transmitted_routes =
+        routesOf(*state.arena, orders, &order_authority::PlayerOrders::transmitted);
     observations.views = Views{arena_authority::view(*state.arena),
                                std::move(orders),
                                game_authority::view(*state.game),
                                state.clock.now,
-                               order_release_policy::delayAt(state.clock.now),
-                               order_release_policy::MIN_DELAY,
-                               order_release_policy::MAX_DELAY,
-                               std::move(pending_routes),
-                               std::move(pending_release_times)};
+                               nextTransmissions(state.clock.now),
+                               transmission_schedule_policy::MIN_INTERVAL,
+                               transmission_schedule_policy::MAX_INTERVAL,
+                               std::move(selected_routes),
+                               std::move(transmitted_routes)};
   }
   return observations;
 }
@@ -96,7 +87,7 @@ std::vector<PlayerId> playersOf(const arena_authority::RoundSetup& setup) {
   return players;
 }
 
-// Carry out the Game Authority's conclusion intent: end execution, then cancel what is still pending
+// Carry out the Game Authority's conclusion intent: end execution, then cancel what is still selected or transmitted
 std::tuple<State, Observations> conclude(State state, const game_authority::GameConcluded& concluded) {
   auto [arena, end_events] = arena_authority::endRound(std::move(*state.arena));
   state.arena = std::move(arena);
@@ -113,7 +104,7 @@ std::tuple<State, Observations> runStep(const RandomIntGeneratorFn& random_int_f
   const GameTime at = state.clock.next_step;
   state.clock.next_step += pacing_policy::STEP_INTERVAL;
 
-  std::vector<Order> released = releasedOrders(*state.orders, at);
+  std::vector<Order> released = order_authority::transmittedOrders(*state.orders);
   auto [arena, activations, events] = arena_authority::tick(random_int_fn, std::move(*state.arena), released);
   state.arena = std::move(arena);
   state.orders = order_authority::observe(std::move(*state.orders), activations, events);
@@ -123,12 +114,20 @@ std::tuple<State, Observations> runStep(const RandomIntGeneratorFn& random_int_f
 
   Observations observations;
   observations.steps.push_back(
-      StepReport{arena_authority::lastCompletedStep(*state.arena), at, std::move(activations), std::move(events)});
-  if (!concluded) {
-    return {std::move(state), std::move(observations)};
+      StepReport{arena_authority::lastCompletedStep(*state.arena), at, std::move(activations), std::move(events), {}});
+  if (concluded) {
+    auto [concluded_state, conclusion] = conclude(std::move(state), *concluded);
+    return {std::move(concluded_state), appendObservations(std::move(observations), std::move(conclusion))};
   }
-  auto [concluded_state, conclusion] = conclude(std::move(state), *concluded);
-  return {std::move(concluded_state), appendObservations(std::move(observations), std::move(conclusion))};
+  if (transmission_schedule_policy::isOpportunity(at)) {
+    auto [orders, transmissions] = order_authority::transmit(std::move(*state.orders), at);
+    state.orders = std::move(orders);
+    for (const OrderTransmitted& transmitted : transmissions) {
+      state.game = game_authority::observeTransmission(std::move(*state.game), transmitted);
+    }
+    observations.steps.back().transmissions = std::move(transmissions);
+  }
+  return {std::move(state), std::move(observations)};
 }
 
 // Begin the game with a given world, as far as the Admission Policy admits a start
@@ -164,12 +163,11 @@ std::tuple<State, Observations> apply(State state, const Submit& submit) {
     return {std::move(state), std::move(observations)};
   }
 
-  auto [orders, committed] = order_authority::submit(
+  auto [orders, submitted] = order_authority::submit(
       std::move(*state.orders), order_authority::Submission{submit.player, submit.target, state.clock.now});
   state.orders = std::move(orders);
-  state.game = game_authority::observeCommitment(std::move(*state.game), committed);
-  observations.submission = SubmissionAccepted{committed.order, committed.committed_at};
-  observations.commitment = committed;
+  observations.submission = SubmissionAccepted{submitted.order, submitted.submitted_at};
+  observations.submitted = submitted;
   observations = withViews(std::move(observations), state);
   return {std::move(state), std::move(observations)};
 }

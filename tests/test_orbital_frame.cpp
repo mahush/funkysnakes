@@ -112,16 +112,16 @@ TEST_F(OrbitalFrame, ShowsExecutingTargetAndRemainingRoute) {
   EXPECT_EQ(frame.players.at(PLAYER_A).executing_target, (Point{8, 5}));
 }
 
-/// @brief Players see the chain their prepared successors built and what the next handover is worth
+/// @brief Players see the chain their successors built and what the next handover is worth
 TEST_F(OrbitalFrame, ShowsHandoverChainAndNextBonus) {
-  // Given: A ordered the snake to (8,5), arriving at 1400 ms, and committed a successor at 1200 ms
+  // Given: A ordered the snake to (19,2), arriving at 3000 ms, and submitted a successor to (6,4) at 2800 ms
   start();
-  submit(PLAYER_A, Point{8, 5});
-  elapse(1200);
-  submit(PLAYER_A, Point{12, 5});
+  submit(PLAYER_A, Point{19, 2});
+  elapse(2800);
+  submit(PLAYER_A, Point{6, 4});
 
-  // When: the order arrives while the successor is pending
-  elapse(200);
+  // When: the successor, sent at 4200 ms, took over at 4400 ms with the snake at (5,2) and reached (6,4) at 4800 ms
+  elapse(2000);
   Frame frame = orbital_frame::build(views(), {});
 
   // Then: the chain has one handover, its bonus banked, and the next one would earn double
@@ -130,19 +130,19 @@ TEST_F(OrbitalFrame, ShowsHandoverChainAndNextBonus) {
   EXPECT_EQ(frame.players.at(PLAYER_A).next_handover, 20);
 }
 
-TEST_F(OrbitalFrame, ShowsLinkDelayAndRemainingTime) {
+TEST_F(OrbitalFrame, ShowsTimeToNextOpportunityAndRemainingTime) {
   // Given: a game started
   start();
 
-  // When: 15 s pass, a quarter of the orbital cycle
-  elapse(15000);
+  // When: 3 s pass
+  elapse(3000);
   Frame frame = orbital_frame::build(views(), {});
 
-  // Then: the delay is 1.1 s within 0.2-2 s and 105 s remain
-  EXPECT_EQ(frame.delay.now, milliseconds{1100});
-  EXPECT_EQ(frame.delay.min, milliseconds{200});
-  EXPECT_EQ(frame.delay.max, milliseconds{2000});
-  EXPECT_EQ(frame.remaining, milliseconds{105000});
+  // Then: the next opportunity, at 4.2 s, is 1.2 s away within the interval range of 0.5-4 s, and 117 s remain
+  EXPECT_EQ(frame.delay.now, milliseconds{1200});
+  EXPECT_EQ(frame.delay.min, milliseconds{500});
+  EXPECT_EQ(frame.delay.max, milliseconds{4000});
+  EXPECT_EQ(frame.remaining, milliseconds{117000});
 }
 
 TEST_F(OrbitalFrame, ShowsResultOnceGameIsOver) {
