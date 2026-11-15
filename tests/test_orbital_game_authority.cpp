@@ -612,6 +612,22 @@ TEST(OrbitalGameAuthority, BreaksChainAtConclusion) {
   EXPECT_EQ(score.chain, 0);
 }
 
+/// @brief A handover bonus counts only when its order completes, which the end of the game prevents
+TEST(OrbitalGameAuthority, DropsHeldHandoverBonusAtConclusion) {
+  // Given: successor 2 took over as a handover and still executes, holding its bonus
+  State state = withSuccessorExecuting();
+
+  // When: the game concludes
+  auto [observed, observed_handovers, concluded] =
+      game_authority::observeStep(std::move(state), std::chrono::minutes{2}, {}, {}, BOTH_ALIVE);
+
+  // Then: the bonus is dropped and no chain is left
+  game_authority::PlayerScore score = game_authority::view(observed).players.at(PLAYER_A);
+  EXPECT_EQ(score.held, 0);
+  EXPECT_EQ(score.banked, 0);
+  EXPECT_EQ(score.chain, 0);
+}
+
 /// @subsection handovers reported
 
 TEST(OrbitalGameAuthority, ReportsHandoverWhenSuccessorTakesOver) {
