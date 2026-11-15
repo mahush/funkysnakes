@@ -111,18 +111,17 @@ struct StepReport {
 /**
  * @brief Current views of the three Authorities, the game time and the orbital link condition
  *
- * The link condition is what the Transmission Schedule Policy decides: the coming transmission
- * opportunities and the range of the interval between two of them. A combined presentation is a
- * projection of these views; it owns no meaning of its own and does not ask the Policy itself.
+ * The link condition is what the Transmission Schedule Policy decides: every transmission
+ * opportunity of the game. The step interval is the Pacing Policy's. A combined presentation is a
+ * projection of these views; it owns no meaning of its own and does not ask the Policies itself.
  */
 struct Views {
   arena_authority::View arena;
   order_authority::View orders;
   game_authority::View game;
   GameTime now;                                                   // Current time of the round's logical clock
-  std::vector<GameTime> next_transmissions;                       // The next two transmission opportunities after now
-  std::chrono::milliseconds min_interval;                         // Shortest interval between opportunities
-  std::chrono::milliseconds max_interval;                         // Longest interval between opportunities
+  std::chrono::milliseconds step_interval;                        // Interval between arena steps (Pacing Policy)
+  std::vector<GameTime> transmission_schedule;                    // Every opportunity of the game, in time order
   std::map<PlayerId, std::vector<Direction>> selected_routes;     // Route each selected order would get now
   std::map<PlayerId, std::vector<Direction>> transmitted_routes;  // Route each transmitted order would get now
 };
