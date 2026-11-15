@@ -125,10 +125,13 @@ std::tuple<State, std::vector<OrderTransmitted>> transmit(State state, GameTime 
   return {std::move(state), std::move(transmissions)};
 }
 
-std::vector<Order> transmittedOrders(const State& state) {
+std::vector<Order> transmittedOrders(const State& state, GameTime at) {
   std::vector<Order> result;
   for (OrderId id : state.transmitted_) {
-    result.push_back(state.orders_.at(id).order);
+    const OrderRecord& record = state.orders_.at(id);
+    if (record.transmitted_at && *record.transmitted_at < at) {
+      result.push_back(record.order);
+    }
   }
   return result;
 }
