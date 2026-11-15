@@ -298,6 +298,23 @@ TEST_F(OrbitalGameDomainApplication, AwardsHandoverBonusWhenSuccessorSubmittedBe
   EXPECT_EQ(scoreOf(PLAYER_A).next_handover, 20);
 }
 
+/// @brief Front ends learn of a handover from the step that counted it instead of inferring it from the views
+TEST_F(OrbitalGameDomainApplication, ReportsHandoverWithStepOfSuccessorTakeover) {
+  // Given: F executes; G is submitted at 3000 ms
+  start(makeLanes({Point{5, 2}, Point{7, 2}}));
+  submit(PLAYER_A, Point{19, 2});
+  elapse(3000);
+  OrderId g = submit(PLAYER_A, Point{4, 6});
+
+  // When: time passes until G took over at 4400 ms
+  elapse(1400);
+
+  // Then: that step reports the first handover of A's chain
+  const game_boundary::StepReport& takeover = players_.steps.back();
+  EXPECT_EQ(takeover.at, milliseconds{4400});
+  EXPECT_EQ(takeover.handovers, (std::vector<game_authority::HandoverGranted>{{PLAYER_A, g, 1, 10}}));
+}
+
 /// @brief The bonus is the successor's: decided when it takes over, held until it reaches its target
 TEST_F(OrbitalGameDomainApplication, HoldsHandoverBonusWhileSuccessorExecutes) {
   // Given: G is submitted at 3000 ms while F executes

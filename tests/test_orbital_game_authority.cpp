@@ -43,9 +43,9 @@ State step(State state, int at_ms, const std::vector<ActivationOutcome>& activat
 // Game in which A's order 1 executed from 400 ms and completed at 3000 ms, and successor 2, submitted at 2000 ms
 // while 1 executed and transmitted at the first opportunity after, 4200 ms, activated at 4400 ms
 State withSuccessorExecuting() {
-  State state = game_authority::observeTransmission(runningGame(), transmittedByA(1, 0, 200));
+  State state = std::get<0>(game_authority::observeTransmission(runningGame(), transmittedByA(1, 0, 200)));
   state = step(std::move(state), 400, {activated(1)}, {});
-  state = game_authority::observeTransmission(std::move(state), transmittedByA(2, 2000, 4200));
+  state = std::get<0>(game_authority::observeTransmission(std::move(state), transmittedByA(2, 2000, 4200)));
   state = step(std::move(state), 3000, {}, {completed(1)});
   return step(std::move(state), 4400, {activated(2)}, {});
 }
@@ -74,7 +74,7 @@ TEST(OrbitalGameAuthority, StartsRunningWithZeroPointsAndFullDuration) {
 
 TEST(OrbitalGameAuthority, ShowsBankedAndHeldPointsSeparately) {
   // When: a step with food during an order and food without an order is observed
-  auto [state, concluded] = game_authority::observeStep(
+  auto [state, state_handovers, concluded] = game_authority::observeStep(
       runningGame(),
       milliseconds{200},
       {},
@@ -171,7 +171,8 @@ TEST(OrbitalGameAuthority, KeepsHeldPointsOnCollisionPenalty) {
 
 TEST(OrbitalGameAuthority, CountsDownRemainingTime) {
   // When: a step at 30 s is observed
-  auto [state, concluded] = game_authority::observeStep(runningGame(), milliseconds{30000}, {}, {}, BOTH_ALIVE);
+  auto [state, state_handovers, concluded] =
+      game_authority::observeStep(runningGame(), milliseconds{30000}, {}, {}, BOTH_ALIVE);
 
   // Then: 90 s remain
   EXPECT_EQ(game_authority::view(state).remaining, milliseconds{90000});
@@ -181,7 +182,8 @@ TEST(OrbitalGameAuthority, CountsDownRemainingTime) {
 
 TEST(OrbitalGameAuthority, KeepsRunningBeforeDurationHasElapsed) {
   // When: the step at 119800 ms is observed
-  auto [state, concluded] = game_authority::observeStep(runningGame(), milliseconds{119800}, {}, {}, BOTH_ALIVE);
+  auto [state, state_handovers, concluded] =
+      game_authority::observeStep(runningGame(), milliseconds{119800}, {}, {}, BOTH_ALIVE);
 
   // Then: the game still runs
   EXPECT_FALSE(concluded.has_value());
@@ -190,7 +192,8 @@ TEST(OrbitalGameAuthority, KeepsRunningBeforeDurationHasElapsed) {
 
 TEST(OrbitalGameAuthority, ConcludesWhenDurationHasElapsed) {
   // When: the step at two minutes is observed
-  auto [state, concluded] = game_authority::observeStep(runningGame(), std::chrono::minutes{2}, {}, {}, BOTH_ALIVE);
+  auto [state, state_handovers, concluded] =
+      game_authority::observeStep(runningGame(), std::chrono::minutes{2}, {}, {}, BOTH_ALIVE);
 
   // Then: the game concluded
   EXPECT_TRUE(concluded.has_value());
@@ -199,7 +202,7 @@ TEST(OrbitalGameAuthority, ConcludesWhenDurationHasElapsed) {
 
 TEST(OrbitalGameAuthority, ConcludesWhenNoSnakeIsAlive) {
   // When: a step after which no snake is alive is observed
-  auto [state, concluded] =
+  auto [state, state_handovers, concluded] =
       game_authority::observeStep(runningGame(), milliseconds{5000}, {}, {MutualBite{PLAYER_A, PLAYER_B}}, {});
 
   // Then: the game concluded early
@@ -209,7 +212,7 @@ TEST(OrbitalGameAuthority, ConcludesWhenNoSnakeIsAlive) {
 /// @brief The step due at the end of the game still counts, including a completion it brings
 TEST(OrbitalGameAuthority, BanksCompletionOnFinalStepBeforeConclusion) {
   // Given: order F of A holds 20 points
-  auto [state, first] = game_authority::observeStep(
+  auto [state, state_handovers, first] = game_authority::observeStep(
       runningGame(),
       milliseconds{1000},
       {},
@@ -217,7 +220,7 @@ TEST(OrbitalGameAuthority, BanksCompletionOnFinalStepBeforeConclusion) {
       BOTH_ALIVE);
 
   // When: F completes on the step at two minutes
-  auto [final_state, concluded] = game_authority::observeStep(
+  auto [final_state, final_state_handovers, concluded] = game_authority::observeStep(
       state, std::chrono::minutes{2}, {}, {OrderEnded{OrderId{1}, EndReason::COMPLETED, std::nullopt}}, BOTH_ALIVE);
 
   // Then: A's 20 points count and A wins
@@ -228,16 +231,18 @@ TEST(OrbitalGameAuthority, BanksCompletionOnFinalStepBeforeConclusion) {
 /// @brief Conclusion ends the round for an order still executing; the Scoring Policy drops its points then
 TEST(OrbitalGameAuthority, SettlesExecutingOrderAsEndedByRoundAtConclusion) {
   // Given: B has 10 banked points and A's executing order holds 20 points
-  auto [state, first] = game_authority::observeStep(runningGame(),
-                                                    milliseconds{1000},
-                                                    {},
-                                                    {FoodCollected{PLAYER_B, Point{3, 3}, std::nullopt},
-                                                     FoodCollected{PLAYER_A, Point{1, 1}, OrderId{1}},
-                                                     FoodCollected{PLAYER_A, Point{2, 1}, OrderId{1}}},
-                                                    BOTH_ALIVE);
+  auto [state, state_handovers, first] =
+      game_authority::observeStep(runningGame(),
+                                  milliseconds{1000},
+                                  {},
+                                  {FoodCollected{PLAYER_B, Point{3, 3}, std::nullopt},
+                                   FoodCollected{PLAYER_A, Point{1, 1}, OrderId{1}},
+                                   FoodCollected{PLAYER_A, Point{2, 1}, OrderId{1}}},
+                                  BOTH_ALIVE);
 
   // When: the game concludes while A's order still executes
-  auto [final_state, concluded] = game_authority::observeStep(state, std::chrono::minutes{2}, {}, {}, BOTH_ALIVE);
+  auto [final_state, final_state_handovers, concluded] =
+      game_authority::observeStep(state, std::chrono::minutes{2}, {}, {}, BOTH_ALIVE);
 
   // Then: A's held points are dropped and B wins
   EXPECT_EQ(game_authority::view(final_state).players.at(PLAYER_A).held, 0);
@@ -246,7 +251,8 @@ TEST(OrbitalGameAuthority, SettlesExecutingOrderAsEndedByRoundAtConclusion) {
 
 TEST(OrbitalGameAuthority, DrawsOnEqualBankedScores) {
   // When: the game concludes with equal banked scores
-  auto [state, concluded] = game_authority::observeStep(runningGame(), std::chrono::minutes{2}, {}, {}, BOTH_ALIVE);
+  auto [state, state_handovers, concluded] =
+      game_authority::observeStep(runningGame(), std::chrono::minutes{2}, {}, {}, BOTH_ALIVE);
 
   // Then: the result is a draw
   EXPECT_EQ(concluded->result, (Result{std::nullopt}));
@@ -255,16 +261,17 @@ TEST(OrbitalGameAuthority, DrawsOnEqualBankedScores) {
 /// @brief The Arena Authority's ROUND_ENDED events after conclusion must not change the final scores
 TEST(OrbitalGameAuthority, IgnoresStepsAfterConclusion) {
   // Given: a concluded game in which B leads
-  auto [state, concluded] = game_authority::observeStep(
+  auto [state, state_handovers, concluded] = game_authority::observeStep(
       runningGame(), std::chrono::minutes{2}, {}, {FoodCollected{PLAYER_B, Point{3, 3}, std::nullopt}}, BOTH_ALIVE);
 
   // When: further events are observed
-  auto [later, again] = game_authority::observeStep(state,
-                                                    std::chrono::minutes{2},
-                                                    {},
-                                                    {OrderEnded{OrderId{1}, EndReason::ROUND_ENDED, std::nullopt},
-                                                     FoodCollected{PLAYER_A, Point{1, 1}, std::nullopt}},
-                                                    BOTH_ALIVE);
+  auto [later, later_handovers, again] =
+      game_authority::observeStep(state,
+                                  std::chrono::minutes{2},
+                                  {},
+                                  {OrderEnded{OrderId{1}, EndReason::ROUND_ENDED, std::nullopt},
+                                   FoodCollected{PLAYER_A, Point{1, 1}, std::nullopt}},
+                                  BOTH_ALIVE);
 
   // Then: nothing changes and no second conclusion is announced
   EXPECT_FALSE(again.has_value());
@@ -324,7 +331,7 @@ TEST(OrbitalGameAuthority, DropsHeldBonusWhenSuccessorFails) {
 TEST(OrbitalGameAuthority, BreaksChainWhenOrderTakesOverWithoutHandover) {
   // Given: the chain has one handover; 3 was submitted at 8100 ms, after the opportunity at 8000 ms that followed 2's
   //        completion, and transmitted at 11800 ms
-  State state = game_authority::observeTransmission(withOneHandover(), transmittedByA(3, 8100, 11800));
+  State state = std::get<0>(game_authority::observeTransmission(withOneHandover(), transmittedByA(3, 8100, 11800)));
 
   // When: 3 activates
   State observed = step(std::move(state), 12000, {activated(3)}, {});
@@ -338,7 +345,8 @@ TEST(OrbitalGameAuthority, BreaksChainWhenOrderTakesOverWithoutHandover) {
 TEST(OrbitalGameAuthority, DoublesBonusForConsecutiveHandover) {
   // Given: 1 handed over to 2, which executed from 4400 ms to 5000 ms; successor 3 was submitted at 4600 ms,
   //        transmitted at 8000 ms and activated at 8200 ms
-  State state = game_authority::observeTransmission(withSuccessorExecuting(), transmittedByA(3, 4600, 8000));
+  State state =
+      std::get<0>(game_authority::observeTransmission(withSuccessorExecuting(), transmittedByA(3, 4600, 8000)));
   state = step(std::move(state), 5000, {}, {completed(2)});
   state = step(std::move(state), 8200, {activated(3)}, {});
 
@@ -355,10 +363,10 @@ TEST(OrbitalGameAuthority, DoublesBonusForConsecutiveHandover) {
 TEST(OrbitalGameAuthority, AwardsBonusAfterIdleGapBetweenPredecessorAndSuccessor) {
   // Given: 1 completed at 1000 ms; successor 2, submitted at 700 ms, was transmitted at 4200 ms and activated at
   //        4400 ms
-  State state = game_authority::observeTransmission(runningGame(), transmittedByA(1, 0, 200));
+  State state = std::get<0>(game_authority::observeTransmission(runningGame(), transmittedByA(1, 0, 200)));
   state = step(std::move(state), 400, {activated(1)}, {});
   state = step(std::move(state), 1000, {}, {completed(1)});
-  state = game_authority::observeTransmission(std::move(state), transmittedByA(2, 700, 4200));
+  state = std::get<0>(game_authority::observeTransmission(std::move(state), transmittedByA(2, 700, 4200)));
   state = step(std::move(state), 4400, {activated(2)}, {});
 
   // When: 2 completes
@@ -371,10 +379,10 @@ TEST(OrbitalGameAuthority, AwardsBonusAfterIdleGapBetweenPredecessorAndSuccessor
 /// @brief The window reaches past the predecessor's arrival up to the opportunity that sends the successor
 TEST(OrbitalGameAuthority, AwardsBonusToSuccessorSubmittedAfterCompletionBeforeOpportunity) {
   // Given: 1 completed at 3000 ms; 2 was submitted at 3500 ms, transmitted at 4200 ms and activated at 4400 ms
-  State state = game_authority::observeTransmission(runningGame(), transmittedByA(1, 0, 200));
+  State state = std::get<0>(game_authority::observeTransmission(runningGame(), transmittedByA(1, 0, 200)));
   state = step(std::move(state), 400, {activated(1)}, {});
   state = step(std::move(state), 3000, {}, {completed(1)});
-  state = game_authority::observeTransmission(std::move(state), transmittedByA(2, 3500, 4200));
+  state = std::get<0>(game_authority::observeTransmission(std::move(state), transmittedByA(2, 3500, 4200)));
   state = step(std::move(state), 4400, {activated(2)}, {});
 
   // When: 2 completes
@@ -388,10 +396,10 @@ TEST(OrbitalGameAuthority, AwardsBonusToSuccessorSubmittedAfterCompletionBeforeO
 TEST(OrbitalGameAuthority, DeniesHandoverToSuccessorSentAfterFirstOpportunityFromCompletion) {
   // Given: 1 completed at 3000 ms; 2 was submitted at 4300 ms, after the opportunity at 4200 ms, transmitted at
   //        8000 ms and activated at 8200 ms
-  State state = game_authority::observeTransmission(runningGame(), transmittedByA(1, 0, 200));
+  State state = std::get<0>(game_authority::observeTransmission(runningGame(), transmittedByA(1, 0, 200)));
   state = step(std::move(state), 400, {activated(1)}, {});
   state = step(std::move(state), 3000, {}, {completed(1)});
-  state = game_authority::observeTransmission(std::move(state), transmittedByA(2, 4300, 8000));
+  state = std::get<0>(game_authority::observeTransmission(std::move(state), transmittedByA(2, 4300, 8000)));
   state = step(std::move(state), 8200, {activated(2)}, {});
 
   // When: 2 completes
@@ -407,10 +415,10 @@ TEST(OrbitalGameAuthority, DeniesHandoverToSuccessorSentAfterFirstOpportunityFro
 TEST(OrbitalGameAuthority, AwardsBonusToSuccessorSentAtOpportunityOfCompletionStep) {
   // Given: 1 completed in the step at 4200 ms; 2, submitted at 3000 ms, was transmitted at the end of that step and
   //        activated at 4400 ms
-  State state = game_authority::observeTransmission(runningGame(), transmittedByA(1, 0, 200));
+  State state = std::get<0>(game_authority::observeTransmission(runningGame(), transmittedByA(1, 0, 200)));
   state = step(std::move(state), 400, {activated(1)}, {});
   state = step(std::move(state), 4200, {}, {completed(1)});
-  state = game_authority::observeTransmission(std::move(state), transmittedByA(2, 3000, 4200));
+  state = std::get<0>(game_authority::observeTransmission(std::move(state), transmittedByA(2, 3000, 4200)));
   state = step(std::move(state), 4400, {activated(2)}, {});
 
   // When: 2 completes
@@ -424,9 +432,9 @@ TEST(OrbitalGameAuthority, AwardsBonusToSuccessorSentAtOpportunityOfCompletionSt
 TEST(OrbitalGameAuthority, AwardsBonusToSuccessorSubmittedAtTimeOfPredecessorActivation) {
   // Given: 1 activated in the step at 400 ms and completed at 3000 ms; 2 was submitted at 400 ms, transmitted at
   //        4200 ms and activated at 4400 ms
-  State state = game_authority::observeTransmission(runningGame(), transmittedByA(1, 0, 200));
+  State state = std::get<0>(game_authority::observeTransmission(runningGame(), transmittedByA(1, 0, 200)));
   state = step(std::move(state), 400, {activated(1)}, {});
-  state = game_authority::observeTransmission(std::move(state), transmittedByA(2, 400, 4200));
+  state = std::get<0>(game_authority::observeTransmission(std::move(state), transmittedByA(2, 400, 4200)));
   state = step(std::move(state), 3000, {}, {completed(1)});
   state = step(std::move(state), 4400, {activated(2)}, {});
 
@@ -442,8 +450,8 @@ TEST(OrbitalGameAuthority, AwardsBonusToSuccessorSubmittedAtTimeOfPredecessorAct
 TEST(OrbitalGameAuthority, DeniesHandoverToSuccessorSubmittedBeforePredecessorActivated) {
   // Given: 1 was transmitted at 200 ms, activated at 400 ms and completed at 3000 ms; 2 was submitted at 300 ms,
   //        transmitted at 4200 ms and activated at 4400 ms
-  State state = game_authority::observeTransmission(runningGame(), transmittedByA(1, 0, 200));
-  state = game_authority::observeTransmission(std::move(state), transmittedByA(2, 300, 4200));
+  State state = std::get<0>(game_authority::observeTransmission(runningGame(), transmittedByA(1, 0, 200)));
+  state = std::get<0>(game_authority::observeTransmission(std::move(state), transmittedByA(2, 300, 4200)));
   state = step(std::move(state), 400, {activated(1)}, {});
   state = step(std::move(state), 3000, {}, {completed(1)});
   state = step(std::move(state), 4400, {activated(2)}, {});
@@ -458,11 +466,11 @@ TEST(OrbitalGameAuthority, DeniesHandoverToSuccessorSubmittedBeforePredecessorAc
 /// @brief Changing one's mind about the successor costs its handover, even though only the last choice was sent
 TEST(OrbitalGameAuthority, DeniesHandoverToSuccessorThatReplacedSelection) {
   // Given: 1 completed at 3000 ms; successor 2 replaced selection 9 before it was transmitted, and executes
-  State state = game_authority::observeTransmission(runningGame(), transmittedByA(1, 0, 200));
+  State state = std::get<0>(game_authority::observeTransmission(runningGame(), transmittedByA(1, 0, 200)));
   state = step(std::move(state), 400, {activated(1)}, {});
-  state = game_authority::observeTransmission(
+  state = std::get<0>(game_authority::observeTransmission(
       std::move(state),
-      OrderTransmitted{ROUND, OrderId{2}, PLAYER_A, milliseconds{2000}, milliseconds{4200}, OrderId{9}});
+      OrderTransmitted{ROUND, OrderId{2}, PLAYER_A, milliseconds{2000}, milliseconds{4200}, OrderId{9}}));
   state = step(std::move(state), 3000, {}, {completed(1)});
   state = step(std::move(state), 4400, {activated(2)}, {});
 
@@ -480,7 +488,7 @@ TEST(OrbitalGameAuthority, DeniesHandoverToSuccessorThatReplacedSelection) {
 TEST(OrbitalGameAuthority, DeniesHandoverToSecondOrderSubmittedDuringSamePredecessor) {
   // Given: 1 handed over to 2, which completed at 5000 ms; 3, submitted at 2500 ms while 1 executed, was transmitted
   //        at 8000 ms and activated at 8200 ms
-  State state = game_authority::observeTransmission(withOneHandover(), transmittedByA(3, 2500, 8000));
+  State state = std::get<0>(game_authority::observeTransmission(withOneHandover(), transmittedByA(3, 2500, 8000)));
   state = step(std::move(state), 8200, {activated(3)}, {});
 
   // When: 3 completes
@@ -496,9 +504,9 @@ TEST(OrbitalGameAuthority, DeniesHandoverToSecondOrderSubmittedDuringSamePredece
 TEST(OrbitalGameAuthority, BreaksChainWhenSuccessorInterruptsExecutingOrder) {
   // Given: the chain has one handover; 3 executes from 8200 ms; 4, submitted at 8300 ms and transmitted at 11800 ms,
   //        interrupted 3 at 12000 ms
-  State state = game_authority::observeTransmission(withOneHandover(), transmittedByA(3, 5100, 8000));
+  State state = std::get<0>(game_authority::observeTransmission(withOneHandover(), transmittedByA(3, 5100, 8000)));
   state = step(std::move(state), 8200, {activated(3)}, {});
-  state = game_authority::observeTransmission(std::move(state), transmittedByA(4, 8300, 11800));
+  state = std::get<0>(game_authority::observeTransmission(std::move(state), transmittedByA(4, 8300, 11800)));
   state = step(std::move(state),
                12000,
                {OrderActivated{OrderId{4}, OrderId{3}, {}}},
@@ -516,7 +524,7 @@ TEST(OrbitalGameAuthority, BreaksChainWhenSuccessorInterruptsExecutingOrder) {
 TEST(OrbitalGameAuthority, BreaksChainOnCompletionWithoutHandover) {
   // Given: the chain has one handover; 3 was submitted at 8100 ms, after the opportunity at 8000 ms that followed 2's
   //        completion, transmitted at 11800 ms and executes
-  State state = game_authority::observeTransmission(withOneHandover(), transmittedByA(3, 8100, 11800));
+  State state = std::get<0>(game_authority::observeTransmission(withOneHandover(), transmittedByA(3, 8100, 11800)));
   state = step(std::move(state), 12000, {activated(3)}, {});
 
   // When: 3 completes
@@ -531,7 +539,7 @@ TEST(OrbitalGameAuthority, BreaksChainOnCompletionWithoutHandover) {
 
 TEST(OrbitalGameAuthority, BreaksChainWhenExecutingOrderIsEliminated) {
   // Given: the chain has one handover and 3 executes
-  State state = game_authority::observeTransmission(withOneHandover(), transmittedByA(3, 5100, 8000));
+  State state = std::get<0>(game_authority::observeTransmission(withOneHandover(), transmittedByA(3, 5100, 8000)));
   state = step(std::move(state), 8200, {activated(3)}, {});
 
   // When: A's snake dies while executing 3
@@ -548,7 +556,7 @@ TEST(OrbitalGameAuthority, BreaksChainWhenSnakeDiesWithoutExecutingOrder) {
   State state = withOneHandover();
 
   // When: A's snake dies in the next step
-  auto [observed, concluded] =
+  auto [observed, observed_handovers, concluded] =
       game_authority::observeStep(std::move(state), milliseconds{5200}, {}, {SelfBitten{PLAYER_A}}, {PLAYER_B});
 
   // Then: the chain is broken, while the earned bonus stays banked
@@ -561,11 +569,11 @@ TEST(OrbitalGameAuthority, BreaksChainWhenSnakeDiesWithoutExecutingOrder) {
 TEST(OrbitalGameAuthority, PassesOverRejectedOrderInChain) {
   // Given: the chain has one handover; 3 executes from 8200 ms to 12600 ms; 4 was rejected at 12000 ms; 5, submitted at
   //        11900 ms while 3 executed, was transmitted at 15400 ms and activated at 15600 ms
-  State state = game_authority::observeTransmission(withOneHandover(), transmittedByA(3, 4600, 8000));
+  State state = std::get<0>(game_authority::observeTransmission(withOneHandover(), transmittedByA(3, 4600, 8000)));
   state = step(std::move(state), 8200, {activated(3)}, {});
-  state = game_authority::observeTransmission(std::move(state), transmittedByA(4, 8300, 11800));
+  state = std::get<0>(game_authority::observeTransmission(std::move(state), transmittedByA(4, 8300, 11800)));
   state = step(std::move(state), 12000, {OrderRejected{OrderId{4}, RejectionReason::TARGET_OFF_BOARD}}, {});
-  state = game_authority::observeTransmission(std::move(state), transmittedByA(5, 11900, 15400));
+  state = std::get<0>(game_authority::observeTransmission(std::move(state), transmittedByA(5, 11900, 15400)));
   state = step(std::move(state), 12600, {}, {completed(3)});
   state = step(std::move(state), 15600, {activated(5)}, {});
 
@@ -595,7 +603,7 @@ TEST(OrbitalGameAuthority, BreaksChainAtConclusion) {
   State state = withOneHandover();
 
   // When: the game concludes
-  auto [observed, concluded] =
+  auto [observed, observed_handovers, concluded] =
       game_authority::observeStep(std::move(state), std::chrono::minutes{2}, {}, {}, BOTH_ALIVE);
 
   // Then: the earned bonus counts, and no chain is left
@@ -604,45 +612,132 @@ TEST(OrbitalGameAuthority, BreaksChainAtConclusion) {
   EXPECT_EQ(score.chain, 0);
 }
 
-/// @subsection open completion
+/// @subsection handovers reported
 
-/// @brief Presentation can tell that a successor chosen now would still hand over after the arrival
-TEST(OrbitalGameAuthority, ViewsCompletionThatSuccessorCanStillFollow) {
-  // Given: A's order 1 executes
-  State state = game_authority::observeTransmission(runningGame(), transmittedByA(1, 0, 200));
+TEST(OrbitalGameAuthority, ReportsHandoverWhenSuccessorTakesOver) {
+  // Given: 1 executed from 400 ms and completed at 3000 ms; successor 2, submitted at 2000 ms, was sent at 4200 ms
+  State state = std::get<0>(game_authority::observeTransmission(runningGame(), transmittedByA(1, 0, 200)));
   state = step(std::move(state), 400, {activated(1)}, {});
-
-  // When: 1 completes at 3000 ms
-  State observed = step(std::move(state), 3000, {}, {completed(1)});
-
-  // Then: the view keeps that completion open for a successor
-  EXPECT_EQ(game_authority::view(observed).players.at(PLAYER_A).open_completion, milliseconds{3000});
-}
-
-TEST(OrbitalGameAuthority, ClosesCompletionWhenNextOrderActivates) {
-  // Given: 1 completed at 3000 ms and successor 2 was transmitted
-  State state = game_authority::observeTransmission(runningGame(), transmittedByA(1, 0, 200));
-  state = step(std::move(state), 400, {activated(1)}, {});
+  state = std::get<0>(game_authority::observeTransmission(std::move(state), transmittedByA(2, 2000, 4200)));
   state = step(std::move(state), 3000, {}, {completed(1)});
-  state = game_authority::observeTransmission(std::move(state), transmittedByA(2, 2000, 4200));
 
-  // When: 2 activates
-  State observed = step(std::move(state), 4400, {activated(2)}, {});
+  // When: 2 activates at 4400 ms
+  auto [observed, handovers, concluded] =
+      game_authority::observeStep(std::move(state), milliseconds{4400}, {activated(2)}, {}, BOTH_ALIVE);
 
-  // Then: no completion is open any more
-  EXPECT_FALSE(game_authority::view(observed).players.at(PLAYER_A).open_completion.has_value());
+  // Then: the first handover of the chain is reported with its bonus
+  EXPECT_EQ(handovers, (std::vector<game_authority::HandoverGranted>{{PLAYER_A, OrderId{2}, 1, 10}}));
 }
 
-TEST(OrbitalGameAuthority, KeepsNoCompletionOpenAfterInterruption) {
-  // Given: A's order 1 executes
-  State state = game_authority::observeTransmission(runningGame(), transmittedByA(1, 0, 200));
+TEST(OrbitalGameAuthority, ReportsNoHandoverForInterruption) {
+  // Given: A's order 1 executes and successor 2 was sent before 1 arrived
+  State state = std::get<0>(game_authority::observeTransmission(runningGame(), transmittedByA(1, 0, 200)));
   state = step(std::move(state), 400, {activated(1)}, {});
+  state = std::get<0>(game_authority::observeTransmission(std::move(state), transmittedByA(2, 300, 4200)));
 
-  // When: 1 is interrupted
-  State observed = step(std::move(state), 4400, {}, {OrderEnded{OrderId{1}, EndReason::INTERRUPTED, OrderId{2}}});
+  // When: 2 activates over 1 at 4400 ms
+  auto [observed, handovers, concluded] = game_authority::observeStep(
+      std::move(state), milliseconds{4400}, {OrderActivated{OrderId{2}, OrderId{1}, {}}}, {}, BOTH_ALIVE);
 
-  // Then: no completion is open
-  EXPECT_FALSE(game_authority::view(observed).players.at(PLAYER_A).open_completion.has_value());
+  // Then: no handover is reported
+  EXPECT_TRUE(handovers.empty());
+}
+
+/// @section game_authority::handoverProspect
+
+namespace {
+
+// Game in which A's order 1 executes from 400 ms
+State withOrderExecuting() {
+  State state = std::get<0>(game_authority::observeTransmission(runningGame(), transmittedByA(1, 0, 200)));
+  return step(std::move(state), 400, {activated(1)}, {});
+}
+
+// Game in which A's order 1 executed from 400 ms and completed at 3000 ms; the next opportunity comes at 4200 ms
+State withOrderCompleted() { return step(withOrderExecuting(), 3000, {}, {completed(1)}); }
+
+}  // namespace
+
+/// @brief A successor chosen now is sent at the first opportunity at or after the expected completion
+TEST(OrbitalGameAuthority, PromptsHandoverBeforeExpectedCompletion) {
+  // When: the prospect is queried at 1000 ms while 1 is expected to complete at 3000 ms
+  game_authority::HandoverProspect prospect = game_authority::handoverProspect(
+      withOrderExecuting(), PLAYER_A, {milliseconds{1000}, milliseconds{3000}, std::nullopt, false, false});
+
+  // Then: A is prompted to choose now
+  EXPECT_EQ(prospect, game_authority::HandoverProspect::CHOOSE_NOW);
+}
+
+/// @brief After the arrival a successor still hands over until the opportunity that would send it
+TEST(OrbitalGameAuthority, KeepsHandoverPromptAfterCompletionUntilOpportunity) {
+  // When: the prospect is queried at 3400 ms, after 1 completed and before the opportunity at 4200 ms
+  game_authority::HandoverProspect prospect = game_authority::handoverProspect(
+      withOrderCompleted(), PLAYER_A, {milliseconds{3400}, std::nullopt, std::nullopt, false, false});
+
+  // Then: A is still prompted
+  EXPECT_EQ(prospect, game_authority::HandoverProspect::CHOOSE_NOW);
+}
+
+/// @brief A completion stays open only until the opportunity after it; a choice made later cannot hand over
+TEST(OrbitalGameAuthority, ClosesHandoverPromptAtOpportunityAfterCompletion) {
+  // When: the prospect is queried at 6000 ms, after the opportunity at 4200 ms
+  game_authority::HandoverProspect prospect = game_authority::handoverProspect(
+      withOrderCompleted(), PLAYER_A, {milliseconds{6000}, std::nullopt, std::nullopt, false, false});
+
+  // Then: A is not prompted
+  EXPECT_EQ(prospect, game_authority::HandoverProspect::NONE);
+}
+
+TEST(OrbitalGameAuthority, OffersNoHandoverAfterInterruption) {
+  // Given: A's order 1 was interrupted at 4400 ms
+  State state = step(withOrderExecuting(), 4400, {}, {OrderEnded{OrderId{1}, EndReason::INTERRUPTED, OrderId{2}}});
+
+  // When: the prospect is queried at 4600 ms
+  game_authority::HandoverProspect prospect = game_authority::handoverProspect(
+      state, PLAYER_A, {milliseconds{4600}, std::nullopt, std::nullopt, false, false});
+
+  // Then: A is not prompted
+  EXPECT_EQ(prospect, game_authority::HandoverProspect::NONE);
+}
+
+/// @brief A successor chosen in the window is shown as ready, so the player knows not to change it
+TEST(OrbitalGameAuthority, ShowsSuccessorReadyForQualifyingSelection) {
+  // When: the prospect is queried at 1000 ms with a selection submitted then
+  game_authority::HandoverProspect prospect = game_authority::handoverProspect(
+      withOrderExecuting(), PLAYER_A, {milliseconds{1000}, milliseconds{3000}, milliseconds{1000}, false, false});
+
+  // Then: the successor is ready
+  EXPECT_EQ(prospect, game_authority::HandoverProspect::SUCCESSOR_READY);
+}
+
+/// @brief Changing one's mind costs the handover, as for a counted handover
+TEST(OrbitalGameAuthority, PromisesNoHandoverForReplacingSelection) {
+  // When: the prospect is queried with a selection that replaced another
+  game_authority::HandoverProspect prospect = game_authority::handoverProspect(
+      withOrderExecuting(), PLAYER_A, {milliseconds{1100}, milliseconds{3000}, milliseconds{1100}, true, false});
+
+  // Then: no handover is promised
+  EXPECT_EQ(prospect, game_authority::HandoverProspect::NONE);
+}
+
+/// @brief The predecessor's observed activation counts, not an estimate of it
+TEST(OrbitalGameAuthority, PromisesNoHandoverForSelectionBeforePredecessorActivated) {
+  // When: the prospect is queried with a selection submitted at 200 ms, before 1 activated at 400 ms
+  game_authority::HandoverProspect prospect = game_authority::handoverProspect(
+      withOrderExecuting(), PLAYER_A, {milliseconds{1000}, milliseconds{3000}, milliseconds{200}, false, false});
+
+  // Then: no handover is promised
+  EXPECT_EQ(prospect, game_authority::HandoverProspect::NONE);
+}
+
+/// @brief A transmitted order takes over next; whatever is chosen now follows that order
+TEST(OrbitalGameAuthority, PromisesNoHandoverWhileTransmittedOrderWaits) {
+  // When: the prospect is queried while a transmitted order waits for activation
+  game_authority::HandoverProspect prospect = game_authority::handoverProspect(
+      withOrderExecuting(), PLAYER_A, {milliseconds{1000}, milliseconds{3000}, std::nullopt, false, true});
+
+  // Then: no handover is promised
+  EXPECT_EQ(prospect, game_authority::HandoverProspect::NONE);
 }
 
 /// @section game_authority::observeTransmission
@@ -651,7 +746,7 @@ namespace {
 
 // Steps in which 1 executed from 400 ms to 3000 ms and 2 from 4400 ms to 5000 ms, with only 1's transmission known
 State withSuccessorTransmissionUnknown() {
-  State state = game_authority::observeTransmission(runningGame(), transmittedByA(1, 0, 200));
+  State state = std::get<0>(game_authority::observeTransmission(runningGame(), transmittedByA(1, 0, 200)));
   state = step(std::move(state), 400, {activated(1)}, {});
   state = step(std::move(state), 3000, {}, {completed(1)});
   state = step(std::move(state), 4400, {activated(2)}, {});
@@ -660,13 +755,24 @@ State withSuccessorTransmissionUnknown() {
 
 }  // namespace
 
+TEST(OrbitalGameAuthority, ReportsHandoverWhenSuccessorTransmissionIsLearnedLate) {
+  // Given: 1 and 2 executed and completed before 2's transmission is known
+  State state = withSuccessorTransmissionUnknown();
+
+  // When: 2's transmission, submitted at 2000 ms and sent at 4200 ms, is learned
+  auto [observed, handovers] = game_authority::observeTransmission(std::move(state), transmittedByA(2, 2000, 4200));
+
+  // Then: the handover is reported now
+  EXPECT_EQ(handovers, (std::vector<game_authority::HandoverGranted>{{PLAYER_A, OrderId{2}, 1, 10}}));
+}
+
 /// @brief A player-local Order Authority may synchronize its history after the Arena Authority reported the completion
 TEST(OrbitalGameAuthority, BanksHandoverWhenSuccessorTransmissionIsLearnedLate) {
   // Given: 1 and 2 executed and completed before 2's transmission is known
   State state = withSuccessorTransmissionUnknown();
 
   // When: 2's transmission, submitted at 2000 ms and sent at 4200 ms, is learned
-  State observed = game_authority::observeTransmission(std::move(state), transmittedByA(2, 2000, 4200));
+  State observed = std::get<0>(game_authority::observeTransmission(std::move(state), transmittedByA(2, 2000, 4200)));
 
   // Then: the handover bonus is banked as if the transmission had been known in time
   game_authority::PlayerScore score = game_authority::view(observed).players.at(PLAYER_A);
@@ -676,10 +782,11 @@ TEST(OrbitalGameAuthority, BanksHandoverWhenSuccessorTransmissionIsLearnedLate) 
 
 TEST(OrbitalGameAuthority, BanksLateTransmissionOnlyOnce) {
   // Given: 2's late transmission was learned and banked
-  State state = game_authority::observeTransmission(withSuccessorTransmissionUnknown(), transmittedByA(2, 2000, 4200));
+  State state = std::get<0>(
+      game_authority::observeTransmission(withSuccessorTransmissionUnknown(), transmittedByA(2, 2000, 4200)));
 
   // When: the same transmission is learned again
-  State observed = game_authority::observeTransmission(std::move(state), transmittedByA(2, 2000, 4200));
+  State observed = std::get<0>(game_authority::observeTransmission(std::move(state), transmittedByA(2, 2000, 4200)));
 
   // Then: the bonus is not banked twice
   EXPECT_EQ(game_authority::view(observed).players.at(PLAYER_A).banked, 10);
@@ -690,9 +797,9 @@ TEST(OrbitalGameAuthority, IgnoresTransmissionOfAnotherRound) {
   State state = withSuccessorTransmissionUnknown();
 
   // When: a transmission of another round is learned
-  State observed = game_authority::observeTransmission(
+  State observed = std::get<0>(game_authority::observeTransmission(
       std::move(state),
-      OrderTransmitted{RoundId{2}, OrderId{2}, PLAYER_A, milliseconds{2000}, milliseconds{4200}, std::nullopt});
+      OrderTransmitted{RoundId{2}, OrderId{2}, PLAYER_A, milliseconds{2000}, milliseconds{4200}, std::nullopt}));
 
   // Then: nothing is banked
   EXPECT_EQ(game_authority::view(observed).players.at(PLAYER_A).banked, 0);
@@ -701,7 +808,7 @@ TEST(OrbitalGameAuthority, IgnoresTransmissionOfAnotherRound) {
 /// @brief Final standings stay final, also for transmissions still on their way
 TEST(OrbitalGameAuthority, IgnoresTransmissionLearnedAfterConclusion) {
   // Given: 1 and 2 executed, and 2 completed on the final step before its transmission is known
-  State state = game_authority::observeTransmission(runningGame(), transmittedByA(1, 0, 200));
+  State state = std::get<0>(game_authority::observeTransmission(runningGame(), transmittedByA(1, 0, 200)));
   state = step(std::move(state), 400, {activated(1)}, {});
   state = step(std::move(state), 3000, {}, {completed(1)});
   state = step(std::move(state), 4400, {activated(2)}, {});
@@ -709,7 +816,7 @@ TEST(OrbitalGameAuthority, IgnoresTransmissionLearnedAfterConclusion) {
       game_authority::observeStep(std::move(state), std::chrono::minutes{2}, {}, {completed(2)}, BOTH_ALIVE));
 
   // When: 2's transmission is learned after conclusion
-  State observed = game_authority::observeTransmission(std::move(state), transmittedByA(2, 2000, 4200));
+  State observed = std::get<0>(game_authority::observeTransmission(std::move(state), transmittedByA(2, 2000, 4200)));
 
   // Then: nothing is banked
   EXPECT_EQ(game_authority::view(observed).players.at(PLAYER_A).banked, 0);
@@ -720,9 +827,9 @@ TEST(OrbitalGameAuthority, IgnoresTransmissionLearnedAfterConclusion) {
 TEST(OrbitalGameAuthority, WithdrawsHandoverBonusWhenLateTransmissionRevealsOrderInBetween) {
   // Given: 1 executed until 3000 ms, an order 3 not yet known executed from 3200 ms to 3800 ms, then 2, submitted at
   //        2000 ms and sent at 4200 ms, executed from 4400 ms to 5000 ms and was banked as handing over from 1
-  State state = game_authority::observeTransmission(runningGame(), transmittedByA(1, 0, 200));
+  State state = std::get<0>(game_authority::observeTransmission(runningGame(), transmittedByA(1, 0, 200)));
   state = step(std::move(state), 400, {activated(1)}, {});
-  state = game_authority::observeTransmission(std::move(state), transmittedByA(2, 2000, 4200));
+  state = std::get<0>(game_authority::observeTransmission(std::move(state), transmittedByA(2, 2000, 4200)));
   state = step(std::move(state), 3000, {}, {completed(1)});
   state = step(std::move(state), 3200, {activated(3)}, {});
   state = step(std::move(state), 3800, {}, {completed(3)});
@@ -730,7 +837,7 @@ TEST(OrbitalGameAuthority, WithdrawsHandoverBonusWhenLateTransmissionRevealsOrde
   state = step(std::move(state), 5000, {}, {completed(2)});
 
   // When: 3's transmission is learned, submitted at 2900 ms
-  State observed = game_authority::observeTransmission(std::move(state), transmittedByA(3, 2900, 3000));
+  State observed = std::get<0>(game_authority::observeTransmission(std::move(state), transmittedByA(3, 2900, 3000)));
 
   // Then: 2's predecessor was 3, which was not executing when 2 was submitted, so the bonus banked before is withdrawn
   game_authority::PlayerScore score = game_authority::view(observed).players.at(PLAYER_A);
@@ -741,10 +848,11 @@ TEST(OrbitalGameAuthority, WithdrawsHandoverBonusWhenLateTransmissionRevealsOrde
 /// @brief Resending must not move a submission in time; its first record is the domain fact
 TEST(OrbitalGameAuthority, KeepsFirstSubmissionTimeOfAnOrder) {
   // Given: 2's transmission with a submission at 300 ms, before 1 activated at 400 ms, was learned
-  State state = game_authority::observeTransmission(withSuccessorTransmissionUnknown(), transmittedByA(2, 300, 4200));
+  State state = std::get<0>(
+      game_authority::observeTransmission(withSuccessorTransmissionUnknown(), transmittedByA(2, 300, 4200)));
 
   // When: a record for order 2 with a later submission time is learned
-  State observed = game_authority::observeTransmission(std::move(state), transmittedByA(2, 2000, 4200));
+  State observed = std::get<0>(game_authority::observeTransmission(std::move(state), transmittedByA(2, 2000, 4200)));
 
   // Then: the first time counts, so the completion stays no handover
   EXPECT_EQ(game_authority::view(observed).players.at(PLAYER_A).banked, 0);

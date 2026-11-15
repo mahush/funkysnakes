@@ -53,13 +53,9 @@ struct Cell {
 using CellGrid = std::vector<std::vector<Cell>>;
 
 /**
- * @brief What choosing a successor would earn the player right now
+ * @brief What choosing a successor would earn the player right now, as the Game Authority decides it
  */
-enum class HandoverHint {
-  NONE,            // No handover window is open, or nothing chosen now could hand over
-  CHOOSE_NOW,      // A successor chosen now would hand over
-  SUCCESSOR_READY  // The selected successor hands over if it takes over as expected
-};
+using HandoverHint = orbital::game_authority::HandoverProspect;
 
 /**
  * @brief Everything the panel of one player shows

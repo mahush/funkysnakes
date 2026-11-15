@@ -94,7 +94,7 @@ struct Execution {
   std::optional<EndReason> end_reason;
 };
 
-// A completing order is a handover when its predecessor completed, and the order, submitted after the
+// An activating order hands over when its predecessor completed, and the order, submitted at or after the
 // predecessor activated and replacing no earlier selection, was sent at the first opportunity at or after
 // the predecessor's completion: a choice made earlier would have been sent before and interrupted it
 bool handsOver(const OrderTransmitted& successor, const std::optional<Execution>& predecessor) {
@@ -138,10 +138,13 @@ Chain deriveChain(const PlayerId& player,
       if (handsOver(transmissions.at(activated->order), predecessor)) {
         ++chain.length;
         held_bonuses[activated->order] = scoring_policy::handoverBonus(chain.length);
+        chain.handovers[activated->order] =
+            HandoverGranted{player, activated->order, chain.length, held_bonuses[activated->order]};
       } else {
         chain.length = 0;
       }
       executions[activated->order] = Execution{step.at, std::nullopt, std::nullopt};
+      chain.last_activation = step.at;
       executed_last = activated->order;
       chain.open_completion.reset();
     }
@@ -180,12 +183,15 @@ Chain deriveChain(const PlayerId& player,
   return chain;
 }
 
-// Re-derive every player's chain from the known histories and bank the change of their bonus
-std::tuple<PerPlayerScores, std::map<PlayerId, Chain>> bankHandovers(PerPlayerScores banked,
-                                                                     std::map<PlayerId, Chain> chains,
-                                                                     const Transmissions& transmissions,
-                                                                     const std::vector<ObservedStep>& steps) {
+// Re-derive every player's chain from the known histories, bank the change of their bonus and report the
+// handovers counted for the first time
+std::tuple<PerPlayerScores, std::map<PlayerId, Chain>, std::vector<HandoverGranted>> bankHandovers(
+    PerPlayerScores banked,
+    std::map<PlayerId, Chain> chains,
+    const Transmissions& transmissions,
+    const std::vector<ObservedStep>& steps) {
   const std::map<OrderId, PlayerId> players = playersOfOrders(transmissions);
+  std::vector<HandoverGranted> granted;
   for (auto& [player, score] : banked) {
     auto transmitted = transmissions.find(player);
     const Chain derived =
@@ -195,9 +201,15 @@ std::tuple<PerPlayerScores, std::map<PlayerId, Chain>> bankHandovers(PerPlayerSc
                     steps);
     Chain& chain = chains[player];
     score += derived.bonus_banked - chain.bonus_banked;
+    for (const auto& [order, handover] : derived.handovers) {
+      auto known = chain.handovers.find(order);
+      if (known == chain.handovers.end() || !(known->second == handover)) {
+        granted.push_back(handover);
+      }
+    }
     chain = derived;
   }
-  return {std::move(banked), std::move(chains)};
+  return {std::move(banked), std::move(chains), std::move(granted)};
 }
 
 }  // namespace
@@ -211,23 +223,25 @@ State startRound(RoundId round, const std::vector<PlayerId>& players) {
   return state;
 }
 
-std::tuple<State, std::optional<GameConcluded>> observeStep(State state,
-                                                            GameTime now,
-                                                            const std::vector<ActivationOutcome>& activations,
-                                                            const ArenaEvents& events,
-                                                            const std::set<PlayerId>& alive) {
+std::tuple<State, std::vector<HandoverGranted>, std::optional<GameConcluded>> observeStep(
+    State state,
+    GameTime now,
+    const std::vector<ActivationOutcome>& activations,
+    const ArenaEvents& events,
+    const std::set<PlayerId>& alive) {
   if (!isRunning(state)) {
-    return {std::move(state), std::nullopt};
+    return {std::move(state), {}, std::nullopt};
   }
 
   state.now_ = now;
   state.scores_ = scoreEvents(std::move(state.scores_), events);
   state.steps_.push_back(ObservedStep{now, activations, events, alive});
-  std::tie(state.scores_.banked, state.chains_) =
+  std::vector<HandoverGranted> granted;
+  std::tie(state.scores_.banked, state.chains_, granted) =
       bankHandovers(std::move(state.scores_.banked), std::move(state.chains_), state.transmissions_, state.steps_);
 
   if (now < pacing_policy::GAME_DURATION && !alive.empty()) {
-    return {std::move(state), std::nullopt};
+    return {std::move(state), std::move(granted), std::nullopt};
   }
 
   state.scores_ = settleAtConclusion(std::move(state.scores_));
@@ -236,22 +250,23 @@ std::tuple<State, std::optional<GameConcluded>> observeStep(State state,
     chain.bonus_held = 0;
   }
   state.result_ = decideResult(state.scores_.banked);
-  return {state, GameConcluded{state.round_, *state.result_}};
+  return {state, std::move(granted), GameConcluded{state.round_, *state.result_}};
 }
 
-State observeTransmission(State state, const OrderTransmitted& transmitted) {
+std::tuple<State, std::vector<HandoverGranted>> observeTransmission(State state, const OrderTransmitted& transmitted) {
   if (!isRunning(state) || transmitted.round != state.round_ || state.scores_.banked.count(transmitted.player) == 0) {
-    return state;
+    return {std::move(state), {}};
   }
   std::vector<OrderTransmitted>& known = state.transmissions_[transmitted.player];
   auto same_order = [&transmitted](const OrderTransmitted& other) { return other.order == transmitted.order; };
   if (std::any_of(known.begin(), known.end(), same_order)) {
-    return state;
+    return {std::move(state), {}};
   }
   known.push_back(transmitted);
-  std::tie(state.scores_.banked, state.chains_) =
+  std::vector<HandoverGranted> granted;
+  std::tie(state.scores_.banked, state.chains_, granted) =
       bankHandovers(std::move(state.scores_.banked), std::move(state.chains_), state.transmissions_, state.steps_);
-  return state;
+  return {std::move(state), std::move(granted)};
 }
 
 bool isRunning(const State& state) { return !state.result_.has_value(); }
@@ -261,9 +276,7 @@ View view(const State& state) {
   for (const auto& [player, banked] : state.scores_.banked) {
     auto chain = state.chains_.find(player);
     const int length = chain == state.chains_.end() ? 0 : chain->second.length;
-    const std::optional<GameTime> open_completion =
-        chain == state.chains_.end() || !isRunning(state) ? std::nullopt : chain->second.open_completion;
-    result.players[player] = PlayerScore{banked, 0, length, scoring_policy::handoverBonus(length + 1), open_completion};
+    result.players[player] = PlayerScore{banked, 0, length, scoring_policy::handoverBonus(length + 1)};
   }
   for (const auto& [order, held] : state.scores_.held) {
     result.players[held.player].held += held.points;
@@ -274,6 +287,30 @@ View view(const State& state) {
   result.remaining = std::max(GameTime{0}, pacing_policy::GAME_DURATION - state.now_);
   result.result = state.result_;
   return result;
+}
+
+HandoverProspect handoverProspect(const State& state, const PlayerId& player, const ProspectContext& context) {
+  auto chain = state.chains_.find(player);
+  if (!isRunning(state) || chain == state.chains_.end()) {
+    return HandoverProspect::NONE;
+  }
+  const std::optional<GameTime> completion =
+      context.expected_completion ? context.expected_completion : chain->second.open_completion;
+  if (!completion) {
+    return HandoverProspect::NONE;
+  }
+  // A choice is sent at the first opportunity after it, which must be the first one at or after the completion
+  const GameTime closes = transmission_schedule_policy::firstOpportunityFrom(*completion);
+  const GameTime opens = transmission_schedule_policy::lastOpportunityBefore(closes).value_or(GameTime{0});
+  if (context.now < opens || context.now >= closes || context.transmission_pending) {
+    return HandoverProspect::NONE;
+  }
+  if (!context.selected_at) {
+    return HandoverProspect::CHOOSE_NOW;
+  }
+  const std::optional<GameTime>& activated = chain->second.last_activation;
+  const bool qualifies = !context.selection_replaced && activated && *activated <= *context.selected_at;
+  return qualifies ? HandoverProspect::SUCCESSOR_READY : HandoverProspect::NONE;
 }
 
 }  // namespace game_authority
