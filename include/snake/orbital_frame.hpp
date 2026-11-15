@@ -3,6 +3,7 @@
 #include <chrono>
 #include <map>
 #include <optional>
+#include <set>
 #include <vector>
 
 #include "common/game_primitives.hpp"
@@ -25,10 +26,11 @@ namespace orbital_frame {
  */
 enum class CellRole {
   EMPTY,
-  PENDING_ROUTE,  // Route a pending order would get if it activated now
-  ACTIVE_ROUTE,   // Remaining route of the executing order
+  SELECTED_ROUTE,  // Route the selected order would get if it activated now
+  SENT_ROUTE,      // Route the transmitted order would get if it activated now
+  ACTIVE_ROUTE,    // Remaining route of the executing order
   FOOD,
-  TARGET,  // Target of a pending or executing order
+  TARGET,  // Target of a selected, transmitted or executing order
   SNAKE_BODY,
   SNAKE_HEAD,
   DEAD_HEAD,  // Head of a dead snake
@@ -51,6 +53,15 @@ struct Cell {
 using CellGrid = std::vector<std::vector<Cell>>;
 
 /**
+ * @brief What choosing a successor would earn the player right now
+ */
+enum class HandoverHint {
+  NONE,            // No handover window is open, or nothing chosen now could hand over
+  CHOOSE_NOW,      // A successor chosen now would hand over
+  SUCCESSOR_READY  // The selected successor hands over if it takes over as expected
+};
+
+/**
  * @brief Everything the panel of one player shows
  */
 struct PlayerPanel {
@@ -60,19 +71,49 @@ struct PlayerPanel {
   int next_handover{0};  // Bonus the next handover would earn
   bool alive{true};
   std::optional<Point> executing_target;
-  std::optional<Point> pending_target;
-  std::chrono::milliseconds pending_remaining{0};  // Time until the pending order may activate
+  std::optional<Point> transmitted_target;  // Sent, activates at the next step
+  std::optional<Point> selected_target;     // Waits for the next opportunity
+  HandoverHint handover_hint{HandoverHint::NONE};
   std::optional<Point> cursor;
 };
 
 /**
- * @brief Link delay of a submission issued now, within its range
+ * @brief One stretch of the whole game in the uplink overview
  */
-struct DelayGauge {
-  std::chrono::milliseconds now;
-  std::chrono::milliseconds min;
-  std::chrono::milliseconds max;
+struct OverviewRow {
+  int opportunities{0};  // Transmission opportunities within the stretch
+  int steps{0};          // Steps within the stretch: the most opportunities it could hold
+  bool elapsed{false};   // The stretch lies wholly in the past
+  bool now{false};       // The current time lies within the stretch
+
+  bool operator==(const OverviewRow& other) const noexcept {
+    return opportunities == other.opportunities && steps == other.steps && elapsed == other.elapsed && now == other.now;
+  }
 };
+
+/**
+ * @brief One coming step in the uplink lane
+ */
+struct LaneSlot {
+  bool opportunity{false};       // A transmission opportunity falls on the step
+  std::set<PlayerId> executing;  // Players whose executing order is expected to still run in the step
+};
+
+/**
+ * @brief The uplink: when transmission opportunities come, at two scales
+ *
+ * The overview spans the whole game in equal stretches, oldest first; the lane spans the coming
+ * steps one by one, the next step first. An executing order's remaining steps are a prediction from
+ * its remaining route: it holds if the order is neither interrupted nor its snake dies on the way.
+ */
+struct UplinkTimeline {
+  std::chrono::milliseconds lane_span{0};  // Time the lane covers
+  std::vector<OverviewRow> overview;
+  std::vector<LaneSlot> lane;
+};
+
+// Rows of the uplink beside the board that are not timeline: the top and bottom labels
+constexpr int UPLINK_LABEL_ROWS = 2;
 
 /**
  * @brief Outcome once the game is over: the winner, or nothing for a draw
@@ -86,7 +127,7 @@ struct GameOver {
  */
 struct Frame {
   CellGrid cells;
-  DelayGauge delay;
+  UplinkTimeline uplink;  // One overview row and two lane slots per board row the labels leave
   std::chrono::milliseconds remaining;
   std::optional<GameOver> game_over;
   std::map<PlayerId, PlayerPanel> players;  // One per snake in the arena

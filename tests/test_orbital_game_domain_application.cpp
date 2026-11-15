@@ -881,29 +881,30 @@ TEST_F(OrbitalGameDomainApplication, ResumesFromBeforeAdvanceThatAnOwnerFailed) 
 
 /// @subsection views
 
-/// @brief Players see the coming opportunities, so they can time a submission around a predecessor's arrival
-TEST_F(OrbitalGameDomainApplication, ViewsNextTwoTransmissionOpportunities) {
-  // Given: 2800 ms have passed
-  start(makeLanes({}));
-  elapse(2800);
-
-  // When: 200 ms more pass
-  elapse(200);
-
-  // Then: the views carry the current time and the two opportunities after it
-  EXPECT_EQ(players_.views->now, milliseconds{3000});
-  EXPECT_EQ(players_.views->next_transmissions, (std::vector<milliseconds>{milliseconds{4200}, milliseconds{8000}}));
-}
-
-/// @brief Presentation scales the opportunity gauge without asking the Transmission Schedule Policy itself
-TEST_F(OrbitalGameDomainApplication, ViewsRangeOfTransmissionInterval) {
+/// @brief Players see the whole schedule, so they can time a submission around a predecessor's arrival
+TEST_F(OrbitalGameDomainApplication, ViewsTransmissionScheduleOfGame) {
   // When: a game starts
   game_.start(app::Start{RoundId{1}});
 
-  // Then: the views show the interval's range of 0.5-4 s
+  // Then: the views carry every opportunity of the two minutes: 4 s apart after the first, 0.6 s apart at the end
   ASSERT_TRUE(players_.views.has_value());
-  EXPECT_EQ(players_.views->min_interval, milliseconds{500});
-  EXPECT_EQ(players_.views->max_interval, milliseconds{4000});
+  const std::vector<milliseconds>& schedule = players_.views->transmission_schedule;
+  ASSERT_EQ(schedule.size(), 71U);
+  EXPECT_EQ(schedule[0], milliseconds{200});
+  EXPECT_EQ(schedule[1], milliseconds{4200});
+  EXPECT_EQ(schedule[2], milliseconds{8000});
+  EXPECT_EQ(schedule.back(), milliseconds{119800});
+  EXPECT_EQ(schedule.back() - schedule[schedule.size() - 2], milliseconds{600});
+}
+
+/// @brief Presentation places steps on the timeline without asking the Pacing Policy itself
+TEST_F(OrbitalGameDomainApplication, ViewsStepInterval) {
+  // When: a game starts
+  game_.start(app::Start{RoundId{1}});
+
+  // Then: the views show the step interval of 200 ms
+  ASSERT_TRUE(players_.views.has_value());
+  EXPECT_EQ(players_.views->step_interval, milliseconds{200});
 }
 
 /// @brief Game time ends with the game, so the time shown at the end stays as it was
