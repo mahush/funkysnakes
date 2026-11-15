@@ -86,9 +86,12 @@ constexpr bool isOpportunity(GameTime at) { return firstOpportunityFrom(at) == a
  * @return Time of the latest opportunity strictly before at; empty if none precedes it
  */
 constexpr std::optional<GameTime> lastOpportunityBefore(GameTime at) {
-  std::optional<GameTime> last;
-  for (GameTime opportunity = FIRST_OPPORTUNITY; opportunity < at; opportunity += intervalAfter(opportunity)) {
-    last = opportunity;
+  if (at <= FIRST_OPPORTUNITY) {
+    return std::nullopt;
+  }
+  GameTime last = FIRST_OPPORTUNITY;
+  while (last + intervalAfter(last) < at) {
+    last += intervalAfter(last);
   }
   return last;
 }

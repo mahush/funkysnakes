@@ -3,6 +3,8 @@
 #include <gtest/gtest.h>
 
 #include <chrono>
+#include <optional>
+#include <vector>
 
 #include "orbital/transmission_schedule_policy.hpp"
 
@@ -90,6 +92,55 @@ TEST(TransmissionSchedulePolicy, OffersOpportunityEveryThirdStepAtEndOfGame) {
   // Then: the first is an opportunity, the next step is not
   EXPECT_TRUE(at_opportunity);
   EXPECT_FALSE(after_it);
+}
+
+/// @section transmission_schedule_policy::firstOpportunityFrom
+
+/// @brief An opportunity on the time itself counts, so a completion at an opportunity's step is sent there
+TEST(TransmissionSchedulePolicy, OffersOpportunityAtTheTimeItself) {
+  // When: the first opportunity from 4200 ms is computed at compile time
+  constexpr milliseconds first = transmission_schedule_policy::firstOpportunityFrom(milliseconds{4200});
+
+  // Then: it is 4200 ms
+  EXPECT_EQ(first, milliseconds{4200});
+}
+
+TEST(TransmissionSchedulePolicy, OffersFirstOpportunityAfterTimeBetweenOpportunities) {
+  // When: the first opportunity from 3000 ms is computed at compile time
+  constexpr milliseconds first = transmission_schedule_policy::firstOpportunityFrom(milliseconds{3000});
+
+  // Then: it is 4200 ms
+  EXPECT_EQ(first, milliseconds{4200});
+}
+
+/// @section transmission_schedule_policy::lastOpportunityBefore
+
+TEST(TransmissionSchedulePolicy, FindsLastOpportunityStrictlyBefore) {
+  // When: the last opportunity before 4200 ms is computed at compile time
+  constexpr std::optional<milliseconds> last = transmission_schedule_policy::lastOpportunityBefore(milliseconds{4200});
+
+  // Then: it is the first opportunity at 200 ms
+  EXPECT_EQ(last, milliseconds{200});
+}
+
+TEST(TransmissionSchedulePolicy, FindsNoOpportunityBeforeFirst) {
+  // When: the last opportunity before 200 ms is computed at compile time
+  constexpr std::optional<milliseconds> last = transmission_schedule_policy::lastOpportunityBefore(milliseconds{200});
+
+  // Then: there is none
+  EXPECT_FALSE(last.has_value());
+}
+
+/// @section transmission_schedule_policy::opportunitiesOfGame
+
+TEST(TransmissionSchedulePolicy, SchedulesSeventyOneOpportunitiesPerGame) {
+  // When: the opportunities of a game are listed
+  const std::vector<milliseconds>& opportunities = transmission_schedule_policy::opportunitiesOfGame();
+
+  // Then: there are 71, from 200 ms to 119.8 s
+  ASSERT_EQ(opportunities.size(), 71U);
+  EXPECT_EQ(opportunities.front(), milliseconds{200});
+  EXPECT_EQ(opportunities.back(), milliseconds{119800});
 }
 
 }  // namespace orbital
