@@ -53,17 +53,6 @@ std::map<PlayerId, std::vector<Direction>> routesOf(
   return routes;
 }
 
-// Every transmission opportunity of the game, as the Transmission Schedule Policy decides them
-std::vector<GameTime> transmissionSchedule() {
-  std::vector<GameTime> schedule;
-  for (GameTime opportunity = transmission_schedule_policy::FIRST_OPPORTUNITY;
-       opportunity <= pacing_policy::GAME_DURATION;
-       opportunity += transmission_schedule_policy::intervalAfter(opportunity)) {
-    schedule.push_back(opportunity);
-  }
-  return schedule;
-}
-
 Observations withViews(Observations observations, const State& state) {
   if (isStarted(state)) {
     order_authority::View orders = order_authority::view(*state.orders);
@@ -76,7 +65,7 @@ Observations withViews(Observations observations, const State& state) {
                                game_authority::view(*state.game),
                                state.clock.now,
                                pacing_policy::STEP_INTERVAL,
-                               transmissionSchedule(),
+                               transmission_schedule_policy::opportunitiesOfGame(),
                                std::move(selected_routes),
                                std::move(transmitted_routes)};
   }

@@ -94,18 +94,13 @@ struct Execution {
   std::optional<EndReason> end_reason;
 };
 
-// First transmission opportunity at or after a time; one at the time itself comes after that step's completions
-GameTime firstOpportunityFrom(GameTime at) {
-  return transmission_schedule_policy::isOpportunity(at) ? at : transmission_schedule_policy::nextOpportunityAfter(at);
-}
-
 // A completing order is a handover when its predecessor completed, and the order, submitted after the
 // predecessor activated and replacing no earlier selection, was sent at the first opportunity at or after
 // the predecessor's completion: a choice made earlier would have been sent before and interrupted it
 bool handsOver(const OrderTransmitted& successor, const std::optional<Execution>& predecessor) {
   return predecessor && predecessor->end_reason == EndReason::COMPLETED && !successor.replaced &&
          predecessor->activated_at <= successor.submitted_at &&
-         successor.transmitted_at == firstOpportunityFrom(*predecessor->ended_at);
+         successor.transmitted_at == transmission_schedule_policy::firstOpportunityFrom(*predecessor->ended_at);
 }
 
 // The player's chain as the known histories determine it, with the bonus it earned over the game
