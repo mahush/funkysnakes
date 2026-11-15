@@ -693,8 +693,8 @@ TEST(OrbitalGameAuthority, OffersNoHandoverAfterInterruption) {
   State state = step(withOrderExecuting(), 4400, {}, {OrderEnded{OrderId{1}, EndReason::INTERRUPTED, OrderId{2}}});
 
   // When: the prospect is queried at 4600 ms
-  game_authority::HandoverProspect prospect = game_authority::handoverProspect(
-      state, PLAYER_A, {milliseconds{4600}, std::nullopt, std::nullopt, false, false});
+  game_authority::HandoverProspect prospect =
+      game_authority::handoverProspect(state, PLAYER_A, {milliseconds{4600}, std::nullopt, std::nullopt, false, false});
 
   // Then: A is not prompted
   EXPECT_EQ(prospect, game_authority::HandoverProspect::NONE);
@@ -735,6 +735,16 @@ TEST(OrbitalGameAuthority, PromisesNoHandoverWhileTransmittedOrderWaits) {
   // When: the prospect is queried while a transmitted order waits for activation
   game_authority::HandoverProspect prospect = game_authority::handoverProspect(
       withOrderExecuting(), PLAYER_A, {milliseconds{1000}, milliseconds{3000}, std::nullopt, false, true});
+
+  // Then: no handover is promised
+  EXPECT_EQ(prospect, game_authority::HandoverProspect::NONE);
+}
+
+/// @brief The last opportunity of the game is at 119.8 s; a choice made after it is never transmitted
+TEST(OrbitalGameAuthority, PromisesNoHandoverWhoseTransmissionFallsAfterGameEnd) {
+  // When: the prospect is queried at 119.9 s while the executing order is expected to complete at 120 s
+  game_authority::HandoverProspect prospect = game_authority::handoverProspect(
+      withOrderExecuting(), PLAYER_A, {milliseconds{119900}, milliseconds{120000}, std::nullopt, false, false});
 
   // Then: no handover is promised
   EXPECT_EQ(prospect, game_authority::HandoverProspect::NONE);

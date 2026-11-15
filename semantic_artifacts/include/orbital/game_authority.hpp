@@ -307,10 +307,11 @@ struct ProspectContext {
  *
  * The predecessor is the executing order, completing as expected, or else the last completed order
  * while its completion is open. A choice made now hands over if it is transmitted at the first
- * opportunity at or after that completion: from the opportunity before it up to that opportunity. A
- * transmitted order waiting for activation takes over first, so nothing chosen now hands over from the
- * predecessor. A selection hands over only if it replaced none and was submitted at or after the
- * predecessor's activation, as for a counted handover.
+ * opportunity at or after that completion: from the opportunity before it up to that opportunity. The
+ * game concludes at the end of its duration before anything is transmitted then, so a window whose
+ * opportunity falls at or after that end offers nothing. A transmitted order waiting for activation takes over first,
+ * so nothing chosen now hands over from the predecessor. A selection hands over only if it replaced none and was
+ * submitted at or after the predecessor's activation, as for a counted handover.
  *
  * @param state Current game state
  * @param player The player
