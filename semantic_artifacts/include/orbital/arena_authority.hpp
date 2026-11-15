@@ -28,7 +28,8 @@ namespace arena_authority {
  * snake_model owns the body and life of one snake.
  *
  * Out of scope: selected and transmitted orders (Order Authority) and the transmission opportunities (Transmission
- * Schedule Policy), points, round duration and conclusion (Game Authority). The Arena Authority reports events; it does not value them.
+ * Schedule Policy), points, round duration and conclusion (Game Authority). The Arena Authority reports events; it does
+ * not value them.
  *
  * Within the events of one step:
  * - interruption of an executing order precedes collection under its replacement;
@@ -90,6 +91,7 @@ class State {
   friend bool anySnakeAlive(const State& state);
   friend std::set<PlayerId> alivePlayers(const State& state);
   friend StepId lastCompletedStep(const State& state);
+  friend std::optional<StepId> expectedCompletionStep(const State& state, const PlayerId& player);
   friend std::optional<std::vector<Direction>> routeIfActivatedNow(const State& state,
                                                                    const PlayerId& player,
                                                                    Point target);
@@ -171,6 +173,18 @@ std::set<PlayerId> alivePlayers(const State& state);
  * @return Identity of the last completed step (0 before the first step)
  */
 StepId lastCompletedStep(const State& state);
+
+/**
+ * @brief Step at which the player's executing order is expected to complete
+ *
+ * The snake takes one move of the remaining route per step, so the order completes that many steps
+ * after the last completed one unless it is interrupted, the snake dies or execution ends first.
+ *
+ * @param state Current world
+ * @param player The player
+ * @return The step of the last remaining move; nothing if no order of the player executes with moves left
+ */
+std::optional<StepId> expectedCompletionStep(const State& state, const PlayerId& player);
 
 /**
  * @brief Route an order of the player to the target would get if it activated now

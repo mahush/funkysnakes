@@ -56,17 +56,12 @@ std::map<PlayerId, std::vector<Direction>> routesOf(
 // What choosing a successor would earn each player now, as the Game Authority decides it from what the
 // Arena and Order Authorities know of the player's orders
 std::map<PlayerId, game_authority::HandoverProspect> handoverProspects(const State& state,
-                                                                       const arena_authority::View& arena,
                                                                        const order_authority::View& orders) {
-  // The arena steps every STEP_INTERVAL, so the executing order completes one step per remaining move
-  const GameTime last_step = state.clock.next_step - pacing_policy::STEP_INTERVAL;
   std::map<PlayerId, game_authority::HandoverProspect> prospects;
-  for (const auto& [player, snake] : arena.snakes) {
+  for (const PlayerId& player : arena_authority::alivePlayers(*state.arena)) {
     game_authority::ProspectContext context{state.clock.now, std::nullopt, std::nullopt, false, false};
-    if (auto active = arena.active.find(player);
-        active != arena.active.end() && !active->second.remaining_route.empty()) {
-      context.expected_completion =
-          last_step + pacing_policy::STEP_INTERVAL * static_cast<int>(active->second.remaining_route.size());
+    if (std::optional<StepId> completion = arena_authority::expectedCompletionStep(*state.arena, player)) {
+      context.expected_completion = pacing_policy::timeOfStep(*completion);
     }
     if (auto player_orders = orders.players.find(player); player_orders != orders.players.end()) {
       if (const std::optional<order_authority::OrderRecord>& selected = player_orders->second.selected) {
@@ -87,9 +82,8 @@ Observations withViews(Observations observations, const State& state) {
         routesOf(*state.arena, orders, &order_authority::PlayerOrders::selected);
     std::map<PlayerId, std::vector<Direction>> transmitted_routes =
         routesOf(*state.arena, orders, &order_authority::PlayerOrders::transmitted);
-    arena_authority::View arena = arena_authority::view(*state.arena);
-    std::map<PlayerId, game_authority::HandoverProspect> prospects = handoverProspects(state, arena, orders);
-    observations.views = Views{std::move(arena),
+    std::map<PlayerId, game_authority::HandoverProspect> prospects = handoverProspects(state, orders);
+    observations.views = Views{arena_authority::view(*state.arena),
                                std::move(orders),
                                game_authority::view(*state.game),
                                state.clock.now,
