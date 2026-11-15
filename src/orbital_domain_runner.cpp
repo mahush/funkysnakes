@@ -1,6 +1,6 @@
 // Orbital Orders domain runner: plays the defining histories through the Domain Application and
-// prints what happened, step by step: commitments (Order Authority), activations and endings (Arena
-// Authority) and the resulting score and handover chain (Game Authority). No actors, timers, networking
+// prints what happened, step by step: selections and transmissions (Order Authority), activations and
+// endings (Arena Authority) and the resulting score and handover chain (Game Authority). No actors, timers, networking
 // or rendering. Each history starts in a small hand-picked world through the Domain Application's test
 // setup seam, so the traces are reference-only (see TestAccess).
 
@@ -40,17 +40,12 @@ arena_authority::RoundSetup makeBoard() {
 
 std::string point(Point p) { return "(" + std::to_string(p.x) + "," + std::to_string(p.y) + ")"; }
 
-std::string order(OrderId id) {
-  switch (id.value) {
-    case 1:
-      return "F";
-    case 2:
-      return "G";
-    case 3:
-      return "H";
-    default:
-      return "#" + std::to_string(id.value);
-  }
+// Name of each submitted order, for the trace
+using OrderNames = std::map<OrderId, std::string>;
+
+std::string order(const OrderNames& names, OrderId id) {
+  auto it = names.find(id);
+  return it != names.end() ? it->second : "#" + std::to_string(id.value);
 }
 
 std::string endReason(EndReason reason) {
@@ -67,22 +62,22 @@ std::string endReason(EndReason reason) {
   return "?";
 }
 
-std::string describe(const ActivationOutcome& outcome) {
+std::string describe(const OrderNames& names, const ActivationOutcome& outcome) {
   if (const auto* activated = std::get_if<OrderActivated>(&outcome)) {
-    return order(activated->order) + " activates";
+    return order(names, activated->order) + " activates";
   }
-  return order(std::get<OrderRejected>(outcome).order) + " rejected";
+  return order(names, std::get<OrderRejected>(outcome).order) + " rejected";
 }
 
-std::string describe(const ArenaEvent& event) {
+std::string describe(const OrderNames& names, const ArenaEvent& event) {
   return std::visit(
-      [](const auto& item) -> std::string {
+      [&names](const auto& item) -> std::string {
         using TEvent = std::decay_t<decltype(item)>;
         if constexpr (std::is_same_v<TEvent, OrderEnded>) {
-          return order(item.order) + " " + endReason(item.reason);
+          return order(names, item.order) + " " + endReason(item.reason);
         } else if constexpr (std::is_same_v<TEvent, FoodCollected>) {
           return std::string{item.player == PLAYER_A ? "A" : "B"} + " eats at " + point(item.position) +
-                 (item.during ? " during " + order(*item.during) : " (no order)");
+                 (item.during ? " during " + order(names, *item.during) : " (no order)");
         } else {
           return "collision";
         }
@@ -90,8 +85,8 @@ std::string describe(const ArenaEvent& event) {
       event);
 }
 
-// The players' side of the runner: prints what A learns, step by step. A commitment and the score
-// after a run of steps are printed once the views that follow them arrive.
+// The players' side of the runner: prints what A learns, step by step. The score after a run of steps
+// is printed once the views that follow them arrive.
 class PrintingPlayers : public game_boundary::PlayersEndOutbound {
  public:
   // Name and target of the next submission, for the trace
@@ -118,10 +113,10 @@ class PrintingPlayers : public game_boundary::PlayersEndOutbound {
 
   void stepReported(const game_boundary::StepReport& step) override {
     for (const ActivationOutcome& outcome : step.activations) {
-      std::cout << "  " << step.at.count() << " ms  " << describe(outcome) << "\n";
+      std::cout << "  " << step.at.count() << " ms  " << describe(names_, outcome) << "\n";
     }
     for (const ArenaEvent& event : step.events) {
-      std::cout << "  " << step.at.count() << " ms  " << describe(event) << "\n";
+      std::cout << "  " << step.at.count() << " ms  " << describe(names_, event) << "\n";
     }
     for (const OrderTransmitted& transmitted : step.transmissions) {
       std::cout << "  " << step.at.count() << " ms  A transmits " << names_.at(transmitted.order) << "\n";
@@ -131,7 +126,7 @@ class PrintingPlayers : public game_boundary::PlayersEndOutbound {
 
   void ordersEndedWithRound(const ArenaEvents& events) override {
     for (const ArenaEvent& event : events) {
-      std::cout << "  end of game  " << describe(event) << "\n";
+      std::cout << "  end of game  " << describe(names_, event) << "\n";
     }
   }
 
@@ -149,29 +144,29 @@ class PrintingPlayers : public game_boundary::PlayersEndOutbound {
  private:
   std::string order_name_;
   Point target_{0, 0};
-  std::map<OrderId, std::string> names_;  // Name of each submitted order, for the trace
+  OrderNames names_;
   bool stepped_{false};
 };
 
-struct Commit {
+struct PlannedSubmission {
   int at_ms;
   Point target;
   std::string name;
 };
 
-// F to (10,2) collects two foods and arrives at 1600 ms; when its successors are committed decides
-// whether F's +20 counts and whether completions hand over
-void runHistory(const std::string& title, const std::vector<Commit>& commits, int until_ms) {
+// F collects two foods on its way; when its successors are submitted and sent decides whether F's +20
+// counts and whether completions hand over
+void runHistory(const std::string& title, const std::vector<PlannedSubmission>& submissions, int until_ms) {
   std::cout << "\n" << title << "\n";
   PrintingPlayers players;
   app::DomainApplication game{players, makeCornerRandom()};
   app::TestAccess::startWithSetup(game, makeBoard());
   int now_ms = 0;
-  for (const Commit& commit : commits) {
-    game.elapse(app::TimeElapsed{milliseconds{commit.at_ms - now_ms}});
-    players.name(commit.name, commit.target);
-    game.submit(app::Submit{PLAYER_A, commit.target});
-    now_ms = commit.at_ms;
+  for (const PlannedSubmission& submission : submissions) {
+    game.elapse(app::TimeElapsed{milliseconds{submission.at_ms - now_ms}});
+    players.name(submission.name, submission.target);
+    game.submit(app::Submit{PLAYER_A, submission.target});
+    now_ms = submission.at_ms;
   }
   game.elapse(app::TimeElapsed{milliseconds{until_ms - now_ms}});
 }
@@ -180,24 +175,38 @@ void runHistory(const std::string& title, const std::vector<Commit>& commits, in
 
 int main() {
   std::cout << "Orbital Orders - Domain Application traces\n"
-               "Steps every 200 ms; orbital delay 0.2-2 s; food +10 during an order is held\n"
-               "until the order completes, and is lost if a replacement activates first;\n"
-               "food without an order banks +5 at once.\n"
-               "An order completing while its successor is already committed and still pending is a\n"
-               "handover: +10 for the first of a chain, doubling for each consecutive one.\n";
+               "Steps every 200 ms. A submission selects an order; a new submission replaces a\n"
+               "selection not yet sent. The orbital link offers transmission opportunities at 0.2 s,\n"
+               "then 4 s apart, shrinking to 0.6 s by the end of the game; there the selection is\n"
+               "sent and activates at the next step. A sent order cannot be recalled.\n"
+               "Food +10 during an order is held until the order completes, and is lost if a\n"
+               "replacement activates first; food without an order banks +5 at once.\n"
+               "A successor chosen after its predecessor activated, sent at the first opportunity\n"
+               "at or after the predecessor's completion and replacing no earlier selection, earns a\n"
+               "handover bonus when it takes over, held like food until it completes: +10 for the\n"
+               "first of a chain, doubling for each consecutive one.\n";
 
-  const Commit f{0, Point{10, 2}, "F"};
-  runHistory("History 1: G is committed before F completes - F's +20 is banked and F hands over",
-             {f, Commit{1400, Point{10, 6}, "G"}},
-             2000);
-  runHistory("History 2: G activates before F completes - F's +20 is lost and nothing is handed over",
-             {f, Commit{800, Point{10, 6}, "G"}},
-             1200);
-  runHistory("History 3: G is committed after F completed - F's +20 is banked, but no handover",
-             {f, Commit{1600, Point{10, 6}, "G"}},
-             2000);
-  runHistory("History 4: H is committed before G completes - the second handover doubles the bonus",
-             {f, Commit{1400, Point{10, 6}, "G"}, Commit{2200, Point{3, 6}, "H"}},
-             2600);
+  // F to (19,2) arrives at 3400 ms; the next opportunity comes at 4200 ms
+  const PlannedSubmission f{0, Point{19, 2}, "F"};
+  // F to (2,5) takes the long way round the wrapping row 2 and would arrive at 4600 ms
+  const PlannedSubmission long_f{0, Point{2, 5}, "F"};
+  runHistory("History 1: G is submitted before F completes and sent after it - F's +20 is banked, G hands over",
+             {f, PlannedSubmission{3000, Point{4, 6}, "G"}},
+             5400);
+  runHistory("History 2: G is sent before F completes - G interrupts F, F's +20 is lost",
+             {long_f, PlannedSubmission{1000, Point{10, 6}, "G"}},
+             4400);
+  runHistory("History 3: G is submitted after the opportunity that followed F's completion - no handover",
+             {f, PlannedSubmission{4200, Point{4, 6}, "G"}},
+             9400);
+  runHistory("History 4: H is submitted before G completes - the second handover doubles the bonus",
+             {f, PlannedSubmission{3000, Point{4, 6}, "G"}, PlannedSubmission{4600, Point{4, 5}, "H"}},
+             10000);
+  runHistory("History 5: G is replaced by G' before it is sent - F's +20 is banked, but G' does not hand over",
+             {f, PlannedSubmission{3000, Point{4, 8}, "G"}, PlannedSubmission{3100, Point{4, 6}, "G'"}},
+             5400);
+  runHistory("History 6: G is submitted after F completed, before the next opportunity - G still hands over",
+             {f, PlannedSubmission{3600, Point{4, 6}, "G"}},
+             5400);
   return 0;
 }
