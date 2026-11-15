@@ -302,7 +302,9 @@ HandoverProspect handoverProspect(const State& state, const PlayerId& player, co
   // A choice is sent at the first opportunity after it, which must be the first one at or after the completion
   const GameTime closes = transmission_schedule_policy::firstOpportunityFrom(*completion);
   const GameTime opens = transmission_schedule_policy::lastOpportunityBefore(closes).value_or(GameTime{0});
-  if (context.now < opens || context.now >= closes || context.transmission_pending) {
+  // The game concludes before an opportunity at or after its end could transmit the choice
+  if (closes >= pacing_policy::GAME_DURATION || context.now < opens || context.now >= closes ||
+      context.transmission_pending) {
     return HandoverProspect::NONE;
   }
   if (!context.selected_at) {
