@@ -92,7 +92,7 @@ class State {
   friend State cancel(State state);
 
   // Queries
-  friend std::vector<Order> transmittedOrders(const State& state);
+  friend std::vector<Order> transmittedOrders(const State& state, GameTime at);
   friend View view(const State& state);
 };
 
@@ -189,16 +189,19 @@ State cancel(State state);
 // ============================================================================
 
 /**
- * @brief The transmitted orders the Arena Authority has not resolved yet
+ * @brief The transmitted orders the Arena Authority has not resolved yet, as far as they can activate at a step
  *
+ * An order transmitted at a time takes part only in steps after it, so a transmission at an opportunity
+ * falling on a step's time comes after that step's completions, whatever order the calls come in.
  * Does not change the state; a transmitted order is resolved only when the Arena Authority's outcome
  * for it is observed. A player has several only if transmissions follow each other before the
  * outcome of the earlier one was observed.
  *
  * @param state Current order state
- * @return Transmitted orders, by identity
+ * @param at Time of the step the orders are handed to
+ * @return Transmitted orders transmitted before at, by identity
  */
-std::vector<Order> transmittedOrders(const State& state);
+std::vector<Order> transmittedOrders(const State& state, GameTime at);
 
 /**
  * @brief A player's current order situation

@@ -206,11 +206,23 @@ TEST(OrderAuthority, ListsTransmittedOrdersButNotSelectedOnes) {
   auto [with_h, h] = submitOrder(state, Submission{PLAYER_A, Point{8, 1}, milliseconds{300}});
 
   // When: the transmitted orders are queried
-  std::vector<Order> transmitted = order_authority::transmittedOrders(with_h);
+  std::vector<Order> transmitted = order_authority::transmittedOrders(with_h, milliseconds{400});
 
   // Then: only G is listed
   ASSERT_EQ(transmitted.size(), 1U);
   EXPECT_EQ(transmitted.front().id, g);
+}
+
+/// @brief An order sent at an opportunity on a step's time activates at a later step, after that step's completions
+TEST(OrderAuthority, WithholdsOrderFromStepAtItsTransmissionTime) {
+  // Given: A's G was transmitted at 200 ms
+  auto [state, g] = transmittedOrder();
+
+  // When: the transmitted orders are queried for the step at 200 ms
+  std::vector<Order> transmitted = order_authority::transmittedOrders(state, milliseconds{200});
+
+  // Then: none is listed
+  EXPECT_TRUE(transmitted.empty());
 }
 
 TEST(OrderAuthority, DropsActivatedOrderFromTransmittedOrders) {
@@ -218,7 +230,7 @@ TEST(OrderAuthority, DropsActivatedOrderFromTransmittedOrders) {
   auto [observed, id] = executingOrder();
 
   // When: the transmitted orders are queried
-  std::vector<Order> transmitted = order_authority::transmittedOrders(observed);
+  std::vector<Order> transmitted = order_authority::transmittedOrders(observed, milliseconds{600});
 
   // Then: none is listed
   EXPECT_TRUE(transmitted.empty());
@@ -404,7 +416,7 @@ TEST(OrderAuthority, CancelsSelectedAndTransmittedOrders) {
   // Then: both are cancelled and none is transmitted or selected any more
   EXPECT_EQ(statusOf(cancelled, a), Status::CANCELLED);
   EXPECT_EQ(statusOf(cancelled, b), Status::CANCELLED);
-  EXPECT_TRUE(order_authority::transmittedOrders(cancelled).empty());
+  EXPECT_TRUE(order_authority::transmittedOrders(cancelled, milliseconds{600}).empty());
   EXPECT_FALSE(order_authority::view(cancelled).players.at(PLAYER_B).selected.has_value());
 }
 
