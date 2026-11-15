@@ -48,15 +48,15 @@ TEST(OrbitalDeliveryOrder, ReachesCanonicalScoreWhenTransmissionReachesGameAutho
   for (const game_boundary::StepReport& report : players.steps) {
     transmissions.insert(transmissions.end(), report.transmissions.begin(), report.transmissions.end());
   }
-  game_authority::State game = game_authority::observeTransmission(
-      game_authority::startRound(setup.round, {PLAYER_A, PLAYER_B}), transmissions.at(0));
+  game_authority::State game = std::get<0>(game_authority::observeTransmission(
+      game_authority::startRound(setup.round, {PLAYER_A, PLAYER_B}), transmissions.at(0)));
   for (const game_boundary::StepReport& report : players.steps) {
     game = std::get<0>(game_authority::observeStep(
         std::move(game), report.at, report.activations, report.events, {PLAYER_A, PLAYER_B}));
   }
 
   // When: G's transmission record reaches that Game Authority after G's completion
-  game = game_authority::observeTransmission(std::move(game), transmissions.at(1));
+  game = std::get<0>(game_authority::observeTransmission(std::move(game), transmissions.at(1)));
 
   // Then: its score and chain equal those of the canonical history, which banked F's points and G's handover bonus
   const game_authority::PlayerScore& canonical_score = players.views->game.players.at(PLAYER_A);

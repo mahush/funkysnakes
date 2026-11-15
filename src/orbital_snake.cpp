@@ -104,21 +104,14 @@ class TerminalPlayers : public orbital::game_boundary::PlayersEndOutbound {
   void startRejected(const orbital::game_boundary::StartRejected& /* rejected */) override {}
   void submissionOutcome(const orbital::game_boundary::SubmissionOutcome& /* outcome */) override {}
   void orderSubmitted(const orbital::OrderSubmitted& /* submitted */) override {}
-  void stepReported(const orbital::game_boundary::StepReport& /* step */) override {}
+  void stepReported(const orbital::game_boundary::StepReport& step) override {
+    for (const orbital::game_authority::HandoverGranted& handover : step.handovers) {
+      granted_[handover.player] = handover.bonus;
+    }
+  }
   void ordersEndedWithRound(const orbital::ArenaEvents& /* events */) override {}
   void concluded(const orbital::game_authority::GameConcluded& /* concluded */) override {}
-  void viewsUpdated(const Views& views) override {
-    // A chain that grew means the Game Authority granted a handover, worth what the previous views offered
-    if (views_ && views.now >= views_->now) {
-      for (const auto& [player, score] : views.game.players) {
-        auto before = views_->game.players.find(player);
-        if (before != views_->game.players.end() && score.chain > before->second.chain) {
-          granted_[player] = before->second.next_handover;
-        }
-      }
-    }
-    views_ = views;
-  }
+  void viewsUpdated(const Views& views) override { views_ = views; }
 
   // Views of the current game; the game reports them once it started
   const Views& views() const { return *views_; }

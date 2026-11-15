@@ -105,7 +105,8 @@ struct StepReport {
   GameTime at;
   std::vector<ActivationOutcome> activations;
   ArenaEvents events;
-  std::vector<OrderTransmitted> transmissions;  // Orders transmitted at the end of the step
+  std::vector<OrderTransmitted> transmissions;             // Orders transmitted at the end of the step
+  std::vector<game_authority::HandoverGranted> handovers;  // Handovers the Game Authority counted with the step
 };
 
 /**
@@ -124,6 +125,7 @@ struct Views {
   std::vector<GameTime> transmission_schedule;                    // Every opportunity of the game, in time order
   std::map<PlayerId, std::vector<Direction>> selected_routes;     // Route each selected order would get now
   std::map<PlayerId, std::vector<Direction>> transmitted_routes;  // Route each transmitted order would get now
+  std::map<PlayerId, game_authority::HandoverProspect> handover_prospects;  // What choosing a successor earns now
 };
 
 // ============================================================================
