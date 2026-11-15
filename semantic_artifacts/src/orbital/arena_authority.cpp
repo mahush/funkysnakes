@@ -238,6 +238,14 @@ std::set<PlayerId> alivePlayers(const State& state) {
 
 StepId lastCompletedStep(const State& state) { return state.step_; }
 
+std::optional<StepId> expectedCompletionStep(const State& state, const PlayerId& player) {
+  auto active = state.active_.find(player);
+  if (active == state.active_.end() || active->second.remaining_route.empty()) {
+    return std::nullopt;
+  }
+  return StepId{state.step_.value + static_cast<int>(active->second.remaining_route.size())};
+}
+
 std::optional<std::vector<Direction>> routeIfActivatedNow(const State& state, const PlayerId& player, Point target) {
   auto snake = state.snakes_.find(player);
   if (state.ended_ || snake == state.snakes_.end() || !snake_model::alive(snake->second) ||

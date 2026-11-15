@@ -510,6 +510,29 @@ TEST(OrbitalArenaAuthority, ReportsNoRouteToTargetOffBoard) {
   EXPECT_FALSE(route.has_value());
 }
 
+/// @section arena_authority::expectedCompletionStep
+
+TEST(OrbitalArenaAuthority, ExpectsCompletionAfterRemainingMoves) {
+  // Given: an order to (5,2) activated at step 1 with the snake at (5,5), two moves before the target remain
+  auto [state, outcomes, events] = arena_authority::tick(
+      makeNoRandom(), makeArena(SnakeSetup{Point{5, 5}, Direction::RIGHT, 3}, {}), {orderOfA(1, Point{5, 2})});
+
+  // When: the expected completion is asked for
+  std::optional<StepId> completion = arena_authority::expectedCompletionStep(state, PLAYER_A);
+
+  // Then: it is step 3
+  EXPECT_EQ(completion, StepId{3});
+}
+
+TEST(OrbitalArenaAuthority, ExpectsNoCompletionWithoutExecutingOrder) {
+  // When: the expected completion is asked for a snake without an executing order
+  std::optional<StepId> completion =
+      arena_authority::expectedCompletionStep(makeArena(SnakeSetup{Point{5, 5}, Direction::RIGHT, 3}, {}), PLAYER_A);
+
+  // Then: there is none
+  EXPECT_FALSE(completion.has_value());
+}
+
 /// @section arena_authority::endRound
 
 TEST(OrbitalArenaAuthority, EndsExecutingOrdersWhenRoundEnds) {
