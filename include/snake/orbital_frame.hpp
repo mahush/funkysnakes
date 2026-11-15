@@ -74,6 +74,7 @@ struct PlayerPanel {
   std::optional<Point> transmitted_target;  // Sent, activates at the next step
   std::optional<Point> selected_target;     // Waits for the next opportunity
   HandoverHint handover_hint{HandoverHint::NONE};
+  std::optional<int> handover_flash;  // Bonus of a handover just granted, while it is highlighted
   std::optional<Point> cursor;
 };
 
@@ -138,9 +139,12 @@ struct Frame {
  *
  * @param views Views of the Domain Application after the latest interaction
  * @param cursors Cursor position per player
+ * @param handover_flashes Bonus per player whose recently granted handover is to be highlighted
  * @return Board cells and panel values
  */
-Frame build(const orbital::game_boundary::Views& views, const std::map<PlayerId, Point>& cursors);
+Frame build(const orbital::game_boundary::Views& views,
+            const std::map<PlayerId, Point>& cursors,
+            const std::map<PlayerId, int>& handover_flashes = {});
 
 }  // namespace orbital_frame
 }  // namespace snake

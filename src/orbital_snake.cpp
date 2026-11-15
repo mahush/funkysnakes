@@ -8,12 +8,15 @@
 #include <algorithm>
 #include <chrono>
 #include <iostream>
+#include <iterator>
+#include <map>
 #include <optional>
 #include <random>
 #include <streambuf>
 #include <string>
 #include <thread>
 #include <tuple>
+#include <utility>
 #include <variant>
 #include <vector>
 
@@ -42,6 +45,7 @@ using orbital::game_boundary::Submit;
 using orbital::game_boundary::Views;
 
 constexpr std::chrono::milliseconds FRAME_INTERVAL{50};
+constexpr std::chrono::milliseconds HANDOVER_FLASH_DURATION{800};  // How long a granted handover lights up
 
 // Drops the NUL byte FTXUI appends to every frame as a flush marker for the web. Terminals ignore it,
 // but vim's :terminal prints it in the bottom right corner and scrolls the frame by a line.
@@ -103,13 +107,34 @@ class TerminalPlayers : public orbital::game_boundary::PlayersEndOutbound {
   void stepReported(const orbital::game_boundary::StepReport& /* step */) override {}
   void ordersEndedWithRound(const orbital::ArenaEvents& /* events */) override {}
   void concluded(const orbital::game_authority::GameConcluded& /* concluded */) override {}
-  void viewsUpdated(const Views& views) override { views_ = views; }
+  void viewsUpdated(const Views& views) override {
+    // A chain that grew means the Game Authority granted a handover, worth what the previous views offered
+    if (views_ && views.now >= views_->now) {
+      for (const auto& [player, score] : views.game.players) {
+        auto before = views_->game.players.find(player);
+        if (before != views_->game.players.end() && score.chain > before->second.chain) {
+          granted_[player] = before->second.next_handover;
+        }
+      }
+    }
+    views_ = views;
+  }
 
   // Views of the current game; the game reports them once it started
   const Views& views() const { return *views_; }
 
+  // Handovers granted since the last call: the bonus per player
+  std::map<snake::PlayerId, int> takeGrantedHandovers() { return std::exchange(granted_, {}); }
+
  private:
   std::optional<Views> views_;
+  std::map<snake::PlayerId, int> granted_;
+};
+
+// Handovers that light up, each until its time runs out
+struct HandoverFlash {
+  int bonus;
+  std::chrono::steady_clock::time_point until;
 };
 
 // Key of a terminal event, if the shell has a use for it
@@ -156,6 +181,7 @@ int main() {
 
   const NulDroppingCout nul_dropping_cout;  // Outlives the screen, which writes on teardown too
   auto screen = ftxui::ScreenInteractive::FullscreenAlternateScreen();
+  std::map<snake::PlayerId, HandoverFlash> flashes;
   auto on_key = [&](const Key& key) {
     auto [next_cursors, intent] = orbital_controls::interpretKey(players.views().arena.board, std::move(cursors), key);
     cursors = std::move(next_cursors);
@@ -167,19 +193,26 @@ int main() {
     } else if (std::holds_alternative<orbital_controls::NewGame>(*intent)) {
       start_new_game();
       cursors = orbital_controls::makeCursors(players.views());
+      flashes.clear();  // A handover of the previous game does not light up the new one
     } else {
       screen.Exit();
     }
   };
-  auto component = ftxui::CatchEvent(
-      ftxui::Renderer([&] { return orbital_view::draw(orbital_frame::build(players.views(), cursors)); }),
-      [&](const ftxui::Event& event) {
-        if (auto key = tryKey(event)) {
-          on_key(*key);
-          return true;
-        }
-        return false;
-      });
+  auto component =
+      ftxui::CatchEvent(ftxui::Renderer([&] {
+                          std::map<snake::PlayerId, int> flashing;
+                          for (const auto& [player, flash] : flashes) {
+                            flashing[player] = flash.bonus;
+                          }
+                          return orbital_view::draw(orbital_frame::build(players.views(), cursors, flashing));
+                        }),
+                        [&](const ftxui::Event& event) {
+                          if (auto key = tryKey(event)) {
+                            on_key(*key);
+                            return true;
+                          }
+                          return false;
+                        });
 
   ftxui::Loop loop{&screen, component};
   auto last = std::chrono::steady_clock::now();
@@ -188,6 +221,12 @@ int main() {
     const auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(now - last);
     last += elapsed;  // Keep the sub-millisecond remainder for the next frame
     game->elapse(app::TimeElapsed{elapsed});
+    for (const auto& [player, bonus] : players.takeGrantedHandovers()) {
+      flashes[player] = HandoverFlash{bonus, now + HANDOVER_FLASH_DURATION};
+    }
+    for (auto it = flashes.begin(); it != flashes.end();) {
+      it = it->second.until <= now ? flashes.erase(it) : std::next(it);
+    }
 
     screen.PostEvent(ftxui::Event::Custom);  // Redraw even without keys
     loop.RunOnce();                          // Handles the pending keys, then draws

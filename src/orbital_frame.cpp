@@ -256,7 +256,9 @@ UplinkTimeline buildUplink(const Views& views) {
 
 }  // namespace
 
-Frame build(const Views& views, const std::map<PlayerId, Point>& cursors) {
+Frame build(const Views& views,
+            const std::map<PlayerId, Point>& cursors,
+            const std::map<PlayerId, int>& handover_flashes) {
   Frame frame;
   frame.cells = buildCells(views, cursors);
   frame.uplink = buildUplink(views);
@@ -269,6 +271,9 @@ Frame build(const Views& views, const std::map<PlayerId, Point>& cursors) {
     frame.players[player] = buildPanel(views, player, cursors);
     if (auto window = windows.find(player); window != windows.end()) {
       frame.players[player].handover_hint = handoverHint(views, player, window->second);
+    }
+    if (auto flash = handover_flashes.find(player); flash != handover_flashes.end()) {
+      frame.players[player].handover_flash = flash->second;
     }
   }
   return frame;
