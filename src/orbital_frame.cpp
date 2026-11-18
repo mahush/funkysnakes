@@ -123,23 +123,23 @@ PlayerPanel buildPanel(const Views& views, const PlayerId& player, const std::ma
   return panel;
 }
 
-// Time of the latest step that ran: the clock never stands on a step that has not run
-milliseconds lastStep(const Views& views) { return views.now / views.step_interval * views.step_interval; }
+// Time at which the latest step ran
+milliseconds timeOfLastStep(const Views& views) { return views.step_interval * views.arena.step.value; }
 
-// Time each player's executing order is expected to arrive, one step per remaining move
-std::map<PlayerId, milliseconds> expectedArrivals(const Views& views) {
-  std::map<PlayerId, milliseconds> arrivals;
+// Step in which each player's executing order is expected to arrive, one step per remaining move
+std::map<PlayerId, StepId> expectedArrivals(const Views& views) {
+  std::map<PlayerId, StepId> arrivals;
   for (const auto& [player, active] : views.arena.active) {
     if (!active.remaining_route.empty()) {
-      arrivals[player] = lastStep(views) + views.step_interval * static_cast<int>(active.remaining_route.size());
+      arrivals[player] = StepId{views.arena.step.value + static_cast<int>(active.remaining_route.size())};
     }
   }
   return arrivals;
 }
 
 std::vector<OverviewRow> buildOverview(const Views& views, int rows) {
-  // The remaining time counts from the last step that ran, not from the current time between steps
-  const milliseconds duration = lastStep(views) + views.step_interval * views.game.remaining_steps;
+  // The remaining steps count from the last step that ran, not from the current time between steps
+  const milliseconds duration = timeOfLastStep(views) + views.step_interval * views.game.remaining_steps;
   std::vector<OverviewRow> overview(rows);
   for (int row = 0; row < rows; ++row) {
     const milliseconds from = duration * row / rows;
@@ -163,15 +163,14 @@ std::vector<OverviewRow> buildOverview(const Views& views, int rows) {
 }
 
 std::vector<LaneSlot> buildLane(const Views& views, int slots) {
-  const std::map<PlayerId, milliseconds> arrivals = expectedArrivals(views);
+  const std::map<PlayerId, StepId> arrivals = expectedArrivals(views);
   std::vector<LaneSlot> lane(slots);
   for (int slot = 0; slot < slots; ++slot) {
-    const milliseconds at = lastStep(views) + views.step_interval * (slot + 1);
-    lane[slot].opportunity = std::binary_search(views.transmission_schedule.begin(),
-                                                views.transmission_schedule.end(),
-                                                StepId{static_cast<int>(at / views.step_interval)});
+    const StepId step{views.arena.step.value + slot + 1};
+    lane[slot].opportunity =
+        std::binary_search(views.transmission_schedule.begin(), views.transmission_schedule.end(), step);
     for (const auto& [player, arrival] : arrivals) {
-      if (at <= arrival) {
+      if (step <= arrival) {
         lane[slot].executing.insert(player);
       }
     }
