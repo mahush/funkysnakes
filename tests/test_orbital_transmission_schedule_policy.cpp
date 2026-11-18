@@ -102,9 +102,28 @@ TEST(TransmissionSchedulePolicy, LetsTransmissionTakePartFromNextStep) {
   EXPECT_EQ(first, StepId{22});
 }
 
+/// @section transmission_schedule_policy::firstOpportunityAfterCompletion
+
+/// @brief A completion happens in the step's movement, before the step's opportunity
+TEST(TransmissionSchedulePolicy, CountsOpportunityOfCompletionStepAsAfterCompletion) {
+  // When: the first opportunity after a completion in step 21 is computed at compile time
+  constexpr StepId first = transmission_schedule_policy::firstOpportunityAfterCompletion(StepId{21});
+
+  // Then: it is the opportunity of step 21 itself
+  EXPECT_EQ(first, StepId{21});
+}
+
+TEST(TransmissionSchedulePolicy, FindsFirstOpportunityAfterCompletionBetweenOpportunities) {
+  // When: the first opportunity after a completion in step 15 is computed at compile time
+  constexpr StepId first = transmission_schedule_policy::firstOpportunityAfterCompletion(StepId{15});
+
+  // Then: it is step 21
+  EXPECT_EQ(first, StepId{21});
+}
+
 /// @section transmission_schedule_policy::firstOpportunityFrom
 
-/// @brief An opportunity in the step itself counts, so a completion in an opportunity's step is sent there
+/// @brief An opportunity in the given step itself counts
 TEST(TransmissionSchedulePolicy, OffersOpportunityAtTheStepItself) {
   // When: the first opportunity from step 21 is computed at compile time
   constexpr StepId first = transmission_schedule_policy::firstOpportunityFrom(StepId{21});
