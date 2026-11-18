@@ -102,7 +102,6 @@ using SubmissionOutcome = std::variant<SubmissionAccepted, SubmissionRejected>;
  */
 struct StepReport {
   StepId step;
-  GameTime at;
   std::vector<ActivationOutcome> activations;
   ArenaEvents events;
   std::vector<OrderTransmitted> transmissions;             // Orders transmitted at the end of the step

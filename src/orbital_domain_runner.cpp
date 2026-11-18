@@ -40,6 +40,9 @@ arena_authority::RoundSetup makeBoard() {
 
 std::string point(Point p) { return "(" + std::to_string(p.x) + "," + std::to_string(p.y) + ")"; }
 
+// Time at which a reported step ran, in milliseconds since round start
+long long timeOf(const game_boundary::StepReport& step) { return pacing_policy::timeOfStep(step.step).count(); }
+
 // Name of each submitted order, for the trace
 using OrderNames = std::map<OrderId, std::string>;
 
@@ -113,13 +116,13 @@ class PrintingPlayers : public game_boundary::PlayersEndOutbound {
 
   void stepReported(const game_boundary::StepReport& step) override {
     for (const ActivationOutcome& outcome : step.activations) {
-      std::cout << "  " << step.at.count() << " ms  " << describe(names_, outcome) << "\n";
+      std::cout << "  " << timeOf(step) << " ms  " << describe(names_, outcome) << "\n";
     }
     for (const ArenaEvent& event : step.events) {
-      std::cout << "  " << step.at.count() << " ms  " << describe(names_, event) << "\n";
+      std::cout << "  " << timeOf(step) << " ms  " << describe(names_, event) << "\n";
     }
     for (const OrderTransmitted& transmitted : step.transmissions) {
-      std::cout << "  " << step.at.count() << " ms  A transmits " << names_.at(transmitted.order) << "\n";
+      std::cout << "  " << timeOf(step) << " ms  A transmits " << names_.at(transmitted.order) << "\n";
     }
     stepped_ = true;
   }
