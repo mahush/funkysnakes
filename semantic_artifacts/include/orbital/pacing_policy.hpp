@@ -27,6 +27,7 @@ constexpr std::chrono::minutes GAME_DURATION{2};
 
 // Step that falls due when the time limit is reached; no step follows it
 constexpr StepId LAST_STEP{static_cast<int>(GAME_DURATION / STEP_INTERVAL)};
+static_assert(GAME_DURATION % STEP_INTERVAL == std::chrono::milliseconds{0}, "the time limit falls on a step");
 
 /**
  * @brief Time at which a step falls due
