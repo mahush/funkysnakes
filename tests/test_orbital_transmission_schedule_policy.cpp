@@ -150,7 +150,7 @@ TEST(TransmissionSchedulePolicy, OffersOpportunityAtTheStepItself) {
   EXPECT_EQ(first, StepId{21});
 }
 
-TEST(TransmissionSchedulePolicy, OffersFirstOpportunityAfterTimeBetweenOpportunities) {
+TEST(TransmissionSchedulePolicy, OffersFirstOpportunityFromStepBetweenOpportunities) {
   // When: the first opportunity from step 15 is computed at compile time
   constexpr StepId first = transmission_schedule_policy::firstOpportunityFrom(StepId{15});
 
