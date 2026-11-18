@@ -105,6 +105,17 @@ constexpr StepId firstStepAfterTransmission(StepId transmitted_in) { return Step
 constexpr StepId firstOpportunityAfterCompletion(StepId completed_in) { return firstOpportunityFrom(completed_in); }
 
 /**
+ * @brief Opportunity that sends a submission, if it is still selected then
+ *
+ * A step's submissions come after the step's opportunity, so a submission in an opportunity's step is sent at a
+ * later one.
+ *
+ * @param submitted_in Step in which the submission happened (not negative)
+ * @return Step of the earliest opportunity strictly after submitted_in
+ */
+constexpr StepId opportunityOfSubmission(StepId submitted_in) { return nextOpportunityAfter(submitted_in); }
+
+/**
  * @brief Last opportunity before a given step
  *
  * @param at A step (not negative)

@@ -121,6 +121,25 @@ TEST(TransmissionSchedulePolicy, FindsFirstOpportunityAfterCompletionBetweenOppo
   EXPECT_EQ(first, StepId{21});
 }
 
+/// @section transmission_schedule_policy::opportunityOfSubmission
+
+/// @brief A step's submissions come after the step's opportunity, so they wait for the next one
+TEST(TransmissionSchedulePolicy, SendsSubmissionInOpportunityStepAtNextOpportunity) {
+  // When: the opportunity of a submission in step 21 is computed at compile time
+  constexpr StepId opportunity = transmission_schedule_policy::opportunityOfSubmission(StepId{21});
+
+  // Then: it is the next opportunity, step 40
+  EXPECT_EQ(opportunity, StepId{40});
+}
+
+TEST(TransmissionSchedulePolicy, SendsSubmissionBetweenOpportunitiesAtFollowingOpportunity) {
+  // When: the opportunity of a submission in step 15 is computed at compile time
+  constexpr StepId opportunity = transmission_schedule_policy::opportunityOfSubmission(StepId{15});
+
+  // Then: it is step 21
+  EXPECT_EQ(opportunity, StepId{21});
+}
+
 /// @section transmission_schedule_policy::firstOpportunityFrom
 
 /// @brief An opportunity in the given step itself counts
