@@ -15,7 +15,6 @@ using orbital::StepId;
 using orbital::game_boundary::Views;
 using orbital::order_authority::OrderRecord;
 using orbital::order_authority::Status;
-using std::chrono::milliseconds;
 
 void put(CellGrid& cells, Point p, Cell cell) {
   if (p.y >= 0 && p.y < static_cast<int>(cells.size()) && p.x >= 0 && p.x < static_cast<int>(cells[p.y].size())) {
