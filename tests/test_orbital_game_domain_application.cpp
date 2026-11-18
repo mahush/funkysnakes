@@ -472,7 +472,7 @@ TEST_F(OrbitalGameDomainApplication, TransmitsSelectedOrderAtOpportunity) {
   EXPECT_EQ(statusOf(g), Status::TRANSMITTED);
   ASSERT_EQ(players_.steps.back().transmissions.size(), 1U);
   EXPECT_EQ(players_.steps.back().transmissions.front().order, g);
-  EXPECT_EQ(players_.steps.back().transmissions.front().submitted_at, milliseconds{0});
+  EXPECT_EQ(players_.steps.back().transmissions.front().submitted_at, StepId{0});
 }
 
 /// @brief An order transmitted at a step is tried at the next step, before that step's movement
@@ -750,18 +750,18 @@ TEST_F(OrbitalGameDomainApplication, ReportsSameStepsAndViewsForOneAdvanceAndIts
   EXPECT_EQ(viewedOutcome(*in_parts_players.views), viewedOutcome(*at_once_players.views));
 }
 
-/// @brief A submission's time is the current time of the game clock
-TEST_F(OrbitalGameDomainApplication, SubmitsAtCurrentGameTime) {
-  // Given: 1300 ms have passed
+/// @brief A submission happens in the step ongoing on the game clock, the last one that ran
+TEST_F(OrbitalGameDomainApplication, SubmitsInCurrentStep) {
+  // Given: 1300 ms have passed, so step 6 ran at 1200 ms
   start(makeLanes({}));
   elapse(1300);
 
   // When: a player submits an order
   game_.submit(app::Submit{PLAYER_A, Point{3, 3}});
 
-  // Then: it is submitted at 1300 ms
+  // Then: it is submitted in step 6
   ASSERT_EQ(players_.submissions.size(), 1U);
-  EXPECT_EQ(std::get<SubmissionAccepted>(players_.submissions.front()).submitted_at, milliseconds{1300});
+  EXPECT_EQ(std::get<SubmissionAccepted>(players_.submissions.front()).submitted_at, StepId{6});
 }
 
 /// @subsection order of occurrence
@@ -808,13 +808,13 @@ TEST_F(OrbitalGameDomainApplication, TakesCallDuringReportAsNextInteraction) {
   // When: two steps' worth of time passes
   game.elapse(app::TimeElapsed{milliseconds{400}});
 
-  // Then: the report of both steps completes first; the submission follows, submitted at the time after them
+  // Then: the report of both steps completes first; the submission follows, submitted in the second step
   EXPECT_EQ(
       players.calls,
       (std::vector<std::string>{
           "stepReported", "stepReported", "viewsUpdated", "submissionOutcome", "orderSubmitted", "viewsUpdated"}));
   ASSERT_EQ(players.submitted.size(), 1U);
-  EXPECT_EQ(players.submitted.front().submitted_at, milliseconds{400});
+  EXPECT_EQ(players.submitted.front().submitted_at, StepId{2});
   EXPECT_TRUE(players.views->orders.players.at(PLAYER_A).selected.has_value());
 }
 
@@ -847,9 +847,9 @@ TEST_F(OrbitalGameDomainApplication, KeepsTakingCallsAfterReportFailed) {
   // When: a player submits an order
   game.submit(app::Submit{PLAYER_A, Point{5, 5}});
 
-  // Then: it is submitted at the time the two steps reached
+  // Then: it is submitted in the second step
   ASSERT_EQ(players.submitted.size(), 1U);
-  EXPECT_EQ(players.submitted.front().submitted_at, milliseconds{400});
+  EXPECT_EQ(players.submitted.front().submitted_at, StepId{2});
 }
 
 /// @brief An advance that an owner cannot complete is reported not even in part

@@ -112,7 +112,7 @@ std::tuple<State, OrderSubmitted> submit(State state, const Submission& submissi
   return {std::move(state), submitted};
 }
 
-std::tuple<State, std::vector<OrderTransmitted>> transmit(State state, GameTime at) {
+std::tuple<State, std::vector<OrderTransmitted>> transmit(State state, StepId at) {
   std::vector<OrderTransmitted> transmissions;
   for (const auto& [player, id] : state.selected_) {
     OrderRecord& record = state.orders_.at(id);
@@ -125,7 +125,7 @@ std::tuple<State, std::vector<OrderTransmitted>> transmit(State state, GameTime 
   return {std::move(state), std::move(transmissions)};
 }
 
-std::vector<Order> transmittedOrders(const State& state, GameTime at) {
+std::vector<Order> transmittedOrders(const State& state, StepId at) {
   std::vector<Order> result;
   for (OrderId id : state.transmitted_) {
     const OrderRecord& record = state.orders_.at(id);

@@ -77,7 +77,7 @@ struct StartRejected {
  */
 struct SubmissionAccepted {
   OrderId order;
-  GameTime submitted_at;
+  StepId submitted_at;
 };
 
 /**

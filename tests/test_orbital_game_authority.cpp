@@ -27,7 +27,7 @@ State runningGame() { return game_authority::startRound(ROUND, {PLAYER_A, PLAYER
 // Transmission of an order of player A that replaced no earlier selection
 OrderTransmitted transmittedByA(int order, int submitted_ms, int transmitted_ms) {
   return OrderTransmitted{
-      ROUND, OrderId{order}, PLAYER_A, milliseconds{submitted_ms}, milliseconds{transmitted_ms}, std::nullopt};
+      ROUND, OrderId{order}, PLAYER_A, StepId{submitted_ms / 200}, StepId{transmitted_ms / 200}, std::nullopt};
 }
 
 OrderEnded completed(int order) { return OrderEnded{OrderId{order}, EndReason::COMPLETED, std::nullopt}; }
@@ -469,8 +469,7 @@ TEST(OrbitalGameAuthority, DeniesHandoverToSuccessorThatReplacedSelection) {
   State state = std::get<0>(game_authority::observeTransmission(runningGame(), transmittedByA(1, 0, 200)));
   state = step(std::move(state), 400, {activated(1)}, {});
   state = std::get<0>(game_authority::observeTransmission(
-      std::move(state),
-      OrderTransmitted{ROUND, OrderId{2}, PLAYER_A, milliseconds{2000}, milliseconds{4200}, OrderId{9}}));
+      std::move(state), OrderTransmitted{ROUND, OrderId{2}, PLAYER_A, StepId{10}, StepId{21}, OrderId{9}}));
   state = step(std::move(state), 3000, {}, {completed(1)});
   state = step(std::move(state), 4400, {activated(2)}, {});
 
@@ -824,8 +823,7 @@ TEST(OrbitalGameAuthority, IgnoresTransmissionOfAnotherRound) {
 
   // When: a transmission of another round is learned
   State observed = std::get<0>(game_authority::observeTransmission(
-      std::move(state),
-      OrderTransmitted{RoundId{2}, OrderId{2}, PLAYER_A, milliseconds{2000}, milliseconds{4200}, std::nullopt}));
+      std::move(state), OrderTransmitted{RoundId{2}, OrderId{2}, PLAYER_A, StepId{10}, StepId{21}, std::nullopt}));
 
   // Then: nothing is banked
   EXPECT_EQ(game_authority::view(observed).players.at(PLAYER_A).banked, 0);

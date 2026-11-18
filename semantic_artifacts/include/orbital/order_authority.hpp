@@ -6,7 +6,6 @@
 #include <tuple>
 #include <vector>
 
-#include "common/game_time.hpp"
 #include "orbital/arena_events.hpp"
 #include "orbital/order.hpp"
 
@@ -17,7 +16,7 @@ namespace order_authority {
 /**
  * Order Authority - owns the lifecycle of the players' orders from submission to transmission
  *
- * Owns the submitted orders with their submission and transmission times, each player's selected
+ * Owns the submitted orders with their submission and transmission steps, each player's selected
  * order until it is transmitted, the transmitted orders until the Arena Authority resolves them, and
  * the status of every order interpreted from what the Arena Authority reports. It does not own the
  * actual executing route (Arena Authority), when the orbital link offers an opportunity
@@ -57,9 +56,9 @@ enum class Status {
  */
 struct OrderRecord {
   Order order;
-  GameTime submitted_at;
-  std::optional<GameTime> transmitted_at;  // Set once transmitted
-  std::optional<OrderId> replaced;         // The selected order this submission replaced
+  StepId submitted_at;
+  std::optional<StepId> transmitted_at;  // Set once transmitted
+  std::optional<OrderId> replaced;       // The selected order this submission replaced
   Status status;
   std::optional<RejectionReason> rejection;
 };
@@ -87,12 +86,12 @@ class State {
 
   // Transitions
   friend std::tuple<State, OrderSubmitted> submit(State state, const Submission& submission);
-  friend std::tuple<State, std::vector<OrderTransmitted>> transmit(State state, GameTime at);
+  friend std::tuple<State, std::vector<OrderTransmitted>> transmit(State state, StepId at);
   friend State observe(State state, const std::vector<ActivationOutcome>& outcomes, const ArenaEvents& events);
   friend State cancel(State state);
 
   // Queries
-  friend std::vector<Order> transmittedOrders(const State& state, GameTime at);
+  friend std::vector<Order> transmittedOrders(const State& state, StepId at);
   friend View view(const State& state);
 };
 
@@ -102,7 +101,7 @@ class State {
 struct Submission {
   PlayerId player;
   Point target;
-  GameTime submitted_at;  // When the player submitted it, on the round's timeline
+  StepId submitted_at;  // Step in which the player submitted it
 };
 
 // ============================================================================
@@ -140,13 +139,13 @@ std::tuple<State, OrderSubmitted> submit(State state, const Submission& submissi
  * order it replaced; players
  * without a selected order transmit nothing, so an order is transmitted once.
  *
- * Admitted input: a time of a transmission opportunity, not earlier than the submissions it transmits.
+ * Admitted input: the step of a transmission opportunity, not earlier than the submissions it transmits.
  *
  * @param state Current order state
- * @param at Time of the transmission on the round's timeline
+ * @param at Step of the transmission
  * @return Tuple of (updated state, transmission records ordered by player)
  */
-std::tuple<State, std::vector<OrderTransmitted>> transmit(State state, GameTime at);
+std::tuple<State, std::vector<OrderTransmitted>> transmit(State state, StepId at);
 
 /**
  * @brief Interpret what the Arena Authority reported for one step
@@ -191,17 +190,17 @@ State cancel(State state);
 /**
  * @brief The transmitted orders the Arena Authority has not resolved yet, as far as they can activate at a step
  *
- * An order transmitted at a time takes part only in steps after it, so a transmission at an opportunity
- * falling on a step's time comes after that step's completions, whatever order the calls come in.
+ * An order transmitted in a step takes part only in later steps (Transmission Schedule Policy), whatever
+ * order the calls come in.
  * Does not change the state; a transmitted order is resolved only when the Arena Authority's outcome
  * for it is observed. A player has several only if transmissions follow each other before the
  * outcome of the earlier one was observed.
  *
  * @param state Current order state
- * @param at Time of the step the orders are handed to
+ * @param at Step the orders are handed to
  * @return Transmitted orders transmitted before at, by identity
  */
-std::vector<Order> transmittedOrders(const State& state, GameTime at);
+std::vector<Order> transmittedOrders(const State& state, StepId at);
 
 /**
  * @brief A player's current order situation

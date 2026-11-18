@@ -102,9 +102,8 @@ struct Execution {
 // the predecessor's completion: a choice made earlier would have been sent before and interrupted it
 bool handsOver(const OrderTransmitted& successor, const std::optional<Execution>& predecessor) {
   return predecessor && predecessor->end_reason == EndReason::COMPLETED && !successor.replaced &&
-         predecessor->activated_at <= successor.submitted_at &&
-         successor.transmitted_at ==
-             pacing_policy::timeOfStep(transmission_schedule_policy::firstOpportunityFrom(stepAt(*predecessor->ended_at)));
+         stepAt(predecessor->activated_at) <= successor.submitted_at &&
+         successor.transmitted_at == transmission_schedule_policy::firstOpportunityFrom(stepAt(*predecessor->ended_at));
 }
 
 // The player's chain as the known histories determine it, with the bonus it earned over the game
@@ -308,8 +307,7 @@ HandoverProspect handoverProspect(const State& state, const PlayerId& player, co
   const StepId opens = transmission_schedule_policy::lastOpportunityBefore(closes).value_or(StepId{0});
   // The game concludes before an opportunity at or after its end could transmit the choice
   if (closes >= pacing_policy::LAST_STEP || context.now < pacing_policy::timeOfStep(opens) ||
-      context.now >= pacing_policy::timeOfStep(closes) ||
-      context.transmission_pending) {
+      context.now >= pacing_policy::timeOfStep(closes) || context.transmission_pending) {
     return HandoverProspect::NONE;
   }
   if (!context.selected_at) {
