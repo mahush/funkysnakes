@@ -84,6 +84,16 @@ constexpr StepId nextOpportunityAfter(StepId at) { return firstOpportunityFrom(S
 constexpr bool isOpportunity(StepId at) { return firstOpportunityFrom(at) == at; }
 
 /**
+ * @brief First step a transmission takes part in
+ *
+ * The opportunity in a step comes after the step's movement, so what is sent there takes part from the next step on.
+ *
+ * @param transmitted_in Step whose opportunity sent the order (not negative)
+ * @return The step after transmitted_in
+ */
+constexpr StepId firstStepAfterTransmission(StepId transmitted_in) { return StepId{transmitted_in.value + 1}; }
+
+/**
  * @brief Last opportunity before a given step
  *
  * @param at A step (not negative)

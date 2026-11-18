@@ -91,6 +91,17 @@ TEST(TransmissionSchedulePolicy, OffersOpportunityEveryThirdStepAtEndOfGame) {
   EXPECT_FALSE(after_it);
 }
 
+/// @section transmission_schedule_policy::firstStepAfterTransmission
+
+/// @brief The opportunity comes after the step's movement, so what it sends cannot move in that step any more
+TEST(TransmissionSchedulePolicy, LetsTransmissionTakePartFromNextStep) {
+  // When: the first step of a transmission in step 21 is computed at compile time
+  constexpr StepId first = transmission_schedule_policy::firstStepAfterTransmission(StepId{21});
+
+  // Then: it is step 22
+  EXPECT_EQ(first, StepId{22});
+}
+
 /// @section transmission_schedule_policy::firstOpportunityFrom
 
 /// @brief An opportunity in the step itself counts, so a completion in an opportunity's step is sent there
