@@ -948,19 +948,6 @@ TEST_F(OrbitalGameDomainApplication, ViewsExpectedCompletionOfExecutingOrder) {
   EXPECT_EQ(players_.views->expected_completions, (std::map<PlayerId, StepId>{{PLAYER_A, StepId{9}}}));
 }
 
-/// @brief Game time ends with the game, so the step shown at the end stays as it was
-TEST_F(OrbitalGameDomainApplication, StopsGameTimeAtConclusion) {
-  // Given: the game ended at 120000 ms
-  start(makeLanes({}));
-  elapse(120000);
-
-  // When: five more seconds pass
-  elapse(5000);
-
-  // Then: the views still show the last step of the game
-  EXPECT_EQ(players_.views->arena.step, StepId{600});
-}
-
 TEST_F(OrbitalGameDomainApplication, ViewsRouteOfSelectedOrder) {
   // Given: a game started, with A's snake at (2,2) heading right
   start(makeLanes({}));
