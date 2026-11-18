@@ -40,9 +40,6 @@ arena_authority::RoundSetup makeBoard() {
 
 std::string point(Point p) { return "(" + std::to_string(p.x) + "," + std::to_string(p.y) + ")"; }
 
-// Time at which a reported step ran, in milliseconds since round start
-long long timeOf(const game_boundary::StepReport& step) { return pacing_policy::timeOfStep(step.step).count(); }
-
 // Name of each submitted order, for the trace
 using OrderNames = std::map<OrderId, std::string>;
 
@@ -137,6 +134,7 @@ class PrintingPlayers : public game_boundary::PlayersEndOutbound {
   void concluded(const game_authority::GameConcluded& /* concluded */) override { std::cout << "  game over\n"; }
 
   void viewsUpdated(const game_boundary::Views& views) override {
+    step_interval_ = views.step_interval;
     if (stepped_) {
       const game_authority::PlayerScore& score = views.game.players.at(PLAYER_A);
       std::cout << "            A: banked " << score.banked << ", held " << score.held << ", chain " << score.chain
@@ -146,11 +144,15 @@ class PrintingPlayers : public game_boundary::PlayersEndOutbound {
   }
 
  private:
+  // Time at which a reported step ran, in milliseconds since round start, from the step interval in the views
+  long long timeOf(const game_boundary::StepReport& step) const { return (step_interval_ * step.step.value).count(); }
+
   std::string order_name_;
   Point target_{0, 0};
   int at_ms_{0};
   OrderNames names_;
   bool stepped_{false};
+  std::chrono::milliseconds step_interval_{0};  // Step interval from the views, reported once the game started
 };
 
 struct PlannedSubmission {
