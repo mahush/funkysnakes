@@ -116,14 +116,20 @@ std::tuple<State, OrderSubmitted> submit(State state, const Submission& submissi
 
 std::tuple<State, std::vector<OrderTransmitted>> transmit(State state, StepId at) {
   std::vector<OrderTransmitted> transmissions;
+  std::map<PlayerId, OrderId> still_selected;
   for (const auto& [player, id] : state.selected_) {
     OrderRecord& record = state.orders_.at(id);
+    // An order waits for the opportunity of its submission (Transmission Schedule Policy)
+    if (at < transmission_schedule_policy::opportunityOfSubmission(record.submitted_at)) {
+      still_selected.emplace(player, id);
+      continue;
+    }
     record.status = Status::TRANSMITTED;
     record.transmitted_at = at;
     state.transmitted_.insert(id);
     transmissions.push_back(OrderTransmitted{state.round_, id, player, record.submitted_at, at, record.replaced});
   }
-  state.selected_.clear();
+  state.selected_ = std::move(still_selected);
   return {std::move(state), std::move(transmissions)};
 }
 
