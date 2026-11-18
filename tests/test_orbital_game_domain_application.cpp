@@ -50,7 +50,7 @@ Status statusOf(const Views& views, OrderId id) {
 }
 
 // The comparable content of the three views: heads, food, executing targets and step; order statuses; points and
-// remaining time
+// remaining steps
 auto viewedOutcome(const Views& views) {
   std::map<PlayerId, Point> heads;
   for (const auto& [player, snake] : views.arena.snakes) {
@@ -68,7 +68,8 @@ auto viewedOutcome(const Views& views) {
   for (const auto& [player, score] : views.game.players) {
     points[player] = {score.banked, score.held};
   }
-  return std::make_tuple(heads, views.arena.food, targets, views.arena.step, statuses, points, views.game.remaining);
+  return std::make_tuple(
+      heads, views.arena.food, targets, views.arena.step, statuses, points, views.game.remaining_steps);
 }
 
 /**

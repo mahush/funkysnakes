@@ -6,7 +6,6 @@
 #include <tuple>
 #include <vector>
 
-#include "common/game_time.hpp"
 #include "common/game_types.hpp"
 #include "common/players.hpp"
 #include "orbital/arena_events.hpp"
@@ -85,7 +84,7 @@ struct GameConcluded {
  * @brief An observed arena step as far as the handover chain needs it
  */
 struct ObservedStep {
-  GameTime at;
+  StepId at;
   std::vector<ActivationOutcome> activations;
   ArenaEvents events;
   std::set<PlayerId> alive;  // Players whose snake survived the step
@@ -114,8 +113,8 @@ struct Chain {
   int bonus_held{0};    // Handover bonus held for the executing order, banked if it completes
   // Completion of the player's last executed order while no other order activated since and the snake
   // lives; a successor hands over from it only if transmitted at the first opportunity at or after it
-  std::optional<GameTime> open_completion;
-  std::optional<GameTime> last_activation;       // Activation of the player's last executed order
+  std::optional<StepId> open_completion;
+  std::optional<StepId> last_activation;         // Activation of the player's last executed order
   std::map<OrderId, HandoverGranted> handovers;  // Every handover counted over the game, by successor
 };
 
@@ -149,7 +148,7 @@ struct ProspectContext;
 class State {
  private:
   RoundId round_;
-  GameTime now_{0};               // Time of the last observed step
+  StepId now_{0};                 // Last observed step
   Scores scores_;                 // Banked points per player, held points per order
   std::optional<Result> result_;  // Set once the game concluded
 
@@ -164,7 +163,7 @@ class State {
   // Transitions
   friend std::tuple<State, std::vector<HandoverGranted>, std::optional<GameConcluded>> observeStep(
       State state,
-      GameTime now,
+      StepId now,
       const std::vector<ActivationOutcome>& activations,
       const ArenaEvents& events,
       const std::set<PlayerId>& alive);
@@ -197,7 +196,7 @@ State startRound(RoundId round, const std::vector<PlayerId>& players);
 /**
  * @brief Score one arena step and conclude the game if it is over
  *
- * The game is over when the Pacing Policy's game duration has elapsed or no snake is alive any more.
+ * The game is over with the Pacing Policy's last step or when no snake is alive any more.
  * Steps observed after conclusion change nothing.
  *
  * Activations of the step count as handovers as far as the activating orders' transmissions are
@@ -209,7 +208,7 @@ State startRound(RoundId round, const std::vector<PlayerId>& players);
  * is the realization's guarantee.
  *
  * @param state Current game state
- * @param now Time of the step on the round's timeline
+ * @param now The observed step
  * @param activations Activation outcomes of the step
  * @param events Arena events of the step, in order
  * @param alive Players whose snake is still alive after the step
@@ -218,7 +217,7 @@ State startRound(RoundId round, const std::vector<PlayerId>& players);
  */
 std::tuple<State, std::vector<HandoverGranted>, std::optional<GameConcluded>> observeStep(
     State state,
-    GameTime now,
+    StepId now,
     const std::vector<ActivationOutcome>& activations,
     const ArenaEvents& events,
     const std::set<PlayerId>& alive);
@@ -226,12 +225,12 @@ std::tuple<State, std::vector<HandoverGranted>, std::optional<GameConcluded>> ob
 /**
  * @brief Learn that a player's order was transmitted
  *
- * The transmission counts with its own submission time, whenever it is learned. If steps already
+ * The transmission counts with its own submission step, whenever it is learned. If steps already
  * observed show that the order took over as a handover, the handover is counted now and its bonus is
  * held or, if the order already completed, banked; if it changes which
  * order preceded a counted handover, that bonus is withdrawn. Transmissions learned after conclusion
  * or of another round change nothing. An order's transmission counts once: a later record for an
- * already known order, also with other times, changes nothing, so a submission time cannot be
+ * already known order, also with other steps, changes nothing, so a submission step cannot be
  * rewritten by resending.
  *
  * Admitted input: the Order Authority's transmissions of this round, in any order relative to the
@@ -270,7 +269,7 @@ struct PlayerScore {
  */
 struct View {
   std::map<PlayerId, PlayerScore> players;
-  GameTime remaining;
+  int remaining_steps;  // Steps still to come up to the last step of the game
   std::optional<Result> result;
 };
 
@@ -278,7 +277,7 @@ struct View {
  * @brief Project the game state
  *
  * @param state Current game state
- * @return Points per player, remaining time and the result once concluded
+ * @return Points per player, remaining steps and the result once concluded
  */
 View view(const State& state);
 
@@ -295,11 +294,11 @@ enum class HandoverProspect {
  * @brief What the other owners know about a player's orders, as the handover prospect needs it
  */
 struct ProspectContext {
-  GameTime now;                                 // Current time, not before the last observed step
-  std::optional<GameTime> expected_completion;  // Step at which the executing order is expected to complete
-  std::optional<GameTime> selected_at;          // Submission time of the selected, not yet transmitted order
-  bool selection_replaced{false};               // Whether that selection replaced an earlier one
-  bool transmission_pending{false};             // Whether a transmitted order waits for activation
+  StepId now;                                 // Current step, not before the last observed step
+  std::optional<StepId> expected_completion;  // Step at which the executing order is expected to complete
+  std::optional<StepId> selected_at;          // Submission step of the selected, not yet transmitted order
+  bool selection_replaced{false};             // Whether that selection replaced an earlier one
+  bool transmission_pending{false};           // Whether a transmitted order waits for activation
 };
 
 /**
@@ -315,7 +314,7 @@ struct ProspectContext {
  *
  * @param state Current game state
  * @param player The player
- * @param context The player's orders and current time as the other owners know them
+ * @param context The player's orders and current step as the other owners know them
  * @return NONE after conclusion, outside the window and when nothing chosen now could hand over;
  *         CHOOSE_NOW in the window without a selection; SUCCESSOR_READY for a qualifying selection
  */

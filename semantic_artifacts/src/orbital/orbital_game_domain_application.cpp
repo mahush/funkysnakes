@@ -59,13 +59,14 @@ std::map<PlayerId, game_authority::HandoverProspect> handoverProspects(const Sta
                                                                        const order_authority::View& orders) {
   std::map<PlayerId, game_authority::HandoverProspect> prospects;
   for (const PlayerId& player : arena_authority::alivePlayers(*state.arena)) {
-    game_authority::ProspectContext context{state.clock.now, std::nullopt, std::nullopt, false, false};
-    if (std::optional<StepId> completion = arena_authority::expectedCompletionStep(*state.arena, player)) {
-      context.expected_completion = pacing_policy::timeOfStep(*completion);
-    }
+    game_authority::ProspectContext context{arena_authority::lastCompletedStep(*state.arena),
+                                            arena_authority::expectedCompletionStep(*state.arena, player),
+                                            std::nullopt,
+                                            false,
+                                            false};
     if (auto player_orders = orders.players.find(player); player_orders != orders.players.end()) {
       if (const std::optional<order_authority::OrderRecord>& selected = player_orders->second.selected) {
-        context.selected_at = pacing_policy::timeOfStep(selected->submitted_at);
+        context.selected_at = selected->submitted_at;
         context.selection_replaced = selected->replaced.has_value();
       }
       context.transmission_pending = player_orders->second.transmitted.has_value();
@@ -126,8 +127,11 @@ std::tuple<State, Observations> runStep(const RandomIntGeneratorFn& random_int_f
   auto [arena, activations, events] = arena_authority::tick(random_int_fn, std::move(*state.arena), released);
   state.arena = std::move(arena);
   state.orders = order_authority::observe(std::move(*state.orders), activations, events);
-  auto [game, handovers, concluded] = game_authority::observeStep(
-      std::move(*state.game), at, activations, events, arena_authority::alivePlayers(*state.arena));
+  auto [game, handovers, concluded] = game_authority::observeStep(std::move(*state.game),
+                                                                  arena_authority::lastCompletedStep(*state.arena),
+                                                                  activations,
+                                                                  events,
+                                                                  arena_authority::alivePlayers(*state.arena));
   state.game = std::move(game);
 
   Observations observations;
