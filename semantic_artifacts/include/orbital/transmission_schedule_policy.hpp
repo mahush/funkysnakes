@@ -20,7 +20,10 @@ namespace transmission_schedule_policy {
  * nearest whole number of steps, so the link grows busier as the game goes on. With 200 ms steps the
  * shortest interval comes out as 3 steps, 0.6 s.
  *
- * The opportunity in a step comes after the step's movement: what is sent there takes part in a later step.
+ * An order passes three events: it is submitted (selected, still replaceable), transmitted at an opportunity
+ * (irrevocable) and activated by the arena at the start of a later step's movement. Within a step, the movement
+ * comes first, then the step's opportunity, then the step's submissions: what is sent at the opportunity takes
+ * part from the next step on, and what is submitted in the step is sent at a later opportunity.
  *
  * The schedule is known in advance, so players can plan around the coming opportunities. What is sent
  * at an opportunity is the Order Authority's; the Policy keeps no orders.
