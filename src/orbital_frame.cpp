@@ -123,9 +123,6 @@ PlayerPanel buildPanel(const Views& views, const PlayerId& player, const std::ma
   return panel;
 }
 
-// Time at which the latest step ran
-milliseconds timeOfLastStep(const Views& views) { return views.step_interval * views.arena.step.value; }
-
 // Step in which each player's executing order is expected to arrive, one step per remaining move
 std::map<PlayerId, StepId> expectedArrivals(const Views& views) {
   std::map<PlayerId, StepId> arrivals;
@@ -138,25 +135,23 @@ std::map<PlayerId, StepId> expectedArrivals(const Views& views) {
 }
 
 std::vector<OverviewRow> buildOverview(const Views& views, int rows) {
-  // The remaining steps count from the last step that ran, not from the current time between steps
-  const milliseconds duration = timeOfLastStep(views) + views.step_interval * views.game.remaining_steps;
+  // A stretch holds the steps after from up to until; the remaining steps count from the last step that ran
+  const int last_step = views.arena.step.value;
+  const int steps_of_game = last_step + views.game.remaining_steps;
   std::vector<OverviewRow> overview(rows);
   for (int row = 0; row < rows; ++row) {
-    const milliseconds from = duration * row / rows;
-    const milliseconds until = duration * (row + 1) / rows;
+    const int from = steps_of_game * row / rows;
+    const int until = steps_of_game * (row + 1) / rows;
     OverviewRow& stretch = overview[row];
-    stretch.steps = static_cast<int>(until / views.step_interval - from / views.step_interval);
-    stretch.opportunities = static_cast<int>(std::count_if(views.transmission_schedule.begin(),
-                                                           views.transmission_schedule.end(),
-                                                           [&views, from, until](StepId opportunity) {
-                                                             const milliseconds at =
-                                                                 views.step_interval * opportunity.value;
-                                                             return from < at && at <= until;
-                                                           }));
-    stretch.elapsed = until <= views.now;
-    stretch.now = from <= views.now && (views.now < until || row == rows - 1);
+    stretch.steps = until - from;
+    stretch.opportunities = static_cast<int>(std::count_if(
+        views.transmission_schedule.begin(), views.transmission_schedule.end(), [from, until](StepId opportunity) {
+          return from < opportunity.value && opportunity.value <= until;
+        }));
+    stretch.elapsed = until <= last_step;
+    stretch.now = from <= last_step && (last_step < until || row == rows - 1);
   }
-  if (views.now >= duration && rows > 0) {
+  if (views.game.remaining_steps == 0 && rows > 0) {
     overview.back().elapsed = false;  // At the end the last stretch shows where time stopped
   }
   return overview;
