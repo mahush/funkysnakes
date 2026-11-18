@@ -6,7 +6,6 @@
 #include <tuple>
 #include <vector>
 
-#include "common/game_time.hpp"
 #include "common/game_types.hpp"
 #include "common/random_source.hpp"
 #include "common/start_layout.hpp"
