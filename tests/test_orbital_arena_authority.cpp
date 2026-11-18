@@ -510,6 +510,20 @@ TEST(OrbitalArenaAuthority, ReportsNoRouteToTargetOffBoard) {
   EXPECT_FALSE(route.has_value());
 }
 
+/// @section arena_authority::upcomingStep
+
+TEST(OrbitalArenaAuthority, NamesStepAfterLastCompletedOneAsUpcoming) {
+  // Given: the world completed step 1
+  auto [state, outcomes, events] =
+      arena_authority::tick(makeNoRandom(), makeArena(SnakeSetup{Point{5, 5}, Direction::RIGHT, 3}, {}), {});
+
+  // When: the upcoming step is asked for
+  StepId upcoming = arena_authority::upcomingStep(state);
+
+  // Then: it is step 2
+  EXPECT_EQ(upcoming, StepId{2});
+}
+
 /// @section arena_authority::expectedCompletionStep
 
 TEST(OrbitalArenaAuthority, ExpectsCompletionAfterRemainingMoves) {

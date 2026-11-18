@@ -238,6 +238,8 @@ std::set<PlayerId> alivePlayers(const State& state) {
 
 StepId lastCompletedStep(const State& state) { return state.step_; }
 
+StepId upcomingStep(const State& state) { return nextStep(state.step_); }
+
 std::optional<StepId> expectedCompletionStep(const State& state, const PlayerId& player) {
   auto active = state.active_.find(player);
   if (active == state.active_.end() || active->second.remaining_route.empty()) {
