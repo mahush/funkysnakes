@@ -126,6 +126,8 @@ std::vector<OverviewRow> buildOverview(const Views& views, int rows) {
   // A stretch holds the steps after from up to until
   const int last_step = views.arena.step.value;
   const int steps_of_game = views.last_step.value;
+  // The next step to run, or the last step that ran once the game concluded and no step follows
+  const int marked_step = views.game.result ? last_step : last_step + 1;
   std::vector<OverviewRow> overview(rows);
   for (int row = 0; row < rows; ++row) {
     const int from = steps_of_game * row / rows;
@@ -136,11 +138,9 @@ std::vector<OverviewRow> buildOverview(const Views& views, int rows) {
         views.transmission_schedule.begin(), views.transmission_schedule.end(), [from, until](StepId opportunity) {
           return from < opportunity.value && opportunity.value <= until;
         }));
-    stretch.elapsed = until <= last_step;
-    stretch.now = from <= last_step && (last_step < until || row == rows - 1);
-  }
-  if (views.game.remaining_steps == 0 && rows > 0) {
-    overview.back().elapsed = false;  // At the end the last stretch shows where time stopped
+    stretch.now = from < marked_step && (marked_step <= until || row == rows - 1);
+    // At the end the marked stretch shows where time stopped, so it never counts as elapsed
+    stretch.elapsed = until <= last_step && !stretch.now;
   }
   return overview;
 }
