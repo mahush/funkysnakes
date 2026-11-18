@@ -200,7 +200,7 @@ TEST_F(OrbitalGameDomainApplication, RejectsStartWhileGameIsRunning) {
   // Then: the start is refused, and the views it reports show the running game unchanged
   ASSERT_EQ(players_.calls, (std::vector<std::string>{"startRejected", "viewsUpdated"}));
   EXPECT_EQ(players_.start_rejections.front().reason, StartRejectionReason::ALREADY_STARTED);
-  EXPECT_EQ(players_.views->now, milliseconds{1300});
+  EXPECT_EQ(players_.views->arena.step, StepId{6});
   EXPECT_EQ(statusOf(order), Status::SELECTED);
 }
 
@@ -672,11 +672,11 @@ TEST_F(OrbitalGameDomainApplication, StopsGameTimeAtConcludingStepOfOneAdvance) 
   // When: two minutes and one second pass at once
   elapse(121000);
 
-  // Then: the game concluded on step 600 at two minutes, which was the last to run, and the clock stays there
+  // Then: the game concluded on step 600 at two minutes, which was the last to run, and the views stay there
   ASSERT_EQ(players_.conclusions.size(), 1U);
   EXPECT_EQ(players_.steps.size(), 600U);
   EXPECT_EQ(players_.steps.back().step, StepId{600});
-  EXPECT_EQ(players_.views->now, milliseconds{120000});
+  EXPECT_EQ(players_.views->arena.step, StepId{600});
 }
 
 /// @subsection time
@@ -892,7 +892,7 @@ TEST_F(OrbitalGameDomainApplication, ResumesFromBeforeAdvanceThatAnOwnerFailed) 
   ASSERT_EQ(players.steps.size(), 2U);
   EXPECT_EQ(players.steps.front().step, StepId{2});
   EXPECT_EQ(players.steps.back().step, StepId{3});
-  EXPECT_EQ(players.views->now, milliseconds{600});
+  EXPECT_EQ(players.views->arena.step, StepId{3});
   EXPECT_EQ(snake_model::length(players.views->arena.snakes.at(PLAYER_A)), 4U);
 }
 
@@ -924,7 +924,7 @@ TEST_F(OrbitalGameDomainApplication, ViewsStepInterval) {
   EXPECT_EQ(players_.views->step_interval, milliseconds{200});
 }
 
-/// @brief Game time ends with the game, so the time shown at the end stays as it was
+/// @brief Game time ends with the game, so the step shown at the end stays as it was
 TEST_F(OrbitalGameDomainApplication, StopsGameTimeAtConclusion) {
   // Given: the game ended at 120000 ms
   start(makeLanes({}));
@@ -933,8 +933,8 @@ TEST_F(OrbitalGameDomainApplication, StopsGameTimeAtConclusion) {
   // When: five more seconds pass
   elapse(5000);
 
-  // Then: the views still show the time of the end of the game
-  EXPECT_EQ(players_.views->now, milliseconds{120000});
+  // Then: the views still show the last step of the game
+  EXPECT_EQ(players_.views->arena.step, StepId{600});
 }
 
 TEST_F(OrbitalGameDomainApplication, ViewsRouteOfSelectedOrder) {
@@ -981,7 +981,7 @@ TEST_F(OrbitalGameDomainApplication, RejectsStartWithSetupOnceAGameStarted) {
   // Then: the start is refused, and the views it reports show the concluded game where it ended
   ASSERT_EQ(players_.calls, (std::vector<std::string>{"startRejected", "viewsUpdated"}));
   EXPECT_EQ(players_.start_rejections.front().reason, StartRejectionReason::ALREADY_STARTED);
-  EXPECT_EQ(players_.views->now, milliseconds{120000});
+  EXPECT_EQ(players_.views->arena.step, StepId{600});
 }
 
 }  // namespace orbital

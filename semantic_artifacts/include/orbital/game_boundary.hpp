@@ -108,7 +108,7 @@ struct StepReport {
 };
 
 /**
- * @brief Current views of the three Authorities, the game time and the orbital link condition
+ * @brief Current views of the three Authorities, the step interval and the orbital link condition
  *
  * The link condition is what the Transmission Schedule Policy decides: every transmission
  * opportunity of the game. The step interval is the Pacing Policy's. A combined presentation is a
@@ -118,7 +118,6 @@ struct Views {
   arena_authority::View arena;
   order_authority::View orders;
   game_authority::View game;
-  std::chrono::milliseconds now;                                  // Current time of the round's logical clock
   std::chrono::milliseconds step_interval;                        // Interval between arena steps (Pacing Policy)
   std::vector<StepId> transmission_schedule;                      // Every opportunity of the game, in step order
   std::map<PlayerId, std::vector<Direction>> selected_routes;     // Route each selected order would get now

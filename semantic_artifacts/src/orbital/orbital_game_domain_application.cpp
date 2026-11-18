@@ -87,7 +87,6 @@ Observations withViews(Observations observations, const State& state) {
     observations.views = Views{arena_authority::view(*state.arena),
                                std::move(orders),
                                game_authority::view(*state.game),
-                               state.clock.now,
                                pacing_policy::STEP_INTERVAL,
                                transmission_schedule_policy::opportunitiesOfGame(),
                                std::move(selected_routes),
