@@ -135,11 +135,11 @@ std::tuple<State, OrderSubmitted> submit(State state, const Submission& submissi
 /**
  * @brief Transmit every player's selected order
  *
- * Each selected order becomes transmitted and irrevocable, keeping its own submission time and the
+ * Each selected order becomes transmitted and irrevocable, keeping its own submission step and the
  * order it replaced; players
  * without a selected order transmit nothing, so an order is transmitted once.
  *
- * Admitted input: the step of a transmission opportunity, not earlier than the submissions it transmits.
+ * Admitted input: the step of a transmission opportunity, later than the step of every submission it transmits.
  *
  * @param state Current order state
  * @param at Step of the transmission
