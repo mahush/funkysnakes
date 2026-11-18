@@ -13,6 +13,10 @@ namespace pacing_policy {
  *
  * Stateless decisions on the game timeline: how often the arena steps and how long a game lasts.
  * It keeps no clock and concludes nothing.
+ *
+ * Step k spans the time from the arena's k-th movement up to its next one; step 0 spans the time from
+ * round start up to the first movement. Whatever happens in that time happens in step k, so the
+ * domain's times are steps.
  */
 
 // Interval between arena steps; steps fall due at its multiples, the first one interval after round start
@@ -20,6 +24,9 @@ constexpr std::chrono::milliseconds STEP_INTERVAL{200};
 
 // Time limit of a game, counted from round start
 constexpr std::chrono::minutes GAME_DURATION{2};
+
+// Step that falls due when the time limit is reached; no step follows it
+constexpr StepId LAST_STEP{static_cast<int>(GAME_DURATION / STEP_INTERVAL)};
 
 /**
  * @brief Time at which a step falls due

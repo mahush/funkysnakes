@@ -27,13 +27,16 @@ struct OrderId {
   bool operator<(const OrderId& other) const noexcept { return value < other.value; }
 };
 
-// Identifies one arena step (movement tick) within a round
+// Identifies one arena step within a round; what time a step spans is the Pacing Policy's
 struct StepId {
   int value;
 
-  bool operator==(const StepId& other) const noexcept { return value == other.value; }
-  bool operator!=(const StepId& other) const noexcept { return value != other.value; }
-  bool operator<(const StepId& other) const noexcept { return value < other.value; }
+  constexpr bool operator==(const StepId& other) const noexcept { return value == other.value; }
+  constexpr bool operator!=(const StepId& other) const noexcept { return value != other.value; }
+  constexpr bool operator<(const StepId& other) const noexcept { return value < other.value; }
+  constexpr bool operator<=(const StepId& other) const noexcept { return value <= other.value; }
+  constexpr bool operator>(const StepId& other) const noexcept { return value > other.value; }
+  constexpr bool operator>=(const StepId& other) const noexcept { return value >= other.value; }
 };
 
 }  // namespace orbital
