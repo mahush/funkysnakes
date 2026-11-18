@@ -140,7 +140,7 @@ std::tuple<State, Observations> runStep(const RandomIntGeneratorFn& random_int_f
     auto [concluded_state, conclusion] = conclude(std::move(state), *concluded);
     return {std::move(concluded_state), appendObservations(std::move(observations), std::move(conclusion))};
   }
-  if (transmission_schedule_policy::isOpportunity(at)) {
+  if (transmission_schedule_policy::isOpportunity(arena_authority::lastCompletedStep(*state.arena))) {
     auto [orders, transmissions] = order_authority::transmit(std::move(*state.orders), at);
     state.orders = std::move(orders);
     for (const OrderTransmitted& transmitted : transmissions) {

@@ -15,6 +15,9 @@ namespace game_authority {
 
 namespace {
 
+// Step whose movement falls on a step time
+StepId stepAt(GameTime at) { return StepId{static_cast<int>(at / pacing_policy::STEP_INTERVAL)}; }
+
 // An ended order's held points are banked or dropped as the Scoring Policy decides for its end reason
 Scores settleOrder(Scores scores, OrderId order, EndReason reason) {
   auto it = scores.held.find(order);
@@ -100,7 +103,8 @@ struct Execution {
 bool handsOver(const OrderTransmitted& successor, const std::optional<Execution>& predecessor) {
   return predecessor && predecessor->end_reason == EndReason::COMPLETED && !successor.replaced &&
          predecessor->activated_at <= successor.submitted_at &&
-         successor.transmitted_at == transmission_schedule_policy::firstOpportunityFrom(*predecessor->ended_at);
+         successor.transmitted_at ==
+             pacing_policy::timeOfStep(transmission_schedule_policy::firstOpportunityFrom(stepAt(*predecessor->ended_at)));
 }
 
 // The player's chain as the known histories determine it, with the bonus it earned over the game
@@ -300,10 +304,11 @@ HandoverProspect handoverProspect(const State& state, const PlayerId& player, co
     return HandoverProspect::NONE;
   }
   // A choice is sent at the first opportunity after it, which must be the first one at or after the completion
-  const GameTime closes = transmission_schedule_policy::firstOpportunityFrom(*completion);
-  const GameTime opens = transmission_schedule_policy::lastOpportunityBefore(closes).value_or(GameTime{0});
+  const StepId closes = transmission_schedule_policy::firstOpportunityFrom(stepAt(*completion));
+  const StepId opens = transmission_schedule_policy::lastOpportunityBefore(closes).value_or(StepId{0});
   // The game concludes before an opportunity at or after its end could transmit the choice
-  if (closes >= pacing_policy::GAME_DURATION || context.now < opens || context.now >= closes ||
+  if (closes >= pacing_policy::LAST_STEP || context.now < pacing_policy::timeOfStep(opens) ||
+      context.now >= pacing_policy::timeOfStep(closes) ||
       context.transmission_pending) {
     return HandoverProspect::NONE;
   }

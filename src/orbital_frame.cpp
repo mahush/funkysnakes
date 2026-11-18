@@ -10,6 +10,7 @@ namespace orbital_frame {
 
 namespace {
 
+using orbital::StepId;
 using orbital::game_boundary::Views;
 using orbital::order_authority::OrderRecord;
 using orbital::order_authority::Status;
@@ -144,8 +145,9 @@ std::vector<OverviewRow> buildOverview(const Views& views, int rows) {
     OverviewRow& stretch = overview[row];
     stretch.steps = static_cast<int>(until / views.step_interval - from / views.step_interval);
     stretch.opportunities = static_cast<int>(std::count_if(
-        views.transmission_schedule.begin(), views.transmission_schedule.end(), [from, until](GameTime opportunity) {
-          return from < opportunity && opportunity <= until;
+        views.transmission_schedule.begin(), views.transmission_schedule.end(), [&views, from, until](StepId opportunity) {
+          const GameTime at = views.step_interval * opportunity.value;
+          return from < at && at <= until;
         }));
     stretch.elapsed = until <= views.now;
     stretch.now = from <= views.now && (views.now < until || row == rows - 1);
@@ -161,8 +163,9 @@ std::vector<LaneSlot> buildLane(const Views& views, int slots) {
   std::vector<LaneSlot> lane(slots);
   for (int slot = 0; slot < slots; ++slot) {
     const GameTime at = lastStep(views) + views.step_interval * (slot + 1);
-    lane[slot].opportunity =
-        std::binary_search(views.transmission_schedule.begin(), views.transmission_schedule.end(), at);
+    lane[slot].opportunity = std::binary_search(views.transmission_schedule.begin(),
+                                                views.transmission_schedule.end(),
+                                                StepId{static_cast<int>(at / views.step_interval)});
     for (const auto& [player, arrival] : arrivals) {
       if (at <= arrival) {
         lane[slot].executing.insert(player);

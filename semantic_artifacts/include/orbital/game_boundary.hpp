@@ -122,7 +122,7 @@ struct Views {
   game_authority::View game;
   GameTime now;                                                   // Current time of the round's logical clock
   std::chrono::milliseconds step_interval;                        // Interval between arena steps (Pacing Policy)
-  std::vector<GameTime> transmission_schedule;                    // Every opportunity of the game, in time order
+  std::vector<StepId> transmission_schedule;                      // Every opportunity of the game, in step order
   std::map<PlayerId, std::vector<Direction>> selected_routes;     // Route each selected order would get now
   std::map<PlayerId, std::vector<Direction>> transmitted_routes;  // Route each transmitted order would get now
   std::map<PlayerId, game_authority::HandoverProspect> handover_prospects;  // What choosing a successor earns now
