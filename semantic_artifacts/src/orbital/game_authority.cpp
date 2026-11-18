@@ -300,12 +300,11 @@ HandoverProspect handoverProspect(const State& state, const PlayerId& player, co
   if (!completion) {
     return HandoverProspect::NONE;
   }
-  // A choice is sent at the first opportunity after it, which must be the first one at or after the completion
-  const StepId closes = transmission_schedule_policy::firstOpportunityAfterCompletion(*completion);
-  const StepId opens = transmission_schedule_policy::lastOpportunityBefore(closes).value_or(StepId{0});
+  // A choice made now hands over only if its submission is sent at the first opportunity after the completion
+  const StepId handover_opportunity = transmission_schedule_policy::firstOpportunityAfterCompletion(*completion);
+  const bool sent_in_time = transmission_schedule_policy::opportunityOfSubmission(context.now) == handover_opportunity;
   // The game concludes before an opportunity at or after its end could transmit the choice
-  if (closes >= pacing_policy::LAST_STEP || context.now < opens || context.now >= closes ||
-      context.transmission_pending) {
+  if (handover_opportunity >= pacing_policy::LAST_STEP || !sent_in_time || context.transmission_pending) {
     return HandoverProspect::NONE;
   }
   if (!context.selected_at) {

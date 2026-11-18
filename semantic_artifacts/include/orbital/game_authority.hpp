@@ -305,8 +305,8 @@ struct ProspectContext {
  * @brief What choosing a successor would earn a player now
  *
  * The predecessor is the executing order, completing as expected, or else the last completed order
- * while its completion is open. A choice made now hands over if it is transmitted at the first
- * opportunity at or after that completion: from the opportunity before it up to that opportunity. The
+ * while its completion is open. A choice made now hands over if the opportunity of its submission is the
+ * first opportunity after that completion (both Transmission Schedule Policy): the window. The
  * game concludes at the end of its duration before anything is transmitted then, so a window whose
  * opportunity falls at or after that end offers nothing. A transmitted order waiting for activation takes over first,
  * so nothing chosen now hands over from the predecessor. A selection hands over only if it replaced none and was
