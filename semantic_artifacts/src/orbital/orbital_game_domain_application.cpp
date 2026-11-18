@@ -53,6 +53,18 @@ std::map<PlayerId, std::vector<Direction>> routesOf(
   return routes;
 }
 
+// Step in which each executing order is expected to complete, as the Arena Authority expects it
+std::map<PlayerId, StepId> expectedCompletions(const arena_authority::State& arena,
+                                               const arena_authority::View& arena_view) {
+  std::map<PlayerId, StepId> completions;
+  for (const auto& [player, active] : arena_view.active) {
+    if (std::optional<StepId> completion = arena_authority::expectedCompletionStep(arena, player)) {
+      completions[player] = *completion;
+    }
+  }
+  return completions;
+}
+
 // What choosing a successor would earn each player now, as the Game Authority decides it from what the
 // Arena and Order Authorities know of the player's orders
 std::map<PlayerId, game_authority::HandoverProspect> handoverProspects(const State& state,
@@ -84,11 +96,15 @@ Observations withViews(Observations observations, const State& state) {
     std::map<PlayerId, std::vector<Direction>> transmitted_routes =
         routesOf(*state.arena, orders, &order_authority::PlayerOrders::transmitted);
     std::map<PlayerId, game_authority::HandoverProspect> prospects = handoverProspects(state, orders);
-    observations.views = Views{arena_authority::view(*state.arena),
+    arena_authority::View arena = arena_authority::view(*state.arena);
+    std::map<PlayerId, StepId> completions = expectedCompletions(*state.arena, arena);
+    observations.views = Views{std::move(arena),
                                std::move(orders),
                                game_authority::view(*state.game),
                                pacing_policy::STEP_INTERVAL,
+                               pacing_policy::LAST_STEP,
                                transmission_schedule_policy::opportunitiesOfGame(),
+                               std::move(completions),
                                std::move(selected_routes),
                                std::move(transmitted_routes),
                                std::move(prospects)};

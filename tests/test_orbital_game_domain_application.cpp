@@ -924,6 +924,30 @@ TEST_F(OrbitalGameDomainApplication, ViewsStepInterval) {
   EXPECT_EQ(players_.views->step_interval, milliseconds{200});
 }
 
+/// @brief Presentation spans the timeline of the game without asking the Pacing Policy itself
+TEST_F(OrbitalGameDomainApplication, ViewsLastStepOfGame) {
+  // When: a game starts
+  game_.start(app::Start{RoundId{1}});
+
+  // Then: the views show step 600 as the last step of the game
+  ASSERT_TRUE(players_.views.has_value());
+  EXPECT_EQ(players_.views->last_step, StepId{600});
+}
+
+/// @brief Presentation shows when an executing order arrives without counting its moves itself
+TEST_F(OrbitalGameDomainApplication, ViewsExpectedCompletionOfExecutingOrder) {
+  // Given: with A's snake at (2,2) heading right, A selected (8,5), which was transmitted in step 1
+  start(makeLanes({}));
+  submit(PLAYER_A, Point{8, 5});
+  elapse(200);
+
+  // When: step 2 activates the order, whose eight moves start from (3,2)
+  elapse(200);
+
+  // Then: the order is expected to complete with its last move in step 9
+  EXPECT_EQ(players_.views->expected_completions, (std::map<PlayerId, StepId>{{PLAYER_A, StepId{9}}}));
+}
+
 /// @brief Game time ends with the game, so the step shown at the end stays as it was
 TEST_F(OrbitalGameDomainApplication, StopsGameTimeAtConclusion) {
   // Given: the game ended at 120000 ms

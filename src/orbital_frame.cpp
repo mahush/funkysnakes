@@ -122,21 +122,10 @@ PlayerPanel buildPanel(const Views& views, const PlayerId& player, const std::ma
   return panel;
 }
 
-// Step in which each player's executing order is expected to arrive, one step per remaining move
-std::map<PlayerId, StepId> expectedArrivals(const Views& views) {
-  std::map<PlayerId, StepId> arrivals;
-  for (const auto& [player, active] : views.arena.active) {
-    if (!active.remaining_route.empty()) {
-      arrivals[player] = StepId{views.arena.step.value + static_cast<int>(active.remaining_route.size())};
-    }
-  }
-  return arrivals;
-}
-
 std::vector<OverviewRow> buildOverview(const Views& views, int rows) {
-  // A stretch holds the steps after from up to until; the remaining steps count from the last step that ran
+  // A stretch holds the steps after from up to until
   const int last_step = views.arena.step.value;
-  const int steps_of_game = last_step + views.game.remaining_steps;
+  const int steps_of_game = views.last_step.value;
   std::vector<OverviewRow> overview(rows);
   for (int row = 0; row < rows; ++row) {
     const int from = steps_of_game * row / rows;
@@ -157,14 +146,13 @@ std::vector<OverviewRow> buildOverview(const Views& views, int rows) {
 }
 
 std::vector<LaneSlot> buildLane(const Views& views, int slots) {
-  const std::map<PlayerId, StepId> arrivals = expectedArrivals(views);
   std::vector<LaneSlot> lane(slots);
   for (int slot = 0; slot < slots; ++slot) {
     const StepId step{views.arena.step.value + slot + 1};
     lane[slot].opportunity =
         std::binary_search(views.transmission_schedule.begin(), views.transmission_schedule.end(), step);
-    for (const auto& [player, arrival] : arrivals) {
-      if (step <= arrival) {
+    for (const auto& [player, completion] : views.expected_completions) {
+      if (step <= completion) {
         lane[slot].executing.insert(player);
       }
     }
