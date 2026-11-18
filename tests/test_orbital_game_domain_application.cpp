@@ -307,12 +307,12 @@ TEST_F(OrbitalGameDomainApplication, ReportsHandoverWithStepOfSuccessorTakeover)
   elapse(3000);
   OrderId g = submit(PLAYER_A, Point{4, 6});
 
-  // When: time passes until G took over at 4400 ms
+  // When: time passes until G took over in step 22, at 4400 ms
   elapse(1400);
 
   // Then: that step reports the first handover of A's chain
   const game_boundary::StepReport& takeover = players_.steps.back();
-  EXPECT_EQ(takeover.at, milliseconds{4400});
+  EXPECT_EQ(takeover.step, StepId{22});
   EXPECT_EQ(takeover.handovers, (std::vector<game_authority::HandoverGranted>{{PLAYER_A, g, 1, 10}}));
 }
 
@@ -591,7 +591,7 @@ TEST_F(OrbitalGameDomainApplication, BanksCompletionOnFinalStepBeforeConclusion)
   EXPECT_EQ(scoreOf(PLAYER_A).banked, 10);
   ASSERT_EQ(players_.conclusions.size(), 1U);
   EXPECT_EQ(players_.conclusions.front().result, (game_authority::Result{PlayerId{PLAYER_A}}));
-  EXPECT_EQ(players_.steps.back().at, std::chrono::minutes{2});
+  EXPECT_EQ(players_.steps.back().step, StepId{600});
 }
 
 TEST_F(OrbitalGameDomainApplication, ConcludesWithDrawWhenBothSnakesDie) {
@@ -672,10 +672,10 @@ TEST_F(OrbitalGameDomainApplication, StopsGameTimeAtConcludingStepOfOneAdvance) 
   // When: two minutes and one second pass at once
   elapse(121000);
 
-  // Then: the game concluded on the step at two minutes, which was the last to run, and the clock stays there
+  // Then: the game concluded on step 600 at two minutes, which was the last to run, and the clock stays there
   ASSERT_EQ(players_.conclusions.size(), 1U);
   EXPECT_EQ(players_.steps.size(), 600U);
-  EXPECT_EQ(players_.steps.back().at, std::chrono::minutes{2});
+  EXPECT_EQ(players_.steps.back().step, StepId{600});
   EXPECT_EQ(players_.views->now, milliseconds{120000});
 }
 
@@ -689,10 +689,10 @@ TEST_F(OrbitalGameDomainApplication, ReportsEveryStepOfOneTimeAdvance) {
   // When: one second passes at once
   elapse(1000);
 
-  // Then: five steps ran, at 200 ms intervals
+  // Then: five steps ran, one per 200 ms
   ASSERT_EQ(players_.steps.size(), 5U);
-  EXPECT_EQ(players_.steps.front().at, milliseconds{200});
-  EXPECT_EQ(players_.steps.back().at, milliseconds{1000});
+  EXPECT_EQ(players_.steps.front().step, StepId{1});
+  EXPECT_EQ(players_.steps.back().step, StepId{5});
 }
 
 /// @brief Before a game has started there is no game time that could pass
@@ -743,7 +743,6 @@ TEST_F(OrbitalGameDomainApplication, ReportsSameStepsAndViewsForOneAdvanceAndIts
   ASSERT_EQ(in_parts_steps.size(), at_once_steps.size());
   for (size_t i = 0; i < at_once_steps.size(); ++i) {
     EXPECT_EQ(in_parts_steps[i].step, at_once_steps[i].step);
-    EXPECT_EQ(in_parts_steps[i].at, at_once_steps[i].at);
     EXPECT_EQ(in_parts_steps[i].activations, at_once_steps[i].activations);
     EXPECT_EQ(in_parts_steps[i].events, at_once_steps[i].events);
     EXPECT_EQ(in_parts_steps[i].transmissions, at_once_steps[i].transmissions);
@@ -889,10 +888,10 @@ TEST_F(OrbitalGameDomainApplication, ResumesFromBeforeAdvanceThatAnOwnerFailed) 
   // When: the same time passes again
   game.elapse(app::TimeElapsed{milliseconds{400}});
 
-  // Then: the steps at 400 ms and 600 ms run from the state at 200 ms, and A ate the food
+  // Then: steps 2 and 3 run from the state after step 1, and A ate the food
   ASSERT_EQ(players.steps.size(), 2U);
-  EXPECT_EQ(players.steps.front().at, milliseconds{400});
-  EXPECT_EQ(players.steps.back().at, milliseconds{600});
+  EXPECT_EQ(players.steps.front().step, StepId{2});
+  EXPECT_EQ(players.steps.back().step, StepId{3});
   EXPECT_EQ(players.views->now, milliseconds{600});
   EXPECT_EQ(snake_model::length(players.views->arena.snakes.at(PLAYER_A)), 4U);
 }

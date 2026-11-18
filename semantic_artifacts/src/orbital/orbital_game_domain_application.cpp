@@ -119,34 +119,24 @@ std::tuple<State, Observations> conclude(State state, const game_authority::Game
 
 // One arena step, with every Authority observing its complete outcome before the next step
 std::tuple<State, Observations> runStep(const RandomIntGeneratorFn& random_int_fn, State state) {
-  const GameTime at = state.clock.next_step;
   state.clock.next_step += pacing_policy::STEP_INTERVAL;
 
-  std::vector<Order> released = order_authority::transmittedOrders(
-      *state.orders, StepId{arena_authority::lastCompletedStep(*state.arena).value + 1});
+  const StepId step{arena_authority::lastCompletedStep(*state.arena).value + 1};
+  std::vector<Order> released = order_authority::transmittedOrders(*state.orders, step);
   auto [arena, activations, events] = arena_authority::tick(random_int_fn, std::move(*state.arena), released);
   state.arena = std::move(arena);
   state.orders = order_authority::observe(std::move(*state.orders), activations, events);
-  auto [game, handovers, concluded] = game_authority::observeStep(std::move(*state.game),
-                                                                  arena_authority::lastCompletedStep(*state.arena),
-                                                                  activations,
-                                                                  events,
-                                                                  arena_authority::alivePlayers(*state.arena));
+  auto [game, handovers, concluded] = game_authority::observeStep(
+      std::move(*state.game), step, activations, events, arena_authority::alivePlayers(*state.arena));
   state.game = std::move(game);
 
   Observations observations;
-  observations.steps.push_back(StepReport{arena_authority::lastCompletedStep(*state.arena),
-                                          at,
-                                          std::move(activations),
-                                          std::move(events),
-                                          {},
-                                          std::move(handovers)});
+  observations.steps.push_back(StepReport{step, std::move(activations), std::move(events), {}, std::move(handovers)});
   if (concluded) {
     auto [concluded_state, conclusion] = conclude(std::move(state), *concluded);
     return {std::move(concluded_state), appendObservations(std::move(observations), std::move(conclusion))};
   }
-  if (const StepId step = arena_authority::lastCompletedStep(*state.arena);
-      transmission_schedule_policy::isOpportunity(step)) {
+  if (transmission_schedule_policy::isOpportunity(step)) {
     auto [orders, transmissions] = order_authority::transmit(std::move(*state.orders), step);
     state.orders = std::move(orders);
     for (const OrderTransmitted& transmitted : transmissions) {
