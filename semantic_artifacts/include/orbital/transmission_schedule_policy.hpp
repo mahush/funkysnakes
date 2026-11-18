@@ -94,6 +94,17 @@ constexpr bool isOpportunity(StepId at) { return firstOpportunityFrom(at) == at;
 constexpr StepId firstStepAfterTransmission(StepId transmitted_in) { return StepId{transmitted_in.value + 1}; }
 
 /**
+ * @brief First opportunity after a completion
+ *
+ * A completion happens in its step's movement, which comes before the step's opportunity, so an opportunity in
+ * the completion step itself already follows it.
+ *
+ * @param completed_in Step whose movement completed the order (not negative)
+ * @return Step of the earliest opportunity not before completed_in
+ */
+constexpr StepId firstOpportunityAfterCompletion(StepId completed_in) { return firstOpportunityFrom(completed_in); }
+
+/**
  * @brief Last opportunity before a given step
  *
  * @param at A step (not negative)
