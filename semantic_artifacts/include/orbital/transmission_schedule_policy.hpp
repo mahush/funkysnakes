@@ -36,9 +36,9 @@ constexpr StepId FIRST_OPPORTUNITY{1};
  * @brief Number of steps from an opportunity to the next one
  *
  * @param opportunity Step of an opportunity (not negative)
- * @return From MAX_INTERVAL at the start of the game down to MIN_INTERVAL at its end (and after it),
- *         linear in the opportunity's time, rounded to the nearest whole number of steps (halves round
- *         up), at least one
+ * @return Steps on the line from MAX_INTERVAL at the start of the game down to MIN_INTERVAL at its end
+ *         (and after it), linear in the opportunity's time, rounded to the nearest whole number of steps
+ *         (halves round up), at least one: 20 steps at the start, 3 at the end
  */
 constexpr int intervalAfter(StepId opportunity) {
   const std::chrono::milliseconds duration = pacing_policy::GAME_DURATION;
