@@ -43,8 +43,8 @@ struct Order {
 /**
  * @brief A player submitted an order, which became their selected order
  *
- * Submission happens where the player's input is accepted; `submitted_at` is that time on the
- * round's timeline, and it stays the order's submission time however late the record travels.
+ * Submission happens where the player's input is accepted; `submitted_at` is the step in which that
+ * happened, and it stays the order's submission step however late the record travels.
  * `replaced` names the player's previously selected, not yet transmitted order that this submission
  * replaced; a replaced order is never transmitted.
  */
@@ -52,7 +52,7 @@ struct OrderSubmitted {
   RoundId round;
   OrderId order;
   PlayerId player;
-  GameTime submitted_at;
+  StepId submitted_at;
   std::optional<OrderId> replaced;
 
   bool operator==(const OrderSubmitted& other) const noexcept {
@@ -64,7 +64,7 @@ struct OrderSubmitted {
 /**
  * @brief A selected order was transmitted at an opportunity of the orbital link and became irrevocable
  *
- * It keeps its own submission time and names the selected order it replaced, if any. Together with the
+ * It keeps its own submission step and names the selected order it replaced, if any. Together with the
  * Arena Authority's activations and order endings, this history tells whether an order took over from
  * its predecessor as a handover, without the submissions that were never transmitted.
  */
@@ -72,8 +72,8 @@ struct OrderTransmitted {
   RoundId round;
   OrderId order;
   PlayerId player;
-  GameTime submitted_at;
-  GameTime transmitted_at;
+  StepId submitted_at;
+  StepId transmitted_at;
   std::optional<OrderId> replaced;
 
   bool operator==(const OrderTransmitted& other) const noexcept {

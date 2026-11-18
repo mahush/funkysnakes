@@ -89,10 +89,11 @@ std::string describe(const OrderNames& names, const ArenaEvent& event) {
 // is printed once the views that follow them arrive.
 class PrintingPlayers : public game_boundary::PlayersEndOutbound {
  public:
-  // Name and target of the next submission, for the trace
-  void name(std::string order_name, Point target) {
+  // Name, target and time of the next submission, for the trace
+  void name(std::string order_name, Point target, int at_ms) {
     order_name_ = std::move(order_name);
     target_ = target;
+    at_ms_ = at_ms;
   }
 
   void startRejected(const game_boundary::StartRejected& /* rejected */) override {
@@ -106,8 +107,7 @@ class PrintingPlayers : public game_boundary::PlayersEndOutbound {
   }
 
   void orderSubmitted(const OrderSubmitted& submitted) override {
-    std::cout << "  " << submitted.submitted_at.count() << " ms  A selects " << order_name_ << " to " << point(target_)
-              << "\n";
+    std::cout << "  " << at_ms_ << " ms  A selects " << order_name_ << " to " << point(target_) << "\n";
     names_[submitted.order] = order_name_;
   }
 
@@ -144,6 +144,7 @@ class PrintingPlayers : public game_boundary::PlayersEndOutbound {
  private:
   std::string order_name_;
   Point target_{0, 0};
+  int at_ms_{0};
   OrderNames names_;
   bool stepped_{false};
 };
@@ -164,7 +165,7 @@ void runHistory(const std::string& title, const std::vector<PlannedSubmission>& 
   int now_ms = 0;
   for (const PlannedSubmission& submission : submissions) {
     game.elapse(app::TimeElapsed{milliseconds{submission.at_ms - now_ms}});
-    players.name(submission.name, submission.target);
+    players.name(submission.name, submission.target, submission.at_ms);
     game.submit(app::Submit{PLAYER_A, submission.target});
     now_ms = submission.at_ms;
   }

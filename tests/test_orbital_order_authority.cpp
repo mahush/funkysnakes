@@ -2,7 +2,6 @@
 
 #include <gtest/gtest.h>
 
-#include <chrono>
 #include <tuple>
 #include <vector>
 
@@ -10,8 +9,6 @@
 
 namespace snake {
 namespace orbital {
-
-using std::chrono::milliseconds;
 
 namespace {
 
@@ -38,15 +35,14 @@ std::tuple<order_authority::State, OrderId> submitOrder(order_authority::State s
 }
 
 // Transmit the selected orders and keep only the state
-order_authority::State transmitAt(order_authority::State state, milliseconds at) {
+order_authority::State transmitAt(order_authority::State state, StepId at) {
   return std::get<0>(order_authority::transmit(std::move(state), at));
 }
 
-// An order of player A that was submitted at 0 ms and transmitted at 200 ms
+// An order of player A that was submitted in step 0 and transmitted in step 1
 std::tuple<order_authority::State, OrderId> transmittedOrder() {
-  auto [state, id] =
-      submitOrder(order_authority::startRound(ROUND), Submission{PLAYER_A, Point{3, 4}, milliseconds{0}});
-  return {transmitAt(std::move(state), milliseconds{200}), id};
+  auto [state, id] = submitOrder(order_authority::startRound(ROUND), Submission{PLAYER_A, Point{3, 4}, StepId{0}});
+  return {transmitAt(std::move(state), StepId{1}), id};
 }
 
 // An order of player A that the Arena Authority activated after its transmission
@@ -61,11 +57,10 @@ std::tuple<order_authority::State, OrderId> executingOrder() {
 
 TEST(OrderAuthority, AssignsNewIdentityToEachSubmission) {
   // Given: an order was submitted
-  auto [state, first] =
-      submitOrder(order_authority::startRound(ROUND), Submission{PLAYER_A, Point{3, 4}, milliseconds{0}});
+  auto [state, first] = submitOrder(order_authority::startRound(ROUND), Submission{PLAYER_A, Point{3, 4}, StepId{0}});
 
   // When: the same player submits again
-  auto [next_state, second] = submitOrder(state, Submission{PLAYER_A, Point{3, 4}, milliseconds{100}});
+  auto [next_state, second] = submitOrder(state, Submission{PLAYER_A, Point{3, 4}, StepId{0}});
 
   // Then: the second order has its own identity
   EXPECT_NE(first, second);
@@ -73,8 +68,7 @@ TEST(OrderAuthority, AssignsNewIdentityToEachSubmission) {
 
 TEST(OrderAuthority, SelectsSubmittedOrder) {
   // When: player A submits an order
-  auto [state, id] =
-      submitOrder(order_authority::startRound(ROUND), Submission{PLAYER_A, Point{3, 4}, milliseconds{0}});
+  auto [state, id] = submitOrder(order_authority::startRound(ROUND), Submission{PLAYER_A, Point{3, 4}, StepId{0}});
 
   // Then: it is A's selected order
   EXPECT_EQ(statusOf(state, id), Status::SELECTED);
@@ -84,12 +78,11 @@ TEST(OrderAuthority, SelectsSubmittedOrder) {
 /// @brief A player can change their mind as often as they like before a transmission
 TEST(OrderAuthority, ReplacesSelectedOrderOfSamePlayer) {
   // Given: player A selected G and then H
-  auto [with_g, g] =
-      submitOrder(order_authority::startRound(ROUND), Submission{PLAYER_A, Point{3, 4}, milliseconds{0}});
-  auto [with_h, h] = submitOrder(with_g, Submission{PLAYER_A, Point{8, 1}, milliseconds{100}});
+  auto [with_g, g] = submitOrder(order_authority::startRound(ROUND), Submission{PLAYER_A, Point{3, 4}, StepId{0}});
+  auto [with_h, h] = submitOrder(with_g, Submission{PLAYER_A, Point{8, 1}, StepId{0}});
 
   // When: player A submits K
-  auto [state, k] = submitOrder(with_h, Submission{PLAYER_A, Point{5, 5}, milliseconds{150}});
+  auto [state, k] = submitOrder(with_h, Submission{PLAYER_A, Point{5, 5}, StepId{0}});
 
   // Then: G and H are replaced and K is the selected order
   EXPECT_EQ(statusOf(state, g), Status::REPLACED);
@@ -99,37 +92,37 @@ TEST(OrderAuthority, ReplacesSelectedOrderOfSamePlayer) {
 
 TEST(OrderAuthority, KeepsSelectedOrdersOfOtherPlayers) {
   // Given: player A has a selected order
-  auto [state, a] = submitOrder(order_authority::startRound(ROUND), Submission{PLAYER_A, Point{3, 4}, milliseconds{0}});
+  auto [state, a] = submitOrder(order_authority::startRound(ROUND), Submission{PLAYER_A, Point{3, 4}, StepId{0}});
 
   // When: player B submits an order
-  auto [next_state, b] = submitOrder(state, Submission{PLAYER_B, Point{8, 1}, milliseconds{100}});
+  auto [next_state, b] = submitOrder(state, Submission{PLAYER_B, Point{8, 1}, StepId{0}});
 
   // Then: both orders are selected
   EXPECT_EQ(statusOf(next_state, a), Status::SELECTED);
   EXPECT_EQ(statusOf(next_state, b), Status::SELECTED);
 }
 
-/// @brief The submission time is the domain fact the Game Authority relates to the Arena Authority's history
-TEST(OrderAuthority, PublishesSubmissionWithItsTime) {
-  // When: player A submits an order at 1300 ms
-  auto [state, submitted] = order_authority::submit(order_authority::startRound(ROUND),
-                                                    Submission{PLAYER_A, Point{3, 4}, milliseconds{1300}});
+/// @brief The submission step is the domain fact the Game Authority relates to the Arena Authority's history
+TEST(OrderAuthority, PublishesSubmissionWithItsStep) {
+  // When: player A submits an order in step 6
+  auto [state, submitted] =
+      order_authority::submit(order_authority::startRound(ROUND), Submission{PLAYER_A, Point{3, 4}, StepId{6}});
 
-  // Then: the record names round, order, player and time, and replaces nothing
+  // Then: the record names round, order, player and step, and replaces nothing
   EXPECT_EQ(submitted,
             (OrderSubmitted{ROUND,
                             order_authority::view(state).players.at(PLAYER_A).selected->order.id,
                             PLAYER_A,
-                            milliseconds{1300},
+                            StepId{6},
                             std::nullopt}));
 }
 
 TEST(OrderAuthority, PublishesReplacedOrderWithSubmission) {
   // Given: player A has a selected order G
-  auto [state, g] = submitOrder(order_authority::startRound(ROUND), Submission{PLAYER_A, Point{3, 4}, milliseconds{0}});
+  auto [state, g] = submitOrder(order_authority::startRound(ROUND), Submission{PLAYER_A, Point{3, 4}, StepId{0}});
 
   // When: player A submits H
-  auto [next_state, h] = order_authority::submit(state, Submission{PLAYER_A, Point{8, 1}, milliseconds{100}});
+  auto [next_state, h] = order_authority::submit(state, Submission{PLAYER_A, Point{8, 1}, StepId{0}});
 
   // Then: H's record names G as replaced
   EXPECT_EQ(h.replaced, g);
@@ -141,7 +134,7 @@ TEST(OrderAuthority, KeepsTransmittedOrderOnNewSubmission) {
   auto [state, g] = transmittedOrder();
 
   // When: player A submits H
-  auto [next_state, h] = order_authority::submit(state, Submission{PLAYER_A, Point{8, 1}, milliseconds{300}});
+  auto [next_state, h] = order_authority::submit(state, Submission{PLAYER_A, Point{8, 1}, StepId{1}});
 
   // Then: G stays transmitted and H replaces nothing
   EXPECT_EQ(statusOf(next_state, g), Status::TRANSMITTED);
@@ -152,47 +145,44 @@ TEST(OrderAuthority, KeepsTransmittedOrderOnNewSubmission) {
 
 TEST(OrderAuthority, TransmitsSelectedOrdersOfAllPlayers) {
   // Given: A selected G, B selected K
-  auto [with_g, g] =
-      submitOrder(order_authority::startRound(ROUND), Submission{PLAYER_A, Point{3, 4}, milliseconds{0}});
-  auto [state, k] = submitOrder(with_g, Submission{PLAYER_B, Point{5, 5}, milliseconds{100}});
+  auto [with_g, g] = submitOrder(order_authority::startRound(ROUND), Submission{PLAYER_A, Point{3, 4}, StepId{0}});
+  auto [state, k] = submitOrder(with_g, Submission{PLAYER_B, Point{5, 5}, StepId{15}});
 
-  // When: the selected orders are transmitted at 200 ms
-  auto [transmitted, transmissions] = order_authority::transmit(state, milliseconds{200});
+  // When: the selected orders are transmitted in step 21
+  auto [transmitted, transmissions] = order_authority::transmit(state, StepId{21});
 
-  // Then: both are transmitted, each keeping its own submission time, and nothing is selected any more
-  EXPECT_EQ(transmissions,
-            (std::vector<OrderTransmitted>{
-                OrderTransmitted{ROUND, g, PLAYER_A, milliseconds{0}, milliseconds{200}, std::nullopt},
-                OrderTransmitted{ROUND, k, PLAYER_B, milliseconds{100}, milliseconds{200}, std::nullopt}}));
+  // Then: both are transmitted, each keeping its own submission step, and nothing is selected any more
+  EXPECT_EQ(
+      transmissions,
+      (std::vector<OrderTransmitted>{OrderTransmitted{ROUND, g, PLAYER_A, StepId{0}, StepId{21}, std::nullopt},
+                                     OrderTransmitted{ROUND, k, PLAYER_B, StepId{15}, StepId{21}, std::nullopt}}));
   EXPECT_EQ(statusOf(transmitted, g), Status::TRANSMITTED);
   EXPECT_FALSE(order_authority::view(transmitted).players.at(PLAYER_A).selected.has_value());
 }
 
-/// @brief The latest replacement is what is sent, with its own submission time instead of the first selection's, and
+/// @brief The latest replacement is what is sent, with its own submission step instead of the first selection's, and
 /// it names the selection it replaced
-TEST(OrderAuthority, TransmitsLatestReplacementWithItsOwnSubmissionTime) {
-  // Given: player A selected G at 0 ms and replaced it by H at 150 ms
-  auto [with_g, g] =
-      submitOrder(order_authority::startRound(ROUND), Submission{PLAYER_A, Point{3, 4}, milliseconds{0}});
-  auto [state, h] = submitOrder(with_g, Submission{PLAYER_A, Point{8, 1}, milliseconds{150}});
+TEST(OrderAuthority, TransmitsLatestReplacementWithItsOwnSubmissionStep) {
+  // Given: player A selected G in step 0 and replaced it by H in step 15
+  auto [with_g, g] = submitOrder(order_authority::startRound(ROUND), Submission{PLAYER_A, Point{3, 4}, StepId{0}});
+  auto [state, h] = submitOrder(with_g, Submission{PLAYER_A, Point{8, 1}, StepId{15}});
 
-  // When: the selected orders are transmitted at 200 ms
-  auto [transmitted, transmissions] = order_authority::transmit(state, milliseconds{200});
+  // When: the selected orders are transmitted in step 21
+  auto [transmitted, transmissions] = order_authority::transmit(state, StepId{21});
 
-  // Then: only H is transmitted, with its submission time of 150 ms and naming G; G stays replaced
-  EXPECT_EQ(
-      transmissions,
-      (std::vector<OrderTransmitted>{OrderTransmitted{ROUND, h, PLAYER_A, milliseconds{150}, milliseconds{200}, g}}));
+  // Then: only H is transmitted, with its submission step 15 and naming G; G stays replaced
+  EXPECT_EQ(transmissions,
+            (std::vector<OrderTransmitted>{OrderTransmitted{ROUND, h, PLAYER_A, StepId{15}, StepId{21}, g}}));
   EXPECT_EQ(statusOf(transmitted, g), Status::REPLACED);
 }
 
 /// @brief An unchanged selection is sent once; a later opportunity sends nothing for it
 TEST(OrderAuthority, TransmitsNothingWithoutSelectedOrder) {
-  // Given: player A's order was transmitted at 200 ms
+  // Given: player A's order was transmitted in step 1
   auto [state, g] = transmittedOrder();
 
-  // When: the next opportunity comes at 400 ms
-  auto [next_state, transmissions] = order_authority::transmit(state, milliseconds{400});
+  // When: the next opportunity comes in step 21
+  auto [next_state, transmissions] = order_authority::transmit(state, StepId{21});
 
   // Then: nothing is transmitted
   EXPECT_TRUE(transmissions.empty());
@@ -203,23 +193,23 @@ TEST(OrderAuthority, TransmitsNothingWithoutSelectedOrder) {
 TEST(OrderAuthority, ListsTransmittedOrdersButNotSelectedOnes) {
   // Given: A's G was transmitted, then A selected H
   auto [state, g] = transmittedOrder();
-  auto [with_h, h] = submitOrder(state, Submission{PLAYER_A, Point{8, 1}, milliseconds{300}});
+  auto [with_h, h] = submitOrder(state, Submission{PLAYER_A, Point{8, 1}, StepId{1}});
 
   // When: the transmitted orders are queried
-  std::vector<Order> transmitted = order_authority::transmittedOrders(with_h, milliseconds{400});
+  std::vector<Order> transmitted = order_authority::transmittedOrders(with_h, StepId{2});
 
   // Then: only G is listed
   ASSERT_EQ(transmitted.size(), 1U);
   EXPECT_EQ(transmitted.front().id, g);
 }
 
-/// @brief An order sent at an opportunity on a step's time activates at a later step, after that step's completions
-TEST(OrderAuthority, WithholdsOrderFromStepAtItsTransmissionTime) {
-  // Given: A's G was transmitted at 200 ms
+/// @brief An order sent at the opportunity in a step activates in a later step, after that step's completions
+TEST(OrderAuthority, WithholdsOrderFromItsTransmissionStep) {
+  // Given: A's G was transmitted in step 1
   auto [state, g] = transmittedOrder();
 
-  // When: the transmitted orders are queried for the step at 200 ms
-  std::vector<Order> transmitted = order_authority::transmittedOrders(state, milliseconds{200});
+  // When: the transmitted orders are queried for step 1
+  std::vector<Order> transmitted = order_authority::transmittedOrders(state, StepId{1});
 
   // Then: none is listed
   EXPECT_TRUE(transmitted.empty());
@@ -230,7 +220,7 @@ TEST(OrderAuthority, DropsActivatedOrderFromTransmittedOrders) {
   auto [observed, id] = executingOrder();
 
   // When: the transmitted orders are queried
-  std::vector<Order> transmitted = order_authority::transmittedOrders(observed, milliseconds{600});
+  std::vector<Order> transmitted = order_authority::transmittedOrders(observed, StepId{3});
 
   // Then: none is listed
   EXPECT_TRUE(transmitted.empty());
@@ -271,8 +261,8 @@ TEST(OrderAuthority, RecordsReasonOfRejectedOrder) {
 TEST(OrderAuthority, KeepsExecutingOrderWhenReplacementIsRejected) {
   // Given: F executes and G was transmitted
   auto [executing, f] = executingOrder();
-  auto [selected, g] = submitOrder(executing, Submission{PLAYER_A, Point{8, 1}, milliseconds{500}});
-  order_authority::State state = transmitAt(selected, milliseconds{600});
+  auto [selected, g] = submitOrder(executing, Submission{PLAYER_A, Point{8, 1}, StepId{2}});
+  order_authority::State state = transmitAt(selected, StepId{3});
 
   // When: the Arena Authority rejects G
   order_authority::State observed =
@@ -285,8 +275,7 @@ TEST(OrderAuthority, KeepsExecutingOrderWhenReplacementIsRejected) {
 /// @brief Only a transmitted order can be refused; a selected one never reached the Arena Authority
 TEST(OrderAuthority, KeepsSelectedOrderWhenRejectionIsReported) {
   // Given: a selected order
-  auto [state, id] =
-      submitOrder(order_authority::startRound(ROUND), Submission{PLAYER_A, Point{3, 4}, milliseconds{0}});
+  auto [state, id] = submitOrder(order_authority::startRound(ROUND), Submission{PLAYER_A, Point{3, 4}, StepId{0}});
 
   // When: the Arena Authority reports a rejection for it
   order_authority::State observed =
@@ -348,8 +337,8 @@ INSTANTIATE_TEST_SUITE_P(EndReasons,
 TEST(OrderAuthority, InterpretsReplacementAndInterruptionOfOneStep) {
   // Given: F executes and G was transmitted
   auto [executing, f] = executingOrder();
-  auto [selected, g] = submitOrder(executing, Submission{PLAYER_A, Point{8, 1}, milliseconds{500}});
-  order_authority::State state = transmitAt(selected, milliseconds{600});
+  auto [selected, g] = submitOrder(executing, Submission{PLAYER_A, Point{8, 1}, StepId{2}});
+  order_authority::State state = transmitAt(selected, StepId{3});
 
   // When: the Arena Authority activates G, interrupting F, in one step
   order_authority::State observed =
@@ -365,7 +354,7 @@ TEST(OrderAuthority, InterpretsReplacementAndInterruptionOfOneStep) {
 TEST(OrderAuthority, KeepsSelectedOrderWhenExecutingOrderCompletes) {
   // Given: F executes and H is selected
   auto [executing, f] = executingOrder();
-  auto [state, h] = submitOrder(executing, Submission{PLAYER_A, Point{8, 1}, milliseconds{500}});
+  auto [state, h] = submitOrder(executing, Submission{PLAYER_A, Point{8, 1}, StepId{2}});
 
   // When: the Arena Authority reports that F completed
   order_authority::State observed =
@@ -408,7 +397,7 @@ INSTANTIATE_TEST_SUITE_P(WorldEvents,
 TEST(OrderAuthority, CancelsSelectedAndTransmittedOrders) {
   // Given: A's order was transmitted, B's order is selected
   auto [state, a] = transmittedOrder();
-  auto [both_state, b] = submitOrder(state, Submission{PLAYER_B, Point{8, 1}, milliseconds{300}});
+  auto [both_state, b] = submitOrder(state, Submission{PLAYER_B, Point{8, 1}, StepId{1}});
 
   // When: the orders are cancelled
   order_authority::State cancelled = order_authority::cancel(both_state);
@@ -416,7 +405,7 @@ TEST(OrderAuthority, CancelsSelectedAndTransmittedOrders) {
   // Then: both are cancelled and none is transmitted or selected any more
   EXPECT_EQ(statusOf(cancelled, a), Status::CANCELLED);
   EXPECT_EQ(statusOf(cancelled, b), Status::CANCELLED);
-  EXPECT_TRUE(order_authority::transmittedOrders(cancelled, milliseconds{600}).empty());
+  EXPECT_TRUE(order_authority::transmittedOrders(cancelled, StepId{3}).empty());
   EXPECT_FALSE(order_authority::view(cancelled).players.at(PLAYER_B).selected.has_value());
 }
 
