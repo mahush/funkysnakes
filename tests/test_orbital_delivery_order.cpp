@@ -52,7 +52,7 @@ TEST(OrbitalDeliveryOrder, ReachesCanonicalScoreWhenTransmissionReachesGameAutho
       game_authority::startRound(setup.round, {PLAYER_A, PLAYER_B}), transmissions.at(0)));
   for (const game_boundary::StepReport& report : players.steps) {
     game = std::get<0>(game_authority::observeStep(
-        std::move(game), report.at, report.activations, report.events, {PLAYER_A, PLAYER_B}));
+        std::move(game), report.step, report.activations, report.events, {PLAYER_A, PLAYER_B}));
   }
 
   // When: G's transmission record reaches that Game Authority after G's completion

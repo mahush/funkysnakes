@@ -15,9 +15,6 @@ namespace game_authority {
 
 namespace {
 
-// Step whose movement falls on a step time
-StepId stepAt(GameTime at) { return StepId{static_cast<int>(at / pacing_policy::STEP_INTERVAL)}; }
-
 // An ended order's held points are banked or dropped as the Scoring Policy decides for its end reason
 Scores settleOrder(Scores scores, OrderId order, EndReason reason) {
   auto it = scores.held.find(order);
@@ -92,8 +89,8 @@ std::map<OrderId, PlayerId> playersOfOrders(const Transmissions& transmissions) 
 
 // How a player's order executed, as far as the observed steps tell
 struct Execution {
-  GameTime activated_at;
-  std::optional<GameTime> ended_at;
+  StepId activated_at;
+  std::optional<StepId> ended_at;
   std::optional<EndReason> end_reason;
 };
 
@@ -102,8 +99,8 @@ struct Execution {
 // the predecessor's completion: a choice made earlier would have been sent before and interrupted it
 bool handsOver(const OrderTransmitted& successor, const std::optional<Execution>& predecessor) {
   return predecessor && predecessor->end_reason == EndReason::COMPLETED && !successor.replaced &&
-         stepAt(predecessor->activated_at) <= successor.submitted_at &&
-         successor.transmitted_at == transmission_schedule_policy::firstOpportunityFrom(stepAt(*predecessor->ended_at));
+         predecessor->activated_at <= successor.submitted_at &&
+         successor.transmitted_at == transmission_schedule_policy::firstOpportunityFrom(*predecessor->ended_at);
 }
 
 // The player's chain as the known histories determine it, with the bonus it earned over the game
@@ -172,7 +169,7 @@ Chain deriveChain(const PlayerId& player,
       if (ended->reason != EndReason::COMPLETED) {
         chain.length = 0;
       }
-      chain.open_completion = ended->reason == EndReason::COMPLETED ? std::optional<GameTime>{step.at} : std::nullopt;
+      chain.open_completion = ended->reason == EndReason::COMPLETED ? std::optional<StepId>{step.at} : std::nullopt;
     }
     // Elimination ends the chain, also when the snake died with no order executing
     if (step.alive.count(player) == 0) {
@@ -228,7 +225,7 @@ State startRound(RoundId round, const std::vector<PlayerId>& players) {
 
 std::tuple<State, std::vector<HandoverGranted>, std::optional<GameConcluded>> observeStep(
     State state,
-    GameTime now,
+    StepId now,
     const std::vector<ActivationOutcome>& activations,
     const ArenaEvents& events,
     const std::set<PlayerId>& alive) {
@@ -243,7 +240,7 @@ std::tuple<State, std::vector<HandoverGranted>, std::optional<GameConcluded>> ob
   std::tie(state.scores_.banked, state.chains_, granted) =
       bankHandovers(std::move(state.scores_.banked), std::move(state.chains_), state.transmissions_, state.steps_);
 
-  if (now < pacing_policy::GAME_DURATION && !alive.empty()) {
+  if (now < pacing_policy::LAST_STEP && !alive.empty()) {
     return {std::move(state), std::move(granted), std::nullopt};
   }
 
@@ -287,7 +284,7 @@ View view(const State& state) {
   for (const auto& [player, chain] : state.chains_) {
     result.players[player].held += chain.bonus_held;
   }
-  result.remaining = std::max(GameTime{0}, pacing_policy::GAME_DURATION - state.now_);
+  result.remaining_steps = std::max(0, pacing_policy::LAST_STEP.value - state.now_.value);
   result.result = state.result_;
   return result;
 }
@@ -297,23 +294,23 @@ HandoverProspect handoverProspect(const State& state, const PlayerId& player, co
   if (!isRunning(state) || chain == state.chains_.end()) {
     return HandoverProspect::NONE;
   }
-  const std::optional<GameTime> completion =
+  const std::optional<StepId> completion =
       context.expected_completion ? context.expected_completion : chain->second.open_completion;
   if (!completion) {
     return HandoverProspect::NONE;
   }
   // A choice is sent at the first opportunity after it, which must be the first one at or after the completion
-  const StepId closes = transmission_schedule_policy::firstOpportunityFrom(stepAt(*completion));
+  const StepId closes = transmission_schedule_policy::firstOpportunityFrom(*completion);
   const StepId opens = transmission_schedule_policy::lastOpportunityBefore(closes).value_or(StepId{0});
   // The game concludes before an opportunity at or after its end could transmit the choice
-  if (closes >= pacing_policy::LAST_STEP || context.now < pacing_policy::timeOfStep(opens) ||
-      context.now >= pacing_policy::timeOfStep(closes) || context.transmission_pending) {
+  if (closes >= pacing_policy::LAST_STEP || context.now < opens || context.now >= closes ||
+      context.transmission_pending) {
     return HandoverProspect::NONE;
   }
   if (!context.selected_at) {
     return HandoverProspect::CHOOSE_NOW;
   }
-  const std::optional<GameTime>& activated = chain->second.last_activation;
+  const std::optional<StepId>& activated = chain->second.last_activation;
   const bool qualifies = !context.selection_replaced && activated && *activated <= *context.selected_at;
   return qualifies ? HandoverProspect::SUCCESSOR_READY : HandoverProspect::NONE;
 }

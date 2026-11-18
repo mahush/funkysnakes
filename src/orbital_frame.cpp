@@ -137,18 +137,20 @@ std::map<PlayerId, GameTime> expectedArrivals(const Views& views) {
 
 std::vector<OverviewRow> buildOverview(const Views& views, int rows) {
   // The remaining time counts from the last step that ran, not from the current time between steps
-  const GameTime duration = lastStep(views) + views.game.remaining;
+  const GameTime duration = lastStep(views) + views.step_interval * views.game.remaining_steps;
   std::vector<OverviewRow> overview(rows);
   for (int row = 0; row < rows; ++row) {
     const GameTime from = duration * row / rows;
     const GameTime until = duration * (row + 1) / rows;
     OverviewRow& stretch = overview[row];
     stretch.steps = static_cast<int>(until / views.step_interval - from / views.step_interval);
-    stretch.opportunities = static_cast<int>(std::count_if(
-        views.transmission_schedule.begin(), views.transmission_schedule.end(), [&views, from, until](StepId opportunity) {
-          const GameTime at = views.step_interval * opportunity.value;
-          return from < at && at <= until;
-        }));
+    stretch.opportunities = static_cast<int>(std::count_if(views.transmission_schedule.begin(),
+                                                           views.transmission_schedule.end(),
+                                                           [&views, from, until](StepId opportunity) {
+                                                             const GameTime at =
+                                                                 views.step_interval * opportunity.value;
+                                                             return from < at && at <= until;
+                                                           }));
     stretch.elapsed = until <= views.now;
     stretch.now = from <= views.now && (views.now < until || row == rows - 1);
   }
@@ -192,7 +194,7 @@ Frame build(const Views& views,
   Frame frame;
   frame.cells = buildCells(views, cursors);
   frame.uplink = buildUplink(views);
-  frame.remaining = views.game.remaining;
+  frame.remaining = views.step_interval * views.game.remaining_steps;
   if (views.game.result) {
     frame.game_over = GameOver{views.game.result->winner};
   }
