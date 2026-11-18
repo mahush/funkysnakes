@@ -2,7 +2,6 @@
 
 #include <gtest/gtest.h>
 
-#include <optional>
 #include <vector>
 
 #include "orbital/transmission_schedule_policy.hpp"
@@ -157,24 +156,6 @@ TEST(TransmissionSchedulePolicy, OffersFirstOpportunityAfterTimeBetweenOpportuni
 
   // Then: it is step 21
   EXPECT_EQ(first, StepId{21});
-}
-
-/// @section transmission_schedule_policy::lastOpportunityBefore
-
-TEST(TransmissionSchedulePolicy, FindsLastOpportunityStrictlyBefore) {
-  // When: the last opportunity before step 21 is computed at compile time
-  constexpr std::optional<StepId> last = transmission_schedule_policy::lastOpportunityBefore(StepId{21});
-
-  // Then: it is the first opportunity at step 1
-  EXPECT_EQ(last, StepId{1});
-}
-
-TEST(TransmissionSchedulePolicy, FindsNoOpportunityBeforeFirst) {
-  // When: the last opportunity before step 1 is computed at compile time
-  constexpr std::optional<StepId> last = transmission_schedule_policy::lastOpportunityBefore(StepId{1});
-
-  // Then: there is none
-  EXPECT_FALSE(last.has_value());
 }
 
 /// @section transmission_schedule_policy::opportunitiesOfGame

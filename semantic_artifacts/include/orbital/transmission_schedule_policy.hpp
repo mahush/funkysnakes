@@ -1,7 +1,6 @@
 #pragma once
 
 #include <chrono>
-#include <optional>
 #include <vector>
 
 #include "orbital/identities.hpp"
@@ -114,23 +113,6 @@ constexpr StepId firstOpportunityAfterCompletion(StepId completed_in) { return f
  * @return Step of the earliest opportunity strictly after submitted_in
  */
 constexpr StepId opportunityOfSubmission(StepId submitted_in) { return nextOpportunityAfter(submitted_in); }
-
-/**
- * @brief Last opportunity before a given step
- *
- * @param at A step (not negative)
- * @return Step of the latest opportunity strictly before at; empty if none precedes it
- */
-constexpr std::optional<StepId> lastOpportunityBefore(StepId at) {
-  if (at <= FIRST_OPPORTUNITY) {
-    return std::nullopt;
-  }
-  StepId last = FIRST_OPPORTUNITY;
-  while (StepId{last.value + intervalAfter(last)} < at) {
-    last = StepId{last.value + intervalAfter(last)};
-  }
-  return last;
-}
 
 /**
  * @brief Every opportunity of a game
