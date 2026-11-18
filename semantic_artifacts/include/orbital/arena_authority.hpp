@@ -90,6 +90,7 @@ class State {
   friend bool anySnakeAlive(const State& state);
   friend std::set<PlayerId> alivePlayers(const State& state);
   friend StepId lastCompletedStep(const State& state);
+  friend StepId upcomingStep(const State& state);
   friend std::optional<StepId> expectedCompletionStep(const State& state, const PlayerId& player);
   friend std::optional<std::vector<Direction>> routeIfActivatedNow(const State& state,
                                                                    const PlayerId& player,
@@ -172,6 +173,14 @@ std::set<PlayerId> alivePlayers(const State& state);
  * @return Identity of the last completed step (0 before the first step)
  */
 StepId lastCompletedStep(const State& state);
+
+/**
+ * @brief The step the world completes with its next tick
+ *
+ * @param state Current world
+ * @return Identity of the step that follows the last completed one
+ */
+StepId upcomingStep(const State& state);
 
 /**
  * @brief Step at which the player's executing order is expected to complete

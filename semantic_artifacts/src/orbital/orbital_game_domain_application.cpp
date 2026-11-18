@@ -120,7 +120,7 @@ std::tuple<State, Observations> conclude(State state, const game_authority::Game
 std::tuple<State, Observations> runStep(const RandomIntGeneratorFn& random_int_fn, State state) {
   state.clock.next_step += pacing_policy::STEP_INTERVAL;
 
-  const StepId step{arena_authority::lastCompletedStep(*state.arena).value + 1};
+  const StepId step = arena_authority::upcomingStep(*state.arena);
   std::vector<Order> released = order_authority::transmittedOrders(*state.orders, step);
   auto [arena, activations, events] = arena_authority::tick(random_int_fn, std::move(*state.arena), released);
   state.arena = std::move(arena);
