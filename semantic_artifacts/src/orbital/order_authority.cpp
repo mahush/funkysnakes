@@ -2,6 +2,8 @@
 
 #include <tuple>
 
+#include "orbital/transmission_schedule_policy.hpp"
+
 namespace snake {
 namespace orbital {
 namespace order_authority {
@@ -129,7 +131,8 @@ std::vector<Order> transmittedOrders(const State& state, StepId at) {
   std::vector<Order> result;
   for (OrderId id : state.transmitted_) {
     const OrderRecord& record = state.orders_.at(id);
-    if (record.transmitted_at && *record.transmitted_at < at) {
+    if (record.transmitted_at &&
+        transmission_schedule_policy::firstStepAfterTransmission(*record.transmitted_at) <= at) {
       result.push_back(record.order);
     }
   }

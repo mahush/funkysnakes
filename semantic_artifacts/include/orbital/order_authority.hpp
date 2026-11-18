@@ -190,7 +190,7 @@ State cancel(State state);
 /**
  * @brief The transmitted orders the Arena Authority has not resolved yet, as far as they can activate at a step
  *
- * An order transmitted in a step takes part only in later steps (Transmission Schedule Policy), whatever
+ * Which step a transmitted order first takes part in is the Transmission Schedule Policy's answer, whatever
  * order the calls come in.
  * Does not change the state; a transmitted order is resolved only when the Arena Authority's outcome
  * for it is observed. A player has several only if transmissions follow each other before the
@@ -198,7 +198,8 @@ State cancel(State state);
  *
  * @param state Current order state
  * @param at Step the orders are handed to
- * @return Transmitted orders transmitted before at, by identity
+ * @return Transmitted orders whose first step after transmission (Transmission Schedule Policy) is at or before at,
+ *         by identity
  */
 std::vector<Order> transmittedOrders(const State& state, StepId at);
 
