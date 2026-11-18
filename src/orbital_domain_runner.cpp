@@ -110,7 +110,8 @@ class PrintingPlayers : public game_boundary::PlayersEndOutbound {
   }
 
   void orderSubmitted(const OrderSubmitted& submitted) override {
-    std::cout << "  " << at_ms_ << " ms  A selects " << order_name_ << " to " << point(target_) << "\n";
+    std::cout << "  " << at_ms_ << " ms  A selects " << order_name_ << " to " << point(target_) << " in step "
+              << submitted.submitted_at.value << "\n";
     names_[submitted.order] = order_name_;
   }
 
