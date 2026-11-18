@@ -245,6 +245,24 @@ TEST_F(OrbitalFrame, MovesNowUpThroughOverview) {
   EXPECT_FALSE(frame.uplink.overview[1].elapsed);
 }
 
+/// @brief A game that ended early shows where time stopped, not the stretch of a step that never runs
+TEST_F(OrbitalFrame, MarksLastStepAsNowAfterEarlyConclusion) {
+  // Given: a game that concluded in step 75, the last step of the first stretch, with 525 steps left
+  start();
+  Views ended = views();
+  ended.arena.step = orbital::StepId{75};
+  ended.game.remaining_steps = 525;
+  ended.game.result = orbital::game_authority::Result{std::nullopt};
+
+  // When: the frame is built
+  Frame frame = orbital_frame::build(ended, {});
+
+  // Then: now stays in the first stretch, which does not count as elapsed, and the second stretch is not marked
+  EXPECT_TRUE(frame.uplink.overview[0].now);
+  EXPECT_FALSE(frame.uplink.overview[0].elapsed);
+  EXPECT_FALSE(frame.uplink.overview[1].now);
+}
+
 /// @brief Players see their order's remaining execution next to the coming opportunities: the first opportunity above
 /// its end sends the successor
 TEST_F(OrbitalFrame, ShowsRemainingExecutionUpToExpectedArrivalInLane) {

@@ -80,8 +80,8 @@ struct PlayerPanel {
 struct OverviewRow {
   int opportunities{0};  // Transmission opportunities within the stretch
   int steps{0};          // Steps within the stretch: the most opportunities it could hold
-  bool elapsed{false};   // The stretch lies wholly in the past
-  bool now{false};       // The next step to run lies within the stretch, or the last step once none follows
+  bool elapsed{false};   // The stretch lies wholly in the past and is not marked now
+  bool now{false};       // The next step to run lies within the stretch, or the last step once the game concluded
 
   bool operator==(const OverviewRow& other) const noexcept {
     return opportunities == other.opportunities && steps == other.steps && elapsed == other.elapsed && now == other.now;
