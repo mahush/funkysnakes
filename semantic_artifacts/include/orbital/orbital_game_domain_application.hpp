@@ -7,7 +7,6 @@
 #include <utility>
 #include <variant>
 
-#include "common/game_time.hpp"
 #include "common/random_source.hpp"
 #include "orbital/arena_authority.hpp"
 #include "orbital/game_authority.hpp"
@@ -121,8 +120,8 @@ class ExecutionInterface {
  * Mechanics only: it accumulates elapsed game time and reports when steps fall due.
  */
 struct VirtualClock {
-  GameTime now{0};
-  GameTime next_step{pacing_policy::STEP_INTERVAL};
+  std::chrono::milliseconds now{0};
+  std::chrono::milliseconds next_step{pacing_policy::STEP_INTERVAL};
 };
 
 /**

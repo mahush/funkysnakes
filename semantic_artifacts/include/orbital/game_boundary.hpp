@@ -7,7 +7,6 @@
 #include <vector>
 
 #include "common/game_primitives.hpp"
-#include "common/game_time.hpp"
 #include "common/players.hpp"
 #include "orbital/arena_authority.hpp"
 #include "orbital/arena_events.hpp"
@@ -119,7 +118,7 @@ struct Views {
   arena_authority::View arena;
   order_authority::View orders;
   game_authority::View game;
-  GameTime now;                                                   // Current time of the round's logical clock
+  std::chrono::milliseconds now;                                  // Current time of the round's logical clock
   std::chrono::milliseconds step_interval;                        // Interval between arena steps (Pacing Policy)
   std::vector<StepId> transmission_schedule;                      // Every opportunity of the game, in step order
   std::map<PlayerId, std::vector<Direction>> selected_routes;     // Route each selected order would get now

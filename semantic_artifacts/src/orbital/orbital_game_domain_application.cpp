@@ -202,7 +202,7 @@ std::tuple<State, Observations> apply(const RandomIntGeneratorFn& random_int_fn,
     return {std::move(state), std::move(observations)};
   }
 
-  const GameTime until = state.clock.now + elapsed.duration;
+  const std::chrono::milliseconds until = state.clock.now + elapsed.duration;
   while (game_authority::isRunning(*state.game) && state.clock.next_step <= until) {
     state.clock.now = state.clock.next_step;
     auto [next, step_observations] = runStep(random_int_fn, std::move(state));

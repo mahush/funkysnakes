@@ -1,6 +1,7 @@
 #include "snake/orbital_frame.hpp"
 
 #include <algorithm>
+#include <chrono>
 #include <map>
 
 #include "common/snake_model.hpp"
@@ -14,6 +15,7 @@ using orbital::StepId;
 using orbital::game_boundary::Views;
 using orbital::order_authority::OrderRecord;
 using orbital::order_authority::Status;
+using std::chrono::milliseconds;
 
 void put(CellGrid& cells, Point p, Cell cell) {
   if (p.y >= 0 && p.y < static_cast<int>(cells.size()) && p.x >= 0 && p.x < static_cast<int>(cells[p.y].size())) {
@@ -122,11 +124,11 @@ PlayerPanel buildPanel(const Views& views, const PlayerId& player, const std::ma
 }
 
 // Time of the latest step that ran: the clock never stands on a step that has not run
-GameTime lastStep(const Views& views) { return views.now / views.step_interval * views.step_interval; }
+milliseconds lastStep(const Views& views) { return views.now / views.step_interval * views.step_interval; }
 
 // Time each player's executing order is expected to arrive, one step per remaining move
-std::map<PlayerId, GameTime> expectedArrivals(const Views& views) {
-  std::map<PlayerId, GameTime> arrivals;
+std::map<PlayerId, milliseconds> expectedArrivals(const Views& views) {
+  std::map<PlayerId, milliseconds> arrivals;
   for (const auto& [player, active] : views.arena.active) {
     if (!active.remaining_route.empty()) {
       arrivals[player] = lastStep(views) + views.step_interval * static_cast<int>(active.remaining_route.size());
@@ -137,17 +139,17 @@ std::map<PlayerId, GameTime> expectedArrivals(const Views& views) {
 
 std::vector<OverviewRow> buildOverview(const Views& views, int rows) {
   // The remaining time counts from the last step that ran, not from the current time between steps
-  const GameTime duration = lastStep(views) + views.step_interval * views.game.remaining_steps;
+  const milliseconds duration = lastStep(views) + views.step_interval * views.game.remaining_steps;
   std::vector<OverviewRow> overview(rows);
   for (int row = 0; row < rows; ++row) {
-    const GameTime from = duration * row / rows;
-    const GameTime until = duration * (row + 1) / rows;
+    const milliseconds from = duration * row / rows;
+    const milliseconds until = duration * (row + 1) / rows;
     OverviewRow& stretch = overview[row];
     stretch.steps = static_cast<int>(until / views.step_interval - from / views.step_interval);
     stretch.opportunities = static_cast<int>(std::count_if(views.transmission_schedule.begin(),
                                                            views.transmission_schedule.end(),
                                                            [&views, from, until](StepId opportunity) {
-                                                             const GameTime at =
+                                                             const milliseconds at =
                                                                  views.step_interval * opportunity.value;
                                                              return from < at && at <= until;
                                                            }));
@@ -161,10 +163,10 @@ std::vector<OverviewRow> buildOverview(const Views& views, int rows) {
 }
 
 std::vector<LaneSlot> buildLane(const Views& views, int slots) {
-  const std::map<PlayerId, GameTime> arrivals = expectedArrivals(views);
+  const std::map<PlayerId, milliseconds> arrivals = expectedArrivals(views);
   std::vector<LaneSlot> lane(slots);
   for (int slot = 0; slot < slots; ++slot) {
-    const GameTime at = lastStep(views) + views.step_interval * (slot + 1);
+    const milliseconds at = lastStep(views) + views.step_interval * (slot + 1);
     lane[slot].opportunity = std::binary_search(views.transmission_schedule.begin(),
                                                 views.transmission_schedule.end(),
                                                 StepId{static_cast<int>(at / views.step_interval)});

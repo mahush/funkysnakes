@@ -5,7 +5,6 @@
 #include <vector>
 
 #include "common/game_primitives.hpp"
-#include "common/game_time.hpp"
 #include "common/players.hpp"
 #include "orbital/identities.hpp"
 
