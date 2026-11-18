@@ -903,15 +903,15 @@ TEST_F(OrbitalGameDomainApplication, ViewsTransmissionScheduleOfGame) {
   // When: a game starts
   game_.start(app::Start{RoundId{1}});
 
-  // Then: the views carry every opportunity of the two minutes: 4 s apart after the first, 0.6 s apart at the end
+  // Then: the views carry every opportunity of the 600 steps: 20 steps apart after the first, 3 apart at the end
   ASSERT_TRUE(players_.views.has_value());
-  const std::vector<milliseconds>& schedule = players_.views->transmission_schedule;
+  const std::vector<StepId>& schedule = players_.views->transmission_schedule;
   ASSERT_EQ(schedule.size(), 71U);
-  EXPECT_EQ(schedule[0], milliseconds{200});
-  EXPECT_EQ(schedule[1], milliseconds{4200});
-  EXPECT_EQ(schedule[2], milliseconds{8000});
-  EXPECT_EQ(schedule.back(), milliseconds{119800});
-  EXPECT_EQ(schedule.back() - schedule[schedule.size() - 2], milliseconds{600});
+  EXPECT_EQ(schedule[0], StepId{1});
+  EXPECT_EQ(schedule[1], StepId{21});
+  EXPECT_EQ(schedule[2], StepId{40});
+  EXPECT_EQ(schedule.back(), StepId{599});
+  EXPECT_EQ(schedule[schedule.size() - 2], StepId{596});
 }
 
 /// @brief Presentation places steps on the timeline without asking the Pacing Policy itself
