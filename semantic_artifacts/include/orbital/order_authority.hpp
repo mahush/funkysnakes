@@ -133,13 +133,15 @@ State startRound(RoundId round);
 std::tuple<State, OrderSubmitted> submit(State state, const Submission& submission);
 
 /**
- * @brief Transmit every player's selected order
+ * @brief Transmit every player's selected order whose opportunity has come
  *
  * Each selected order becomes transmitted and irrevocable, keeping its own submission step and the
  * order it replaced; players
- * without a selected order transmit nothing, so an order is transmitted once.
+ * without a selected order transmit nothing, so an order is transmitted once. A selected order whose
+ * submission is sent at a later opportunity (Transmission Schedule Policy), such as one submitted in
+ * the transmission's own step, stays selected.
  *
- * Admitted input: the step of a transmission opportunity, later than the step of every submission it transmits.
+ * Admitted input: the step of a transmission opportunity.
  *
  * @param state Current order state
  * @param at Step of the transmission

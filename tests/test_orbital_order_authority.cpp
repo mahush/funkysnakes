@@ -188,6 +188,19 @@ TEST(OrderAuthority, TransmitsNothingWithoutSelectedOrder) {
   EXPECT_TRUE(transmissions.empty());
 }
 
+/// @brief A step's submissions come after the step's opportunity, so what is chosen there waits for the next one
+TEST(OrderAuthority, KeepsOrderSubmittedInTransmissionStepSelected) {
+  // Given: player A selected G in step 21
+  auto [state, g] = submitOrder(order_authority::startRound(ROUND), Submission{PLAYER_A, Point{3, 4}, StepId{21}});
+
+  // When: the selected orders are transmitted in step 21
+  auto [next_state, transmissions] = order_authority::transmit(state, StepId{21});
+
+  // Then: nothing is transmitted and G stays selected
+  EXPECT_TRUE(transmissions.empty());
+  EXPECT_EQ(statusOf(next_state, g), Status::SELECTED);
+}
+
 /// @section order_authority::transmittedOrders
 
 TEST(OrderAuthority, ListsTransmittedOrdersButNotSelectedOnes) {
@@ -262,7 +275,7 @@ TEST(OrderAuthority, KeepsExecutingOrderWhenReplacementIsRejected) {
   // Given: F executes and G was transmitted
   auto [executing, f] = executingOrder();
   auto [selected, g] = submitOrder(executing, Submission{PLAYER_A, Point{8, 1}, StepId{2}});
-  order_authority::State state = transmitAt(selected, StepId{3});
+  order_authority::State state = transmitAt(selected, StepId{21});
 
   // When: the Arena Authority rejects G
   order_authority::State observed =
@@ -338,7 +351,7 @@ TEST(OrderAuthority, InterpretsReplacementAndInterruptionOfOneStep) {
   // Given: F executes and G was transmitted
   auto [executing, f] = executingOrder();
   auto [selected, g] = submitOrder(executing, Submission{PLAYER_A, Point{8, 1}, StepId{2}});
-  order_authority::State state = transmitAt(selected, StepId{3});
+  order_authority::State state = transmitAt(selected, StepId{21});
 
   // When: the Arena Authority activates G, interrupting F, in one step
   order_authority::State observed =
