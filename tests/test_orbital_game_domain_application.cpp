@@ -653,6 +653,16 @@ TEST_F(OrbitalGameDomainApplication, RejectsSubmissionAfterConclusion) {
   EXPECT_EQ(std::get<SubmissionRejected>(players_.submissions.front()).reason, SubmissionRejectionReason::ROUND_OVER);
 }
 
+/// @brief Both players share one end, so a refusal names whose submission it refuses
+TEST_F(OrbitalGameDomainApplication, NamesPlayerOfRejectedSubmission) {
+  // When: player B submits an order before a game has started
+  game_.submit(app::Submit{PLAYER_B, Point{3, 3}});
+
+  // Then: the refusal names player B
+  ASSERT_EQ(players_.submissions.size(), 1U);
+  EXPECT_EQ(std::get<SubmissionRejected>(players_.submissions.front()).player, PLAYER_B);
+}
+
 TEST_F(OrbitalGameDomainApplication, RunsNoStepsAfterConclusion) {
   // Given: the game is over, and only what follows is observed
   start(makeLanes({}));
@@ -764,6 +774,22 @@ TEST_F(OrbitalGameDomainApplication, SubmitsInCurrentStep) {
   // Then: it is submitted in step 6
   ASSERT_EQ(players_.submissions.size(), 1U);
   EXPECT_EQ(std::get<SubmissionAccepted>(players_.submissions.front()).submitted_at, StepId{6});
+}
+
+/// @brief Both players share one end and number their orders apart, so the outcome names the order's player
+TEST_F(OrbitalGameDomainApplication, NamesPlayerOfAcceptedSubmission) {
+  // Given: player A's first order was accepted
+  start(makeLanes({}));
+  game_.submit(app::Submit{PLAYER_A, Point{3, 3}});
+
+  // When: player B submits their first order
+  game_.submit(app::Submit{PLAYER_B, Point{4, 4}});
+
+  // Then: the outcome identifies it as B's order 1
+  ASSERT_EQ(players_.submissions.size(), 2U);
+  const SubmissionAccepted& accepted = std::get<SubmissionAccepted>(players_.submissions.back());
+  EXPECT_EQ(accepted.player, PLAYER_B);
+  EXPECT_EQ(accepted.order, OrderNumber{1});
 }
 
 /// @subsection order of occurrence

@@ -192,7 +192,7 @@ std::tuple<State, Observations> apply(State state, const Submit& submit) {
   Observations observations;
   if (std::optional<game_boundary::SubmissionRejectionReason> reason =
           admission_policy::submissionRejectionIn(phaseOf(state))) {
-    observations.submission = SubmissionRejected{*reason};
+    observations.submission = SubmissionRejected{submit.player, *reason};
     observations = withViews(std::move(observations), state);
     return {std::move(state), std::move(observations)};
   }
@@ -201,7 +201,7 @@ std::tuple<State, Observations> apply(State state, const Submit& submit) {
       std::move(*state.orders),
       order_authority::Submission{submit.player, submit.target, arena_authority::lastCompletedStep(*state.arena)});
   state.orders = std::move(orders);
-  observations.submission = SubmissionAccepted{submitted.order, submitted.submitted_at};
+  observations.submission = SubmissionAccepted{submitted.player, submitted.order, submitted.submitted_at};
   observations.submitted = submitted;
   observations = withViews(std::move(observations), state);
   return {std::move(state), std::move(observations)};
