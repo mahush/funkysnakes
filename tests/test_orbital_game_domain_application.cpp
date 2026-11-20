@@ -39,13 +39,13 @@ using game_boundary::SubmissionRejectionReason;
 using game_boundary::Views;
 using order_authority::Status;
 
-Status statusOf(const Views& views, OrderId id) {
+Status statusOf(const Views& views, const PlayerId& player, OrderId id) {
   for (const order_authority::OrderRecord& record : views.orders.orders) {
-    if (record.order.id == id) {
+    if (record.order.player == player && record.order.id == id) {
       return record.status;
     }
   }
-  ADD_FAILURE() << "order " << id.value << " is not known";
+  ADD_FAILURE() << "order " << player << " #" << id.value << " is not known";
   return Status::SELECTED;
 }
 
@@ -139,7 +139,7 @@ class OrbitalGameDomainApplication : public ::testing::Test {
     return std::get<SubmissionAccepted>(players_.submissions.back()).order;
   }
 
-  Status statusOf(OrderId id) const { return orbital::statusOf(*players_.views, id); }
+  Status statusOf(const PlayerId& player, OrderId id) const { return orbital::statusOf(*players_.views, player, id); }
 
   const game_authority::PlayerScore& scoreOf(const PlayerId& player) const {
     return players_.views->game.players.at(player);
@@ -201,7 +201,7 @@ TEST_F(OrbitalGameDomainApplication, RejectsStartWhileGameIsRunning) {
   ASSERT_EQ(players_.calls, (std::vector<std::string>{"startRejected", "viewsUpdated"}));
   EXPECT_EQ(players_.start_rejections.front().reason, StartRejectionReason::ALREADY_STARTED);
   EXPECT_EQ(players_.views->arena.step, StepId{6});
-  EXPECT_EQ(statusOf(order), Status::SELECTED);
+  EXPECT_EQ(statusOf(PLAYER_A, order), Status::SELECTED);
 }
 
 /// @brief A new game needs a new Domain Application, also after the game concluded
@@ -232,7 +232,7 @@ TEST_F(OrbitalGameDomainApplication, BanksPointsOfOrderThatCompletes) {
   elapse(1600);
 
   // Then: F completed and its 20 points count
-  EXPECT_EQ(statusOf(f), Status::COMPLETED);
+  EXPECT_EQ(statusOf(PLAYER_A, f), Status::COMPLETED);
   EXPECT_EQ(scoreOf(PLAYER_A).banked, 20);
   EXPECT_EQ(scoreOf(PLAYER_A).held, 0);
   EXPECT_EQ(scoreOf(PLAYER_A).chain, 0);
@@ -251,8 +251,8 @@ TEST_F(OrbitalGameDomainApplication, LosesPointsOfOrderInterruptedByReplacement)
   elapse(3400);
 
   // Then: F was interrupted and its 20 points are lost, while the snake kept its growth
-  EXPECT_EQ(statusOf(f), Status::INTERRUPTED);
-  EXPECT_EQ(statusOf(g), Status::EXECUTING);
+  EXPECT_EQ(statusOf(PLAYER_A, f), Status::INTERRUPTED);
+  EXPECT_EQ(statusOf(PLAYER_A, g), Status::EXECUTING);
   EXPECT_EQ(scoreOf(PLAYER_A).banked, 0);
   EXPECT_EQ(scoreOf(PLAYER_A).held, 0);
   EXPECT_EQ(snake_model::length(arena().snakes.at(PLAYER_A)), 5U);
@@ -270,8 +270,8 @@ TEST_F(OrbitalGameDomainApplication, KeepsHeldPointsWhenReplacementIsOnlySubmitt
 
   // Then: F still holds its 20 points and G waits for a transmission
   EXPECT_EQ(scoreOf(PLAYER_A).held, 20);
-  EXPECT_EQ(statusOf(f), Status::EXECUTING);
-  EXPECT_EQ(statusOf(g), Status::SELECTED);
+  EXPECT_EQ(statusOf(PLAYER_A, f), Status::EXECUTING);
+  EXPECT_EQ(statusOf(PLAYER_A, g), Status::SELECTED);
 }
 
 /// @subsection handover chain
@@ -292,8 +292,8 @@ TEST_F(OrbitalGameDomainApplication, AwardsHandoverBonusWhenSuccessorSubmittedBe
   elapse(2200);
 
   // Then: F's 20 food points and the base handover bonus count; the chain has one handover
-  EXPECT_EQ(statusOf(f), Status::COMPLETED);
-  EXPECT_EQ(statusOf(g), Status::COMPLETED);
+  EXPECT_EQ(statusOf(PLAYER_A, f), Status::COMPLETED);
+  EXPECT_EQ(statusOf(PLAYER_A, g), Status::COMPLETED);
   EXPECT_EQ(scoreOf(PLAYER_A).banked, 20 + 10);
   EXPECT_EQ(scoreOf(PLAYER_A).chain, 1);
   EXPECT_EQ(scoreOf(PLAYER_A).next_handover, 20);
@@ -328,7 +328,7 @@ TEST_F(OrbitalGameDomainApplication, HoldsHandoverBonusWhileSuccessorExecutes) {
   elapse(1400);
 
   // Then: G executes, the chain has one handover and its bonus is held, not yet banked
-  EXPECT_EQ(statusOf(g), Status::EXECUTING);
+  EXPECT_EQ(statusOf(PLAYER_A, g), Status::EXECUTING);
   EXPECT_EQ(scoreOf(PLAYER_A).chain, 1);
   EXPECT_EQ(scoreOf(PLAYER_A).held, 10);
   EXPECT_EQ(scoreOf(PLAYER_A).banked, 0);
@@ -348,7 +348,7 @@ TEST_F(OrbitalGameDomainApplication, DoublesHandoverBonusForConsecutiveHandover)
   elapse(5400);
 
   // Then: both handovers count, the second worth twice the first
-  EXPECT_EQ(statusOf(h), Status::COMPLETED);
+  EXPECT_EQ(statusOf(PLAYER_A, h), Status::COMPLETED);
   EXPECT_EQ(scoreOf(PLAYER_A).banked, 10 + 20);
   EXPECT_EQ(scoreOf(PLAYER_A).chain, 2);
 }
@@ -368,8 +368,8 @@ TEST_F(OrbitalGameDomainApplication, AwardsHandoverToSuccessorSubmittedAfterComp
   elapse(4800);
 
   // Then: both handovers count
-  EXPECT_EQ(statusOf(g), Status::COMPLETED);
-  EXPECT_EQ(statusOf(h), Status::COMPLETED);
+  EXPECT_EQ(statusOf(PLAYER_A, g), Status::COMPLETED);
+  EXPECT_EQ(statusOf(PLAYER_A, h), Status::COMPLETED);
   EXPECT_EQ(scoreOf(PLAYER_A).banked, 10 + 20);
   EXPECT_EQ(scoreOf(PLAYER_A).chain, 2);
 }
@@ -389,8 +389,8 @@ TEST_F(OrbitalGameDomainApplication, BreaksChainWhenSuccessorMissesOpportunityAf
   elapse(5200);
 
   // Then: only G's handover counts and the chain is broken
-  EXPECT_EQ(statusOf(g), Status::COMPLETED);
-  EXPECT_EQ(statusOf(h), Status::COMPLETED);
+  EXPECT_EQ(statusOf(PLAYER_A, g), Status::COMPLETED);
+  EXPECT_EQ(statusOf(PLAYER_A, h), Status::COMPLETED);
   EXPECT_EQ(scoreOf(PLAYER_A).banked, 10);
   EXPECT_EQ(scoreOf(PLAYER_A).chain, 0);
 }
@@ -411,8 +411,8 @@ TEST_F(OrbitalGameDomainApplication, BreaksChainWhenSuccessorActivatesFirst) {
   elapse(3600);
 
   // Then: G was interrupted, so its handover is lost: only F's 20 points count and the chain is broken
-  EXPECT_EQ(statusOf(g), Status::INTERRUPTED);
-  EXPECT_EQ(statusOf(h), Status::EXECUTING);
+  EXPECT_EQ(statusOf(PLAYER_A, g), Status::INTERRUPTED);
+  EXPECT_EQ(statusOf(PLAYER_A, h), Status::EXECUTING);
   EXPECT_EQ(scoreOf(PLAYER_A).banked, 20);
   EXPECT_EQ(scoreOf(PLAYER_A).chain, 0);
 }
@@ -432,8 +432,8 @@ TEST_F(OrbitalGameDomainApplication, DeniesHandoverButBanksPointsWhenSelectedSuc
   elapse(2100);
 
   // Then: G was never sent, G' took over and completed, F's food points count, and G' earned no handover
-  EXPECT_EQ(statusOf(g), Status::REPLACED);
-  EXPECT_EQ(statusOf(replacement), Status::COMPLETED);
+  EXPECT_EQ(statusOf(PLAYER_A, g), Status::REPLACED);
+  EXPECT_EQ(statusOf(PLAYER_A, replacement), Status::COMPLETED);
   EXPECT_EQ(scoreOf(PLAYER_A).banked, 20);
   EXPECT_EQ(scoreOf(PLAYER_A).chain, 0);
 }
@@ -453,8 +453,8 @@ TEST_F(OrbitalGameDomainApplication, AwardsHandoverPastRejectedOrder) {
   elapse(6000);
 
   // Then: G was rejected, and H's completion is a handover from F
-  EXPECT_EQ(statusOf(g), Status::REJECTED);
-  EXPECT_EQ(statusOf(h), Status::COMPLETED);
+  EXPECT_EQ(statusOf(PLAYER_A, g), Status::REJECTED);
+  EXPECT_EQ(statusOf(PLAYER_A, h), Status::COMPLETED);
   EXPECT_EQ(scoreOf(PLAYER_A).banked, 10);
   EXPECT_EQ(scoreOf(PLAYER_A).chain, 1);
 }
@@ -470,7 +470,7 @@ TEST_F(OrbitalGameDomainApplication, TransmitsSelectedOrderAtOpportunity) {
   elapse(200);
 
   // Then: G is transmitted at the end of that step, with its submission time
-  EXPECT_EQ(statusOf(g), Status::TRANSMITTED);
+  EXPECT_EQ(statusOf(PLAYER_A, g), Status::TRANSMITTED);
   ASSERT_EQ(players_.steps.back().transmissions.size(), 1U);
   EXPECT_EQ(players_.steps.back().transmissions.front().order, g);
   EXPECT_EQ(players_.steps.back().transmissions.front().submitted_at, StepId{0});
@@ -487,7 +487,7 @@ TEST_F(OrbitalGameDomainApplication, ActivatesTransmittedOrderAtNextStep) {
   elapse(200);
 
   // Then: G was activated in that step
-  EXPECT_EQ(statusOf(g), Status::EXECUTING);
+  EXPECT_EQ(statusOf(PLAYER_A, g), Status::EXECUTING);
   ASSERT_EQ(players_.steps.back().activations.size(), 1U);
 }
 
@@ -502,7 +502,7 @@ TEST_F(OrbitalGameDomainApplication, KeepsOrderSelectedUntilNextOpportunity) {
   elapse(3800);
 
   // Then: G is still selected
-  EXPECT_EQ(statusOf(g), Status::SELECTED);
+  EXPECT_EQ(statusOf(PLAYER_A, g), Status::SELECTED);
 }
 
 /// @brief Only the latest selection is sent; earlier ones never leave the player
@@ -517,8 +517,8 @@ TEST_F(OrbitalGameDomainApplication, TransmitsOnlyLatestSelection) {
   elapse(100);
 
   // Then: G was replaced and H transmitted
-  EXPECT_EQ(statusOf(g), Status::REPLACED);
-  EXPECT_EQ(statusOf(h), Status::TRANSMITTED);
+  EXPECT_EQ(statusOf(PLAYER_A, g), Status::REPLACED);
+  EXPECT_EQ(statusOf(PLAYER_A, h), Status::TRANSMITTED);
 }
 
 /// @brief A transmitted order cannot be recalled; a correction follows it at a later opportunity
@@ -533,9 +533,9 @@ TEST_F(OrbitalGameDomainApplication, ActivatesTransmittedOrderDespiteLaterSubmis
   elapse(4000);
 
   // Then: G activated at 400 ms and H was transmitted after it
-  EXPECT_NE(statusOf(g), Status::TRANSMITTED);
-  EXPECT_NE(statusOf(g), Status::REPLACED);
-  EXPECT_EQ(statusOf(h), Status::TRANSMITTED);
+  EXPECT_NE(statusOf(PLAYER_A, g), Status::TRANSMITTED);
+  EXPECT_NE(statusOf(PLAYER_A, g), Status::REPLACED);
+  EXPECT_EQ(statusOf(PLAYER_A, h), Status::TRANSMITTED);
 }
 
 /// @brief A refused replacement neither stops the executing order nor costs its points
@@ -550,8 +550,8 @@ TEST_F(OrbitalGameDomainApplication, KeepsExecutingOrderAndItsPointsWhenReplacem
   elapse(3800);
 
   // Then: G is rejected, F still executes with its 10 held points
-  EXPECT_EQ(statusOf(g), Status::REJECTED);
-  EXPECT_EQ(statusOf(f), Status::EXECUTING);
+  EXPECT_EQ(statusOf(PLAYER_A, g), Status::REJECTED);
+  EXPECT_EQ(statusOf(PLAYER_A, f), Status::EXECUTING);
   EXPECT_EQ(scoreOf(PLAYER_A).held, 10);
 }
 
@@ -569,7 +569,7 @@ TEST_F(OrbitalGameDomainApplication, CompletesPositionalOrderAfterOpponentTookTh
   elapse(1200);
 
   // Then: B, eating without an order, banked 5 for the food and A's order completed without points
-  EXPECT_EQ(statusOf(order), Status::COMPLETED);
+  EXPECT_EQ(statusOf(PLAYER_A, order), Status::COMPLETED);
   EXPECT_EQ(scoreOf(PLAYER_B).banked, 5);
   EXPECT_EQ(scoreOf(PLAYER_A).banked, 0);
 }
@@ -587,7 +587,7 @@ TEST_F(OrbitalGameDomainApplication, BanksCompletionOnFinalStepBeforeConclusion)
   elapse(1600);
 
   // Then: the order completed on the final step, its 10 points count and A wins
-  EXPECT_EQ(statusOf(order), Status::COMPLETED);
+  EXPECT_EQ(statusOf(PLAYER_A, order), Status::COMPLETED);
   EXPECT_EQ(scoreOf(PLAYER_A).banked, 10);
   ASSERT_EQ(players_.conclusions.size(), 1U);
   EXPECT_EQ(players_.conclusions.front().result, (game_authority::Result{PlayerId{PLAYER_A}}));
@@ -623,8 +623,8 @@ TEST_F(OrbitalGameDomainApplication, EndsExecutingAndCancelsWaitingOrdersAtConcl
   elapse(200);
 
   // Then: F ended with the round and G was cancelled
-  EXPECT_EQ(statusOf(f), Status::ENDED_BY_ROUND);
-  EXPECT_EQ(statusOf(g), Status::CANCELLED);
+  EXPECT_EQ(statusOf(PLAYER_A, f), Status::ENDED_BY_ROUND);
+  EXPECT_EQ(statusOf(PLAYER_A, g), Status::CANCELLED);
   EXPECT_TRUE(arena().active.empty());
 }
 

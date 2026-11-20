@@ -119,19 +119,11 @@ struct Chain {
 };
 
 /**
- * @brief Points held for one executing order
- */
-struct Held {
-  PlayerId player;
-  int points;
-};
-
-/**
  * @brief Banked points per player and points held per executing order
  */
 struct Scores {
   PerPlayerScores banked;
-  std::map<OrderId, Held> held;
+  std::map<PlayerId, std::map<OrderId, int>> held;  // Points held per player and executing order
 };
 
 struct View;
