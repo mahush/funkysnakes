@@ -2,6 +2,7 @@
 
 #include <tuple>
 
+#include "orbital/order_resolution_policy.hpp"
 #include "orbital/transmission_schedule_policy.hpp"
 
 namespace snake {
@@ -13,20 +14,6 @@ namespace {
 using Orders = std::map<PlayerId, std::map<OrderNumber, OrderRecord>>;
 using SelectedOrders = std::map<PlayerId, OrderNumber>;
 using TransmittedOrders = std::map<PlayerId, std::set<OrderNumber>>;
-
-Status statusAfterEnding(EndReason reason) {
-  switch (reason) {
-    case EndReason::COMPLETED:
-      return Status::COMPLETED;
-    case EndReason::INTERRUPTED:
-      return Status::INTERRUPTED;
-    case EndReason::ELIMINATED:
-      return Status::FAILED;
-    case EndReason::ROUND_ENDED:
-      return Status::ENDED_BY_ROUND;
-  }
-  return Status::FAILED;
-}
 
 // Drops the player's selected entry if it is this order; a newer selected order of the player is kept
 SelectedOrders dropSelectedOrder(SelectedOrders selected, const PlayerId& player, OrderNumber order) {
@@ -53,7 +40,7 @@ TransmittedOrders dropTransmittedOrder(TransmittedOrders transmitted, const Play
   return transmitted;
 }
 
-// The Arena Authority actually activated the order: it executes, whatever this Authority expected
+// The Arena Authority actually activated the order: it executes as the Order Resolution Policy decides
 std::tuple<Orders, SelectedOrders, TransmittedOrders> applyOutcome(Orders orders,
                                                                    SelectedOrders selected,
                                                                    TransmittedOrders transmitted,
@@ -61,14 +48,13 @@ std::tuple<Orders, SelectedOrders, TransmittedOrders> applyOutcome(Orders orders
   if (!isKnown(orders, activated.player, activated.order)) {
     return {std::move(orders), std::move(selected), std::move(transmitted)};
   }
-  orders.at(activated.player).at(activated.order).status = Status::EXECUTING;
+  orders.at(activated.player).at(activated.order).status = order_resolution_policy::statusAfterActivation();
   selected = dropSelectedOrder(std::move(selected), activated.player, activated.order);
   transmitted = dropTransmittedOrder(std::move(transmitted), activated.player, activated.order);
   return {std::move(orders), std::move(selected), std::move(transmitted)};
 }
 
-// A refusal resolves a transmitted order; any other order keeps its status, because nothing happened
-// to it in the world
+// A refusal resolves the order only as far as the Order Resolution Policy decides
 std::tuple<Orders, SelectedOrders, TransmittedOrders> applyOutcome(Orders orders,
                                                                    SelectedOrders selected,
                                                                    TransmittedOrders transmitted,
@@ -77,10 +63,11 @@ std::tuple<Orders, SelectedOrders, TransmittedOrders> applyOutcome(Orders orders
     return {std::move(orders), std::move(selected), std::move(transmitted)};
   }
   OrderRecord& record = orders.at(rejected.player).at(rejected.order);
-  if (record.status != Status::TRANSMITTED) {
+  std::optional<Status> status = order_resolution_policy::statusAfterRejection(record.status);
+  if (!status) {
     return {std::move(orders), std::move(selected), std::move(transmitted)};
   }
-  record.status = Status::REJECTED;
+  record.status = *status;
   record.rejection = rejected.reason;
   transmitted = dropTransmittedOrder(std::move(transmitted), rejected.player, rejected.order);
   return {std::move(orders), std::move(selected), std::move(transmitted)};
@@ -90,7 +77,7 @@ Orders applyEvent(Orders orders, const OrderEnded& ended) {
   if (!isKnown(orders, ended.player, ended.order)) {
     return orders;
   }
-  orders.at(ended.player).at(ended.order).status = statusAfterEnding(ended.reason);
+  orders.at(ended.player).at(ended.order).status = order_resolution_policy::statusAfterEnding(ended.reason);
   return orders;
 }
 

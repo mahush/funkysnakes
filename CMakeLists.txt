@@ -52,26 +52,26 @@ target_include_directories(funkypipes INTERFACE ${funkypipes_SOURCE_DIR}/include
 # Main executable
 add_executable(snake_actors
   src/main.cpp
-  semantic_artifacts/src/classic/classic_arena_authority.cpp
-  semantic_artifacts/src/classic/classic_game_lifecycle_authority.cpp
-  semantic_artifacts/src/classic/scoring_policy.cpp
-  semantic_artifacts/src/classic/classic_game_domain_application.cpp
-  semantic_artifacts/src/classic/direction_command_filter.cpp
-  semantic_artifacts/src/common/game_logic.cpp
-  semantic_artifacts/src/common/snake_predicates.cpp
+  semantic_artifacts/domain/src/classic/classic_arena_authority.cpp
+  semantic_artifacts/domain/src/classic/classic_game_lifecycle_authority.cpp
+  semantic_artifacts/domain/src/classic/scoring_policy.cpp
+  semantic_artifacts/domain/src/classic/classic_game_domain_application.cpp
+  semantic_artifacts/domain/src/classic/direction_command_filter.cpp
+  semantic_artifacts/domain/src/common/game_logic.cpp
+  semantic_artifacts/domain/src/common/snake_predicates.cpp
   src/game_manager_actor.cpp
   src/game_engine_actor.cpp
   src/input_actor.cpp
   src/stdin_reader.cpp
   src/renderer_actor.cpp
-  semantic_artifacts/src/common/snake_model.cpp
+  semantic_artifacts/domain/src/common/snake_model.cpp
   src/utility.cpp
   src/logger.cpp
 )
 
 target_include_directories(snake_actors PRIVATE
   ${PROJECT_SOURCE_DIR}/include
-  ${PROJECT_SOURCE_DIR}/semantic_artifacts/include
+  ${PROJECT_SOURCE_DIR}/semantic_artifacts/domain/include
 )
 
 target_link_libraries(snake_actors PRIVATE funkyactors funkypipes)
@@ -85,20 +85,20 @@ target_compile_options(snake_actors PRIVATE
 # Orbital Orders domain runner: prints traces of the Domain Application, no platform needed
 add_executable(orbital_domain_runner
   src/orbital_domain_runner.cpp
-  semantic_artifacts/src/orbital/arena_authority.cpp
-  semantic_artifacts/src/orbital/game_authority.cpp
-  semantic_artifacts/src/orbital/order_authority.cpp
-  semantic_artifacts/src/orbital/orbital_game_domain_application.cpp
-  semantic_artifacts/src/orbital/pursuit_policy.cpp
-  semantic_artifacts/src/orbital/scoring_policy.cpp
-  semantic_artifacts/src/common/game_logic.cpp
-  semantic_artifacts/src/common/snake_model.cpp
-  semantic_artifacts/src/common/snake_predicates.cpp
+  semantic_artifacts/domain/src/orbital/arena_authority.cpp
+  semantic_artifacts/domain/src/orbital/game_authority.cpp
+  semantic_artifacts/domain/src/orbital/order_authority.cpp
+  semantic_artifacts/domain/src/orbital/orbital_game_domain_application.cpp
+  semantic_artifacts/domain/src/orbital/pursuit_policy.cpp
+  semantic_artifacts/domain/src/orbital/scoring_policy.cpp
+  semantic_artifacts/domain/src/common/game_logic.cpp
+  semantic_artifacts/domain/src/common/snake_model.cpp
+  semantic_artifacts/domain/src/common/snake_predicates.cpp
 )
 
 target_include_directories(orbital_domain_runner PRIVATE
   ${PROJECT_SOURCE_DIR}/include
-  ${PROJECT_SOURCE_DIR}/semantic_artifacts/include
+  ${PROJECT_SOURCE_DIR}/semantic_artifacts/domain/include
 )
 
 target_link_libraries(orbital_domain_runner PRIVATE funkypipes)
@@ -115,22 +115,54 @@ add_executable(orbital_snake
   src/orbital_frame.cpp
   src/orbital_view.cpp
   src/orbital_controls.cpp
-  semantic_artifacts/src/orbital/arena_authority.cpp
-  semantic_artifacts/src/orbital/game_authority.cpp
-  semantic_artifacts/src/orbital/order_authority.cpp
-  semantic_artifacts/src/orbital/orbital_game_domain_application.cpp
-  semantic_artifacts/src/orbital/pursuit_policy.cpp
-  semantic_artifacts/src/orbital/scoring_policy.cpp
-  semantic_artifacts/src/common/game_logic.cpp
-  semantic_artifacts/src/common/snake_model.cpp
-  semantic_artifacts/src/common/snake_predicates.cpp
+  semantic_artifacts/domain/src/orbital/arena_authority.cpp
+  semantic_artifacts/domain/src/orbital/game_authority.cpp
+  semantic_artifacts/domain/src/orbital/order_authority.cpp
+  semantic_artifacts/domain/src/orbital/orbital_game_domain_application.cpp
+  semantic_artifacts/domain/src/orbital/pursuit_policy.cpp
+  semantic_artifacts/domain/src/orbital/scoring_policy.cpp
+  semantic_artifacts/domain/src/common/game_logic.cpp
+  semantic_artifacts/domain/src/common/snake_model.cpp
+  semantic_artifacts/domain/src/common/snake_predicates.cpp
 )
 target_include_directories(orbital_snake PRIVATE
   ${PROJECT_SOURCE_DIR}/include
-  ${PROJECT_SOURCE_DIR}/semantic_artifacts/include
+  ${PROJECT_SOURCE_DIR}/semantic_artifacts/domain/include
 )
 target_link_libraries(orbital_snake PRIVATE funkypipes ftxui::component ftxui::dom ftxui::screen)
 target_compile_options(orbital_snake PRIVATE
+  -Wall -Wextra -Wpedantic -Werror
+  $<$<CONFIG:Debug>:-g -O0>
+  $<$<CONFIG:Release>:-O3>
+)
+
+add_executable(orbital_loopback_runner
+  src/orbital_loopback_runner.cpp
+  realizations/orbital_loopback/host_composition.cpp
+  realizations/orbital_loopback/phone_composition.cpp
+  realizations/orbital_loopback/history.cpp
+  realizations/orbital_loopback/loopback.cpp
+  realizations/orbital_loopback/replay.cpp
+  semantic_artifacts/platform/src/orbital/order_replica_authority.cpp
+  semantic_artifacts/domain/src/orbital/arena_authority.cpp
+  semantic_artifacts/domain/src/orbital/game_authority.cpp
+  semantic_artifacts/domain/src/orbital/order_authority.cpp
+  semantic_artifacts/domain/src/orbital/orbital_game_domain_application.cpp
+  semantic_artifacts/domain/src/orbital/pursuit_policy.cpp
+  semantic_artifacts/domain/src/orbital/scoring_policy.cpp
+  semantic_artifacts/domain/src/common/game_logic.cpp
+  semantic_artifacts/domain/src/common/snake_model.cpp
+  semantic_artifacts/domain/src/common/snake_predicates.cpp
+)
+
+target_include_directories(orbital_loopback_runner PRIVATE
+  ${PROJECT_SOURCE_DIR}/include
+  ${PROJECT_SOURCE_DIR}/semantic_artifacts/domain/include
+  ${PROJECT_SOURCE_DIR}/semantic_artifacts/platform/include
+  ${PROJECT_SOURCE_DIR}/realizations
+)
+target_link_libraries(orbital_loopback_runner PRIVATE funkypipes)
+target_compile_options(orbital_loopback_runner PRIVATE
   -Wall -Wextra -Wpedantic -Werror
   $<$<CONFIG:Debug>:-g -O0>
   $<$<CONFIG:Release>:-O3>
@@ -165,38 +197,49 @@ if(SNAKE_BUILD_TESTS)
     tests/test_scoring_policy.cpp
     tests/test_difficulty_policy.cpp
     tests/test_orbital_transmission_schedule_policy.cpp
+    tests/test_orbital_order_resolution_policy.cpp
+    tests/test_orbital_late_transmission_policy.cpp
+    tests/test_orbital_order_replica_authority.cpp
+    semantic_artifacts/platform/src/orbital/order_replica_authority.cpp
+    tests/test_orbital_phone_composition.cpp
+    tests/test_orbital_loopback.cpp
+    realizations/orbital_loopback/host_composition.cpp
+    realizations/orbital_loopback/phone_composition.cpp
+    realizations/orbital_loopback/history.cpp
+    realizations/orbital_loopback/loopback.cpp
+    realizations/orbital_loopback/replay.cpp
     tests/test_orbital_admission_policy.cpp
     tests/test_orbital_pursuit_policy.cpp
     tests/test_orbital_order_authority.cpp
-    semantic_artifacts/src/orbital/order_authority.cpp
+    semantic_artifacts/domain/src/orbital/order_authority.cpp
     tests/test_orbital_arena_authority.cpp
-    semantic_artifacts/src/orbital/arena_authority.cpp
+    semantic_artifacts/domain/src/orbital/arena_authority.cpp
     tests/test_orbital_scoring_policy.cpp
-    semantic_artifacts/src/orbital/scoring_policy.cpp
+    semantic_artifacts/domain/src/orbital/scoring_policy.cpp
     tests/test_orbital_game_authority.cpp
-    semantic_artifacts/src/orbital/game_authority.cpp
+    semantic_artifacts/domain/src/orbital/game_authority.cpp
     tests/test_orbital_game_domain_application.cpp
     tests/test_orbital_delivery_order.cpp
     tests/test_orbital_frame.cpp
     src/orbital_frame.cpp
     tests/test_orbital_controls.cpp
     src/orbital_controls.cpp
-    semantic_artifacts/src/orbital/orbital_game_domain_application.cpp
-    semantic_artifacts/src/orbital/pursuit_policy.cpp
+    semantic_artifacts/domain/src/orbital/orbital_game_domain_application.cpp
+    semantic_artifacts/domain/src/orbital/pursuit_policy.cpp
     tests/test_classic_game_domain_application.cpp
-    semantic_artifacts/src/classic/classic_arena_authority.cpp
-    semantic_artifacts/src/classic/classic_game_lifecycle_authority.cpp
-    semantic_artifacts/src/classic/scoring_policy.cpp
-    semantic_artifacts/src/classic/classic_game_domain_application.cpp
-    semantic_artifacts/src/classic/direction_command_filter.cpp
-    semantic_artifacts/src/common/game_logic.cpp
-    semantic_artifacts/src/common/snake_predicates.cpp
+    semantic_artifacts/domain/src/classic/classic_arena_authority.cpp
+    semantic_artifacts/domain/src/classic/classic_game_lifecycle_authority.cpp
+    semantic_artifacts/domain/src/classic/scoring_policy.cpp
+    semantic_artifacts/domain/src/classic/classic_game_domain_application.cpp
+    semantic_artifacts/domain/src/classic/direction_command_filter.cpp
+    semantic_artifacts/domain/src/common/game_logic.cpp
+    semantic_artifacts/domain/src/common/snake_predicates.cpp
     src/game_manager_actor.cpp
     src/game_engine_actor.cpp
     src/input_actor.cpp
     src/stdin_reader.cpp
     src/renderer_actor.cpp
-    semantic_artifacts/src/common/snake_model.cpp
+    semantic_artifacts/domain/src/common/snake_model.cpp
     src/utility.cpp
     src/logger.cpp
   )
@@ -204,7 +247,9 @@ if(SNAKE_BUILD_TESTS)
   target_link_libraries(test_snake PRIVATE gtest_main gmock_main funkyactors funkypipes)
   target_include_directories(test_snake PRIVATE
     ${PROJECT_SOURCE_DIR}/include
-    ${PROJECT_SOURCE_DIR}/semantic_artifacts/include
+    ${PROJECT_SOURCE_DIR}/semantic_artifacts/domain/include
+    ${PROJECT_SOURCE_DIR}/semantic_artifacts/platform/include
+    ${PROJECT_SOURCE_DIR}/realizations
     ${PROJECT_SOURCE_DIR}/tests
   )
   target_compile_options(test_snake PRIVATE -Wall -Wextra -Wpedantic -Werror)
@@ -214,4 +259,4 @@ if(SNAKE_BUILD_TESTS)
 endif()
 
 # Install target (optional)
-install(DIRECTORY include/ semantic_artifacts/include/ DESTINATION include)
+install(DIRECTORY include/ semantic_artifacts/domain/include/ semantic_artifacts/platform/include/ DESTINATION include)
