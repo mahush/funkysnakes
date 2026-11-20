@@ -20,7 +20,8 @@ namespace order_authority {
  * order until it is transmitted, the transmitted orders until the Arena Authority resolves them, and
  * the status of every order interpreted from what the Arena Authority reports. It does not own the
  * actual executing route (Arena Authority), when the orbital link offers an opportunity
- * (Transmission Schedule Policy) or any points (Game Authority).
+ * (Transmission Schedule Policy), what an Arena report means for an order's status (Order Resolution
+ * Policy) or any points (Game Authority).
  *
  * - An order is identified by its player and its number; each player's submissions are numbered from 1.
  * - A submission takes effect where the player's input is accepted: it becomes the player's selected
