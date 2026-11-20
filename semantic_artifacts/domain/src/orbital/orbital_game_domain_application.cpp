@@ -66,13 +66,14 @@ std::map<PlayerId, StepId> expectedCompletions(const arena_authority::State& are
 
 // What choosing a successor would earn each player now, as the Game Authority decides it from what the
 // Arena and Order Authorities know of the player's orders
-std::map<PlayerId, game_authority::HandoverProspect> handoverProspects(const State& state,
+std::map<PlayerId, game_authority::HandoverProspect> handoverProspects(const arena_authority::State& arena,
                                                                        const order_authority::View& orders,
+                                                                       const game_authority::State& game,
                                                                        const std::map<PlayerId, StepId>& completions) {
   std::map<PlayerId, game_authority::HandoverProspect> prospects;
-  for (const PlayerId& player : arena_authority::alivePlayers(*state.arena)) {
+  for (const PlayerId& player : arena_authority::alivePlayers(arena)) {
     game_authority::ProspectContext context{
-        arena_authority::lastCompletedStep(*state.arena), std::nullopt, std::nullopt, false, false};
+        arena_authority::lastCompletedStep(arena), std::nullopt, std::nullopt, false, false};
     if (auto completion = completions.find(player); completion != completions.end()) {
       context.expected_completion = completion->second;
     }
@@ -83,30 +84,14 @@ std::map<PlayerId, game_authority::HandoverProspect> handoverProspects(const Sta
       }
       context.transmission_pending = player_orders->second.transmitted.has_value();
     }
-    prospects[player] = game_authority::handoverProspect(*state.game, player, context);
+    prospects[player] = game_authority::handoverProspect(game, player, context);
   }
   return prospects;
 }
 
 Observations withViews(Observations observations, const State& state) {
   if (isStarted(state)) {
-    order_authority::View orders = order_authority::view(*state.orders);
-    std::map<PlayerId, std::vector<Direction>> selected_routes =
-        routesOf(*state.arena, orders, &order_authority::PlayerOrders::selected);
-    std::map<PlayerId, std::vector<Direction>> transmitted_routes =
-        routesOf(*state.arena, orders, &order_authority::PlayerOrders::transmitted);
-    std::map<PlayerId, StepId> completions = expectedCompletions(*state.arena);
-    std::map<PlayerId, game_authority::HandoverProspect> prospects = handoverProspects(state, orders, completions);
-    observations.views = Views{arena_authority::view(*state.arena),
-                               std::move(orders),
-                               game_authority::view(*state.game),
-                               pacing_policy::STEP_INTERVAL,
-                               pacing_policy::LAST_STEP,
-                               transmission_schedule_policy::opportunitiesOfGame(),
-                               std::move(completions),
-                               std::move(selected_routes),
-                               std::move(transmitted_routes),
-                               std::move(prospects)};
+    observations.views = viewsOf(*state.arena, order_authority::view(*state.orders), *state.game);
   }
   return observations;
 }
@@ -255,6 +240,25 @@ std::tuple<State, Observations> takeEffect(const RandomIntGeneratorFn& random_in
 }
 
 }  // namespace
+
+Views viewsOf(const arena_authority::State& arena, order_authority::View orders, const game_authority::State& game) {
+  std::map<PlayerId, std::vector<Direction>> selected_routes =
+      routesOf(arena, orders, &order_authority::PlayerOrders::selected);
+  std::map<PlayerId, std::vector<Direction>> transmitted_routes =
+      routesOf(arena, orders, &order_authority::PlayerOrders::transmitted);
+  std::map<PlayerId, StepId> completions = expectedCompletions(arena);
+  std::map<PlayerId, game_authority::HandoverProspect> prospects = handoverProspects(arena, orders, game, completions);
+  return Views{arena_authority::view(arena),
+               std::move(orders),
+               game_authority::view(game),
+               pacing_policy::STEP_INTERVAL,
+               pacing_policy::LAST_STEP,
+               transmission_schedule_policy::opportunitiesOfGame(),
+               std::move(completions),
+               std::move(selected_routes),
+               std::move(transmitted_routes),
+               std::move(prospects)};
+}
 
 DomainApplication::DomainApplication(game_boundary::PlayersEndOutbound& players, RandomIntGeneratorFn random_int_fn)
     : ExecutionInterface{std::move(random_int_fn)}, players_{players} {}

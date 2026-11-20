@@ -111,6 +111,26 @@ class ExecutionInterface {
 };
 
 // ============================================================================
+// View composition - shared with realizations that compose the same owners
+// ============================================================================
+
+/**
+ * @brief The views of a started game, composed from its owners as the Domain Application reports them
+ *
+ * Mechanical projection: the routes, expected completions and handover prospects come from the Arena and
+ * Game Authorities' own queries, fed with the given order view. A realization that keeps the players'
+ * orders elsewhere (such as a host that receives them) passes its own order view and gets the same views.
+ *
+ * @param arena The Arena Authority's state
+ * @param orders What is known of the players' orders
+ * @param game The Game Authority's state
+ * @return The views
+ */
+game_boundary::Views viewsOf(const arena_authority::State& arena,
+                             order_authority::View orders,
+                             const game_authority::State& game);
+
+// ============================================================================
 // Domain Application
 // ============================================================================
 
