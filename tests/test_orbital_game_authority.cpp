@@ -24,14 +24,15 @@ State runningGame() { return game_authority::startRound(ROUND, {PLAYER_A, PLAYER
 
 // Transmission of an order of player A that replaced no earlier selection
 OrderTransmitted transmittedByA(int order, int submitted_in, int transmitted_in) {
-  return OrderTransmitted{ROUND, OrderId{order}, PLAYER_A, StepId{submitted_in}, StepId{transmitted_in}, std::nullopt};
+  return OrderTransmitted{
+      ROUND, OrderNumber{order}, PLAYER_A, StepId{submitted_in}, StepId{transmitted_in}, std::nullopt};
 }
 
 // Completion of an order of player A
-OrderEnded completed(int order) { return OrderEnded{OrderId{order}, PLAYER_A, EndReason::COMPLETED, std::nullopt}; }
+OrderEnded completed(int order) { return OrderEnded{OrderNumber{order}, PLAYER_A, EndReason::COMPLETED, std::nullopt}; }
 
 // Activation of an order of player A that interrupted nothing
-OrderActivated activated(int order) { return OrderActivated{OrderId{order}, PLAYER_A, std::nullopt, {}}; }
+OrderActivated activated(int order) { return OrderActivated{OrderNumber{order}, PLAYER_A, std::nullopt, {}}; }
 
 // A step of a running game that concludes nothing
 State step(State state, int at, const std::vector<ActivationOutcome>& activations, const ArenaEvents& events) {
@@ -76,7 +77,7 @@ TEST(OrbitalGameAuthority, ShowsBankedAndHeldPointsSeparately) {
       runningGame(),
       StepId{1},
       {},
-      {FoodCollected{PLAYER_A, Point{1, 1}, OrderId{1}}, FoodCollected{PLAYER_B, Point{2, 2}, std::nullopt}},
+      {FoodCollected{PLAYER_A, Point{1, 1}, OrderNumber{1}}, FoodCollected{PLAYER_B, Point{2, 2}, std::nullopt}},
       BOTH_ALIVE);
 
   // Then: A has 10 held points, B 5 banked points, and the game goes on
@@ -90,11 +91,11 @@ TEST(OrbitalGameAuthority, ShowsBankedAndHeldPointsSeparately) {
 /// @brief F's +20 count once F actually completes
 TEST(OrbitalGameAuthority, BanksHeldPointsOnCompletion) {
   // Given: order F of A holds 20 points
-  State state =
-      step(runningGame(),
-           1,
-           {},
-           {FoodCollected{PLAYER_A, Point{1, 1}, OrderId{1}}, FoodCollected{PLAYER_A, Point{2, 1}, OrderId{1}}});
+  State state = step(
+      runningGame(),
+      1,
+      {},
+      {FoodCollected{PLAYER_A, Point{1, 1}, OrderNumber{1}}, FoodCollected{PLAYER_A, Point{2, 1}, OrderNumber{1}}});
 
   // When: F completes
   State banked = step(state, 2, {}, {completed(1)});
@@ -107,10 +108,11 @@ TEST(OrbitalGameAuthority, BanksHeldPointsOnCompletion) {
 
 TEST(OrbitalGameAuthority, DropsHeldPointsOfInterruptedOrder) {
   // Given: order F of A holds 10 points
-  State state = step(runningGame(), 1, {}, {FoodCollected{PLAYER_A, Point{1, 1}, OrderId{1}}});
+  State state = step(runningGame(), 1, {}, {FoodCollected{PLAYER_A, Point{1, 1}, OrderNumber{1}}});
 
   // When: F is interrupted
-  State interrupted = step(state, 2, {}, {OrderEnded{OrderId{1}, PLAYER_A, EndReason::INTERRUPTED, OrderId{2}}});
+  State interrupted =
+      step(state, 2, {}, {OrderEnded{OrderNumber{1}, PLAYER_A, EndReason::INTERRUPTED, OrderNumber{2}}});
 
   // Then: the points are gone and the banked score is unchanged
   game_authority::View view = game_authority::view(interrupted);
@@ -121,7 +123,7 @@ TEST(OrbitalGameAuthority, DropsHeldPointsOfInterruptedOrder) {
 /// @brief Food collected during an order and its completion in the same step count in order
 TEST(OrbitalGameAuthority, BanksFoodCollectedOnArrivalStep) {
   // When: a step with collection during order 1 followed by its completion is observed
-  State state = step(runningGame(), 1, {}, {FoodCollected{PLAYER_A, Point{1, 1}, OrderId{1}}, completed(1)});
+  State state = step(runningGame(), 1, {}, {FoodCollected{PLAYER_A, Point{1, 1}, OrderNumber{1}}, completed(1)});
 
   // Then: the points are banked
   EXPECT_EQ(game_authority::view(state).players.at(PLAYER_A).banked, 10);
@@ -138,14 +140,14 @@ TEST(OrbitalGameAuthority, AwardsNoPointsForCompletionAlone) {
 /// @brief A replacement's own points start fresh; the interrupted order's points do not move over
 TEST(OrbitalGameAuthority, KeepsHeldPointsPerOrder) {
   // Given: order F of A holds 10 points
-  State state = step(runningGame(), 1, {}, {FoodCollected{PLAYER_A, Point{1, 1}, OrderId{1}}});
+  State state = step(runningGame(), 1, {}, {FoodCollected{PLAYER_A, Point{1, 1}, OrderNumber{1}}});
 
   // When: G interrupts F and collects food
   State next = step(state,
                     2,
                     {},
-                    {OrderEnded{OrderId{1}, PLAYER_A, EndReason::INTERRUPTED, OrderId{2}},
-                     FoodCollected{PLAYER_A, Point{2, 1}, OrderId{2}}});
+                    {OrderEnded{OrderNumber{1}, PLAYER_A, EndReason::INTERRUPTED, OrderNumber{2}},
+                     FoodCollected{PLAYER_A, Point{2, 1}, OrderNumber{2}}});
 
   // Then: only G's 10 points are held
   game_authority::View view = game_authority::view(next);
@@ -156,7 +158,7 @@ TEST(OrbitalGameAuthority, KeepsHeldPointsPerOrder) {
 /// @brief A penalty counts at once and does not touch an executing order's held points
 TEST(OrbitalGameAuthority, KeepsHeldPointsOnCollisionPenalty) {
   // Given: order F of B holds 10 points
-  State state = step(runningGame(), 1, {}, {FoodCollected{PLAYER_B, Point{1, 1}, OrderId{1}}});
+  State state = step(runningGame(), 1, {}, {FoodCollected{PLAYER_B, Point{1, 1}, OrderNumber{1}}});
 
   // When: B is bitten
   State bitten = step(state, 2, {}, {Bitten{PLAYER_B, PLAYER_A}});
@@ -170,11 +172,11 @@ TEST(OrbitalGameAuthority, KeepsHeldPointsOnCollisionPenalty) {
 /// @brief Players number their orders independently, so equal numbers of two players hold their points apart
 TEST(OrbitalGameAuthority, SettlesHeldPointsOfEachPlayersOrderApart) {
   // Given: A's order 1 and B's order 1 each hold 10 points
-  State state =
-      step(runningGame(),
-           1,
-           {},
-           {FoodCollected{PLAYER_A, Point{1, 1}, OrderId{1}}, FoodCollected{PLAYER_B, Point{2, 2}, OrderId{1}}});
+  State state = step(
+      runningGame(),
+      1,
+      {},
+      {FoodCollected{PLAYER_A, Point{1, 1}, OrderNumber{1}}, FoodCollected{PLAYER_B, Point{2, 2}, OrderNumber{1}}});
 
   // When: A's order 1 completes
   State banked = step(state, 2, {}, {completed(1)});
@@ -234,7 +236,7 @@ TEST(OrbitalGameAuthority, BanksCompletionOnFinalStepBeforeConclusion) {
       runningGame(),
       StepId{5},
       {},
-      {FoodCollected{PLAYER_A, Point{1, 1}, OrderId{1}}, FoodCollected{PLAYER_A, Point{2, 1}, OrderId{1}}},
+      {FoodCollected{PLAYER_A, Point{1, 1}, OrderNumber{1}}, FoodCollected{PLAYER_A, Point{2, 1}, OrderNumber{1}}},
       BOTH_ALIVE);
 
   // When: F completes in the last step
@@ -242,7 +244,7 @@ TEST(OrbitalGameAuthority, BanksCompletionOnFinalStepBeforeConclusion) {
       game_authority::observeStep(state,
                                   pacing_policy::LAST_STEP,
                                   {},
-                                  {OrderEnded{OrderId{1}, PLAYER_A, EndReason::COMPLETED, std::nullopt}},
+                                  {OrderEnded{OrderNumber{1}, PLAYER_A, EndReason::COMPLETED, std::nullopt}},
                                   BOTH_ALIVE);
 
   // Then: A's 20 points count and A wins
@@ -258,8 +260,8 @@ TEST(OrbitalGameAuthority, SettlesExecutingOrderAsEndedByRoundAtConclusion) {
                                   StepId{5},
                                   {},
                                   {FoodCollected{PLAYER_B, Point{3, 3}, std::nullopt},
-                                   FoodCollected{PLAYER_A, Point{1, 1}, OrderId{1}},
-                                   FoodCollected{PLAYER_A, Point{2, 1}, OrderId{1}}},
+                                   FoodCollected{PLAYER_A, Point{1, 1}, OrderNumber{1}},
+                                   FoodCollected{PLAYER_A, Point{2, 1}, OrderNumber{1}}},
                                   BOTH_ALIVE);
 
   // When: the game concludes while A's order still executes
@@ -291,7 +293,7 @@ TEST(OrbitalGameAuthority, IgnoresStepsAfterConclusion) {
       game_authority::observeStep(state,
                                   pacing_policy::LAST_STEP,
                                   {},
-                                  {OrderEnded{OrderId{1}, PLAYER_A, EndReason::ROUND_ENDED, std::nullopt},
+                                  {OrderEnded{OrderNumber{1}, PLAYER_A, EndReason::ROUND_ENDED, std::nullopt},
                                    FoodCollected{PLAYER_A, Point{1, 1}, std::nullopt}},
                                   BOTH_ALIVE);
 
@@ -339,10 +341,11 @@ TEST(OrbitalGameAuthority, DropsHeldBonusWhenSuccessorFails) {
   State state = withSuccessorExecuting();
 
   // When: A's snake dies while executing 2
-  State observed = step(std::move(state),
-                        23,
-                        {},
-                        {SelfBitten{PLAYER_A}, OrderEnded{OrderId{2}, PLAYER_A, EndReason::ELIMINATED, std::nullopt}});
+  State observed =
+      step(std::move(state),
+           23,
+           {},
+           {SelfBitten{PLAYER_A}, OrderEnded{OrderNumber{2}, PLAYER_A, EndReason::ELIMINATED, std::nullopt}});
 
   // Then: the bonus is dropped, only the bite penalty counts, and the chain is broken
   game_authority::PlayerScore score = game_authority::view(observed).players.at(PLAYER_A);
@@ -493,7 +496,7 @@ TEST(OrbitalGameAuthority, DeniesHandoverToSuccessorThatReplacedSelection) {
   State state = std::get<0>(game_authority::observeTransmission(runningGame(), transmittedByA(1, 0, 1)));
   state = step(std::move(state), 2, {activated(1)}, {});
   state = std::get<0>(game_authority::observeTransmission(
-      std::move(state), OrderTransmitted{ROUND, OrderId{2}, PLAYER_A, StepId{10}, StepId{21}, OrderId{9}}));
+      std::move(state), OrderTransmitted{ROUND, OrderNumber{2}, PLAYER_A, StepId{10}, StepId{21}, OrderNumber{9}}));
   state = step(std::move(state), 15, {}, {completed(1)});
   state = step(std::move(state), 22, {activated(2)}, {});
 
@@ -532,8 +535,8 @@ TEST(OrbitalGameAuthority, BreaksChainWhenSuccessorInterruptsExecutingOrder) {
   state = std::get<0>(game_authority::observeTransmission(std::move(state), transmittedByA(4, 41, 59)));
   state = step(std::move(state),
                60,
-               {OrderActivated{OrderId{4}, PLAYER_A, OrderId{3}, {}}},
-               {OrderEnded{OrderId{3}, PLAYER_A, EndReason::INTERRUPTED, OrderId{4}}});
+               {OrderActivated{OrderNumber{4}, PLAYER_A, OrderNumber{3}, {}}},
+               {OrderEnded{OrderNumber{3}, PLAYER_A, EndReason::INTERRUPTED, OrderNumber{4}}});
 
   // When: 4 completes
   State observed = step(std::move(state), 64, {}, {completed(4)});
@@ -566,10 +569,11 @@ TEST(OrbitalGameAuthority, BreaksChainWhenExecutingOrderIsEliminated) {
   state = step(std::move(state), 41, {activated(3)}, {});
 
   // When: A's snake dies while executing 3
-  State observed = step(std::move(state),
-                        42,
-                        {},
-                        {SelfBitten{PLAYER_A}, OrderEnded{OrderId{3}, PLAYER_A, EndReason::ELIMINATED, std::nullopt}});
+  State observed =
+      step(std::move(state),
+           42,
+           {},
+           {SelfBitten{PLAYER_A}, OrderEnded{OrderNumber{3}, PLAYER_A, EndReason::ELIMINATED, std::nullopt}});
 
   // Then: the chain is broken
   EXPECT_EQ(game_authority::view(observed).players.at(PLAYER_A).chain, 0);
@@ -597,7 +601,7 @@ TEST(OrbitalGameAuthority, PassesOverRejectedOrderInChain) {
   State state = std::get<0>(game_authority::observeTransmission(withOneHandover(), transmittedByA(3, 23, 40)));
   state = step(std::move(state), 41, {activated(3)}, {});
   state = std::get<0>(game_authority::observeTransmission(std::move(state), transmittedByA(4, 41, 59)));
-  state = step(std::move(state), 60, {OrderRejected{OrderId{4}, PLAYER_A, RejectionReason::TARGET_OFF_BOARD}}, {});
+  state = step(std::move(state), 60, {OrderRejected{OrderNumber{4}, PLAYER_A, RejectionReason::TARGET_OFF_BOARD}}, {});
   state = std::get<0>(game_authority::observeTransmission(std::move(state), transmittedByA(5, 59, 77)));
   state = step(std::move(state), 63, {}, {completed(3)});
   state = step(std::move(state), 78, {activated(5)}, {});
@@ -614,7 +618,7 @@ TEST(OrbitalGameAuthority, PassesOverRejectedOrderInChain) {
 /// @brief The successor's held points are its own: its handover bonus comes in addition to them
 TEST(OrbitalGameAuthority, BanksSuccessorPointsWithItsHandoverBonus) {
   // Given: successor 2 executes and collected food
-  State state = step(withSuccessorExecuting(), 23, {}, {FoodCollected{PLAYER_A, Point{1, 1}, OrderId{2}}});
+  State state = step(withSuccessorExecuting(), 23, {}, {FoodCollected{PLAYER_A, Point{1, 1}, OrderNumber{2}}});
 
   // When: 2 completes
   State observed = step(std::move(state), 25, {}, {completed(2)});
@@ -667,7 +671,7 @@ TEST(OrbitalGameAuthority, ReportsHandoverWhenSuccessorTakesOver) {
       game_authority::observeStep(std::move(state), StepId{22}, {activated(2)}, {}, BOTH_ALIVE);
 
   // Then: the first handover of the chain is reported with its bonus
-  EXPECT_EQ(handovers, (std::vector<game_authority::HandoverGranted>{{PLAYER_A, OrderId{2}, 1, 10}}));
+  EXPECT_EQ(handovers, (std::vector<game_authority::HandoverGranted>{{PLAYER_A, OrderNumber{2}, 1, 10}}));
 }
 
 /// @brief A player's chain follows only that player's orders, also where another player's order has the same number
@@ -680,7 +684,7 @@ TEST(OrbitalGameAuthority, ReportsNoHandoverForOtherPlayersOrderWithSameNumber) 
 
   // When: B's order 2 activates in step 22
   auto [observed, handovers, concluded] = game_authority::observeStep(
-      std::move(state), StepId{22}, {OrderActivated{OrderId{2}, PLAYER_B, std::nullopt, {}}}, {}, BOTH_ALIVE);
+      std::move(state), StepId{22}, {OrderActivated{OrderNumber{2}, PLAYER_B, std::nullopt, {}}}, {}, BOTH_ALIVE);
 
   // Then: no handover is reported
   EXPECT_TRUE(handovers.empty());
@@ -694,7 +698,7 @@ TEST(OrbitalGameAuthority, ReportsNoHandoverForInterruption) {
 
   // When: 2 activates over 1 at step 22
   auto [observed, handovers, concluded] = game_authority::observeStep(
-      std::move(state), StepId{22}, {OrderActivated{OrderId{2}, PLAYER_A, OrderId{1}, {}}}, {}, BOTH_ALIVE);
+      std::move(state), StepId{22}, {OrderActivated{OrderNumber{2}, PLAYER_A, OrderNumber{1}, {}}}, {}, BOTH_ALIVE);
 
   // Then: no handover is reported
   EXPECT_TRUE(handovers.empty());
@@ -747,8 +751,8 @@ TEST(OrbitalGameAuthority, ClosesHandoverPromptAtOpportunityAfterCompletion) {
 
 TEST(OrbitalGameAuthority, OffersNoHandoverAfterInterruption) {
   // Given: A's order 1 was interrupted in step 22
-  State state =
-      step(withOrderExecuting(), 22, {}, {OrderEnded{OrderId{1}, PLAYER_A, EndReason::INTERRUPTED, OrderId{2}}});
+  State state = step(
+      withOrderExecuting(), 22, {}, {OrderEnded{OrderNumber{1}, PLAYER_A, EndReason::INTERRUPTED, OrderNumber{2}}});
 
   // When: the prospect is queried in step 23
   game_authority::HandoverProspect prospect =
@@ -831,7 +835,7 @@ TEST(OrbitalGameAuthority, ReportsHandoverWhenSuccessorTransmissionIsLearnedLate
   auto [observed, handovers] = game_authority::observeTransmission(std::move(state), transmittedByA(2, 10, 21));
 
   // Then: the handover is reported now
-  EXPECT_EQ(handovers, (std::vector<game_authority::HandoverGranted>{{PLAYER_A, OrderId{2}, 1, 10}}));
+  EXPECT_EQ(handovers, (std::vector<game_authority::HandoverGranted>{{PLAYER_A, OrderNumber{2}, 1, 10}}));
 }
 
 /// @brief A player-local Order Authority may synchronize its history after the Arena Authority reported the completion
@@ -866,7 +870,7 @@ TEST(OrbitalGameAuthority, IgnoresTransmissionOfAnotherRound) {
 
   // When: a transmission of another round is learned
   State observed = std::get<0>(game_authority::observeTransmission(
-      std::move(state), OrderTransmitted{RoundId{2}, OrderId{2}, PLAYER_A, StepId{10}, StepId{21}, std::nullopt}));
+      std::move(state), OrderTransmitted{RoundId{2}, OrderNumber{2}, PLAYER_A, StepId{10}, StepId{21}, std::nullopt}));
 
   // Then: nothing is banked
   EXPECT_EQ(game_authority::view(observed).players.at(PLAYER_A).banked, 0);

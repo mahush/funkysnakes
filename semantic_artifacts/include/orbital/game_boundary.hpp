@@ -75,7 +75,7 @@ struct StartRejected {
  * @brief A submission became the player's selected order
  */
 struct SubmissionAccepted {
-  OrderId order;
+  OrderNumber order;
   StepId submitted_at;
 };
 

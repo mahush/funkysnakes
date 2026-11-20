@@ -18,13 +18,13 @@ struct RoundId {
   bool operator<(const RoundId& other) const noexcept { return value < other.value; }
 };
 
-// Identifies one accepted order submission; each submission gets a new identity
-struct OrderId {
+// Numbers a player's accepted order submissions from 1; an order is identified by its player and its number
+struct OrderNumber {
   int value;
 
-  bool operator==(const OrderId& other) const noexcept { return value == other.value; }
-  bool operator!=(const OrderId& other) const noexcept { return value != other.value; }
-  bool operator<(const OrderId& other) const noexcept { return value < other.value; }
+  bool operator==(const OrderNumber& other) const noexcept { return value == other.value; }
+  bool operator!=(const OrderNumber& other) const noexcept { return value != other.value; }
+  bool operator<(const OrderNumber& other) const noexcept { return value < other.value; }
 };
 
 // Identifies one arena step within a round; what time a step spans is the Pacing Policy's
