@@ -73,8 +73,11 @@ struct StartRejected {
 
 /**
  * @brief A submission became the player's selected order
+ *
+ * The player and the number together identify the order.
  */
 struct SubmissionAccepted {
+  PlayerId player;
   OrderNumber order;
   StepId submitted_at;
 };
@@ -88,9 +91,10 @@ enum class SubmissionRejectionReason {
 };
 
 /**
- * @brief A submission was refused
+ * @brief A player's submission was refused
  */
 struct SubmissionRejected {
+  PlayerId player;
   SubmissionRejectionReason reason;
 };
 
