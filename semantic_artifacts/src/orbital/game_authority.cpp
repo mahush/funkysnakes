@@ -76,17 +76,6 @@ Result decideResult(const PerPlayerScores& banked) {
 
 using Transmissions = std::map<PlayerId, std::vector<OrderTransmitted>>;
 
-// Player of every order whose transmission is known
-std::map<OrderId, PlayerId> playersOfOrders(const Transmissions& transmissions) {
-  std::map<OrderId, PlayerId> players;
-  for (const auto& [player, transmitted] : transmissions) {
-    for (const OrderTransmitted& transmission : transmitted) {
-      players.emplace(transmission.order, player);
-    }
-  }
-  return players;
-}
-
 // How a player's order executed, as far as the observed steps tell
 struct Execution {
   StepId activated_at;
@@ -107,16 +96,15 @@ bool handsOver(const OrderTransmitted& successor, const std::optional<Execution>
 // The player's chain as the known histories determine it, with the bonus it earned over the game
 Chain deriveChain(const PlayerId& player,
                   const std::vector<OrderTransmitted>& transmitted,
-                  const std::map<OrderId, PlayerId>& players,
                   const std::vector<ObservedStep>& steps) {
-  auto belongsToPlayer = [&players, &player](OrderId order) {
-    auto it = players.find(order);
-    return it != players.end() && it->second == player;
-  };
   std::map<OrderId, OrderTransmitted> transmissions;
   for (const OrderTransmitted& transmission : transmitted) {
     transmissions.emplace(transmission.order, transmission);
   }
+  // The chain follows the player's orders whose transmission is known
+  auto isKnownOrderOfPlayer = [&transmissions, &player](const PlayerId& order_player, OrderId order) {
+    return order_player == player && transmissions.count(order) > 0;
+  };
 
   Chain chain;
   std::map<OrderId, int> held_bonuses;  // Handover bonus held per handing over order until it ends
@@ -126,7 +114,7 @@ Chain deriveChain(const PlayerId& player,
   for (const ObservedStep& step : steps) {
     for (const ActivationOutcome& outcome : step.activations) {
       const auto* activated = std::get_if<OrderActivated>(&outcome);
-      if (activated == nullptr || !belongsToPlayer(activated->order)) {
+      if (activated == nullptr || !isKnownOrderOfPlayer(activated->player, activated->order)) {
         continue;
       }
       // An order activating over an executing one interrupts it, so it has no completed predecessor
@@ -151,7 +139,7 @@ Chain deriveChain(const PlayerId& player,
     }
     for (const ArenaEvent& event : step.events) {
       const auto* ended = std::get_if<OrderEnded>(&event);
-      if (ended == nullptr || !belongsToPlayer(ended->order)) {
+      if (ended == nullptr || !isKnownOrderOfPlayer(ended->player, ended->order)) {
         continue;
       }
       auto execution = executions.find(ended->order);
@@ -191,15 +179,11 @@ std::tuple<PerPlayerScores, std::map<PlayerId, Chain>, std::vector<HandoverGrant
     std::map<PlayerId, Chain> chains,
     const Transmissions& transmissions,
     const std::vector<ObservedStep>& steps) {
-  const std::map<OrderId, PlayerId> players = playersOfOrders(transmissions);
   std::vector<HandoverGranted> granted;
   for (auto& [player, score] : banked) {
     auto transmitted = transmissions.find(player);
-    const Chain derived =
-        deriveChain(player,
-                    transmitted == transmissions.end() ? std::vector<OrderTransmitted>{} : transmitted->second,
-                    players,
-                    steps);
+    const Chain derived = deriveChain(
+        player, transmitted == transmissions.end() ? std::vector<OrderTransmitted>{} : transmitted->second, steps);
     Chain& chain = chains[player];
     score += derived.bonus_banked - chain.bonus_banked;
     for (const auto& [order, handover] : derived.handovers) {

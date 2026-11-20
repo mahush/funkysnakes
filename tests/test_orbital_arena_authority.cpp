@@ -180,7 +180,7 @@ TEST(OrbitalArenaAuthority, MovesAlongRouteFromActivationStep) {
   // Then: the route turns up at once and the snake moved up
   ASSERT_EQ(outcomes.size(), 1U);
   EXPECT_EQ(std::get<OrderActivated>(outcomes[0]),
-            (OrderActivated{OrderId{1}, std::nullopt, {Direction::UP, Direction::UP, Direction::UP}}));
+            (OrderActivated{OrderId{1}, PLAYER_A, std::nullopt, {Direction::UP, Direction::UP, Direction::UP}}));
   EXPECT_EQ(headOfA(next), (Point{5, 4}));
 }
 
@@ -196,7 +196,7 @@ TEST(OrbitalArenaAuthority, CompletesOrderWhenHeadReachesTarget) {
 
   // Then: the order completed on arrival and no order executes any more
   EXPECT_EQ(headOfA(next), (Point{7, 5}));
-  EXPECT_EQ(next_events, (ArenaEvents{OrderEnded{OrderId{1}, EndReason::COMPLETED, std::nullopt}}));
+  EXPECT_EQ(next_events, (ArenaEvents{OrderEnded{OrderId{1}, PLAYER_A, EndReason::COMPLETED, std::nullopt}}));
   EXPECT_TRUE(arena_authority::view(next).active.empty());
 }
 
@@ -222,8 +222,8 @@ TEST(OrbitalArenaAuthority, CompletesOrderAtActivationWhenHeadIsAtTarget) {
   auto [next, outcomes, events] = arena_authority::tick(makeNoRandom(), state, {orderOfA(1, Point{5, 5})});
 
   // Then: it activated with an empty route, completed, and the snake moved on
-  EXPECT_EQ(outcomes, (std::vector<ActivationOutcome>{OrderActivated{OrderId{1}, std::nullopt, {}}}));
-  EXPECT_EQ(events, (ArenaEvents{OrderEnded{OrderId{1}, EndReason::COMPLETED, std::nullopt}}));
+  EXPECT_EQ(outcomes, (std::vector<ActivationOutcome>{OrderActivated{OrderId{1}, PLAYER_A, std::nullopt, {}}}));
+  EXPECT_EQ(events, (ArenaEvents{OrderEnded{OrderId{1}, PLAYER_A, EndReason::COMPLETED, std::nullopt}}));
   EXPECT_EQ(headOfA(next), (Point{6, 5}));
 }
 
@@ -237,7 +237,7 @@ TEST(OrbitalArenaAuthority, ReportsCompletionAtActivationBeforeCollectionWithout
 
   // Then: completion comes first, then collection without an executing order
   EXPECT_EQ(events,
-            (ArenaEvents{OrderEnded{OrderId{1}, EndReason::COMPLETED, std::nullopt},
+            (ArenaEvents{OrderEnded{OrderId{1}, PLAYER_A, EndReason::COMPLETED, std::nullopt},
                          FoodCollected{PLAYER_A, Point{6, 5}, std::nullopt}}));
 }
 
@@ -280,7 +280,7 @@ TEST(OrbitalArenaAuthority, ReportsCollectionAtTargetBeforeCompletion) {
   // Then: the food is collected during the order, then the order completes
   EXPECT_EQ(events,
             (ArenaEvents{FoodCollected{PLAYER_A, Point{6, 5}, OrderId{1}},
-                         OrderEnded{OrderId{1}, EndReason::COMPLETED, std::nullopt}}));
+                         OrderEnded{OrderId{1}, PLAYER_A, EndReason::COMPLETED, std::nullopt}}));
 }
 
 /// @brief Food vanishing at the target does not invalidate a positional order
@@ -293,7 +293,7 @@ TEST(OrbitalArenaAuthority, CompletesOrderAtTargetWithoutFood) {
   auto [next, next_outcomes, next_events] = arena_authority::tick(makeNoRandom(), state, {});
 
   // Then: the order completes
-  EXPECT_EQ(next_events, (ArenaEvents{OrderEnded{OrderId{1}, EndReason::COMPLETED, std::nullopt}}));
+  EXPECT_EQ(next_events, (ArenaEvents{OrderEnded{OrderId{1}, PLAYER_A, EndReason::COMPLETED, std::nullopt}}));
 }
 
 /// @subsection replacement
@@ -310,7 +310,7 @@ TEST(OrbitalArenaAuthority, InterruptsExecutingOrderWithReplacement) {
   // Then: G replaces F, F is interrupted by G, and the snake follows G
   ASSERT_EQ(next_outcomes.size(), 1U);
   EXPECT_EQ(std::get<OrderActivated>(next_outcomes[0]).replaced, OrderId{1});
-  EXPECT_EQ(next_events, (ArenaEvents{OrderEnded{OrderId{1}, EndReason::INTERRUPTED, OrderId{2}}}));
+  EXPECT_EQ(next_events, (ArenaEvents{OrderEnded{OrderId{1}, PLAYER_A, EndReason::INTERRUPTED, OrderId{2}}}));
   EXPECT_EQ(headOfA(next), (Point{6, 4}));
   EXPECT_EQ(arena_authority::view(next).active.at(PLAYER_A).id, OrderId{2});
 }
@@ -329,7 +329,7 @@ TEST(OrbitalArenaAuthority, ReportsInterruptionBeforeCollectionUnderReplacement)
 
   // Then: F is interrupted first, then the food is collected under G
   EXPECT_EQ(next_events,
-            (ArenaEvents{OrderEnded{OrderId{1}, EndReason::INTERRUPTED, OrderId{2}},
+            (ArenaEvents{OrderEnded{OrderId{1}, PLAYER_A, EndReason::INTERRUPTED, OrderId{2}},
                          FoodCollected{PLAYER_A, Point{7, 5}, OrderId{2}}}));
 }
 
@@ -343,7 +343,7 @@ TEST(OrbitalArenaAuthority, InterruptsOrderThatWouldArriveOnActivationStep) {
   auto [next, next_outcomes, next_events] = arena_authority::tick(makeNoRandom(), state, {orderOfA(2, Point{7, 2})});
 
   // Then: F is interrupted, not completed
-  EXPECT_EQ(next_events, (ArenaEvents{OrderEnded{OrderId{1}, EndReason::INTERRUPTED, OrderId{2}}}));
+  EXPECT_EQ(next_events, (ArenaEvents{OrderEnded{OrderId{1}, PLAYER_A, EndReason::INTERRUPTED, OrderId{2}}}));
 }
 
 /// @subsection rejection
@@ -356,7 +356,8 @@ TEST(OrbitalArenaAuthority, RejectsOrderWithTargetOffBoard) {
   auto [next, outcomes, events] = arena_authority::tick(makeNoRandom(), state, {orderOfA(1, Point{20, 5})});
 
   // Then: it is rejected and the snake moves straight on
-  EXPECT_EQ(outcomes, (std::vector<ActivationOutcome>{OrderRejected{OrderId{1}, RejectionReason::TARGET_OFF_BOARD}}));
+  EXPECT_EQ(outcomes,
+            (std::vector<ActivationOutcome>{OrderRejected{OrderId{1}, PLAYER_A, RejectionReason::TARGET_OFF_BOARD}}));
   EXPECT_EQ(headOfA(next), (Point{6, 5}));
 }
 
@@ -385,7 +386,8 @@ TEST(OrbitalArenaAuthority, RejectsOrderOfAnotherRound) {
       arena_authority::tick(makeNoRandom(), state, {Order{RoundId{2}, OrderId{1}, PLAYER_A, Point{5, 2}}});
 
   // Then: it is rejected because its round has ended
-  EXPECT_EQ(outcomes, (std::vector<ActivationOutcome>{OrderRejected{OrderId{1}, RejectionReason::ROUND_ENDED}}));
+  EXPECT_EQ(outcomes,
+            (std::vector<ActivationOutcome>{OrderRejected{OrderId{1}, PLAYER_A, RejectionReason::ROUND_ENDED}}));
 }
 
 /// @subsection collisions
@@ -432,7 +434,7 @@ TEST(OrbitalArenaAuthority, EndsOrderOfSnakeThatDied) {
   // Then: both died, and A's order ended with its elimination right after the collision
   ASSERT_GE(next_events.size(), 2U);
   EXPECT_EQ(next_events[0], (ArenaEvent{MutualBite{PLAYER_A, PLAYER_B}}));
-  EXPECT_EQ(next_events[1], (ArenaEvent{OrderEnded{OrderId{1}, EndReason::ELIMINATED, std::nullopt}}));
+  EXPECT_EQ(next_events[1], (ArenaEvent{OrderEnded{OrderId{1}, PLAYER_A, EndReason::ELIMINATED, std::nullopt}}));
   EXPECT_TRUE(arena_authority::view(next).active.empty());
 }
 
@@ -448,10 +450,11 @@ TEST(OrbitalArenaAuthority, FailsOrderOnLethalArrival) {
   // Then: both died head-on and A's order is eliminated, not completed
   EXPECT_EQ(headOfA(next), (Point{6, 5}));
   EXPECT_EQ(events.front(), (ArenaEvent{MutualBite{PLAYER_A, PLAYER_B}}));
-  EXPECT_EQ(events.at(1), (ArenaEvent{OrderEnded{OrderId{1}, EndReason::ELIMINATED, std::nullopt}}));
-  EXPECT_EQ(
-      std::count(events.begin(), events.end(), ArenaEvent{OrderEnded{OrderId{1}, EndReason::COMPLETED, std::nullopt}}),
-      0);
+  EXPECT_EQ(events.at(1), (ArenaEvent{OrderEnded{OrderId{1}, PLAYER_A, EndReason::ELIMINATED, std::nullopt}}));
+  EXPECT_EQ(std::count(events.begin(),
+                       events.end(),
+                       ArenaEvent{OrderEnded{OrderId{1}, PLAYER_A, EndReason::COMPLETED, std::nullopt}}),
+            0);
 }
 
 TEST(OrbitalArenaAuthority, RejectsOrderForDeadSnake) {
@@ -465,7 +468,8 @@ TEST(OrbitalArenaAuthority, RejectsOrderForDeadSnake) {
   auto [next, next_outcomes, next_events] = arena_authority::tick(makeNoRandom(), state, {orderOfA(1, Point{2, 2})});
 
   // Then: it is rejected
-  EXPECT_EQ(next_outcomes, (std::vector<ActivationOutcome>{OrderRejected{OrderId{1}, RejectionReason::SNAKE_DEAD}}));
+  EXPECT_EQ(next_outcomes,
+            (std::vector<ActivationOutcome>{OrderRejected{OrderId{1}, PLAYER_A, RejectionReason::SNAKE_DEAD}}));
 }
 
 /// @section arena_authority::anySnakeAlive
@@ -558,7 +562,7 @@ TEST(OrbitalArenaAuthority, EndsExecutingOrdersWhenRoundEnds) {
   auto [ended, end_events] = arena_authority::endRound(state);
 
   // Then: the order ended with the round, no order executes and the world is unchanged
-  EXPECT_EQ(end_events, (ArenaEvents{OrderEnded{OrderId{1}, EndReason::ROUND_ENDED, std::nullopt}}));
+  EXPECT_EQ(end_events, (ArenaEvents{OrderEnded{OrderId{1}, PLAYER_A, EndReason::ROUND_ENDED, std::nullopt}}));
   EXPECT_TRUE(arena_authority::view(ended).active.empty());
   EXPECT_TRUE(arena_authority::view(ended).ended);
   EXPECT_EQ(headOfA(ended), headOfA(state));
@@ -573,7 +577,8 @@ TEST(OrbitalArenaAuthority, RejectsOrdersAndKeepsWorldAfterRoundEnded) {
   auto [next, outcomes, events] = arena_authority::tick(makeNoRandom(), ended, {orderOfA(1, Point{5, 2})});
 
   // Then: the order is rejected and nothing moves
-  EXPECT_EQ(outcomes, (std::vector<ActivationOutcome>{OrderRejected{OrderId{1}, RejectionReason::ROUND_ENDED}}));
+  EXPECT_EQ(outcomes,
+            (std::vector<ActivationOutcome>{OrderRejected{OrderId{1}, PLAYER_A, RejectionReason::ROUND_ENDED}}));
   EXPECT_TRUE(events.empty());
   EXPECT_EQ(headOfA(next), (Point{5, 5}));
   EXPECT_EQ(arena_authority::lastCompletedStep(next), arena_authority::lastCompletedStep(ended));

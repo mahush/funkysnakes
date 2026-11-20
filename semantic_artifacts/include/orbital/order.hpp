@@ -86,17 +86,18 @@ struct OrderTransmitted {
 // ============================================================================
 
 /**
- * @brief The order became the executing order of its snake
+ * @brief The order became the executing order of its player's snake
  *
- * `replaced` names the order that was executing until now and is interrupted by this one.
+ * `replaced` names the player's order that was executing until now and is interrupted by this one.
  */
 struct OrderActivated {
   OrderId order;
+  PlayerId player;
   std::optional<OrderId> replaced;
   std::vector<Direction> route;
 
   bool operator==(const OrderActivated& other) const noexcept {
-    return order == other.order && replaced == other.replaced && route == other.route;
+    return order == other.order && player == other.player && replaced == other.replaced && route == other.route;
   }
 };
 
@@ -114,9 +115,12 @@ enum class RejectionReason {
  */
 struct OrderRejected {
   OrderId order;
+  PlayerId player;
   RejectionReason reason;
 
-  bool operator==(const OrderRejected& other) const noexcept { return order == other.order && reason == other.reason; }
+  bool operator==(const OrderRejected& other) const noexcept {
+    return order == other.order && player == other.player && reason == other.reason;
+  }
 };
 
 using ActivationOutcome = std::variant<OrderActivated, OrderRejected>;
@@ -138,15 +142,16 @@ enum class EndReason {
 /**
  * @brief An executing order stopped executing
  *
- * `replacement` names the interrupting order for INTERRUPTED.
+ * `replacement` names the player's interrupting order for INTERRUPTED.
  */
 struct OrderEnded {
   OrderId order;
+  PlayerId player;
   EndReason reason;
   std::optional<OrderId> replacement;
 
   bool operator==(const OrderEnded& other) const noexcept {
-    return order == other.order && reason == other.reason && replacement == other.replacement;
+    return order == other.order && player == other.player && reason == other.reason && replacement == other.replacement;
   }
 };
 
