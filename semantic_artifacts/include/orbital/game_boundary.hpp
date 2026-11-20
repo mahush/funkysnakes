@@ -102,6 +102,10 @@ using SubmissionOutcome = std::variant<SubmissionAccepted, SubmissionRejected>;
 
 /**
  * @brief What happened in one arena step
+ *
+ * Within each list, the items that concern one player keep the order in which they happened, e.g. an
+ * interruption before a collection; an item naming two players, such as a bite, concerns both. Across
+ * players the order carries no meaning: a realization may report different players' items in another order.
  */
 struct StepReport {
   StepId step;
@@ -117,7 +121,7 @@ struct StepReport {
  * The link condition is what the Transmission Schedule Policy decides: every transmission
  * opportunity of the game. The step interval and the last step are the Pacing Policy's. A combined
  * presentation is a projection of these views; it owns no meaning of its own and does not ask the
- * Authorities or Policies itself.
+ * Authorities or Policies itself. The order of the listed orders across players carries no meaning.
  */
 struct Views {
   arena_authority::View arena;

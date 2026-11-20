@@ -120,7 +120,9 @@ State startRound(const RandomIntGeneratorFn& random_int_fn, const RoundSetup& se
  * @brief Advance the world by one step
  *
  * Released orders (at most one per player) are evaluated first; a valid one replaces whatever its
- * snake executes. Then all snakes move and the step's consequences are established.
+ * snake executes. Each is evaluated against its own player's snake only, so the order in which
+ * different players' orders are released changes neither the world nor any player's outcome. Then
+ * all snakes move and the step's consequences are established.
  *
  * Orders of another round, and every order once execution has ended, are rejected with
  * ROUND_ENDED; after the end, a step changes nothing else.
@@ -129,8 +131,9 @@ State startRound(const RandomIntGeneratorFn& random_int_fn, const RoundSetup& se
  *
  * @param random_int_fn Random number source for food placement
  * @param state Current world
- * @param released Orders to try to activate, at most one per player, tried in the given order
- * @return Tuple of (world after the step, activation outcomes, events of the step in order)
+ * @param released Orders to try to activate, at most one per player
+ * @return Tuple of (world after the step, activation outcomes in the order of released, events of the step in
+ *         order)
  */
 std::tuple<State, std::vector<ActivationOutcome>, ArenaEvents> tick(const RandomIntGeneratorFn& random_int_fn,
                                                                     State state,
