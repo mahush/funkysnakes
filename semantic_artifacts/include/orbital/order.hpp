@@ -26,7 +26,7 @@ namespace orbital {
  */
 struct Order {
   RoundId round;
-  OrderId id;
+  OrderNumber id;
   PlayerId player;
   Point target;
 
@@ -49,10 +49,10 @@ struct Order {
  */
 struct OrderSubmitted {
   RoundId round;
-  OrderId order;
+  OrderNumber order;
   PlayerId player;
   StepId submitted_at;
-  std::optional<OrderId> replaced;
+  std::optional<OrderNumber> replaced;
 
   bool operator==(const OrderSubmitted& other) const noexcept {
     return round == other.round && order == other.order && player == other.player &&
@@ -69,11 +69,11 @@ struct OrderSubmitted {
  */
 struct OrderTransmitted {
   RoundId round;
-  OrderId order;
+  OrderNumber order;
   PlayerId player;
   StepId submitted_at;
   StepId transmitted_at;
-  std::optional<OrderId> replaced;
+  std::optional<OrderNumber> replaced;
 
   bool operator==(const OrderTransmitted& other) const noexcept {
     return round == other.round && order == other.order && player == other.player &&
@@ -91,9 +91,9 @@ struct OrderTransmitted {
  * `replaced` names the player's order that was executing until now and is interrupted by this one.
  */
 struct OrderActivated {
-  OrderId order;
+  OrderNumber order;
   PlayerId player;
-  std::optional<OrderId> replaced;
+  std::optional<OrderNumber> replaced;
   std::vector<Direction> route;
 
   bool operator==(const OrderActivated& other) const noexcept {
@@ -114,7 +114,7 @@ enum class RejectionReason {
  * @brief The order was not activated; whatever was executing keeps executing
  */
 struct OrderRejected {
-  OrderId order;
+  OrderNumber order;
   PlayerId player;
   RejectionReason reason;
 
@@ -145,10 +145,10 @@ enum class EndReason {
  * `replacement` names the player's interrupting order for INTERRUPTED.
  */
 struct OrderEnded {
-  OrderId order;
+  OrderNumber order;
   PlayerId player;
   EndReason reason;
-  std::optional<OrderId> replacement;
+  std::optional<OrderNumber> replacement;
 
   bool operator==(const OrderEnded& other) const noexcept {
     return order == other.order && player == other.player && reason == other.reason && replacement == other.replacement;

@@ -24,10 +24,10 @@ using scoring_policy::Settlement;
 
 TEST(OrbitalScoringPolicy, HoldsFoodCollectedDuringOrder) {
   // When: the effects of food collected during order 1 are decided
-  std::vector<PointEffect> effects = scoring_policy::effectsOf(FoodCollected{PLAYER_A, Point{1, 1}, OrderId{1}});
+  std::vector<PointEffect> effects = scoring_policy::effectsOf(FoodCollected{PLAYER_A, Point{1, 1}, OrderNumber{1}});
 
   // Then: ten points are held for the order
-  EXPECT_EQ(effects, (std::vector<PointEffect>{Hold{OrderId{1}, PLAYER_A, 10}}));
+  EXPECT_EQ(effects, (std::vector<PointEffect>{Hold{OrderNumber{1}, PLAYER_A, 10}}));
 }
 
 TEST(OrbitalScoringPolicy, BanksFoodCollectedWithoutOrderAtOnce) {
@@ -70,7 +70,7 @@ TEST(OrbitalScoringPolicy, DeductsTenBankedPointsFromBothInMutualBite) {
 TEST(OrbitalScoringPolicy, LeavesOrderEndingWithoutPointEffect) {
   // When: the effects of an order ending are decided
   std::vector<PointEffect> effects =
-      scoring_policy::effectsOf(OrderEnded{OrderId{1}, PLAYER_A, EndReason::COMPLETED, std::nullopt});
+      scoring_policy::effectsOf(OrderEnded{OrderNumber{1}, PLAYER_A, EndReason::COMPLETED, std::nullopt});
 
   // Then: there are none
   EXPECT_TRUE(effects.empty());

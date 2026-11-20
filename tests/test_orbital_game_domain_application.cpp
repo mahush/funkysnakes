@@ -39,7 +39,7 @@ using game_boundary::SubmissionRejectionReason;
 using game_boundary::Views;
 using order_authority::Status;
 
-Status statusOf(const Views& views, const PlayerId& player, OrderId id) {
+Status statusOf(const Views& views, const PlayerId& player, OrderNumber id) {
   for (const order_authority::OrderRecord& record : views.orders.orders) {
     if (record.order.player == player && record.order.id == id) {
       return record.status;
@@ -132,14 +132,16 @@ class OrbitalGameDomainApplication : public ::testing::Test {
   /**
    * @brief Submit an order that is expected to be accepted
    *
-   * @return Identity of the selected order
+   * @return Number of the selected order
    */
-  OrderId submit(const PlayerId& player, Point target) {
+  OrderNumber submit(const PlayerId& player, Point target) {
     game_.submit(app::Submit{player, target});
     return std::get<SubmissionAccepted>(players_.submissions.back()).order;
   }
 
-  Status statusOf(const PlayerId& player, OrderId id) const { return orbital::statusOf(*players_.views, player, id); }
+  Status statusOf(const PlayerId& player, OrderNumber id) const {
+    return orbital::statusOf(*players_.views, player, id);
+  }
 
   const game_authority::PlayerScore& scoreOf(const PlayerId& player) const {
     return players_.views->game.players.at(player);
@@ -191,7 +193,7 @@ TEST_F(OrbitalGameDomainApplication, RejectsStartWhileGameIsRunning) {
   // Given: 1300 ms into a game, A's order is selected, and only what follows is observed
   start(makeLanes({}));
   elapse(1300);
-  OrderId order = submit(PLAYER_A, Point{3, 3});
+  OrderNumber order = submit(PLAYER_A, Point{3, 3});
   players_.clear();
 
   // When: a game is started again
@@ -226,7 +228,7 @@ TEST_F(OrbitalGameDomainApplication, RejectsStartAfterConclusion) {
 TEST_F(OrbitalGameDomainApplication, BanksPointsOfOrderThatCompletes) {
   // Given: F to (10,2) activates at 400 ms and collects food at (5,2) and (7,2)
   start(makeLanes({Point{5, 2}, Point{7, 2}}));
-  OrderId f = submit(PLAYER_A, Point{10, 2});
+  OrderNumber f = submit(PLAYER_A, Point{10, 2});
 
   // When: time passes until F has arrived at 1600 ms
   elapse(1600);
@@ -243,9 +245,9 @@ TEST_F(OrbitalGameDomainApplication, LosesPointsOfOrderInterruptedByReplacement)
   // Given: F to (2,5), around the wrapping row 2, collected food at (5,2) and (7,2); G is submitted at 1000 ms
   //        (transmitted at 4200 ms)
   start(makeLanes({Point{5, 2}, Point{7, 2}}));
-  OrderId f = submit(PLAYER_A, Point{2, 5});
+  OrderNumber f = submit(PLAYER_A, Point{2, 5});
   elapse(1000);
-  OrderId g = submit(PLAYER_A, Point{10, 6});
+  OrderNumber g = submit(PLAYER_A, Point{10, 6});
 
   // When: time passes until G has activated at 4400 ms, before F could arrive at 4600 ms
   elapse(3400);
@@ -262,11 +264,11 @@ TEST_F(OrbitalGameDomainApplication, LosesPointsOfOrderInterruptedByReplacement)
 TEST_F(OrbitalGameDomainApplication, KeepsHeldPointsWhenReplacementIsOnlySubmitted) {
   // Given: F to (10,2) collected food at (5,2) and (7,2)
   start(makeLanes({Point{5, 2}, Point{7, 2}}));
-  OrderId f = submit(PLAYER_A, Point{10, 2});
+  OrderNumber f = submit(PLAYER_A, Point{10, 2});
   elapse(1000);
 
   // When: G is submitted
-  OrderId g = submit(PLAYER_A, Point{10, 6});
+  OrderNumber g = submit(PLAYER_A, Point{10, 6});
 
   // Then: F still holds its 20 points and G waits for a transmission
   EXPECT_EQ(scoreOf(PLAYER_A).held, 20);
@@ -284,9 +286,9 @@ TEST_F(OrbitalGameDomainApplication, KeepsHeldPointsWhenReplacementIsOnlySubmitt
 TEST_F(OrbitalGameDomainApplication, AwardsHandoverBonusWhenSuccessorSubmittedBeforeCompletionCompletes) {
   // Given: F collects food at (5,2) and (7,2); G is submitted at 3000 ms
   start(makeLanes({Point{5, 2}, Point{7, 2}}));
-  OrderId f = submit(PLAYER_A, Point{19, 2});
+  OrderNumber f = submit(PLAYER_A, Point{19, 2});
   elapse(3000);
-  OrderId g = submit(PLAYER_A, Point{4, 6});
+  OrderNumber g = submit(PLAYER_A, Point{4, 6});
 
   // When: time passes until G has completed at 5200 ms
   elapse(2200);
@@ -305,7 +307,7 @@ TEST_F(OrbitalGameDomainApplication, ReportsHandoverWithStepOfSuccessorTakeover)
   start(makeLanes({Point{5, 2}, Point{7, 2}}));
   submit(PLAYER_A, Point{19, 2});
   elapse(3000);
-  OrderId g = submit(PLAYER_A, Point{4, 6});
+  OrderNumber g = submit(PLAYER_A, Point{4, 6});
 
   // When: time passes until G took over in step 22, at 4400 ms
   elapse(1400);
@@ -322,7 +324,7 @@ TEST_F(OrbitalGameDomainApplication, HoldsHandoverBonusWhileSuccessorExecutes) {
   start(makeLanes({}));
   submit(PLAYER_A, Point{19, 2});
   elapse(3000);
-  OrderId g = submit(PLAYER_A, Point{4, 6});
+  OrderNumber g = submit(PLAYER_A, Point{4, 6});
 
   // When: time passes until G has activated at 4400 ms
   elapse(1400);
@@ -342,7 +344,7 @@ TEST_F(OrbitalGameDomainApplication, DoublesHandoverBonusForConsecutiveHandover)
   elapse(3000);
   submit(PLAYER_A, Point{4, 6});
   elapse(1600);
-  OrderId h = submit(PLAYER_A, Point{4, 5});
+  OrderNumber h = submit(PLAYER_A, Point{4, 5});
 
   // When: time passes until H has completed
   elapse(5400);
@@ -360,9 +362,9 @@ TEST_F(OrbitalGameDomainApplication, AwardsHandoverToSuccessorSubmittedAfterComp
   start(makeLanes({}));
   submit(PLAYER_A, Point{19, 2});
   elapse(3000);
-  OrderId g = submit(PLAYER_A, Point{4, 6});
+  OrderNumber g = submit(PLAYER_A, Point{4, 6});
   elapse(2200);
-  OrderId h = submit(PLAYER_A, Point{4, 5});
+  OrderNumber h = submit(PLAYER_A, Point{4, 5});
 
   // When: time passes until H has completed
   elapse(4800);
@@ -381,9 +383,9 @@ TEST_F(OrbitalGameDomainApplication, BreaksChainWhenSuccessorMissesOpportunityAf
   start(makeLanes({}));
   submit(PLAYER_A, Point{19, 2});
   elapse(3000);
-  OrderId g = submit(PLAYER_A, Point{4, 6});
+  OrderNumber g = submit(PLAYER_A, Point{4, 6});
   elapse(5000);
-  OrderId h = submit(PLAYER_A, Point{4, 5});
+  OrderNumber h = submit(PLAYER_A, Point{4, 5});
 
   // When: time passes until H has completed at 13000 ms
   elapse(5200);
@@ -403,9 +405,9 @@ TEST_F(OrbitalGameDomainApplication, BreaksChainWhenSuccessorActivatesFirst) {
   start(makeLanes({Point{5, 2}, Point{7, 2}}));
   submit(PLAYER_A, Point{19, 2});
   elapse(3000);
-  OrderId g = submit(PLAYER_A, Point{2, 5});
+  OrderNumber g = submit(PLAYER_A, Point{2, 5});
   elapse(1600);
-  OrderId h = submit(PLAYER_A, Point{3, 6});
+  OrderNumber h = submit(PLAYER_A, Point{3, 6});
 
   // When: time passes until H has activated at 8200 ms, before G could arrive
   elapse(3600);
@@ -424,9 +426,9 @@ TEST_F(OrbitalGameDomainApplication, DeniesHandoverButBanksPointsWhenSelectedSuc
   start(makeLanes({Point{5, 2}, Point{7, 2}}));
   submit(PLAYER_A, Point{19, 2});
   elapse(3000);
-  OrderId g = submit(PLAYER_A, Point{4, 8});
+  OrderNumber g = submit(PLAYER_A, Point{4, 8});
   elapse(100);
-  OrderId replacement = submit(PLAYER_A, Point{4, 6});
+  OrderNumber replacement = submit(PLAYER_A, Point{4, 6});
 
   // When: time passes until G' has completed at 5200 ms
   elapse(2100);
@@ -445,9 +447,9 @@ TEST_F(OrbitalGameDomainApplication, AwardsHandoverPastRejectedOrder) {
   start(makeLanes({}));
   submit(PLAYER_A, Point{2, 5});
   elapse(600);
-  OrderId g = submit(PLAYER_A, Point{25, 2});
+  OrderNumber g = submit(PLAYER_A, Point{25, 2});
   elapse(3800);
-  OrderId h = submit(PLAYER_A, Point{2, 6});
+  OrderNumber h = submit(PLAYER_A, Point{2, 6});
 
   // When: time passes until H, transmitted at 8000 ms, has completed
   elapse(6000);
@@ -464,7 +466,7 @@ TEST_F(OrbitalGameDomainApplication, AwardsHandoverPastRejectedOrder) {
 TEST_F(OrbitalGameDomainApplication, TransmitsSelectedOrderAtOpportunity) {
   // Given: G is submitted at 0 ms
   start(makeLanes({}));
-  OrderId g = submit(PLAYER_A, Point{10, 6});
+  OrderNumber g = submit(PLAYER_A, Point{10, 6});
 
   // When: the step at 200 ms, an opportunity, runs
   elapse(200);
@@ -480,7 +482,7 @@ TEST_F(OrbitalGameDomainApplication, TransmitsSelectedOrderAtOpportunity) {
 TEST_F(OrbitalGameDomainApplication, ActivatesTransmittedOrderAtNextStep) {
   // Given: G was transmitted at 200 ms
   start(makeLanes({}));
-  OrderId g = submit(PLAYER_A, Point{10, 6});
+  OrderNumber g = submit(PLAYER_A, Point{10, 6});
   elapse(200);
 
   // When: the step at 400 ms runs
@@ -496,7 +498,7 @@ TEST_F(OrbitalGameDomainApplication, KeepsOrderSelectedUntilNextOpportunity) {
   // Given: the step at 200 ms was an opportunity, and the next one comes at 4200 ms; G is submitted at 200 ms
   start(makeLanes({}));
   elapse(200);
-  OrderId g = submit(PLAYER_A, Point{10, 6});
+  OrderNumber g = submit(PLAYER_A, Point{10, 6});
 
   // When: time passes until just before the next opportunity
   elapse(3800);
@@ -509,9 +511,9 @@ TEST_F(OrbitalGameDomainApplication, KeepsOrderSelectedUntilNextOpportunity) {
 TEST_F(OrbitalGameDomainApplication, TransmitsOnlyLatestSelection) {
   // Given: G and then H were submitted before the opportunity at 200 ms
   start(makeLanes({}));
-  OrderId g = submit(PLAYER_A, Point{10, 6});
+  OrderNumber g = submit(PLAYER_A, Point{10, 6});
   elapse(100);
-  OrderId h = submit(PLAYER_A, Point{12, 2});
+  OrderNumber h = submit(PLAYER_A, Point{12, 2});
 
   // When: the step at 200 ms runs
   elapse(100);
@@ -525,9 +527,9 @@ TEST_F(OrbitalGameDomainApplication, TransmitsOnlyLatestSelection) {
 TEST_F(OrbitalGameDomainApplication, ActivatesTransmittedOrderDespiteLaterSubmission) {
   // Given: G was transmitted at 200 ms, and H is submitted at 200 ms
   start(makeLanes({}));
-  OrderId g = submit(PLAYER_A, Point{10, 6});
+  OrderNumber g = submit(PLAYER_A, Point{10, 6});
   elapse(200);
-  OrderId h = submit(PLAYER_A, Point{12, 2});
+  OrderNumber h = submit(PLAYER_A, Point{12, 2});
 
   // When: time passes until the next opportunity at 4200 ms
   elapse(4000);
@@ -542,9 +544,9 @@ TEST_F(OrbitalGameDomainApplication, ActivatesTransmittedOrderDespiteLaterSubmis
 TEST_F(OrbitalGameDomainApplication, KeepsExecutingOrderAndItsPointsWhenReplacementIsRejected) {
   // Given: F to (2,5) collected food at (5,2), and G with a target outside the board was submitted at 600 ms
   start(makeLanes({Point{5, 2}}));
-  OrderId f = submit(PLAYER_A, Point{2, 5});
+  OrderNumber f = submit(PLAYER_A, Point{2, 5});
   elapse(600);
-  OrderId g = submit(PLAYER_A, Point{25, 2});
+  OrderNumber g = submit(PLAYER_A, Point{25, 2});
 
   // When: time passes until G, transmitted at 4200 ms, was evaluated at 4400 ms
   elapse(3800);
@@ -563,7 +565,7 @@ TEST_F(OrbitalGameDomainApplication, CompletesPositionalOrderAfterOpponentTookTh
   RoundSetup setup = makeLanes({Point{8, 2}});
   setup.layout.snakes.at(PLAYER_B) = SnakeSetup{Point{8, 1}, Direction::DOWN, 2};
   start(setup);
-  OrderId order = submit(PLAYER_A, Point{8, 2});
+  OrderNumber order = submit(PLAYER_A, Point{8, 2});
 
   // When: A's snake arrives at (8,2)
   elapse(1200);
@@ -581,7 +583,7 @@ TEST_F(OrbitalGameDomainApplication, BanksCompletionOnFinalStepBeforeConclusion)
   // Given: at 118400 ms A heads right in row 2; an order to (19,5) collects food at (19,3) and arrives at 120000 ms
   start(makeLanes({Point{19, 3}}));
   elapse(118400);
-  OrderId order = submit(PLAYER_A, Point{19, 5});
+  OrderNumber order = submit(PLAYER_A, Point{19, 5});
 
   // When: the remaining time of the game passes
   elapse(1600);
@@ -615,9 +617,9 @@ TEST_F(OrbitalGameDomainApplication, EndsExecutingAndCancelsWaitingOrdersAtConcl
   //        that concludes the game
   start(makeLanes({}));
   elapse(118000);
-  OrderId f = submit(PLAYER_A, Point{12, 6});
+  OrderNumber f = submit(PLAYER_A, Point{12, 6});
   elapse(1800);
-  OrderId g = submit(PLAYER_A, Point{3, 3});
+  OrderNumber g = submit(PLAYER_A, Point{3, 3});
 
   // When: the game ends
   elapse(200);

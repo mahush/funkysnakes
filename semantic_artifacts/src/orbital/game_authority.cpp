@@ -17,7 +17,7 @@ namespace game_authority {
 namespace {
 
 // An ended order's held points are banked or dropped as the Scoring Policy decides for its end reason
-Scores settleOrder(Scores scores, const PlayerId& player, OrderId order, EndReason reason) {
+Scores settleOrder(Scores scores, const PlayerId& player, OrderNumber order, EndReason reason) {
   auto player_held = scores.held.find(player);
   if (player_held == scores.held.end()) {
     return scores;
@@ -57,7 +57,7 @@ Scores scoreEvents(Scores scores, const ArenaEvents& events) {
 
 // Conclusion ends the round: every order still holding points ends with it
 Scores settleAtConclusion(Scores scores) {
-  std::vector<std::pair<PlayerId, OrderId>> executing;
+  std::vector<std::pair<PlayerId, OrderNumber>> executing;
   for (const auto& [player, player_held] : scores.held) {
     for (const auto& [order, points] : player_held) {
       executing.emplace_back(player, order);
@@ -107,20 +107,20 @@ bool handsOver(const OrderTransmitted& successor, const std::optional<Execution>
 Chain deriveChain(const PlayerId& player,
                   const std::vector<OrderTransmitted>& transmitted,
                   const std::vector<ObservedStep>& steps) {
-  std::map<OrderId, OrderTransmitted> transmissions;
+  std::map<OrderNumber, OrderTransmitted> transmissions;
   for (const OrderTransmitted& transmission : transmitted) {
     transmissions.emplace(transmission.order, transmission);
   }
   // The chain follows the player's orders whose transmission is known
-  auto isKnownOrderOfPlayer = [&transmissions, &player](const PlayerId& order_player, OrderId order) {
+  auto isKnownOrderOfPlayer = [&transmissions, &player](const PlayerId& order_player, OrderNumber order) {
     return order_player == player && transmissions.count(order) > 0;
   };
 
   Chain chain;
-  std::map<OrderId, int> held_bonuses;  // Handover bonus held per handing over order until it ends
-  std::map<OrderId, Execution> executions;
-  std::optional<OrderId> executed_last;                      // The player's order that executed most recently
-  std::map<OrderId, std::optional<Execution>> predecessors;  // Predecessor of each order when it activated
+  std::map<OrderNumber, int> held_bonuses;  // Handover bonus held per handing over order until it ends
+  std::map<OrderNumber, Execution> executions;
+  std::optional<OrderNumber> executed_last;                      // The player's order that executed most recently
+  std::map<OrderNumber, std::optional<Execution>> predecessors;  // Predecessor of each order when it activated
   for (const ObservedStep& step : steps) {
     for (const ActivationOutcome& outcome : step.activations) {
       const auto* activated = std::get_if<OrderActivated>(&outcome);

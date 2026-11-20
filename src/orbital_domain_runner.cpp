@@ -40,10 +40,10 @@ arena_authority::RoundSetup makeBoard() {
 
 std::string point(Point p) { return "(" + std::to_string(p.x) + "," + std::to_string(p.y) + ")"; }
 
-// Name of each submitted order by its player and identity, for the trace
-using OrderNames = std::map<std::pair<PlayerId, OrderId>, std::string>;
+// Name of each submitted order by its player and number, for the trace
+using OrderNames = std::map<std::pair<PlayerId, OrderNumber>, std::string>;
 
-std::string order(const OrderNames& names, const PlayerId& player, OrderId id) {
+std::string order(const OrderNames& names, const PlayerId& player, OrderNumber id) {
   auto it = names.find({player, id});
   return it != names.end() ? it->second : player + " #" + std::to_string(id.value);
 }

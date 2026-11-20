@@ -31,7 +31,7 @@ namespace orbital {
 struct FoodCollected {
   PlayerId player;
   Point position;
-  std::optional<OrderId> during;
+  std::optional<OrderNumber> during;
 
   bool operator==(const FoodCollected& other) const noexcept {
     return player == other.player && position == other.position && during == other.during;

@@ -61,7 +61,7 @@ std::tuple<ActiveOrders, ActivationOutcome, ArenaEvents> tryActivate(ActiveOrder
       pursuit_policy::planRoute(snake_model::head(snake), snake_model::currentDirection(snake), order.target, board);
 
   ArenaEvents events;
-  std::optional<OrderId> replaced;
+  std::optional<OrderNumber> replaced;
   auto executing = active.find(order.player);
   if (executing != active.end()) {
     replaced = executing->second.id;
@@ -142,8 +142,8 @@ std::tuple<FoodItems, ArenaEvents> collectFood(FoodItems food,
   for (const FoodEaten& eaten : eating_events) {
     const PlayerId& player = eaten.player;
     auto executing = active.find(player);
-    std::optional<OrderId> during =
-        executing != active.end() ? std::optional<OrderId>{executing->second.id} : std::nullopt;
+    std::optional<OrderNumber> during =
+        executing != active.end() ? std::optional<OrderNumber>{executing->second.id} : std::nullopt;
     events.push_back(FoodCollected{player, snake_model::head(snakes.at(player)), during});
   }
   return {std::move(new_food), std::move(events)};

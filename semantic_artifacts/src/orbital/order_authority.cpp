@@ -10,9 +10,9 @@ namespace order_authority {
 
 namespace {
 
-using Orders = std::map<PlayerId, std::map<OrderId, OrderRecord>>;
-using SelectedOrders = std::map<PlayerId, OrderId>;
-using TransmittedOrders = std::map<PlayerId, std::set<OrderId>>;
+using Orders = std::map<PlayerId, std::map<OrderNumber, OrderRecord>>;
+using SelectedOrders = std::map<PlayerId, OrderNumber>;
+using TransmittedOrders = std::map<PlayerId, std::set<OrderNumber>>;
 
 Status statusAfterEnding(EndReason reason) {
   switch (reason) {
@@ -29,7 +29,7 @@ Status statusAfterEnding(EndReason reason) {
 }
 
 // Drops the player's selected entry if it is this order; a newer selected order of the player is kept
-SelectedOrders dropSelectedOrder(SelectedOrders selected, const PlayerId& player, OrderId order) {
+SelectedOrders dropSelectedOrder(SelectedOrders selected, const PlayerId& player, OrderNumber order) {
   auto it = selected.find(player);
   if (it != selected.end() && it->second == order) {
     selected.erase(it);
@@ -37,12 +37,12 @@ SelectedOrders dropSelectedOrder(SelectedOrders selected, const PlayerId& player
   return selected;
 }
 
-bool isKnown(const Orders& orders, const PlayerId& player, OrderId order) {
+bool isKnown(const Orders& orders, const PlayerId& player, OrderNumber order) {
   auto player_orders = orders.find(player);
   return player_orders != orders.end() && player_orders->second.count(order) > 0;
 }
 
-TransmittedOrders dropTransmittedOrder(TransmittedOrders transmitted, const PlayerId& player, OrderId order) {
+TransmittedOrders dropTransmittedOrder(TransmittedOrders transmitted, const PlayerId& player, OrderNumber order) {
   auto player_transmitted = transmitted.find(player);
   if (player_transmitted != transmitted.end()) {
     player_transmitted->second.erase(order);
@@ -113,10 +113,10 @@ State startRound(RoundId round) {
 }
 
 std::tuple<State, OrderSubmitted> submit(State state, const Submission& submission) {
-  const OrderId id{++state.submitted_count_[submission.player]};
-  std::map<OrderId, OrderRecord>& player_orders = state.orders_[submission.player];
+  const OrderNumber id{++state.submitted_count_[submission.player]};
+  std::map<OrderNumber, OrderRecord>& player_orders = state.orders_[submission.player];
 
-  std::optional<OrderId> replaced;
+  std::optional<OrderNumber> replaced;
   auto selected = state.selected_.find(submission.player);
   if (selected != state.selected_.end()) {
     player_orders.at(selected->second).status = Status::REPLACED;
@@ -133,7 +133,7 @@ std::tuple<State, OrderSubmitted> submit(State state, const Submission& submissi
 
 std::tuple<State, std::vector<OrderTransmitted>> transmit(State state, StepId at) {
   std::vector<OrderTransmitted> transmissions;
-  std::map<PlayerId, OrderId> still_selected;
+  std::map<PlayerId, OrderNumber> still_selected;
   for (const auto& [player, id] : state.selected_) {
     OrderRecord& record = state.orders_.at(player).at(id);
     // An order waits for the opportunity of its submission (Transmission Schedule Policy)
@@ -153,7 +153,7 @@ std::tuple<State, std::vector<OrderTransmitted>> transmit(State state, StepId at
 std::vector<Order> transmittedOrders(const State& state, StepId at) {
   std::vector<Order> result;
   for (const auto& [player, transmitted] : state.transmitted_) {
-    for (OrderId id : transmitted) {
+    for (OrderNumber id : transmitted) {
       const OrderRecord& record = state.orders_.at(player).at(id);
       if (record.transmitted_at &&
           transmission_schedule_policy::firstStepAfterTransmission(*record.transmitted_at) <= at) {
@@ -185,7 +185,7 @@ State cancel(State state) {
     state.orders_.at(player).at(id).status = Status::CANCELLED;
   }
   for (const auto& [player, transmitted] : state.transmitted_) {
-    for (OrderId id : transmitted) {
+    for (OrderNumber id : transmitted) {
       state.orders_.at(player).at(id).status = Status::CANCELLED;
     }
   }
@@ -206,7 +206,7 @@ View view(const State& state) {
     }
   }
   for (const auto& [player, transmitted] : state.transmitted_) {
-    for (OrderId id : transmitted) {
+    for (OrderNumber id : transmitted) {
       result.players[player].transmitted = state.orders_.at(player).at(id);
     }
   }

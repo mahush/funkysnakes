@@ -18,7 +18,7 @@ using order_authority::Submission;
 constexpr RoundId ROUND{1};
 
 // Status of one order of a player as projected by the Authority's view
-Status statusOf(const order_authority::State& state, const PlayerId& player, OrderId id) {
+Status statusOf(const order_authority::State& state, const PlayerId& player, OrderNumber id) {
   for (const order_authority::OrderRecord& record : order_authority::view(state).orders) {
     if (record.order.player == player && record.order.id == id) {
       return record.status;
@@ -28,8 +28,9 @@ Status statusOf(const order_authority::State& state, const PlayerId& player, Ord
   return Status::SELECTED;
 }
 
-// Select a submission and keep only the new order's identity
-std::tuple<order_authority::State, OrderId> submitOrder(order_authority::State state, const Submission& submission) {
+// Select a submission and keep only the new order's number
+std::tuple<order_authority::State, OrderNumber> submitOrder(order_authority::State state,
+                                                            const Submission& submission) {
   auto [next, submitted] = order_authority::submit(std::move(state), submission);
   return {std::move(next), submitted.order};
 }
@@ -40,13 +41,13 @@ order_authority::State transmitAt(order_authority::State state, StepId at) {
 }
 
 // An order of player A that was submitted in step 0 and transmitted in step 1
-std::tuple<order_authority::State, OrderId> transmittedOrder() {
+std::tuple<order_authority::State, OrderNumber> transmittedOrder() {
   auto [state, id] = submitOrder(order_authority::startRound(ROUND), Submission{PLAYER_A, Point{3, 4}, StepId{0}});
   return {transmitAt(std::move(state), StepId{1}), id};
 }
 
 // An order of player A that the Arena Authority activated after its transmission
-std::tuple<order_authority::State, OrderId> executingOrder() {
+std::tuple<order_authority::State, OrderNumber> executingOrder() {
   auto [state, id] = transmittedOrder();
   return {order_authority::observe(std::move(state), {OrderActivated{id, PLAYER_A, std::nullopt, {}}}, {}), id};
 }
@@ -55,14 +56,14 @@ std::tuple<order_authority::State, OrderId> executingOrder() {
 
 /// @section order_authority::submit
 
-TEST(OrderAuthority, AssignsNewIdentityToEachSubmission) {
+TEST(OrderAuthority, AssignsNewNumberToEachSubmission) {
   // Given: an order was submitted
   auto [state, first] = submitOrder(order_authority::startRound(ROUND), Submission{PLAYER_A, Point{3, 4}, StepId{0}});
 
   // When: the same player submits again
   auto [next_state, second] = submitOrder(state, Submission{PLAYER_A, Point{3, 4}, StepId{0}});
 
-  // Then: the second order has its own identity
+  // Then: the second order has its own number
   EXPECT_NE(first, second);
 }
 
@@ -76,9 +77,9 @@ TEST(OrderAuthority, NumbersOrdersPerPlayer) {
   auto [state, b1] = submitOrder(with_a2, Submission{PLAYER_B, Point{8, 1}, StepId{0}});
 
   // Then: each player's orders are numbered from 1
-  EXPECT_EQ(a1, OrderId{1});
-  EXPECT_EQ(a2, OrderId{2});
-  EXPECT_EQ(b1, OrderId{1});
+  EXPECT_EQ(a1, OrderNumber{1});
+  EXPECT_EQ(a2, OrderNumber{2});
+  EXPECT_EQ(b1, OrderNumber{1});
 }
 
 TEST(OrderAuthority, SelectsSubmittedOrder) {
@@ -321,8 +322,8 @@ TEST(OrderAuthority, IgnoresOutcomesOfUnknownOrders) {
   // When: the Arena Authority reports outcomes for an order this round never issued
   order_authority::State observed =
       order_authority::observe(state,
-                               {OrderActivated{OrderId{42}, PLAYER_A, std::nullopt, {}}},
-                               {OrderEnded{OrderId{42}, PLAYER_A, EndReason::COMPLETED, std::nullopt}});
+                               {OrderActivated{OrderNumber{42}, PLAYER_A, std::nullopt, {}}},
+                               {OrderEnded{OrderNumber{42}, PLAYER_A, EndReason::COMPLETED, std::nullopt}});
 
   // Then: nothing changes
   EXPECT_EQ(order_authority::view(observed).orders.size(), 1U);
@@ -445,7 +446,7 @@ TEST_P(OrderAuthorityWorldEvent, KeepsOrderStatusOnWorldEvent) {
 
 INSTANTIATE_TEST_SUITE_P(WorldEvents,
                          OrderAuthorityWorldEvent,
-                         ::testing::Values(ArenaEvent{FoodCollected{PLAYER_A, Point{3, 4}, OrderId{1}}},
+                         ::testing::Values(ArenaEvent{FoodCollected{PLAYER_A, Point{3, 4}, OrderNumber{1}}},
                                            ArenaEvent{Bitten{PLAYER_A, PLAYER_B}},
                                            ArenaEvent{SelfBitten{PLAYER_A}},
                                            ArenaEvent{MutualBite{PLAYER_A, PLAYER_B}}));

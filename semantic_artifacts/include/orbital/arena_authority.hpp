@@ -42,7 +42,7 @@ namespace arena_authority {
  * @brief The order a snake currently executes
  */
 struct ActiveOrder {
-  OrderId id;
+  OrderNumber id;
   Point target;
   std::vector<Direction> remaining_route;  // Moves still to take, one per step
 };

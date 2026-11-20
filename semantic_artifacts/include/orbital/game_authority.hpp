@@ -95,9 +95,9 @@ struct ObservedStep {
  */
 struct HandoverGranted {
   PlayerId player;
-  OrderId order;  // The successor that took over
-  int chain;      // Its position in the chain
-  int bonus;      // Bonus held for it until it ends
+  OrderNumber order;  // The successor that took over
+  int chain;          // Its position in the chain
+  int bonus;          // Bonus held for it until it ends
 
   bool operator==(const HandoverGranted& other) const noexcept {
     return player == other.player && order == other.order && chain == other.chain && bonus == other.bonus;
@@ -114,8 +114,8 @@ struct Chain {
   // Completion of the player's last executed order while no other order activated since and the snake
   // lives; a successor hands over from it only if transmitted at the first opportunity at or after it
   std::optional<StepId> open_completion;
-  std::optional<StepId> last_activation;         // Activation of the player's last executed order
-  std::map<OrderId, HandoverGranted> handovers;  // Every handover counted over the game, by successor
+  std::optional<StepId> last_activation;             // Activation of the player's last executed order
+  std::map<OrderNumber, HandoverGranted> handovers;  // Every handover counted over the game, by successor
 };
 
 /**
@@ -123,7 +123,7 @@ struct Chain {
  */
 struct Scores {
   PerPlayerScores banked;
-  std::map<PlayerId, std::map<OrderId, int>> held;  // Points held per player and executing order
+  std::map<PlayerId, std::map<OrderNumber, int>> held;  // Points held per player and executing order
 };
 
 struct View;

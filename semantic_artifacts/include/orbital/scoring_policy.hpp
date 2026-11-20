@@ -56,7 +56,7 @@ struct Bank {
  * @brief Points that count only once the order they are held for is banked
  */
 struct Hold {
-  OrderId order;
+  OrderNumber order;
   PlayerId player;
   int points;
 
