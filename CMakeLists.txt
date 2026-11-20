@@ -169,6 +169,9 @@ if(SNAKE_BUILD_TESTS)
     tests/test_orbital_late_transmission_policy.cpp
     tests/test_orbital_order_replica_authority.cpp
     semantic_artifacts/platform/src/orbital/order_replica_authority.cpp
+    tests/test_orbital_phone_composition.cpp
+    realizations/orbital_loopback/host_composition.cpp
+    realizations/orbital_loopback/phone_composition.cpp
     tests/test_orbital_admission_policy.cpp
     tests/test_orbital_pursuit_policy.cpp
     tests/test_orbital_order_authority.cpp
@@ -210,6 +213,7 @@ if(SNAKE_BUILD_TESTS)
     ${PROJECT_SOURCE_DIR}/include
     ${PROJECT_SOURCE_DIR}/semantic_artifacts/domain/include
     ${PROJECT_SOURCE_DIR}/semantic_artifacts/platform/include
+    ${PROJECT_SOURCE_DIR}/realizations
     ${PROJECT_SOURCE_DIR}/tests
   )
   target_compile_options(test_snake PRIVATE -Wall -Wextra -Wpedantic -Werror)
