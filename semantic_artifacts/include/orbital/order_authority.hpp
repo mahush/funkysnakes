@@ -204,7 +204,7 @@ State cancel(State state);
  * @param state Current order state
  * @param at Step the orders are handed to
  * @return Transmitted orders whose first step after transmission (Transmission Schedule Policy) is at or before at,
- *         by player, then by number
+ *         by player, then by number; the order across players is fixed for determinism and carries no meaning
  */
 std::vector<Order> transmittedOrders(const State& state, StepId at);
 
@@ -222,7 +222,8 @@ struct PlayerOrders {
  */
 struct View {
   std::map<PlayerId, PlayerOrders> players;  // Every player who submitted an order this round
-  std::vector<OrderRecord> orders;           // All orders of the round, by player, then by number
+  std::vector<OrderRecord> orders;           // All orders of the round, by player, then by number; the order
+                                             // across players carries no meaning
 };
 
 /**
