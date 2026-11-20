@@ -166,6 +166,7 @@ if(SNAKE_BUILD_TESTS)
     tests/test_difficulty_policy.cpp
     tests/test_orbital_transmission_schedule_policy.cpp
     tests/test_orbital_order_resolution_policy.cpp
+    tests/test_orbital_late_transmission_policy.cpp
     tests/test_orbital_admission_policy.cpp
     tests/test_orbital_pursuit_policy.cpp
     tests/test_orbital_order_authority.cpp
@@ -206,6 +207,7 @@ if(SNAKE_BUILD_TESTS)
   target_include_directories(test_snake PRIVATE
     ${PROJECT_SOURCE_DIR}/include
     ${PROJECT_SOURCE_DIR}/semantic_artifacts/domain/include
+    ${PROJECT_SOURCE_DIR}/semantic_artifacts/platform/include
     ${PROJECT_SOURCE_DIR}/tests
   )
   target_compile_options(test_snake PRIVATE -Wall -Wextra -Wpedantic -Werror)
@@ -215,4 +217,4 @@ if(SNAKE_BUILD_TESTS)
 endif()
 
 # Install target (optional)
-install(DIRECTORY include/ semantic_artifacts/domain/include/ DESTINATION include)
+install(DIRECTORY include/ semantic_artifacts/domain/include/ semantic_artifacts/platform/include/ DESTINATION include)
