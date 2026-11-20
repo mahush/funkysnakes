@@ -167,6 +167,8 @@ if(SNAKE_BUILD_TESTS)
     tests/test_orbital_transmission_schedule_policy.cpp
     tests/test_orbital_order_resolution_policy.cpp
     tests/test_orbital_late_transmission_policy.cpp
+    tests/test_orbital_order_replica_authority.cpp
+    semantic_artifacts/platform/src/orbital/order_replica_authority.cpp
     tests/test_orbital_admission_policy.cpp
     tests/test_orbital_pursuit_policy.cpp
     tests/test_orbital_order_authority.cpp
