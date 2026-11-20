@@ -167,6 +167,26 @@ TEST(OrbitalGameAuthority, KeepsHeldPointsOnCollisionPenalty) {
   EXPECT_EQ(view.players.at(PLAYER_B).held, 10);
 }
 
+/// @brief Players number their orders independently, so equal numbers of two players hold their points apart
+TEST(OrbitalGameAuthority, SettlesHeldPointsOfEachPlayersOrderApart) {
+  // Given: A's order 1 and B's order 1 each hold 10 points
+  State state =
+      step(runningGame(),
+           1,
+           {},
+           {FoodCollected{PLAYER_A, Point{1, 1}, OrderId{1}}, FoodCollected{PLAYER_B, Point{2, 2}, OrderId{1}}});
+
+  // When: A's order 1 completes
+  State banked = step(state, 2, {}, {completed(1)});
+
+  // Then: A banked its 10 points and B's order 1 still holds its own
+  game_authority::View view = game_authority::view(banked);
+  EXPECT_EQ(view.players.at(PLAYER_A).banked, 10);
+  EXPECT_EQ(view.players.at(PLAYER_A).held, 0);
+  EXPECT_EQ(view.players.at(PLAYER_B).banked, 0);
+  EXPECT_EQ(view.players.at(PLAYER_B).held, 10);
+}
+
 TEST(OrbitalGameAuthority, CountsDownRemainingSteps) {
   // When: step 150 is observed
   auto [state, state_handovers, concluded] =
@@ -648,6 +668,22 @@ TEST(OrbitalGameAuthority, ReportsHandoverWhenSuccessorTakesOver) {
 
   // Then: the first handover of the chain is reported with its bonus
   EXPECT_EQ(handovers, (std::vector<game_authority::HandoverGranted>{{PLAYER_A, OrderId{2}, 1, 10}}));
+}
+
+/// @brief A player's chain follows only that player's orders, also where another player's order has the same number
+TEST(OrbitalGameAuthority, ReportsNoHandoverForOtherPlayersOrderWithSameNumber) {
+  // Given: 1 executed from step 2 and completed in step 15; successor 2, submitted in step 10, was sent in step 21
+  State state = std::get<0>(game_authority::observeTransmission(runningGame(), transmittedByA(1, 0, 1)));
+  state = step(std::move(state), 2, {activated(1)}, {});
+  state = std::get<0>(game_authority::observeTransmission(std::move(state), transmittedByA(2, 10, 21)));
+  state = step(std::move(state), 15, {}, {completed(1)});
+
+  // When: B's order 2 activates in step 22
+  auto [observed, handovers, concluded] = game_authority::observeStep(
+      std::move(state), StepId{22}, {OrderActivated{OrderId{2}, PLAYER_B, std::nullopt, {}}}, {}, BOTH_ALIVE);
+
+  // Then: no handover is reported
+  EXPECT_TRUE(handovers.empty());
 }
 
 TEST(OrbitalGameAuthority, ReportsNoHandoverForInterruption) {

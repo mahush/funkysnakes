@@ -17,14 +17,14 @@ using order_authority::Submission;
 
 constexpr RoundId ROUND{1};
 
-// Status of one order as projected by the Authority's view
-Status statusOf(const order_authority::State& state, OrderId id) {
+// Status of one order of a player as projected by the Authority's view
+Status statusOf(const order_authority::State& state, const PlayerId& player, OrderId id) {
   for (const order_authority::OrderRecord& record : order_authority::view(state).orders) {
-    if (record.order.id == id) {
+    if (record.order.player == player && record.order.id == id) {
       return record.status;
     }
   }
-  ADD_FAILURE() << "order " << id.value << " is not in the view";
+  ADD_FAILURE() << "order " << player << " #" << id.value << " is not in the view";
   return Status::SELECTED;
 }
 
@@ -66,12 +66,27 @@ TEST(OrderAuthority, AssignsNewIdentityToEachSubmission) {
   EXPECT_NE(first, second);
 }
 
+/// @brief An order is identified by its player and its number, so each player numbers their own orders
+TEST(OrderAuthority, NumbersOrdersPerPlayer) {
+  // Given: player A submitted two orders
+  auto [with_a1, a1] = submitOrder(order_authority::startRound(ROUND), Submission{PLAYER_A, Point{3, 4}, StepId{0}});
+  auto [with_a2, a2] = submitOrder(with_a1, Submission{PLAYER_A, Point{5, 5}, StepId{0}});
+
+  // When: player B submits their first order
+  auto [state, b1] = submitOrder(with_a2, Submission{PLAYER_B, Point{8, 1}, StepId{0}});
+
+  // Then: each player's orders are numbered from 1
+  EXPECT_EQ(a1, OrderId{1});
+  EXPECT_EQ(a2, OrderId{2});
+  EXPECT_EQ(b1, OrderId{1});
+}
+
 TEST(OrderAuthority, SelectsSubmittedOrder) {
   // When: player A submits an order
   auto [state, id] = submitOrder(order_authority::startRound(ROUND), Submission{PLAYER_A, Point{3, 4}, StepId{0}});
 
   // Then: it is A's selected order
-  EXPECT_EQ(statusOf(state, id), Status::SELECTED);
+  EXPECT_EQ(statusOf(state, PLAYER_A, id), Status::SELECTED);
   EXPECT_EQ(order_authority::view(state).players.at(PLAYER_A).selected->order.id, id);
 }
 
@@ -85,8 +100,8 @@ TEST(OrderAuthority, ReplacesSelectedOrderOfSamePlayer) {
   auto [state, k] = submitOrder(with_h, Submission{PLAYER_A, Point{5, 5}, StepId{0}});
 
   // Then: G and H are replaced and K is the selected order
-  EXPECT_EQ(statusOf(state, g), Status::REPLACED);
-  EXPECT_EQ(statusOf(state, h), Status::REPLACED);
+  EXPECT_EQ(statusOf(state, PLAYER_A, g), Status::REPLACED);
+  EXPECT_EQ(statusOf(state, PLAYER_A, h), Status::REPLACED);
   EXPECT_EQ(order_authority::view(state).players.at(PLAYER_A).selected->order.id, k);
 }
 
@@ -98,8 +113,8 @@ TEST(OrderAuthority, KeepsSelectedOrdersOfOtherPlayers) {
   auto [next_state, b] = submitOrder(state, Submission{PLAYER_B, Point{8, 1}, StepId{0}});
 
   // Then: both orders are selected
-  EXPECT_EQ(statusOf(next_state, a), Status::SELECTED);
-  EXPECT_EQ(statusOf(next_state, b), Status::SELECTED);
+  EXPECT_EQ(statusOf(next_state, PLAYER_A, a), Status::SELECTED);
+  EXPECT_EQ(statusOf(next_state, PLAYER_B, b), Status::SELECTED);
 }
 
 /// @brief The submission step is the domain fact the Game Authority relates to the Arena Authority's history
@@ -137,7 +152,7 @@ TEST(OrderAuthority, KeepsTransmittedOrderOnNewSubmission) {
   auto [next_state, h] = order_authority::submit(state, Submission{PLAYER_A, Point{8, 1}, StepId{1}});
 
   // Then: G stays transmitted and H replaces nothing
-  EXPECT_EQ(statusOf(next_state, g), Status::TRANSMITTED);
+  EXPECT_EQ(statusOf(next_state, PLAYER_A, g), Status::TRANSMITTED);
   EXPECT_FALSE(h.replaced.has_value());
 }
 
@@ -156,7 +171,7 @@ TEST(OrderAuthority, TransmitsSelectedOrdersOfAllPlayers) {
       transmissions,
       (std::vector<OrderTransmitted>{OrderTransmitted{ROUND, g, PLAYER_A, StepId{0}, StepId{21}, std::nullopt},
                                      OrderTransmitted{ROUND, k, PLAYER_B, StepId{15}, StepId{21}, std::nullopt}}));
-  EXPECT_EQ(statusOf(transmitted, g), Status::TRANSMITTED);
+  EXPECT_EQ(statusOf(transmitted, PLAYER_A, g), Status::TRANSMITTED);
   EXPECT_FALSE(order_authority::view(transmitted).players.at(PLAYER_A).selected.has_value());
 }
 
@@ -173,7 +188,7 @@ TEST(OrderAuthority, TransmitsLatestReplacementWithItsOwnSubmissionStep) {
   // Then: only H is transmitted, with its submission step 15 and naming G; G stays replaced
   EXPECT_EQ(transmissions,
             (std::vector<OrderTransmitted>{OrderTransmitted{ROUND, h, PLAYER_A, StepId{15}, StepId{21}, g}}));
-  EXPECT_EQ(statusOf(transmitted, g), Status::REPLACED);
+  EXPECT_EQ(statusOf(transmitted, PLAYER_A, g), Status::REPLACED);
 }
 
 /// @brief An unchanged selection is sent once; a later opportunity sends nothing for it
@@ -198,7 +213,7 @@ TEST(OrderAuthority, KeepsOrderSubmittedInTransmissionStepSelected) {
 
   // Then: nothing is transmitted and G stays selected
   EXPECT_TRUE(transmissions.empty());
-  EXPECT_EQ(statusOf(next_state, g), Status::SELECTED);
+  EXPECT_EQ(statusOf(next_state, PLAYER_A, g), Status::SELECTED);
 }
 
 /// @section order_authority::transmittedOrders
@@ -252,7 +267,7 @@ TEST(OrderAuthority, MarksActivatedOrderAsExecuting) {
       order_authority::observe(state, {OrderActivated{id, PLAYER_A, std::nullopt, {}}}, {});
 
   // Then: it executes and is no longer transmitted
-  EXPECT_EQ(statusOf(observed, id), Status::EXECUTING);
+  EXPECT_EQ(statusOf(observed, PLAYER_A, id), Status::EXECUTING);
   EXPECT_EQ(order_authority::view(observed).players.at(PLAYER_A).executing->order.id, id);
   EXPECT_FALSE(order_authority::view(observed).players.at(PLAYER_A).transmitted.has_value());
 }
@@ -266,7 +281,7 @@ TEST(OrderAuthority, RecordsReasonOfRejectedOrder) {
       order_authority::observe(state, {OrderRejected{id, PLAYER_A, RejectionReason::SNAKE_DEAD}}, {});
 
   // Then: it is rejected with the reported reason and no longer transmitted
-  EXPECT_EQ(statusOf(observed, id), Status::REJECTED);
+  EXPECT_EQ(statusOf(observed, PLAYER_A, id), Status::REJECTED);
   EXPECT_EQ(order_authority::view(observed).orders.at(0).rejection, RejectionReason::SNAKE_DEAD);
   EXPECT_FALSE(order_authority::view(observed).players.at(PLAYER_A).transmitted.has_value());
 }
@@ -283,7 +298,7 @@ TEST(OrderAuthority, KeepsExecutingOrderWhenReplacementIsRejected) {
       order_authority::observe(state, {OrderRejected{g, PLAYER_A, RejectionReason::TARGET_OFF_BOARD}}, {});
 
   // Then: F still executes
-  EXPECT_EQ(statusOf(observed, f), Status::EXECUTING);
+  EXPECT_EQ(statusOf(observed, PLAYER_A, f), Status::EXECUTING);
 }
 
 /// @brief Only a transmitted order can be refused; a selected one never reached the Arena Authority
@@ -296,7 +311,7 @@ TEST(OrderAuthority, KeepsSelectedOrderWhenRejectionIsReported) {
       order_authority::observe(state, {OrderRejected{id, PLAYER_A, RejectionReason::TARGET_OFF_BOARD}}, {});
 
   // Then: it stays selected
-  EXPECT_EQ(statusOf(observed, id), Status::SELECTED);
+  EXPECT_EQ(statusOf(observed, PLAYER_A, id), Status::SELECTED);
 }
 
 TEST(OrderAuthority, IgnoresOutcomesOfUnknownOrders) {
@@ -311,7 +326,36 @@ TEST(OrderAuthority, IgnoresOutcomesOfUnknownOrders) {
 
   // Then: nothing changes
   EXPECT_EQ(order_authority::view(observed).orders.size(), 1U);
-  EXPECT_EQ(statusOf(observed, id), Status::TRANSMITTED);
+  EXPECT_EQ(statusOf(observed, PLAYER_A, id), Status::TRANSMITTED);
+}
+
+/// @brief Players number their orders independently, so a report applies to the order of the player it names
+TEST(OrderAuthority, AppliesOutcomeToOrderOfNamedPlayer) {
+  // Given: A's first order and B's first order were transmitted
+  auto [with_a, a] = submitOrder(order_authority::startRound(ROUND), Submission{PLAYER_A, Point{3, 4}, StepId{0}});
+  auto [with_b, b] = submitOrder(with_a, Submission{PLAYER_B, Point{8, 1}, StepId{0}});
+  order_authority::State state = transmitAt(with_b, StepId{1});
+
+  // When: the Arena Authority activates B's order
+  order_authority::State observed =
+      order_authority::observe(state, {OrderActivated{b, PLAYER_B, std::nullopt, {}}}, {});
+
+  // Then: B's order executes and A's order with the same number is still transmitted
+  EXPECT_EQ(statusOf(observed, PLAYER_B, b), Status::EXECUTING);
+  EXPECT_EQ(statusOf(observed, PLAYER_A, a), Status::TRANSMITTED);
+}
+
+TEST(OrderAuthority, IgnoresEndingNamingPlayerWithoutThatOrder) {
+  // Given: an order of A executes
+  auto [state, id] = executingOrder();
+
+  // When: the Arena Authority reports that an order of B with the same number completed
+  order_authority::State observed =
+      order_authority::observe(state, {}, {OrderEnded{id, PLAYER_B, EndReason::COMPLETED, std::nullopt}});
+
+  // Then: A's order still executes and no order of B is known
+  EXPECT_EQ(statusOf(observed, PLAYER_A, id), Status::EXECUTING);
+  EXPECT_EQ(order_authority::view(observed).orders.size(), 1U);
 }
 
 /// @subsection order endings
@@ -336,7 +380,7 @@ TEST_P(OrderAuthorityEnding, RecordsHowExecutingOrderEnded) {
       order_authority::observe(executing, {}, {OrderEnded{id, PLAYER_A, GetParam().reason, std::nullopt}});
 
   // Then: its status reflects the ending, and the player has no executing order
-  EXPECT_EQ(statusOf(observed, id), GetParam().expected_status);
+  EXPECT_EQ(statusOf(observed, PLAYER_A, id), GetParam().expected_status);
   EXPECT_FALSE(order_authority::view(observed).players.at(PLAYER_A).executing.has_value());
 }
 
@@ -359,8 +403,8 @@ TEST(OrderAuthority, InterpretsReplacementAndInterruptionOfOneStep) {
       state, {OrderActivated{g, PLAYER_A, f, {}}}, {OrderEnded{f, PLAYER_A, EndReason::INTERRUPTED, g}});
 
   // Then: F is interrupted and G executes
-  EXPECT_EQ(statusOf(observed, f), Status::INTERRUPTED);
-  EXPECT_EQ(statusOf(observed, g), Status::EXECUTING);
+  EXPECT_EQ(statusOf(observed, PLAYER_A, f), Status::INTERRUPTED);
+  EXPECT_EQ(statusOf(observed, PLAYER_A, g), Status::EXECUTING);
   EXPECT_EQ(order_authority::view(observed).players.at(PLAYER_A).executing->order.id, g);
 }
 
@@ -375,8 +419,8 @@ TEST(OrderAuthority, KeepsSelectedOrderWhenExecutingOrderCompletes) {
       order_authority::observe(state, {}, {OrderEnded{f, PLAYER_A, EndReason::COMPLETED, std::nullopt}});
 
   // Then: F is completed and H is still selected
-  EXPECT_EQ(statusOf(observed, f), Status::COMPLETED);
-  EXPECT_EQ(statusOf(observed, h), Status::SELECTED);
+  EXPECT_EQ(statusOf(observed, PLAYER_A, f), Status::COMPLETED);
+  EXPECT_EQ(statusOf(observed, PLAYER_A, h), Status::SELECTED);
 }
 
 /// @subsection world events
@@ -396,7 +440,7 @@ TEST_P(OrderAuthorityWorldEvent, KeepsOrderStatusOnWorldEvent) {
   order_authority::State observed = order_authority::observe(executing, {}, {GetParam()});
 
   // Then: the order still executes
-  EXPECT_EQ(statusOf(observed, id), Status::EXECUTING);
+  EXPECT_EQ(statusOf(observed, PLAYER_A, id), Status::EXECUTING);
 }
 
 INSTANTIATE_TEST_SUITE_P(WorldEvents,
@@ -417,8 +461,8 @@ TEST(OrderAuthority, CancelsSelectedAndTransmittedOrders) {
   order_authority::State cancelled = order_authority::cancel(both_state);
 
   // Then: both are cancelled and none is transmitted or selected any more
-  EXPECT_EQ(statusOf(cancelled, a), Status::CANCELLED);
-  EXPECT_EQ(statusOf(cancelled, b), Status::CANCELLED);
+  EXPECT_EQ(statusOf(cancelled, PLAYER_A, a), Status::CANCELLED);
+  EXPECT_EQ(statusOf(cancelled, PLAYER_B, b), Status::CANCELLED);
   EXPECT_TRUE(order_authority::transmittedOrders(cancelled, StepId{3}).empty());
   EXPECT_FALSE(order_authority::view(cancelled).players.at(PLAYER_B).selected.has_value());
 }
@@ -434,7 +478,7 @@ TEST(OrderAuthority, AppliesLateEndingOfExecutingOrderAfterCancel) {
       order_authority::observe(cancelled, {}, {OrderEnded{f, PLAYER_A, EndReason::COMPLETED, std::nullopt}});
 
   // Then: the order is completed
-  EXPECT_EQ(statusOf(observed, f), Status::COMPLETED);
+  EXPECT_EQ(statusOf(observed, PLAYER_A, f), Status::COMPLETED);
 }
 
 /// @brief A cancelled order did not take part in the world; a late refusal does not rewrite that
@@ -448,7 +492,7 @@ TEST(OrderAuthority, KeepsCancelledOrderCancelledWhenRejectionArrivesLate) {
       order_authority::observe(cancelled, {OrderRejected{id, PLAYER_A, RejectionReason::ROUND_ENDED}}, {});
 
   // Then: the order stays cancelled
-  EXPECT_EQ(statusOf(observed, id), Status::CANCELLED);
+  EXPECT_EQ(statusOf(observed, PLAYER_A, id), Status::CANCELLED);
 }
 
 }  // namespace orbital

@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <set>
 #include <tuple>
+#include <utility>
 #include <vector>
 
 #include "game_authority_mechanics.hpp"
@@ -16,19 +17,26 @@ namespace game_authority {
 namespace {
 
 // An ended order's held points are banked or dropped as the Scoring Policy decides for its end reason
-Scores settleOrder(Scores scores, OrderId order, EndReason reason) {
-  auto it = scores.held.find(order);
-  if (it == scores.held.end()) {
+Scores settleOrder(Scores scores, const PlayerId& player, OrderId order, EndReason reason) {
+  auto player_held = scores.held.find(player);
+  if (player_held == scores.held.end()) {
+    return scores;
+  }
+  auto it = player_held->second.find(order);
+  if (it == player_held->second.end()) {
     return scores;
   }
   switch (scoring_policy::settlementOf(reason)) {
     case scoring_policy::Settlement::BANK:
-      scores.banked[it->second.player] += it->second.points;
+      scores.banked[player] += it->second;
       break;
     case scoring_policy::Settlement::DROP:
       break;
   }
-  scores.held.erase(it);
+  player_held->second.erase(it);
+  if (player_held->second.empty()) {
+    scores.held.erase(player_held);
+  }
   return scores;
 }
 
@@ -37,7 +45,7 @@ Scores settleOrder(Scores scores, OrderId order, EndReason reason) {
 Scores scoreEvents(Scores scores, const ArenaEvents& events) {
   for (const ArenaEvent& event : events) {
     if (const auto* ended = std::get_if<OrderEnded>(&event)) {
-      scores = settleOrder(std::move(scores), ended->order, ended->reason);
+      scores = settleOrder(std::move(scores), ended->player, ended->order, ended->reason);
       continue;
     }
     for (const scoring_policy::PointEffect& effect : scoring_policy::effectsOf(event)) {
@@ -49,12 +57,14 @@ Scores scoreEvents(Scores scores, const ArenaEvents& events) {
 
 // Conclusion ends the round: every order still holding points ends with it
 Scores settleAtConclusion(Scores scores) {
-  std::vector<OrderId> executing;
-  for (const auto& [order, held] : scores.held) {
-    executing.push_back(order);
+  std::vector<std::pair<PlayerId, OrderId>> executing;
+  for (const auto& [player, player_held] : scores.held) {
+    for (const auto& [order, points] : player_held) {
+      executing.emplace_back(player, order);
+    }
   }
-  for (OrderId order : executing) {
-    scores = settleOrder(std::move(scores), order, EndReason::ROUND_ENDED);
+  for (const auto& [player, order] : executing) {
+    scores = settleOrder(std::move(scores), player, order, EndReason::ROUND_ENDED);
   }
   return scores;
 }
@@ -263,8 +273,10 @@ View view(const State& state) {
     const int length = chain == state.chains_.end() ? 0 : chain->second.length;
     result.players[player] = PlayerScore{banked, 0, length, scoring_policy::handoverBonus(length + 1)};
   }
-  for (const auto& [order, held] : state.scores_.held) {
-    result.players[held.player].held += held.points;
+  for (const auto& [player, player_held] : state.scores_.held) {
+    for (const auto& [order, points] : player_held) {
+      result.players[player].held += points;
+    }
   }
   for (const auto& [player, chain] : state.chains_) {
     result.players[player].held += chain.bonus_held;

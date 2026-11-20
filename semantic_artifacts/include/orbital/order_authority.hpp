@@ -22,6 +22,8 @@ namespace order_authority {
  * actual executing route (Arena Authority), when the orbital link offers an opportunity
  * (Transmission Schedule Policy) or any points (Game Authority).
  *
+ * - An order is identified by its player and its identity among that player's orders; each player's
+ *   submissions are numbered from 1.
  * - A submission takes effect where the player's input is accepted: it becomes the player's selected
  *   order at once, with its own submission time, which is part of the domain history and published
  *   as OrderSubmitted.
@@ -76,10 +78,10 @@ struct View;
 class State {
  private:
   RoundId round_;
-  int next_order_id_{1};
-  std::map<OrderId, OrderRecord> orders_;  // Every order of the round by identity
-  std::map<PlayerId, OrderId> selected_;   // The selected, not yet transmitted order per player
-  std::set<OrderId> transmitted_;          // Transmitted orders the Arena Authority has not resolved yet
+  std::map<PlayerId, int> submitted_count_;                    // Orders submitted so far per player
+  std::map<PlayerId, std::map<OrderId, OrderRecord>> orders_;  // Every order of the round per player, by identity
+  std::map<PlayerId, OrderId> selected_;                       // The selected, not yet transmitted order per player
+  std::map<PlayerId, std::set<OrderId>> transmitted_;  // Transmitted orders the Arena Authority has not resolved yet
 
   // Construction
   friend State startRound(RoundId round);
@@ -123,7 +125,7 @@ State startRound(RoundId round);
 /**
  * @brief Select a submission as the player's new order
  *
- * The order gets a new identity and becomes the player's selected order. A selected, not yet
+ * The order gets the player's next identity and becomes the player's selected order. A selected, not yet
  * transmitted order of the same player is replaced; transmitted and executing orders are unaffected.
  *
  * @param state Current order state
@@ -153,7 +155,8 @@ std::tuple<State, std::vector<OrderTransmitted>> transmit(State state, StepId at
  * @brief Interpret what the Arena Authority reported for one step
  *
  * Activation outcomes resolve transmitted orders; order endings resolve executing orders.
- * Reports about unknown orders are ignored.
+ * An outcome or ending applies to the order its player and identity name; reports about unknown orders are
+ * ignored.
  *
  * Admitted input: the complete report of one step of this round, each step once and in step
  * order, with the step's outcomes before its events. Order identities restart every round, so
@@ -201,7 +204,7 @@ State cancel(State state);
  * @param state Current order state
  * @param at Step the orders are handed to
  * @return Transmitted orders whose first step after transmission (Transmission Schedule Policy) is at or before at,
- *         by identity
+ *         by player, then by identity
  */
 std::vector<Order> transmittedOrders(const State& state, StepId at);
 
@@ -219,7 +222,7 @@ struct PlayerOrders {
  */
 struct View {
   std::map<PlayerId, PlayerOrders> players;  // Every player who submitted an order this round
-  std::vector<OrderRecord> orders;           // All orders of the round, by identity
+  std::vector<OrderRecord> orders;           // All orders of the round, by player, then by identity
 };
 
 /**

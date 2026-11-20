@@ -40,12 +40,12 @@ arena_authority::RoundSetup makeBoard() {
 
 std::string point(Point p) { return "(" + std::to_string(p.x) + "," + std::to_string(p.y) + ")"; }
 
-// Name of each submitted order, for the trace
-using OrderNames = std::map<OrderId, std::string>;
+// Name of each submitted order by its player and identity, for the trace
+using OrderNames = std::map<std::pair<PlayerId, OrderId>, std::string>;
 
-std::string order(const OrderNames& names, OrderId id) {
-  auto it = names.find(id);
-  return it != names.end() ? it->second : "#" + std::to_string(id.value);
+std::string order(const OrderNames& names, const PlayerId& player, OrderId id) {
+  auto it = names.find({player, id});
+  return it != names.end() ? it->second : player + " #" + std::to_string(id.value);
 }
 
 std::string endReason(EndReason reason) {
@@ -64,9 +64,10 @@ std::string endReason(EndReason reason) {
 
 std::string describe(const OrderNames& names, const ActivationOutcome& outcome) {
   if (const auto* activated = std::get_if<OrderActivated>(&outcome)) {
-    return order(names, activated->order) + " activates";
+    return order(names, activated->player, activated->order) + " activates";
   }
-  return order(names, std::get<OrderRejected>(outcome).order) + " rejected";
+  const auto& rejected = std::get<OrderRejected>(outcome);
+  return order(names, rejected.player, rejected.order) + " rejected";
 }
 
 std::string describe(const OrderNames& names, const ArenaEvent& event) {
@@ -74,10 +75,10 @@ std::string describe(const OrderNames& names, const ArenaEvent& event) {
       [&names](const auto& item) -> std::string {
         using TEvent = std::decay_t<decltype(item)>;
         if constexpr (std::is_same_v<TEvent, OrderEnded>) {
-          return order(names, item.order) + " " + endReason(item.reason);
+          return order(names, item.player, item.order) + " " + endReason(item.reason);
         } else if constexpr (std::is_same_v<TEvent, FoodCollected>) {
           return std::string{item.player == PLAYER_A ? "A" : "B"} + " eats at " + point(item.position) +
-                 (item.during ? " during " + order(names, *item.during) : " (no order)");
+                 (item.during ? " during " + order(names, item.player, *item.during) : " (no order)");
         } else {
           return "collision";
         }
@@ -109,7 +110,7 @@ class PrintingPlayers : public game_boundary::PlayersEndOutbound {
   void orderSubmitted(const OrderSubmitted& submitted) override {
     std::cout << "  " << at_ms_ << " ms  A selects " << order_name_ << " to " << point(target_) << " in step "
               << submitted.submitted_at.value << "\n";
-    names_[submitted.order] = order_name_;
+    names_[{submitted.player, submitted.order}] = order_name_;
   }
 
   void stepReported(const game_boundary::StepReport& step) override {
@@ -120,7 +121,8 @@ class PrintingPlayers : public game_boundary::PlayersEndOutbound {
       std::cout << "  " << timeOf(step) << " ms  " << describe(names_, event) << "\n";
     }
     for (const OrderTransmitted& transmitted : step.transmissions) {
-      std::cout << "  " << timeOf(step) << " ms  A transmits " << names_.at(transmitted.order) << "\n";
+      std::cout << "  " << timeOf(step) << " ms  A transmits " << names_.at({transmitted.player, transmitted.order})
+                << "\n";
     }
     stepped_ = true;
   }
