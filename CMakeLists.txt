@@ -136,6 +136,38 @@ target_compile_options(orbital_snake PRIVATE
   $<$<CONFIG:Release>:-O3>
 )
 
+add_executable(orbital_loopback_runner
+  src/orbital_loopback_runner.cpp
+  realizations/orbital_loopback/host_composition.cpp
+  realizations/orbital_loopback/phone_composition.cpp
+  realizations/orbital_loopback/history.cpp
+  realizations/orbital_loopback/loopback.cpp
+  realizations/orbital_loopback/replay.cpp
+  semantic_artifacts/platform/src/orbital/order_replica_authority.cpp
+  semantic_artifacts/domain/src/orbital/arena_authority.cpp
+  semantic_artifacts/domain/src/orbital/game_authority.cpp
+  semantic_artifacts/domain/src/orbital/order_authority.cpp
+  semantic_artifacts/domain/src/orbital/orbital_game_domain_application.cpp
+  semantic_artifacts/domain/src/orbital/pursuit_policy.cpp
+  semantic_artifacts/domain/src/orbital/scoring_policy.cpp
+  semantic_artifacts/domain/src/common/game_logic.cpp
+  semantic_artifacts/domain/src/common/snake_model.cpp
+  semantic_artifacts/domain/src/common/snake_predicates.cpp
+)
+
+target_include_directories(orbital_loopback_runner PRIVATE
+  ${PROJECT_SOURCE_DIR}/include
+  ${PROJECT_SOURCE_DIR}/semantic_artifacts/domain/include
+  ${PROJECT_SOURCE_DIR}/semantic_artifacts/platform/include
+  ${PROJECT_SOURCE_DIR}/realizations
+)
+target_link_libraries(orbital_loopback_runner PRIVATE funkypipes)
+target_compile_options(orbital_loopback_runner PRIVATE
+  -Wall -Wextra -Wpedantic -Werror
+  $<$<CONFIG:Debug>:-g -O0>
+  $<$<CONFIG:Release>:-O3>
+)
+
 # Optional: Build tests (ON by default for development)
 option(SNAKE_BUILD_TESTS "Build snake unit tests" ON)
 if(SNAKE_BUILD_TESTS)
@@ -170,8 +202,12 @@ if(SNAKE_BUILD_TESTS)
     tests/test_orbital_order_replica_authority.cpp
     semantic_artifacts/platform/src/orbital/order_replica_authority.cpp
     tests/test_orbital_phone_composition.cpp
+    tests/test_orbital_loopback.cpp
     realizations/orbital_loopback/host_composition.cpp
     realizations/orbital_loopback/phone_composition.cpp
+    realizations/orbital_loopback/history.cpp
+    realizations/orbital_loopback/loopback.cpp
+    realizations/orbital_loopback/replay.cpp
     tests/test_orbital_admission_policy.cpp
     tests/test_orbital_pursuit_policy.cpp
     tests/test_orbital_order_authority.cpp
