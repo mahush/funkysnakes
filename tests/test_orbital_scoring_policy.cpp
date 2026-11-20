@@ -70,7 +70,7 @@ TEST(OrbitalScoringPolicy, DeductsTenBankedPointsFromBothInMutualBite) {
 TEST(OrbitalScoringPolicy, LeavesOrderEndingWithoutPointEffect) {
   // When: the effects of an order ending are decided
   std::vector<PointEffect> effects =
-      scoring_policy::effectsOf(OrderEnded{OrderId{1}, EndReason::COMPLETED, std::nullopt});
+      scoring_policy::effectsOf(OrderEnded{OrderId{1}, PLAYER_A, EndReason::COMPLETED, std::nullopt});
 
   // Then: there are none
   EXPECT_TRUE(effects.empty());

@@ -53,7 +53,7 @@ std::tuple<ActiveOrders, ActivationOutcome, ArenaEvents> tryActivate(ActiveOrder
                                                                      const Board& board,
                                                                      const Order& order) {
   if (std::optional<RejectionReason> reason = rejectionOf(ended, round, snakes, board, order)) {
-    return {std::move(active), OrderRejected{order.id, *reason}, {}};
+    return {std::move(active), OrderRejected{order.id, order.player, *reason}, {}};
   }
 
   const Snake& snake = snakes.at(order.player);
@@ -65,13 +65,13 @@ std::tuple<ActiveOrders, ActivationOutcome, ArenaEvents> tryActivate(ActiveOrder
   auto executing = active.find(order.player);
   if (executing != active.end()) {
     replaced = executing->second.id;
-    events.push_back(OrderEnded{executing->second.id, EndReason::INTERRUPTED, order.id});
+    events.push_back(OrderEnded{executing->second.id, order.player, EndReason::INTERRUPTED, order.id});
     active.erase(executing);
   }
-  OrderActivated activated{order.id, replaced, route};
+  OrderActivated activated{order.id, order.player, replaced, route};
 
   if (route.empty()) {
-    events.push_back(OrderEnded{order.id, EndReason::COMPLETED, std::nullopt});
+    events.push_back(OrderEnded{order.id, order.player, EndReason::COMPLETED, std::nullopt});
   } else {
     active.emplace(order.player, ActiveOrder{order.id, order.target, std::move(route)});
   }
@@ -124,7 +124,7 @@ std::tuple<ActiveOrders, ArenaEvents> endOrdersOfDeadSnakes(ActiveOrders active,
   ArenaEvents events;
   for (auto it = active.begin(); it != active.end();) {
     if (!snake_model::alive(snakes.at(it->first))) {
-      events.push_back(OrderEnded{it->second.id, EndReason::ELIMINATED, std::nullopt});
+      events.push_back(OrderEnded{it->second.id, it->first, EndReason::ELIMINATED, std::nullopt});
       it = active.erase(it);
     } else {
       ++it;
@@ -155,7 +155,7 @@ std::tuple<ActiveOrders, ArenaEvents> completeFulfilledOrders(ActiveOrders activ
   for (auto it = active.begin(); it != active.end();) {
     const Snake& snake = snakes.at(it->first);
     if (snake_model::alive(snake) && snake_model::head(snake) == it->second.target) {
-      events.push_back(OrderEnded{it->second.id, EndReason::COMPLETED, std::nullopt});
+      events.push_back(OrderEnded{it->second.id, it->first, EndReason::COMPLETED, std::nullopt});
       it = active.erase(it);
     } else {
       ++it;
@@ -214,7 +214,7 @@ std::tuple<State, std::vector<ActivationOutcome>, ArenaEvents> tick(const Random
 std::tuple<State, ArenaEvents> endRound(State state) {
   ArenaEvents events;
   for (const auto& [player, order] : state.active_) {
-    events.push_back(OrderEnded{order.id, EndReason::ROUND_ENDED, std::nullopt});
+    events.push_back(OrderEnded{order.id, player, EndReason::ROUND_ENDED, std::nullopt});
   }
   state.active_.clear();
   state.ended_ = true;

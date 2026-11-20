@@ -48,7 +48,7 @@ std::tuple<order_authority::State, OrderId> transmittedOrder() {
 // An order of player A that the Arena Authority activated after its transmission
 std::tuple<order_authority::State, OrderId> executingOrder() {
   auto [state, id] = transmittedOrder();
-  return {order_authority::observe(std::move(state), {OrderActivated{id, std::nullopt, {}}}, {}), id};
+  return {order_authority::observe(std::move(state), {OrderActivated{id, PLAYER_A, std::nullopt, {}}}, {}), id};
 }
 
 }  // namespace
@@ -248,7 +248,8 @@ TEST(OrderAuthority, MarksActivatedOrderAsExecuting) {
   auto [state, id] = transmittedOrder();
 
   // When: the Arena Authority reports its activation
-  order_authority::State observed = order_authority::observe(state, {OrderActivated{id, std::nullopt, {}}}, {});
+  order_authority::State observed =
+      order_authority::observe(state, {OrderActivated{id, PLAYER_A, std::nullopt, {}}}, {});
 
   // Then: it executes and is no longer transmitted
   EXPECT_EQ(statusOf(observed, id), Status::EXECUTING);
@@ -262,7 +263,7 @@ TEST(OrderAuthority, RecordsReasonOfRejectedOrder) {
 
   // When: the Arena Authority reports its rejection
   order_authority::State observed =
-      order_authority::observe(state, {OrderRejected{id, RejectionReason::SNAKE_DEAD}}, {});
+      order_authority::observe(state, {OrderRejected{id, PLAYER_A, RejectionReason::SNAKE_DEAD}}, {});
 
   // Then: it is rejected with the reported reason and no longer transmitted
   EXPECT_EQ(statusOf(observed, id), Status::REJECTED);
@@ -279,7 +280,7 @@ TEST(OrderAuthority, KeepsExecutingOrderWhenReplacementIsRejected) {
 
   // When: the Arena Authority rejects G
   order_authority::State observed =
-      order_authority::observe(state, {OrderRejected{g, RejectionReason::TARGET_OFF_BOARD}}, {});
+      order_authority::observe(state, {OrderRejected{g, PLAYER_A, RejectionReason::TARGET_OFF_BOARD}}, {});
 
   // Then: F still executes
   EXPECT_EQ(statusOf(observed, f), Status::EXECUTING);
@@ -292,7 +293,7 @@ TEST(OrderAuthority, KeepsSelectedOrderWhenRejectionIsReported) {
 
   // When: the Arena Authority reports a rejection for it
   order_authority::State observed =
-      order_authority::observe(state, {OrderRejected{id, RejectionReason::TARGET_OFF_BOARD}}, {});
+      order_authority::observe(state, {OrderRejected{id, PLAYER_A, RejectionReason::TARGET_OFF_BOARD}}, {});
 
   // Then: it stays selected
   EXPECT_EQ(statusOf(observed, id), Status::SELECTED);
@@ -305,8 +306,8 @@ TEST(OrderAuthority, IgnoresOutcomesOfUnknownOrders) {
   // When: the Arena Authority reports outcomes for an order this round never issued
   order_authority::State observed =
       order_authority::observe(state,
-                               {OrderActivated{OrderId{42}, std::nullopt, {}}},
-                               {OrderEnded{OrderId{42}, EndReason::COMPLETED, std::nullopt}});
+                               {OrderActivated{OrderId{42}, PLAYER_A, std::nullopt, {}}},
+                               {OrderEnded{OrderId{42}, PLAYER_A, EndReason::COMPLETED, std::nullopt}});
 
   // Then: nothing changes
   EXPECT_EQ(order_authority::view(observed).orders.size(), 1U);
@@ -332,7 +333,7 @@ TEST_P(OrderAuthorityEnding, RecordsHowExecutingOrderEnded) {
 
   // When: the Arena Authority reports how it ended
   order_authority::State observed =
-      order_authority::observe(executing, {}, {OrderEnded{id, GetParam().reason, std::nullopt}});
+      order_authority::observe(executing, {}, {OrderEnded{id, PLAYER_A, GetParam().reason, std::nullopt}});
 
   // Then: its status reflects the ending, and the player has no executing order
   EXPECT_EQ(statusOf(observed, id), GetParam().expected_status);
@@ -354,8 +355,8 @@ TEST(OrderAuthority, InterpretsReplacementAndInterruptionOfOneStep) {
   order_authority::State state = transmitAt(selected, StepId{21});
 
   // When: the Arena Authority activates G, interrupting F, in one step
-  order_authority::State observed =
-      order_authority::observe(state, {OrderActivated{g, f, {}}}, {OrderEnded{f, EndReason::INTERRUPTED, g}});
+  order_authority::State observed = order_authority::observe(
+      state, {OrderActivated{g, PLAYER_A, f, {}}}, {OrderEnded{f, PLAYER_A, EndReason::INTERRUPTED, g}});
 
   // Then: F is interrupted and G executes
   EXPECT_EQ(statusOf(observed, f), Status::INTERRUPTED);
@@ -371,7 +372,7 @@ TEST(OrderAuthority, KeepsSelectedOrderWhenExecutingOrderCompletes) {
 
   // When: the Arena Authority reports that F completed
   order_authority::State observed =
-      order_authority::observe(state, {}, {OrderEnded{f, EndReason::COMPLETED, std::nullopt}});
+      order_authority::observe(state, {}, {OrderEnded{f, PLAYER_A, EndReason::COMPLETED, std::nullopt}});
 
   // Then: F is completed and H is still selected
   EXPECT_EQ(statusOf(observed, f), Status::COMPLETED);
@@ -430,7 +431,7 @@ TEST(OrderAuthority, AppliesLateEndingOfExecutingOrderAfterCancel) {
 
   // When: the Arena Authority reports that the order completed
   order_authority::State observed =
-      order_authority::observe(cancelled, {}, {OrderEnded{f, EndReason::COMPLETED, std::nullopt}});
+      order_authority::observe(cancelled, {}, {OrderEnded{f, PLAYER_A, EndReason::COMPLETED, std::nullopt}});
 
   // Then: the order is completed
   EXPECT_EQ(statusOf(observed, f), Status::COMPLETED);
@@ -444,7 +445,7 @@ TEST(OrderAuthority, KeepsCancelledOrderCancelledWhenRejectionArrivesLate) {
 
   // When: the Arena Authority reports that it refused the order because the round ended
   order_authority::State observed =
-      order_authority::observe(cancelled, {OrderRejected{id, RejectionReason::ROUND_ENDED}}, {});
+      order_authority::observe(cancelled, {OrderRejected{id, PLAYER_A, RejectionReason::ROUND_ENDED}}, {});
 
   // Then: the order stays cancelled
   EXPECT_EQ(statusOf(observed, id), Status::CANCELLED);
