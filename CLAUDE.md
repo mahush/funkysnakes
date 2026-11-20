@@ -21,6 +21,7 @@ cmake --build build
 ./build/test_snake        # Run tests
 ./build/orbital_domain_runner  # Print Orbital Orders domain traces
 ./build/orbital_snake     # Play Orbital Orders in the terminal
+./build/orbital_loopback_runner [seed] [late]  # Play an Orbital game over loopback and compare it with the Domain Application
 ```
 
 ### Testing
@@ -131,10 +132,10 @@ cmake -S . -B build
 # Symlink already exists: compile_commands.json -> build/compile_commands.json
 
 # Format code (uses .clang-format - Google style, 120 cols, strict one-per-line wrapping)
-clang-format -i src/*.cpp include/**/*.hpp semantic_artifacts/domain/src/**/*.cpp semantic_artifacts/domain/include/**/*.hpp
+clang-format -i src/*.cpp include/**/*.hpp semantic_artifacts/*/src/**/*.cpp semantic_artifacts/*/include/**/*.hpp realizations/**/*.{hpp,cpp}
 
 # Lint (uses .clang-tidy)
-clang-tidy src/*.cpp semantic_artifacts/domain/src/**/*.cpp -- -I include -I semantic_artifacts/domain/include
+clang-tidy src/*.cpp semantic_artifacts/*/src/**/*.cpp realizations/**/*.cpp -- -I include -I semantic_artifacts/domain/include -I semantic_artifacts/platform/include -I realizations
 ```
 
 ### Coding Style
