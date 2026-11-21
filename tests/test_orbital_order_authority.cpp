@@ -168,10 +168,10 @@ TEST(OrderAuthority, TransmitsSelectedOrdersOfAllPlayers) {
   auto [transmitted, transmissions] = order_authority::transmit(state, StepId{21});
 
   // Then: both are transmitted, each keeping its own submission step, and nothing is selected any more
-  EXPECT_EQ(
-      transmissions,
-      (std::vector<OrderTransmitted>{OrderTransmitted{ROUND, g, PLAYER_A, StepId{0}, StepId{21}, std::nullopt},
-                                     OrderTransmitted{ROUND, k, PLAYER_B, StepId{15}, StepId{21}, std::nullopt}}));
+  EXPECT_EQ(transmissions,
+            (std::vector<OrderTransmitted>{
+                OrderTransmitted{ROUND, g, PLAYER_A, Point{3, 4}, StepId{0}, StepId{21}, std::nullopt},
+                OrderTransmitted{ROUND, k, PLAYER_B, Point{5, 5}, StepId{15}, StepId{21}, std::nullopt}}));
   EXPECT_EQ(statusOf(transmitted, PLAYER_A, g), Status::TRANSMITTED);
   EXPECT_FALSE(order_authority::view(transmitted).players.at(PLAYER_A).selected.has_value());
 }
@@ -187,8 +187,9 @@ TEST(OrderAuthority, TransmitsLatestReplacementWithItsOwnSubmissionStep) {
   auto [transmitted, transmissions] = order_authority::transmit(state, StepId{21});
 
   // Then: only H is transmitted, with its submission step 15 and naming G; G stays replaced
-  EXPECT_EQ(transmissions,
-            (std::vector<OrderTransmitted>{OrderTransmitted{ROUND, h, PLAYER_A, StepId{15}, StepId{21}, g}}));
+  EXPECT_EQ(
+      transmissions,
+      (std::vector<OrderTransmitted>{OrderTransmitted{ROUND, h, PLAYER_A, Point{8, 1}, StepId{15}, StepId{21}, g}}));
   EXPECT_EQ(statusOf(transmitted, PLAYER_A, g), Status::REPLACED);
 }
 
