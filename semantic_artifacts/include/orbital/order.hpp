@@ -63,20 +63,22 @@ struct OrderSubmitted {
 /**
  * @brief A selected order was transmitted at an opportunity of the orbital link and became irrevocable
  *
- * It keeps its own submission step and names the selected order it replaced, if any. Together with the
- * Arena Authority's activations and order endings, this history tells whether an order took over from
- * its predecessor as a handover, without the submissions that were never transmitted.
+ * It carries the order's target, so the transmitted order is complete without its submission. It keeps its
+ * own submission step and names the selected order it replaced, if any. Together with the Arena Authority's
+ * activations and order endings, this history tells whether an order took over from its predecessor as a
+ * handover, without the submissions that were never transmitted.
  */
 struct OrderTransmitted {
   RoundId round;
   OrderNumber order;
   PlayerId player;
+  Point target;
   StepId submitted_at;
   StepId transmitted_at;
   std::optional<OrderNumber> replaced;
 
   bool operator==(const OrderTransmitted& other) const noexcept {
-    return round == other.round && order == other.order && player == other.player &&
+    return round == other.round && order == other.order && player == other.player && target == other.target &&
            submitted_at == other.submitted_at && transmitted_at == other.transmitted_at && replaced == other.replaced;
   }
 };

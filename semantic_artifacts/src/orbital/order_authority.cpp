@@ -144,7 +144,8 @@ std::tuple<State, std::vector<OrderTransmitted>> transmit(State state, StepId at
     record.status = Status::TRANSMITTED;
     record.transmitted_at = at;
     state.transmitted_[player].insert(id);
-    transmissions.push_back(OrderTransmitted{state.round_, id, player, record.submitted_at, at, record.replaced});
+    transmissions.push_back(
+        OrderTransmitted{state.round_, id, player, record.order.target, record.submitted_at, at, record.replaced});
   }
   state.selected_ = std::move(still_selected);
   return {std::move(state), std::move(transmissions)};
