@@ -133,7 +133,7 @@ using ActivationOutcome = std::variant<OrderActivated, OrderRejected>;
  * @brief Why an executing order stopped executing
  */
 enum class EndReason {
-  COMPLETED,    // The snake reached the target and survived the step
+  COMPLETED,    // The snake was at the target when activated, or moved there and survived the step
   INTERRUPTED,  // A replacement was activated before the target was reached
   ELIMINATED,   // The snake died before reaching the target
   ROUND_ENDED   // Execution of the round ended before the target was reached
