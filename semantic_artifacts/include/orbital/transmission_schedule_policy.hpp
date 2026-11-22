@@ -25,7 +25,7 @@ namespace transmission_schedule_policy {
  * part from the next step on, and what is submitted in the step is sent at a later opportunity.
  *
  * The schedule is known in advance, so players can plan around the coming opportunities. What is sent
- * at an opportunity is the Order Authority's; the Policy keeps no orders.
+ * at an opportunity is the Order Selection Authority's; the Policy keeps no orders.
  */
 
 constexpr std::chrono::milliseconds MIN_INTERVAL{500};   // At the end of the game
@@ -44,9 +44,9 @@ constexpr int intervalAfter(StepId opportunity) {
   const std::chrono::milliseconds duration = pacing_policy::GAME_DURATION;
   const StepId elapsed = opportunity < pacing_policy::LAST_STEP ? opportunity : pacing_policy::LAST_STEP;
   // The interval scaled by the duration stays whole, so it is rounded to steps only once
-  const std::chrono::milliseconds::rep scaled = MAX_INTERVAL.count() * duration.count() -
-                                                (MAX_INTERVAL - MIN_INTERVAL).count() *
-                                                    pacing_policy::timeOfStep(elapsed).count();
+  const std::chrono::milliseconds::rep scaled =
+      MAX_INTERVAL.count() * duration.count() -
+      (MAX_INTERVAL - MIN_INTERVAL).count() * pacing_policy::timeOfStep(elapsed).count();
   const std::chrono::milliseconds::rep scaled_step = pacing_policy::STEP_INTERVAL.count() * duration.count();
   const std::chrono::milliseconds::rep steps = (scaled + scaled_step / 2) / scaled_step;
   return steps < 1 ? 1 : static_cast<int>(steps);

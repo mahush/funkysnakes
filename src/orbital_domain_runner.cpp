@@ -1,5 +1,5 @@
 // Orbital Orders domain runner: plays the defining histories through the Domain Application and
-// prints what happened, step by step: selections and transmissions (Order Authority), activations and
+// prints what happened, step by step: selections and transmissions (Order Selection Authority), activations and
 // endings (Arena Authority) and the resulting score and handover chain (Game Authority). No actors, timers, networking
 // or rendering. Each history starts in a small hand-picked world through the Domain Application's test
 // setup seam, so the traces are reference-only (see TestAccess).

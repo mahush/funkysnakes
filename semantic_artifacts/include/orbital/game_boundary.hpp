@@ -195,7 +195,7 @@ class PlayersEndOutbound {
   virtual void submissionOutcome(const SubmissionOutcome& outcome) = 0;
 
   /**
-   * @brief The Order Authority's submission record of an accepted submission
+   * @brief The Order Selection Authority's submission record of an accepted submission
    *
    * @param submitted The submission record
    */

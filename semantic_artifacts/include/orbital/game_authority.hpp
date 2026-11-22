@@ -21,12 +21,12 @@ namespace game_authority {
  * Orbital Game Authority - owns the evolution of an Orbital Orders game as a whole
  *
  * Owns whether the game runs, the banked and held points, each player's handover chain and
- * the final result. A game is one round. It sits beside the Arena and Order Authorities: it reads
- * what the Arena Authority reports and the Order Authority's transmission history, uses the Orbital Scoring
+ * the final result. A game is one round. It sits beside the Arena and Order Selection Authorities: it reads
+ * what the Arena Authority reports and the Order Selection Authority's transmission history, uses the Orbital Scoring
  * Policy for point values, the Orbital Pacing Policy for the game duration and the Transmission Schedule
  * Policy for the handover window, and announces the
  * conclusion as an intent, which the realization routes to the Arena Authority (end of execution) and to the
- * Order Authority (cancel the orders not yet executing).
+ * Order Selection Authority (cancel the selections).
  *
  * Points: an event's points are applied as the Scoring Policy's point effects say; points held for
  * an order are settled when the order ends, as the Scoring Policy decides for its end reason. An
@@ -42,7 +42,7 @@ namespace game_authority {
  * - H was submitted at or after the step that activated F and transmitted at the first opportunity at
  *   or after the step that completed F (Transmission Schedule Policy): so H was chosen in the interval
  *   around F's arrival, from the opportunity before it to the one after it. An order transmitted at an
- *   opportunity on a step's time activates only at a later step (Order Authority), so after F's
+ *   opportunity on a step's time activates only at a later step (Transmission Schedule Policy), so after F's
  *   completion in that step, and
  * - H replaced no earlier selection before it was transmitted.
  * Whether H hands over is decided when H activates: the handover then counts in the chain, is reported
@@ -54,7 +54,7 @@ namespace game_authority {
  * F's held points are settled by F's own ending and are not affected by its successor.
  *
  * The chain is derived from both histories as far as they are known. Transmissions may be learned
- * after the steps they relate to, as when a player-local Order Authority synchronizes late; the
+ * after the steps they relate to, as when a player-local Order Selection Authority synchronizes late; the
  * chain is then derived again and the difference of the bonuses is banked when the transmission is
  * learned, so the eventual score is the same as if every transmission had been known in time.
  * Scores shown before the histories are complete are provisional. The Arena Authority's history
@@ -225,7 +225,7 @@ std::tuple<State, std::vector<HandoverGranted>, std::optional<GameConcluded>> ob
  * already known order, also with other steps, changes nothing, so a submission step cannot be
  * rewritten by resending.
  *
- * Admitted input: the Order Authority's transmissions of this round, in any order relative to the
+ * Admitted input: the Order Selection Authority's transmissions of this round, in any order relative to the
  * steps.
  *
  * @param state Current game state
