@@ -105,10 +105,10 @@ PlayerPanel buildPanel(const Views& views, const PlayerId& player, const std::ma
     panel.next_handover = score->second.next_handover;
   }
   panel.alive = snake_model::alive(views.arena.snakes.at(player));
+  if (auto active = views.arena.active.find(player); active != views.arena.active.end()) {
+    panel.executing_target = active->second.target;
+  }
   if (auto orders = views.orders.players.find(player); orders != views.orders.players.end()) {
-    if (const std::optional<OrderRecord>& executing = orders->second.executing) {
-      panel.executing_target = executing->order.target;
-    }
     if (const std::optional<OrderRecord>& transmitted = orders->second.transmitted) {
       panel.transmitted_target = transmitted->order.target;
     }
