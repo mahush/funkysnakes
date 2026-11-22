@@ -1,6 +1,7 @@
 #pragma once
 
 #include <iterator>
+#include <map>
 #include <optional>
 #include <utility>
 #include <vector>
@@ -9,6 +10,7 @@
 #include "orbital/game_authority.hpp"
 #include "orbital/game_boundary.hpp"
 #include "orbital/order.hpp"
+#include "orbital/order_selection_authority.hpp"
 
 namespace snake {
 namespace orbital {
@@ -21,12 +23,41 @@ namespace mechanics {
 struct Observations {
   std::optional<game_boundary::StartRejected> start_rejected;  // For a refused Start
   std::optional<game_boundary::SubmissionOutcome> submission;  // For Submit
-  std::optional<OrderSubmitted> submitted;       // For an accepted Submit: the Order Authority's submission record
+  std::optional<OrderSubmitted> submitted;  // For an accepted Submit: the Order Selection Authority's submission record
   std::vector<game_boundary::StepReport> steps;  // Every step that ran, oldest first
   ArenaEvents end_of_round_events;               // Orders ended because the game concluded
   std::optional<game_authority::GameConcluded> concluded;
   std::optional<game_boundary::Views> views;  // Views after the interaction, once started
 };
+
+/**
+ * @brief The order a transmission carries, as the Arena Authority takes it
+ */
+inline Order orderOf(const OrderTransmitted& transmitted) {
+  return Order{transmitted.round, transmitted.order, transmitted.player, transmitted.target};
+}
+
+/**
+ * @brief Each player's selected target
+ */
+inline std::map<PlayerId, Point> selectedTargets(const order_selection_authority::View& selections) {
+  std::map<PlayerId, Point> targets;
+  for (const auto& [player, selection] : selections.selections) {
+    targets[player] = selection.order.target;
+  }
+  return targets;
+}
+
+/**
+ * @brief Each player's transmitted target; of several transmissions of a player, the latest
+ */
+inline std::map<PlayerId, Point> transmittedTargets(const std::vector<OrderTransmitted>& transmitted) {
+  std::map<PlayerId, Point> targets;
+  for (const OrderTransmitted& sent : transmitted) {
+    targets[sent.player] = sent.target;
+  }
+  return targets;
+}
 
 /**
  * @brief Observations produced so far, followed by a later batch

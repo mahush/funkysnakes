@@ -1,5 +1,6 @@
 #include "orbital/orbital_game_domain_application.hpp"
 
+#include <algorithm>
 #include <stdexcept>
 #include <tuple>
 #include <variant>
@@ -35,22 +36,32 @@ GamePhase phaseOf(const State& state) {
   return game_authority::isRunning(*state.game) ? GamePhase::RUNNING : GamePhase::CONCLUDED;
 }
 
-// Route each order of one kind would get from the snake's current position
-std::map<PlayerId, std::vector<Direction>> routesOf(
-    const arena_authority::State& arena,
-    const order_authority::View& orders,
-    std::optional<order_authority::OrderRecord> order_authority::PlayerOrders::* order) {
+// Route an order to each player's target would get from the snake's current position
+std::map<PlayerId, std::vector<Direction>> routesTo(const arena_authority::State& arena,
+                                                    const std::map<PlayerId, Point>& targets) {
   std::map<PlayerId, std::vector<Direction>> routes;
-  for (const auto& [player, player_orders] : orders.players) {
-    const std::optional<order_authority::OrderRecord>& record = player_orders.*order;
-    if (!record) {
-      continue;
-    }
-    if (auto route = arena_authority::routeIfActivatedNow(arena, player, record->order.target)) {
+  for (const auto& [player, target] : targets) {
+    if (auto route = arena_authority::routeIfActivatedNow(arena, player, target)) {
       routes[player] = std::move(*route);
     }
   }
   return routes;
+}
+
+// Split the transmitted orders into those taking part in the step, as the Transmission Schedule Policy answers, and
+// those waiting for a later step
+std::tuple<std::vector<Order>, std::vector<OrderTransmitted>> releasedOrders(std::vector<OrderTransmitted> transmitted,
+                                                                             StepId step) {
+  std::vector<Order> released;
+  std::vector<OrderTransmitted> waiting;
+  for (OrderTransmitted& sent : transmitted) {
+    if (transmission_schedule_policy::firstStepAfterTransmission(sent.transmitted_at) <= step) {
+      released.push_back(mechanics::orderOf(sent));
+    } else {
+      waiting.push_back(std::move(sent));
+    }
+  }
+  return {std::move(released), std::move(waiting)};
 }
 
 // Step in which each executing order is expected to complete, as the Arena Authority expects it
@@ -64,11 +75,12 @@ std::map<PlayerId, StepId> expectedCompletions(const arena_authority::State& are
   return completions;
 }
 
-// What choosing a successor would earn each player now, as the Game Authority decides it from what the
-// Arena and Order Authorities know of the player's orders
-std::map<PlayerId, game_authority::HandoverProspect> handoverProspects(const State& state,
-                                                                       const order_authority::View& orders,
-                                                                       const std::map<PlayerId, StepId>& completions) {
+// What choosing a successor would earn each player now, as the Game Authority decides it from the player's
+// executing order (Arena Authority), selection (Order Selection Authority) and transmitted orders
+std::map<PlayerId, game_authority::HandoverProspect> handoverProspects(
+    const State& state,
+    const order_selection_authority::View& selections,
+    const std::map<PlayerId, StepId>& completions) {
   std::map<PlayerId, game_authority::HandoverProspect> prospects;
   for (const PlayerId& player : arena_authority::alivePlayers(*state.arena)) {
     game_authority::ProspectContext context{
@@ -76,13 +88,14 @@ std::map<PlayerId, game_authority::HandoverProspect> handoverProspects(const Sta
     if (auto completion = completions.find(player); completion != completions.end()) {
       context.expected_completion = completion->second;
     }
-    if (auto player_orders = orders.players.find(player); player_orders != orders.players.end()) {
-      if (const std::optional<order_authority::OrderRecord>& selected = player_orders->second.selected) {
-        context.selected_at = selected->submitted_at;
-        context.selection_replaced = selected->replaced.has_value();
-      }
-      context.transmission_pending = player_orders->second.transmitted.has_value();
+    if (auto selection = selections.selections.find(player); selection != selections.selections.end()) {
+      context.selected_at = selection->second.submitted_at;
+      context.selection_replaced = selection->second.replaced.has_value();
     }
+    context.transmission_pending =
+        std::any_of(state.transmitted.begin(), state.transmitted.end(), [&player](const OrderTransmitted& sent) {
+          return sent.player == player;
+        });
     prospects[player] = game_authority::handoverProspect(*state.game, player, context);
   }
   return prospects;
@@ -90,15 +103,16 @@ std::map<PlayerId, game_authority::HandoverProspect> handoverProspects(const Sta
 
 Observations withViews(Observations observations, const State& state) {
   if (isStarted(state)) {
-    order_authority::View orders = order_authority::view(*state.orders);
+    order_selection_authority::View selections = order_selection_authority::view(*state.selections);
     std::map<PlayerId, std::vector<Direction>> selected_routes =
-        routesOf(*state.arena, orders, &order_authority::PlayerOrders::selected);
+        routesTo(*state.arena, mechanics::selectedTargets(selections));
     std::map<PlayerId, std::vector<Direction>> transmitted_routes =
-        routesOf(*state.arena, orders, &order_authority::PlayerOrders::transmitted);
+        routesTo(*state.arena, mechanics::transmittedTargets(state.transmitted));
     std::map<PlayerId, StepId> completions = expectedCompletions(*state.arena);
-    std::map<PlayerId, game_authority::HandoverProspect> prospects = handoverProspects(state, orders, completions);
+    std::map<PlayerId, game_authority::HandoverProspect> prospects = handoverProspects(state, selections, completions);
     observations.views = Views{arena_authority::view(*state.arena),
-                               std::move(orders),
+                               std::move(selections),
+                               state.transmitted,
                                game_authority::view(*state.game),
                                pacing_policy::STEP_INTERVAL,
                                pacing_policy::LAST_STEP,
@@ -119,11 +133,11 @@ std::vector<PlayerId> playersOf(const arena_authority::RoundSetup& setup) {
   return players;
 }
 
-// Carry out the Game Authority's conclusion intent: end execution, then cancel what is still selected or transmitted
+// Carry out the Game Authority's conclusion intent: end execution, then cancel the selections
 std::tuple<State, Observations> conclude(State state, const game_authority::GameConcluded& concluded) {
   auto [arena, end_events] = arena_authority::endRound(std::move(*state.arena));
   state.arena = std::move(arena);
-  state.orders = order_authority::cancel(order_authority::observe(std::move(*state.orders), {}, end_events));
+  state.selections = order_selection_authority::cancel(std::move(*state.selections));
 
   Observations observations;
   observations.end_of_round_events = std::move(end_events);
@@ -136,10 +150,10 @@ std::tuple<State, Observations> runStep(const RandomIntGeneratorFn& random_int_f
   state.clock.next_step += pacing_policy::STEP_INTERVAL;
 
   const StepId step = arena_authority::upcomingStep(*state.arena);
-  std::vector<Order> released = order_authority::transmittedOrders(*state.orders, step);
+  auto [released, waiting] = releasedOrders(std::move(state.transmitted), step);
+  state.transmitted = std::move(waiting);
   auto [arena, activations, events] = arena_authority::tick(random_int_fn, std::move(*state.arena), released);
   state.arena = std::move(arena);
-  state.orders = order_authority::observe(std::move(*state.orders), activations, events);
   auto [game, handovers, concluded] = game_authority::observeStep(
       std::move(*state.game), step, activations, events, arena_authority::alivePlayers(*state.arena));
   state.game = std::move(game);
@@ -151,8 +165,9 @@ std::tuple<State, Observations> runStep(const RandomIntGeneratorFn& random_int_f
     return {std::move(concluded_state), appendObservations(std::move(observations), std::move(conclusion))};
   }
   if (transmission_schedule_policy::isOpportunity(step)) {
-    auto [orders, transmissions] = order_authority::transmit(std::move(*state.orders), step);
-    state.orders = std::move(orders);
+    auto [selections, transmissions] = order_selection_authority::transmit(std::move(*state.selections), step);
+    state.selections = std::move(selections);
+    state.transmitted.insert(state.transmitted.end(), transmissions.begin(), transmissions.end());
     for (const OrderTransmitted& transmitted : transmissions) {
       auto [game_with_transmission, granted] = game_authority::observeTransmission(std::move(*state.game), transmitted);
       state.game = std::move(game_with_transmission);
@@ -176,7 +191,8 @@ std::tuple<State, Observations> startGame(const RandomIntGeneratorFn& random_int
   }
 
   state.arena = arena_authority::startRound(random_int_fn, setup);
-  state.orders = order_authority::startRound(setup.round);
+  state.selections = order_selection_authority::startRound(setup.round);
+  state.transmitted.clear();
   state.game = game_authority::startRound(setup.round, playersOf(setup));
   state.clock = VirtualClock{};
   Observations observations = withViews({}, state);
@@ -197,10 +213,11 @@ std::tuple<State, Observations> apply(State state, const Submit& submit) {
     return {std::move(state), std::move(observations)};
   }
 
-  auto [orders, submitted] = order_authority::submit(
-      std::move(*state.orders),
-      order_authority::Submission{submit.player, submit.target, arena_authority::lastCompletedStep(*state.arena)});
-  state.orders = std::move(orders);
+  auto [selections, submitted] = order_selection_authority::submit(
+      std::move(*state.selections),
+      order_selection_authority::Submission{
+          submit.player, submit.target, arena_authority::lastCompletedStep(*state.arena)});
+  state.selections = std::move(selections);
   observations.submission = SubmissionAccepted{submitted.player, submitted.order, submitted.submitted_at};
   observations.submitted = submitted;
   observations = withViews(std::move(observations), state);

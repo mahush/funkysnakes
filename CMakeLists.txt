@@ -87,7 +87,7 @@ add_executable(orbital_domain_runner
   src/orbital_domain_runner.cpp
   semantic_artifacts/src/orbital/arena_authority.cpp
   semantic_artifacts/src/orbital/game_authority.cpp
-  semantic_artifacts/src/orbital/order_authority.cpp
+  semantic_artifacts/src/orbital/order_selection_authority.cpp
   semantic_artifacts/src/orbital/orbital_game_domain_application.cpp
   semantic_artifacts/src/orbital/pursuit_policy.cpp
   semantic_artifacts/src/orbital/scoring_policy.cpp
@@ -117,7 +117,7 @@ add_executable(orbital_snake
   src/orbital_controls.cpp
   semantic_artifacts/src/orbital/arena_authority.cpp
   semantic_artifacts/src/orbital/game_authority.cpp
-  semantic_artifacts/src/orbital/order_authority.cpp
+  semantic_artifacts/src/orbital/order_selection_authority.cpp
   semantic_artifacts/src/orbital/orbital_game_domain_application.cpp
   semantic_artifacts/src/orbital/pursuit_policy.cpp
   semantic_artifacts/src/orbital/scoring_policy.cpp

@@ -13,7 +13,7 @@
 #include "orbital/game_authority.hpp"
 #include "orbital/identities.hpp"
 #include "orbital/order.hpp"
-#include "orbital/order_authority.hpp"
+#include "orbital/order_selection_authority.hpp"
 
 namespace snake {
 namespace orbital {
@@ -118,14 +118,17 @@ struct StepReport {
 /**
  * @brief Current views of the three Authorities, the game's steps and the orbital link condition
  *
- * The link condition is what the Transmission Schedule Policy decides: every transmission
- * opportunity of the game. The step interval and the last step are the Pacing Policy's. A combined
- * presentation is a projection of these views; it owns no meaning of its own and does not ask the
- * Authorities or Policies itself. The order of the listed orders across players carries no meaning.
+ * An order shows in one place at a time: selected (Order Selection Authority), transmitted and waiting
+ * for its step, or executing (Arena Authority's active orders). The link condition is what the
+ * Transmission Schedule Policy decides: every transmission opportunity of the game. The step interval
+ * and the last step are the Pacing Policy's. A combined presentation is a projection of these views; it
+ * owns no meaning of its own and does not ask the Authorities or Policies itself. The order of the
+ * listed transmitted orders across players carries no meaning.
  */
 struct Views {
   arena_authority::View arena;
-  order_authority::View orders;
+  order_selection_authority::View selections;
+  std::vector<OrderTransmitted> transmitted;  // Transmitted orders that have not yet taken part in a step
   game_authority::View game;
   std::chrono::milliseconds step_interval;                        // Interval between arena steps (Pacing Policy)
   StepId last_step;                                               // Last step of the game (Pacing Policy)

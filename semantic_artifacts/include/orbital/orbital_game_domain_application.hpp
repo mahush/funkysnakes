@@ -11,7 +11,7 @@
 #include "orbital/arena_authority.hpp"
 #include "orbital/game_authority.hpp"
 #include "orbital/game_boundary.hpp"
-#include "orbital/order_authority.hpp"
+#include "orbital/order_selection_authority.hpp"
 #include "orbital/pacing_policy.hpp"
 
 namespace snake {
@@ -25,7 +25,7 @@ using game_boundary::Submit;
 /**
  * Orbital Game Domain Application - canonical single-process realization of Orbital Orders
  *
- * Composes the Arena, Order and Game Authorities and their Policies without actors, timers,
+ * Composes the Arena, Order Selection and Game Authorities and their Policies without actors, timers,
  * networking or rendering. The owners hold all of the game's meaning and stay pure; the Domain
  * Application keeps the game's state, routes interactions and Authority outputs mechanically through
  * pure composition, and makes no gameplay decision of its own. Its only effects are calls of the
@@ -47,15 +47,15 @@ using game_boundary::Submit;
  * started, running, concluded) is the Admission Policy's answer, which it passes on as the outcome.
  *
  * One logical clock drives the round; steps fall due at the Pacing Policy's step interval. A
- * submission is selected (Order Authority) in the step the clock is in. Each step that falls due runs:
- *   orders transmitted at an earlier step (Order Authority) → step (Arena Authority)
- *   → interpret outcomes (Order Authority)
+ * submission is selected (Order Selection Authority) in the step the clock is in. Each step that falls
+ * due runs:
+ *   transmitted orders whose first step (Transmission Schedule Policy) has come → step (Arena Authority)
  *   → score, advance handover chains and check end (Game Authority)
- *   → if concluded: end execution (Arena Authority) → interpret endings (Order Authority)
- *     → cancel selected and transmitted orders (Order Authority)
- *   → otherwise, at an opportunity of the Transmission Schedule Policy: transmit the selected orders
- *     (Order Authority) → learn the transmissions (Game Authority)
- * So a transmitted order is tried at the step after its transmission, before that step's movement.
+ *   → if concluded: end execution (Arena Authority) → cancel the selections (Order Selection Authority)
+ *   → otherwise, at an opportunity of the Transmission Schedule Policy: transmit the selections
+ *     (Order Selection Authority) → learn the transmissions (Game Authority)
+ * So a transmitted order is tried at the step after its transmission, before that step's movement, and
+ * the Arena Authority decides its outcome in that step. No transmitted order is left at the conclusion.
  * The clock never stands on a step that has not run, so a submission happens in the last step that
  * ran, after that step's movement and its transmission.
  */
@@ -129,7 +129,8 @@ struct VirtualClock {
  */
 struct State {
   std::optional<arena_authority::State> arena;  // Empty until a game started
-  std::optional<order_authority::State> orders;
+  std::optional<order_selection_authority::State> selections;
+  std::vector<OrderTransmitted> transmitted;  // Transmitted orders that have not yet taken part in a step
   std::optional<game_authority::State> game;
   VirtualClock clock;
 };
