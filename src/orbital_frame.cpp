@@ -11,10 +11,9 @@ namespace orbital_frame {
 
 namespace {
 
+using orbital::OrderTransmitted;
 using orbital::StepId;
 using orbital::game_boundary::Views;
-using orbital::order_authority::OrderRecord;
-using orbital::order_authority::Status;
 
 void put(CellGrid& cells, Point p, Cell cell) {
   if (p.y >= 0 && p.y < static_cast<int>(cells.size()) && p.x >= 0 && p.x < static_cast<int>(cells[p.y].size())) {
@@ -72,12 +71,11 @@ CellGrid buildCells(const Views& views, const std::map<PlayerId, Point>& cursors
   for (const Point& food : views.arena.food) {
     put(cells, food, Cell{CellRole::FOOD, std::nullopt});
   }
-  for (const auto& [player, orders] : views.orders.players) {
-    for (const auto& order : {orders.selected, orders.transmitted}) {
-      if (order) {
-        put(cells, order->order.target, Cell{CellRole::TARGET, player});
-      }
-    }
+  for (const auto& [player, selection] : views.selections.selections) {
+    put(cells, selection.order.target, Cell{CellRole::TARGET, player});
+  }
+  for (const OrderTransmitted& transmitted : views.transmitted) {
+    put(cells, transmitted.target, Cell{CellRole::TARGET, transmitted.player});
   }
   for (const auto& [player, active] : views.arena.active) {
     put(cells, active.target, Cell{CellRole::TARGET, player});
@@ -108,13 +106,13 @@ PlayerPanel buildPanel(const Views& views, const PlayerId& player, const std::ma
   if (auto active = views.arena.active.find(player); active != views.arena.active.end()) {
     panel.executing_target = active->second.target;
   }
-  if (auto orders = views.orders.players.find(player); orders != views.orders.players.end()) {
-    if (const std::optional<OrderRecord>& transmitted = orders->second.transmitted) {
-      panel.transmitted_target = transmitted->order.target;
+  for (const OrderTransmitted& transmitted : views.transmitted) {
+    if (transmitted.player == player) {
+      panel.transmitted_target = transmitted.target;
     }
-    if (const std::optional<OrderRecord>& selected = orders->second.selected) {
-      panel.selected_target = selected->order.target;
-    }
+  }
+  if (auto selection = views.selections.selections.find(player); selection != views.selections.selections.end()) {
+    panel.selected_target = selection->second.order.target;
   }
   if (auto cursor = cursors.find(player); cursor != cursors.end()) {
     panel.cursor = cursor->second;

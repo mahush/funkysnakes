@@ -1,4 +1,5 @@
-// Tests for the Orbital Game Domain Application: whole-game histories across the Order, Arena and Game Authorities.
+// Tests for the Orbital Game Domain Application: whole-game histories across the Order Selection, Arena and Game
+// Authorities.
 //
 // Most histories start in a small hand-picked world through the test setup seam, so they are reference-only (see
 // TestAccess). Apart from that start, the tests use the Domain Application through its two interfaces only: they drive
@@ -39,20 +40,9 @@ using game_boundary::SubmissionAccepted;
 using game_boundary::SubmissionRejected;
 using game_boundary::SubmissionRejectionReason;
 using game_boundary::Views;
-using order_authority::Status;
 
-Status statusOf(const Views& views, const PlayerId& player, OrderNumber id) {
-  for (const order_authority::OrderRecord& record : views.orders.orders) {
-    if (record.order.player == player && record.order.id == id) {
-      return record.status;
-    }
-  }
-  ADD_FAILURE() << "order " << player << " #" << id.value << " is not known";
-  return Status::SELECTED;
-}
-
-// The comparable content of the three views: heads, food, executing targets and step; order statuses; points and
-// remaining steps
+// The comparable content of the views: heads, food, executing targets and step; selections and transmitted orders;
+// points and remaining steps
 auto viewedOutcome(const Views& views) {
   std::map<PlayerId, Point> heads;
   for (const auto& [player, snake] : views.arena.snakes) {
@@ -62,16 +52,18 @@ auto viewedOutcome(const Views& views) {
   for (const auto& [player, active] : views.arena.active) {
     targets[player] = active.target;
   }
-  std::vector<Status> statuses;
-  for (const order_authority::OrderRecord& record : views.orders.orders) {
-    statuses.push_back(record.status);
-  }
   std::map<PlayerId, std::pair<int, int>> points;
   for (const auto& [player, score] : views.game.players) {
     points[player] = {score.banked, score.held};
   }
-  return std::make_tuple(
-      heads, views.arena.food, targets, views.arena.step, statuses, points, views.game.remaining_steps);
+  return std::make_tuple(heads,
+                         views.arena.food,
+                         targets,
+                         views.arena.step,
+                         views.selections.selections,
+                         views.transmitted,
+                         points,
+                         views.game.remaining_steps);
 }
 
 /**
@@ -141,8 +133,15 @@ class OrbitalGameDomainApplication : public ::testing::Test {
     return std::get<SubmissionAccepted>(players_.submissions.back()).order;
   }
 
-  Status statusOf(const PlayerId& player, OrderNumber id) const {
-    return orbital::statusOf(*players_.views, player, id);
+  /**
+   * @brief The player's selected order, as the views show it
+   */
+  std::optional<OrderNumber> selectedOrderOf(const PlayerId& player) const {
+    const order_selection_authority::View& selections = players_.views->selections;
+    if (auto selection = selections.selections.find(player); selection != selections.selections.end()) {
+      return selection->second.order.id;
+    }
+    return std::nullopt;
   }
 
   /**
@@ -226,7 +225,7 @@ class OrbitalGameDomainApplication : public ::testing::Test {
 
 /// @section DomainApplication
 ///
-/// Whole-game histories: selection and transmission (Order Authority) → execution (Arena Authority) → scoring
+/// Whole-game histories: selection and transmission (Order Selection Authority) → execution (Arena Authority) → scoring
 /// (Game Authority). Timing: steps run every 200 ms; the first transmission opportunities come at 200 ms, 4200 ms and
 /// 8000 ms, so an order submitted at 0 ms is transmitted at 200 ms and activates at 400 ms, and one submitted later
 /// in the first 4 s activates at 4400 ms.
@@ -272,7 +271,7 @@ TEST_F(OrbitalGameDomainApplication, RejectsStartWhileGameIsRunning) {
   ASSERT_EQ(players_.calls, (std::vector<std::string>{"startRejected", "viewsUpdated"}));
   EXPECT_EQ(players_.start_rejections.front().reason, StartRejectionReason::ALREADY_STARTED);
   EXPECT_EQ(players_.views->arena.step, StepId{6});
-  EXPECT_EQ(statusOf(PLAYER_A, order), Status::SELECTED);
+  EXPECT_EQ(selectedOrderOf(PLAYER_A), order);
 }
 
 /// @brief A new game needs a new Domain Application, also after the game concluded
@@ -342,7 +341,7 @@ TEST_F(OrbitalGameDomainApplication, KeepsHeldPointsWhenReplacementIsOnlySubmitt
   // Then: F still holds its 20 points and G waits for a transmission
   EXPECT_EQ(scoreOf(PLAYER_A).held, 20);
   EXPECT_EQ(executingOrderOf(PLAYER_A), f);
-  EXPECT_EQ(statusOf(PLAYER_A, g), Status::SELECTED);
+  EXPECT_EQ(selectedOrderOf(PLAYER_A), g);
 }
 
 /// @subsection handover chain
@@ -575,7 +574,7 @@ TEST_F(OrbitalGameDomainApplication, KeepsOrderSelectedUntilNextOpportunity) {
   elapse(3800);
 
   // Then: G is still selected
-  EXPECT_EQ(statusOf(PLAYER_A, g), Status::SELECTED);
+  EXPECT_EQ(selectedOrderOf(PLAYER_A), g);
 }
 
 /// @brief Only the latest selection is sent; earlier ones never leave the player
@@ -698,9 +697,10 @@ TEST_F(OrbitalGameDomainApplication, EndsExecutingAndCancelsWaitingOrdersAtConcl
   // When: the game ends
   elapse(200);
 
-  // Then: F ended with the round and G was cancelled
+  // Then: F ended with the round, and G was cancelled without being sent
   EXPECT_EQ(endingOf(PLAYER_A, f), EndReason::ROUND_ENDED);
-  EXPECT_EQ(statusOf(PLAYER_A, g), Status::CANCELLED);
+  EXPECT_FALSE(selectedOrderOf(PLAYER_A).has_value());
+  EXPECT_FALSE(isTransmitted(PLAYER_A, g));
   EXPECT_TRUE(arena().active.empty());
 }
 
@@ -917,7 +917,7 @@ TEST_F(OrbitalGameDomainApplication, TakesCallDuringReportAsNextInteraction) {
           "stepReported", "stepReported", "viewsUpdated", "submissionOutcome", "orderSubmitted", "viewsUpdated"}));
   ASSERT_EQ(players.submitted.size(), 1U);
   EXPECT_EQ(players.submitted.front().submitted_at, StepId{2});
-  EXPECT_TRUE(players.views->orders.players.at(PLAYER_A).selected.has_value());
+  EXPECT_EQ(players.views->selections.selections.count(PLAYER_A), 1U);
 }
 
 /// @brief A failing players' side must not let a call it made during the failed report take effect later
