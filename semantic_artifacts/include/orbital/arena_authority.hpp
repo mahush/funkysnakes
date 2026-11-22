@@ -26,9 +26,9 @@ namespace arena_authority {
  * food collection, order completion and food replenishment. Growth and collision rules are classic's. The nested
  * snake_model owns the body and life of one snake.
  *
- * Out of scope: selected and transmitted orders (Order Authority) and the transmission opportunities (Transmission
- * Schedule Policy), points, round duration and conclusion (Game Authority). The Arena Authority reports events; it does
- * not value them.
+ * Out of scope: selected orders (Order Selection Authority), the transmission opportunities and the step a transmitted
+ * order first takes part in (Transmission Schedule Policy), points, round duration and conclusion (Game Authority). The
+ * Arena Authority reports events; it does not value them.
  *
  * Within the events of one step:
  * - interruption of an executing order precedes collection under its replacement;

@@ -839,7 +839,8 @@ TEST(OrbitalGameAuthority, ReportsHandoverWhenSuccessorTransmissionIsLearnedLate
   EXPECT_EQ(handovers, (std::vector<game_authority::HandoverGranted>{{PLAYER_A, OrderNumber{2}, 1, 10}}));
 }
 
-/// @brief A player-local Order Authority may synchronize its history after the Arena Authority reported the completion
+/// @brief A player-local Order Selection Authority may synchronize its history after the Arena Authority reported the
+/// completion
 TEST(OrbitalGameAuthority, BanksHandoverWhenSuccessorTransmissionIsLearnedLate) {
   // Given: 1 and 2 executed and completed before 2's transmission is known
   State state = withSuccessorTransmissionUnknown();

@@ -12,9 +12,9 @@ namespace snake {
 namespace orbital {
 
 /**
- * Order vocabulary shared by the Order Authority and the Arena Authority
+ * Order vocabulary shared by the Order Selection Authority and the Arena Authority
  *
- * The Order Authority's transmitted orders reach the Arena Authority, and it publishes its submission and
+ * The Order Selection Authority's transmitted orders reach the Arena Authority, and it publishes its submission and
  * transmission history; the Arena Authority reports what actually happened to the orders. Every item carries the
  * identities needed to correlate it, also when it arrives late in a distributed realization.
  */
@@ -36,7 +36,7 @@ struct Order {
 };
 
 // ============================================================================
-// Submission history: what the Order Authority accepted from a player
+// Submission history: what the Order Selection Authority accepted from a player
 // ============================================================================
 
 /**
