@@ -90,34 +90,34 @@ TEST(TransmissionSchedulePolicy, OffersOpportunityEveryThirdStepAtEndOfGame) {
   EXPECT_FALSE(after_it);
 }
 
-/// @section transmission_schedule_policy::canTakePart
+/// @section transmission_schedule_policy::takesPartIn
 
 /// @brief The opportunity comes after the step's movement, so what it sends cannot move in that step any more
-TEST(TransmissionSchedulePolicy, WithholdsTransmissionFromItsOwnStep) {
-  // When: a transmission in step 21 is asked to take part in step 21 at compile time
-  constexpr bool can_take_part = transmission_schedule_policy::canTakePart(StepId{21}, StepId{21});
+TEST(TransmissionSchedulePolicy, LetsTransmissionTakePartInNextStep) {
+  // When: a transmission in step 21 is asked about step 22 at compile time
+  constexpr bool takes_part = transmission_schedule_policy::takesPartIn(StepId{21}, StepId{22});
 
-  // Then: it cannot
-  EXPECT_FALSE(can_take_part);
+  // Then: it takes part
+  EXPECT_TRUE(takes_part);
 }
 
 namespace {
 
-class TransmissionSchedulePolicyLaterStep : public ::testing::TestWithParam<StepId> {};
+class TransmissionSchedulePolicyOtherStep : public ::testing::TestWithParam<StepId> {};
 
 }  // namespace
 
-TEST_P(TransmissionSchedulePolicyLaterStep, LetsTransmissionTakePart) {
-  // When: a transmission in step 21 is asked to take part in a later step
-  bool can_take_part = transmission_schedule_policy::canTakePart(StepId{21}, GetParam());
+TEST_P(TransmissionSchedulePolicyOtherStep, WithholdsTransmission) {
+  // When: a transmission in step 21 is asked about a step other than the next one
+  bool takes_part = transmission_schedule_policy::takesPartIn(StepId{21}, GetParam());
 
-  // Then: it can
-  EXPECT_TRUE(can_take_part);
+  // Then: it does not take part
+  EXPECT_FALSE(takes_part);
 }
 
-INSTANTIATE_TEST_SUITE_P(NextAndLaterStep,
-                         TransmissionSchedulePolicyLaterStep,
-                         ::testing::Values(StepId{22}, StepId{23}));
+INSTANTIATE_TEST_SUITE_P(EarlierOwnAndLaterSteps,
+                         TransmissionSchedulePolicyOtherStep,
+                         ::testing::Values(StepId{20}, StepId{21}, StepId{23}));
 
 /// @section transmission_schedule_policy::firstOpportunityAfterCompletion
 

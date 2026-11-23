@@ -22,7 +22,7 @@ namespace transmission_schedule_policy {
  * An order passes three events: it is submitted (selected, still replaceable), transmitted at an opportunity
  * (irrevocable) and activated by the arena at the start of a later step's movement. Within a step, the movement
  * comes first, then the step's opportunity, then the step's submissions: what is sent at the opportunity takes
- * part from the next step on, and what is submitted in the step is sent at a later opportunity.
+ * part in the next step, and what is submitted in the step is sent at a later opportunity.
  *
  * The schedule is known in advance, so players can plan around the coming opportunities. What is sent
  * at an opportunity is the Order Selection Authority's; the Policy keeps no orders.
@@ -83,16 +83,15 @@ constexpr StepId nextOpportunityAfter(StepId at) { return firstOpportunityFrom(S
 constexpr bool isOpportunity(StepId at) { return firstOpportunityFrom(at) == at; }
 
 /**
- * @brief Whether a transmission can take part in a step
+ * @brief Whether a transmission takes part in a step
  *
- * The opportunity in a step comes after the step's movement, so what is sent there can take part from the next step
- * on.
+ * The opportunity in a step comes after the step's movement, so what is sent there takes part in the next step.
  *
  * @param transmitted_in Step whose opportunity sent the order (not negative)
- * @param step Step the order would take part in (not negative)
- * @return True if step comes after transmitted_in
+ * @param step Step in question (not negative)
+ * @return True if step is the step after transmitted_in
  */
-constexpr bool canTakePart(StepId transmitted_in, StepId step) { return transmitted_in < step; }
+constexpr bool takesPartIn(StepId transmitted_in, StepId step) { return step == StepId{transmitted_in.value + 1}; }
 
 /**
  * @brief First opportunity after a completion

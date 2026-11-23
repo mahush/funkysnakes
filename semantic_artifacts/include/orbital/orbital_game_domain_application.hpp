@@ -49,7 +49,7 @@ using game_boundary::Submit;
  * One logical clock drives the round; steps fall due at the Pacing Policy's step interval. A
  * submission is selected (Order Selection Authority) in the step the clock is in. Each step that falls
  * due runs:
- *   transmitted orders that can take part in the step (Transmission Schedule Policy) → step (Arena Authority)
+ *   transmitted orders that take part in the step (Transmission Schedule Policy) → step (Arena Authority)
  *   → score, advance handover chains and check end (Game Authority)
  *   → if concluded: end execution (Arena Authority) → cancel the selections (Order Selection Authority)
  *   → otherwise, at an opportunity of the Transmission Schedule Policy: transmit the selections
