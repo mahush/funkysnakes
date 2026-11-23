@@ -55,7 +55,7 @@ std::tuple<std::vector<Order>, std::vector<OrderTransmitted>> releasedOrders(std
   std::vector<Order> released;
   std::vector<OrderTransmitted> waiting;
   for (OrderTransmitted& sent : transmitted) {
-    if (transmission_schedule_policy::firstStepAfterTransmission(sent.transmitted_at) <= step) {
+    if (transmission_schedule_policy::canTakePart(sent.transmitted_at, step)) {
       released.push_back(mechanics::orderOf(sent));
     } else {
       waiting.push_back(std::move(sent));
