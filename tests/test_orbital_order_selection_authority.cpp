@@ -104,8 +104,10 @@ TEST(OrderSelectionAuthority, KeepsSelectionsOfOtherPlayers) {
   auto [next_state, b] = submitOrder(state, Submission{PLAYER_B, Point{8, 1}, StepId{0}});
 
   // Then: both players have their selection
-  EXPECT_EQ(selectionOf(next_state, PLAYER_A)->order.id, a);
-  EXPECT_EQ(selectionOf(next_state, PLAYER_B)->order.id, b);
+  EXPECT_EQ(selectionOf(next_state, PLAYER_A),
+            (Selection{Order{ROUND, a, PLAYER_A, Point{3, 4}}, StepId{0}, std::nullopt}));
+  EXPECT_EQ(selectionOf(next_state, PLAYER_B),
+            (Selection{Order{ROUND, b, PLAYER_B, Point{8, 1}}, StepId{0}, std::nullopt}));
 }
 
 /// @brief The submission step is the domain fact the Game Authority relates to the Arena Authority's history
@@ -205,7 +207,8 @@ TEST(OrderSelectionAuthority, KeepsSelectionSubmittedInTransmissionStep) {
 
   // Then: nothing is transmitted and G stays selected
   EXPECT_TRUE(transmissions.empty());
-  EXPECT_EQ(selectionOf(next_state, PLAYER_A)->order.id, g);
+  EXPECT_EQ(selectionOf(next_state, PLAYER_A),
+            (Selection{Order{ROUND, g, PLAYER_A, Point{3, 4}}, StepId{21}, std::nullopt}));
 }
 
 /// @section order_selection_authority::cancel
