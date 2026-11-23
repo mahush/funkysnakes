@@ -90,16 +90,34 @@ TEST(TransmissionSchedulePolicy, OffersOpportunityEveryThirdStepAtEndOfGame) {
   EXPECT_FALSE(after_it);
 }
 
-/// @section transmission_schedule_policy::firstStepAfterTransmission
+/// @section transmission_schedule_policy::canTakePart
 
 /// @brief The opportunity comes after the step's movement, so what it sends cannot move in that step any more
-TEST(TransmissionSchedulePolicy, LetsTransmissionTakePartFromNextStep) {
-  // When: the first step of a transmission in step 21 is computed at compile time
-  constexpr StepId first = transmission_schedule_policy::firstStepAfterTransmission(StepId{21});
+TEST(TransmissionSchedulePolicy, WithholdsTransmissionFromItsOwnStep) {
+  // When: a transmission in step 21 is asked to take part in step 21 at compile time
+  constexpr bool can_take_part = transmission_schedule_policy::canTakePart(StepId{21}, StepId{21});
 
-  // Then: it is step 22
-  EXPECT_EQ(first, StepId{22});
+  // Then: it cannot
+  EXPECT_FALSE(can_take_part);
 }
+
+namespace {
+
+class TransmissionSchedulePolicyLaterStep : public ::testing::TestWithParam<StepId> {};
+
+}  // namespace
+
+TEST_P(TransmissionSchedulePolicyLaterStep, LetsTransmissionTakePart) {
+  // When: a transmission in step 21 is asked to take part in a later step
+  bool can_take_part = transmission_schedule_policy::canTakePart(StepId{21}, GetParam());
+
+  // Then: it can
+  EXPECT_TRUE(can_take_part);
+}
+
+INSTANTIATE_TEST_SUITE_P(NextAndLaterStep,
+                         TransmissionSchedulePolicyLaterStep,
+                         ::testing::Values(StepId{22}, StepId{23}));
 
 /// @section transmission_schedule_policy::firstOpportunityAfterCompletion
 
