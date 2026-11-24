@@ -131,10 +131,10 @@ cmake -S . -B build
 # Symlink already exists: compile_commands.json -> build/compile_commands.json
 
 # Format code (uses .clang-format - Google style, 120 cols, strict one-per-line wrapping)
-clang-format -i src/*.cpp include/**/*.hpp semantic_artifacts/src/**/*.cpp semantic_artifacts/include/**/*.hpp
+clang-format -i src/*.cpp include/**/*.hpp semantic_artifacts/domain/src/**/*.cpp semantic_artifacts/domain/include/**/*.hpp
 
 # Lint (uses .clang-tidy)
-clang-tidy src/*.cpp semantic_artifacts/src/**/*.cpp -- -I include -I semantic_artifacts/include
+clang-tidy src/*.cpp semantic_artifacts/domain/src/**/*.cpp -- -I include -I semantic_artifacts/domain/include
 ```
 
 ### Coding Style
@@ -463,8 +463,8 @@ When the state's fields are private, lenses over them are written inside the fri
 them; the mechanics header then holds only plumbing that needs no access to the state.
 
 ```
-semantic_artifacts/src/orbital/arena_authority.cpp            // step sequence, activation, completion rules
-semantic_artifacts/src/orbital/arena_authority_mechanics.hpp  // event conversion and accumulation
+semantic_artifacts/domain/src/orbital/arena_authority.cpp            // step sequence, activation, completion rules
+semantic_artifacts/domain/src/orbital/arena_authority_mechanics.hpp  // event conversion and accumulation
 ```
 
 ## Architecture Overview
