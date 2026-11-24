@@ -90,10 +90,20 @@ TEST(TransmissionSchedulePolicy, OffersOpportunityEveryThirdStepAtEndOfGame) {
   EXPECT_FALSE(after_it);
 }
 
-/// @section transmission_schedule_policy::takesPartIn
+/// @section transmission_schedule_policy::scheduledStepOf
 
 /// @brief The opportunity comes after the step's movement, so what it sends cannot move in that step any more
-TEST(TransmissionSchedulePolicy, LetsTransmissionTakePartInNextStep) {
+TEST(TransmissionSchedulePolicy, SchedulesTransmissionForNextStep) {
+  // When: the scheduled step of a transmission in step 21 is computed at compile time
+  constexpr StepId scheduled = transmission_schedule_policy::scheduledStepOf(StepId{21});
+
+  // Then: it is step 22
+  EXPECT_EQ(scheduled, StepId{22});
+}
+
+/// @section transmission_schedule_policy::takesPartIn
+
+TEST(TransmissionSchedulePolicy, LetsTransmissionTakePartInScheduledStep) {
   // When: a transmission in step 21 is asked about step 22 at compile time
   constexpr bool takes_part = transmission_schedule_policy::takesPartIn(StepId{21}, StepId{22});
 
