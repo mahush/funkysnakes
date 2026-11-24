@@ -111,13 +111,13 @@ TEST(OrderSelectionAuthority, KeepsSelectionsOfOtherPlayers) {
 }
 
 /// @brief The submission step is the domain fact the Game Authority relates to the Arena Authority's history
-TEST(OrderSelectionAuthority, PublishesSubmissionWithItsStep) {
+TEST(OrderSelectionAuthority, PublishesSubmissionWithItsTargetAndStep) {
   // When: player A submits an order in step 6
   auto [state, submitted] = order_selection_authority::submit(order_selection_authority::startRound(ROUND),
                                                               Submission{PLAYER_A, Point{3, 4}, StepId{6}});
 
-  // Then: the record names round, order, player and step, and replaces nothing
-  EXPECT_EQ(submitted, (OrderSubmitted{ROUND, OrderNumber{1}, PLAYER_A, StepId{6}, std::nullopt}));
+  // Then: the record names round, order, player, target and step, and replaces nothing
+  EXPECT_EQ(submitted, (OrderSubmitted{ROUND, OrderNumber{1}, PLAYER_A, Point{3, 4}, StepId{6}, std::nullopt}));
 }
 
 TEST(OrderSelectionAuthority, PublishesReplacedSelectionWithSubmission) {
@@ -239,7 +239,7 @@ TEST(OrderSelectionAuthority, ContinuesNumberingAfterCancel) {
       order_selection_authority::submit(cancelled, Submission{PLAYER_A, Point{8, 1}, StepId{1}});
 
   // Then: the new order gets the next number and replaces nothing
-  EXPECT_EQ(submitted, (OrderSubmitted{ROUND, OrderNumber{2}, PLAYER_A, StepId{1}, std::nullopt}));
+  EXPECT_EQ(submitted, (OrderSubmitted{ROUND, OrderNumber{2}, PLAYER_A, Point{8, 1}, StepId{1}, std::nullopt}));
 }
 
 }  // namespace orbital
