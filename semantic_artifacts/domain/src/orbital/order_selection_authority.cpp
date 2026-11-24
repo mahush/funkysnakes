@@ -25,7 +25,8 @@ std::tuple<State, OrderSubmitted> submit(State state, const Submission& submissi
   state.selections_.insert_or_assign(
       submission.player,
       Selection{Order{state.round_, id, submission.player, submission.target}, submission.submitted_at, replaced});
-  const OrderSubmitted submitted{state.round_, id, submission.player, submission.submitted_at, replaced};
+  const OrderSubmitted submitted{
+      state.round_, id, submission.player, submission.target, submission.submitted_at, replaced};
   return {std::move(state), submitted};
 }
 

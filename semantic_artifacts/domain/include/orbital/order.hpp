@@ -43,7 +43,8 @@ struct Order {
  * @brief A player submitted an order, which became their selected order
  *
  * Submission happens where the player's input is accepted; `submitted_at` is the step in which that
- * happened, and it stays the order's submission step however late the record travels.
+ * happened, and it stays the order's submission step however late the record travels. The record
+ * carries the order's target, so the selected order is complete in it.
  * `replaced` names the player's previously selected, not yet transmitted order that this submission
  * replaced; a replaced order is never transmitted.
  */
@@ -51,11 +52,12 @@ struct OrderSubmitted {
   RoundId round;
   OrderNumber order;
   PlayerId player;
+  Point target;
   StepId submitted_at;
   std::optional<OrderNumber> replaced;
 
   bool operator==(const OrderSubmitted& other) const noexcept {
-    return round == other.round && order == other.order && player == other.player &&
+    return round == other.round && order == other.order && player == other.player && target == other.target &&
            submitted_at == other.submitted_at && replaced == other.replaced;
   }
 };
