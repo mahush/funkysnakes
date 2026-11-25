@@ -4,8 +4,8 @@
 
 #include <vector>
 
-#include "common/snake_model_evolve.hpp"
-#include "orbital/pursuit_policy.hpp"
+#include "domain/common/snake_model_evolve.hpp"
+#include "domain/orbital/pursuit_policy.hpp"
 #include "test_printers.hpp"
 
 namespace snake {

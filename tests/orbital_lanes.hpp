@@ -2,9 +2,9 @@
 
 #include <cstddef>
 
-#include "common/random_source.hpp"
-#include "orbital/arena_authority.hpp"
-#include "orbital/food_policy.hpp"
+#include "domain/common/random_source.hpp"
+#include "domain/orbital/arena_authority.hpp"
+#include "domain/orbital/food_policy.hpp"
 
 namespace snake {
 namespace orbital {

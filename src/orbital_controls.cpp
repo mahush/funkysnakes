@@ -1,6 +1,6 @@
 #include "snake/orbital_controls.hpp"
 
-#include "common/snake_model.hpp"
+#include "domain/common/snake_model.hpp"
 
 namespace snake {
 namespace orbital_controls {

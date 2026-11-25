@@ -9,8 +9,8 @@
 #include <chrono>
 #include <vector>
 
-#include "classic/classic_game_domain_application.hpp"
-#include "common/snake_model_evolve.hpp"
+#include "domain/classic/classic_game_domain_application.hpp"
+#include "domain/common/snake_model_evolve.hpp"
 #include "test_printers.hpp"
 
 namespace snake {

@@ -14,11 +14,11 @@
 #include <stdexcept>
 #include <vector>
 
-#include "classic/board_setup_policy.hpp"
-#include "classic/classic_arena_authority.hpp"
-#include "classic/food_policy.hpp"
-#include "classic/game_boundary.hpp"
-#include "common/snake_model_evolve.hpp"
+#include "domain/classic/board_setup_policy.hpp"
+#include "domain/classic/classic_arena_authority.hpp"
+#include "domain/classic/food_policy.hpp"
+#include "domain/classic/game_boundary.hpp"
+#include "domain/common/snake_model_evolve.hpp"
 #include "snake/game_messages.hpp"
 #include "test_printers.hpp"
 

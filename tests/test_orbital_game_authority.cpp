@@ -6,8 +6,8 @@
 #include <tuple>
 #include <vector>
 
-#include "orbital/game_authority.hpp"
-#include "orbital/pacing_policy.hpp"
+#include "domain/orbital/game_authority.hpp"
+#include "domain/orbital/pacing_policy.hpp"
 
 namespace snake {
 namespace orbital {

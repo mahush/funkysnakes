@@ -9,7 +9,7 @@
 #include <memory>
 #include <optional>
 
-#include "classic/classic_game_lifecycle_authority.hpp"
+#include "domain/classic/classic_game_lifecycle_authority.hpp"
 #include "snake/control_messages.hpp"
 #include "snake/engine_manager_messages.hpp"
 #include "snake/game_messages.hpp"

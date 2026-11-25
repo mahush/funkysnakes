@@ -1,0 +1,197 @@
+#pragma once
+
+#include <optional>
+#include <tuple>
+#include <vector>
+
+#include "domain/common/arena_events.hpp"
+#include "domain/common/game_types.hpp"
+#include "domain/common/random_source.hpp"
+
+namespace snake {
+
+// ============================================================================
+// Batch Utilities
+// ============================================================================
+
+/**
+ * @brief Extract alive states from snakes
+ *
+ * @param snakes Per-player snakes
+ * @return Per-player alive states
+ */
+PerPlayerAliveStates extractAliveStates(const PerPlayerSnakes& snakes);
+
+// ============================================================================
+// Player Initialization
+// ============================================================================
+
+/**
+ * @brief Add a new player to the game
+ *
+ * Creates a snake at the specified position and initializes score to 0.
+ *
+ * Parameter order: bound parameters first (for bindFront compatibility),
+ * then state parameters (snakes, scores).
+ *
+ * @param player_id Player identifier
+ * @param start_position Starting position for snake head
+ * @param initial_direction Initial movement direction
+ * @param snake_length Initial snake length
+ * @param snakes Current snakes map (by value)
+ * @param scores Current scores map (by value)
+ * @return Tuple of (updated snakes, updated scores)
+ */
+std::tuple<PerPlayerSnakes, PerPlayerScores> addPlayer(PlayerId player_id,
+                                                       Point start_position,
+                                                       Direction initial_direction,
+                                                       int snake_length,
+                                                       PerPlayerSnakes snakes,
+                                                       PerPlayerScores scores);
+
+/**
+ * @brief Require snakes to form a valid start layout
+ *
+ * Every segment, head included, lies on the board, and no two segments share a cell.
+ *
+ * @param snakes Snakes at the start
+ * @param board Board they start on
+ * @throws std::invalid_argument if a segment lies outside the board or two segments share a cell
+ */
+void requireValidStartLayout(const PerPlayerSnakes& snakes, const Board& board);
+
+// ============================================================================
+// Snake Game Logic
+// ============================================================================
+
+/**
+ * @brief Move all alive snakes one step, applying direction changes
+ *
+ * For each snake, uses the consumed direction if available, otherwise continues
+ * in current direction. If snake head will land on food, grow (keep tail).
+ * Otherwise, move (shorten tail).
+ *
+ * Parameter order: lens-provided (snakes, board, food_items) then pipeline-forwarded (directions).
+ *
+ * @param snakes Snakes to move (by value)
+ * @param board Board dimensions (for wrapping)
+ * @param food_items Food positions (to check if eating)
+ * @param consumed_directions Directions consumed from input queues
+ * @return Updated snakes after movement
+ */
+PerPlayerSnakes moveSnakes(PerPlayerSnakes snakes,
+                           const Board& board,
+                           const FoodItems& food_items,
+                           const PerPlayerDirection& consumed_directions);
+
+/**
+ * @brief Handle snake-to-snake collisions
+ *
+ * Updates snakes (kill/cut) based on collision detection and reports what happened as
+ * collision events (SelfBitten, MutualBite, Bitten). Consequences such as scores are decided elsewhere.
+ * Returns the segments that leave play: cut tails, and the complete bodies of
+ * snakes killed in this call.
+ *
+ * @param snakes Snakes (by value)
+ * @return Tuple of (updated snakes, collision events in order, dropped segments)
+ */
+std::tuple<PerPlayerSnakes, CollisionEvents, std::vector<Point>> handleCollisions(PerPlayerSnakes snakes);
+
+// ============================================================================
+// Food Logic
+// ============================================================================
+
+/**
+ * @brief Generate a random free food position
+ *
+ * A cell is free when it holds neither a snake segment nor food. Up to 100 random
+ * candidates are tried.
+ *
+ * @param board Board dimensions
+ * @param snakes Map of player snakes to check for collisions
+ * @param food_items Existing food to avoid
+ * @param random_int_fn Function that generates random int in range [min, max]
+ * @return Random free position, or std::nullopt if no free candidate was found
+ */
+std::optional<Point> generateRandomFoodPosition(const Board& board,
+                                                const PerPlayerSnakes& snakes,
+                                                const FoodItems& food_items,
+                                                RandomIntGeneratorFn random_int_fn);
+
+/**
+ * @brief Add segments that left play as food
+ *
+ * Segments on cells that already hold food are skipped (one food item per cell).
+ *
+ * @param food_items Food (by value)
+ * @param dropped_segments Segments to add (cut tails and bodies of killed snakes)
+ * @return Updated food with the dropped segments added
+ */
+FoodItems dropSegmentsAsFood(FoodItems food_items, const std::vector<Point>& dropped_segments);
+
+/**
+ * @brief Handle snakes eating food
+ *
+ * If an alive snake's head is on food, the food is removed and a FoodEaten event is reported.
+ *
+ * @param food_items Food (by value)
+ * @param snakes Snakes (to check head positions)
+ * @return Tuple of (updated food, eating events in order)
+ */
+std::tuple<FoodItems, std::vector<FoodEaten>> handleFoodEating(FoodItems food_items, const PerPlayerSnakes& snakes);
+
+/**
+ * @brief Initialize food items to a target count
+ *
+ * Parameter order: bound parameters first (for bindFront), then lens parameters.
+ *
+ * @param random_int_fn Random number generator function
+ * @param count Number of food items to create
+ * @param food_items Current food items (unused - for lens compatibility)
+ * @param board Board dimensions
+ * @param snakes Snakes (for position generation)
+ * @return Food items list with specified count
+ */
+FoodItems initializeFood(RandomIntGeneratorFn random_int_fn,
+                         int count,
+                         FoodItems food_items,
+                         const Board& board,
+                         const PerPlayerSnakes& snakes);
+
+/**
+ * @brief Replenish food to maintain target count
+ *
+ * New food is placed on free cells only; if no free cell is found, fewer items are added.
+ *
+ * @param random_int_fn Random number generator function
+ * @param target_count Desired number of food items
+ * @param food_items Food (by value)
+ * @param board Board dimensions
+ * @param snakes Snakes (for position generation)
+ * @return Updated food with new items added
+ */
+FoodItems replenishFood(RandomIntGeneratorFn random_int_fn,
+                        int target_count,
+                        FoodItems food_items,
+                        const Board& board,
+                        const PerPlayerSnakes& snakes);
+
+/**
+ * @brief Reposition one random food item
+ *
+ * The item stays in place if no free cell is found.
+ *
+ * Parameter order: bound parameters first (for bindFront), then lens parameters.
+ *
+ * @param random_int_fn Random number generator function
+ * @param food_items Food (by value)
+ * @param board Board dimensions
+ * @param snakes Snakes (for position generation)
+ * @return Updated food with one item repositioned
+ */
+FoodItems repositionRandomFood(RandomIntGeneratorFn random_int_fn,
+                               FoodItems food_items,
+                               const Board& board,
+                               const PerPlayerSnakes& snakes);
+
+}  // namespace snake

@@ -1,8 +1,8 @@
 #pragma once
 
-#include "classic/classic_arena_authority.hpp"
-#include "classic/game_boundary.hpp"
-#include "common/game_types.hpp"
+#include "domain/classic/classic_arena_authority.hpp"
+#include "domain/classic/game_boundary.hpp"
+#include "domain/common/game_types.hpp"
 #include "snake/control_messages.hpp"
 
 namespace snake {

@@ -4,7 +4,7 @@
 #include <string>
 #include <vector>
 
-#include "orbital/game_boundary.hpp"
+#include "domain/orbital/game_boundary.hpp"
 
 namespace snake {
 namespace orbital {
