@@ -213,5 +213,11 @@ if(SNAKE_BUILD_TESTS)
   gtest_discover_tests(test_snake)
 endif()
 
+# Every build checks that no domain artifact depends on a platform artifact
+add_custom_target(check_domain_includes ALL
+  COMMAND ${CMAKE_COMMAND} -DSOURCE_DIR=${PROJECT_SOURCE_DIR} -P ${PROJECT_SOURCE_DIR}/cmake/check_domain_includes.cmake
+  VERBATIM
+)
+
 # Install target (optional)
 install(DIRECTORY include/ semantic_artifacts/include/ DESTINATION include)
