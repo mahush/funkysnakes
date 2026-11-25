@@ -165,6 +165,8 @@ if(SNAKE_BUILD_TESTS)
     tests/test_scoring_policy.cpp
     tests/test_difficulty_policy.cpp
     tests/test_orbital_transmission_schedule_policy.cpp
+    tests/test_orbital_transmission_participation_policy.cpp
+    semantic_artifacts/src/platform/orbital/transmission_participation_policy.cpp
     tests/test_orbital_admission_policy.cpp
     tests/test_orbital_pursuit_policy.cpp
     tests/test_orbital_order_selection_authority.cpp

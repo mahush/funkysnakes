@@ -131,10 +131,10 @@ cmake -S . -B build
 # Symlink already exists: compile_commands.json -> build/compile_commands.json
 
 # Format code (uses .clang-format - Google style, 120 cols, strict one-per-line wrapping)
-clang-format -i src/*.cpp include/**/*.hpp semantic_artifacts/src/domain/**/*.cpp semantic_artifacts/include/domain/**/*.hpp
+clang-format -i src/*.cpp include/**/*.hpp semantic_artifacts/src/{domain,platform}/**/*.cpp semantic_artifacts/include/{domain,platform}/**/*.hpp
 
 # Lint (uses .clang-tidy)
-clang-tidy src/*.cpp semantic_artifacts/src/domain/**/*.cpp -- -I include -I semantic_artifacts/include
+clang-tidy src/*.cpp semantic_artifacts/src/{domain,platform}/**/*.cpp -- -I include -I semantic_artifacts/include
 ```
 
 ### Coding Style
