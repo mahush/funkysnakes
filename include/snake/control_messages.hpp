@@ -2,7 +2,7 @@
 
 #include <string>
 
-#include "common/players.hpp"
+#include "domain/common/players.hpp"
 
 namespace snake {
 

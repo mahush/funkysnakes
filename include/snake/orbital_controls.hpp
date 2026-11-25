@@ -5,9 +5,9 @@
 #include <tuple>
 #include <variant>
 
-#include "common/game_primitives.hpp"
-#include "common/players.hpp"
-#include "orbital/game_boundary.hpp"
+#include "domain/common/game_primitives.hpp"
+#include "domain/common/players.hpp"
+#include "domain/orbital/game_boundary.hpp"
 #include "snake/key.hpp"
 
 namespace snake {

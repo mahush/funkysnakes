@@ -4,7 +4,7 @@
 
 #include <vector>
 
-#include "orbital/scoring_policy.hpp"
+#include "domain/orbital/scoring_policy.hpp"
 
 namespace snake {
 namespace orbital {

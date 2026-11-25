@@ -12,9 +12,9 @@
 #include <utility>
 #include <vector>
 
-#include "orbital/game_authority.hpp"
-#include "orbital/orbital_game_domain_application.hpp"
-#include "orbital/orbital_game_domain_application_test_access.hpp"
+#include "domain/orbital/game_authority.hpp"
+#include "domain/orbital/orbital_game_domain_application.hpp"
+#include "domain/orbital/orbital_game_domain_application_test_access.hpp"
 #include "orbital_lanes.hpp"
 #include "orbital_recording_players.hpp"
 

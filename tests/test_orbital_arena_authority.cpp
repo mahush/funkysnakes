@@ -8,9 +8,9 @@
 #include <stdexcept>
 #include <vector>
 
-#include "orbital/arena_authority.hpp"
-#include "orbital/board_setup_policy.hpp"
-#include "orbital/food_policy.hpp"
+#include "domain/orbital/arena_authority.hpp"
+#include "domain/orbital/board_setup_policy.hpp"
+#include "domain/orbital/food_policy.hpp"
 #include "test_printers.hpp"
 
 namespace snake {

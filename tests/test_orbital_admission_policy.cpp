@@ -2,7 +2,7 @@
 
 #include <gtest/gtest.h>
 
-#include "orbital/admission_policy.hpp"
+#include "domain/orbital/admission_policy.hpp"
 
 namespace snake {
 namespace orbital {

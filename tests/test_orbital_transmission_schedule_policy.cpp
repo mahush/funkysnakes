@@ -4,7 +4,7 @@
 
 #include <vector>
 
-#include "orbital/transmission_schedule_policy.hpp"
+#include "domain/orbital/transmission_schedule_policy.hpp"
 
 namespace snake {
 namespace orbital {

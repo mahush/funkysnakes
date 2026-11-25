@@ -14,8 +14,8 @@
 #include <variant>
 #include <vector>
 
-#include "orbital/orbital_game_domain_application.hpp"
-#include "orbital/orbital_game_domain_application_test_access.hpp"
+#include "domain/orbital/orbital_game_domain_application.hpp"
+#include "domain/orbital/orbital_game_domain_application_test_access.hpp"
 
 namespace {
 

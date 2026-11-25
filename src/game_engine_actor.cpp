@@ -4,10 +4,10 @@
 #include <optional>
 #include <tuple>
 
-#include "classic/board_setup_policy.hpp"
-#include "classic/classic_arena_authority.hpp"
-#include "classic/difficulty_policy.hpp"
-#include "common/game_logic.hpp"
+#include "domain/classic/board_setup_policy.hpp"
+#include "domain/classic/classic_arena_authority.hpp"
+#include "domain/classic/difficulty_policy.hpp"
+#include "domain/common/game_logic.hpp"
 #include "funkypipes/bind_front.hpp"
 #include "snake/game_state_lenses.hpp"
 #include "snake/logger.hpp"

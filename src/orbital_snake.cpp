@@ -20,12 +20,12 @@
 #include <variant>
 #include <vector>
 
+#include "domain/orbital/orbital_game_domain_application.hpp"
 #include "ftxui/component/component.hpp"
 #include "ftxui/component/event.hpp"
 #include "ftxui/component/loop.hpp"
 #include "ftxui/component/screen_interactive.hpp"
 #include "ftxui/dom/elements.hpp"
-#include "orbital/orbital_game_domain_application.hpp"
 #include "snake/key.hpp"
 #include "snake/orbital_controls.hpp"
 #include "snake/orbital_frame.hpp"

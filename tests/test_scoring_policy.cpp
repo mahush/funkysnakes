@@ -4,7 +4,7 @@
 
 #include <vector>
 
-#include "classic/scoring_policy.hpp"
+#include "domain/classic/scoring_policy.hpp"
 
 namespace snake {
 

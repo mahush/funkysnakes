@@ -6,7 +6,7 @@
 #include <tuple>
 #include <vector>
 
-#include "orbital/order_selection_authority.hpp"
+#include "domain/orbital/order_selection_authority.hpp"
 
 namespace snake {
 namespace orbital {

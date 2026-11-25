@@ -4,7 +4,7 @@
 
 #include <string>
 
-#include "classic/difficulty_policy.hpp"
+#include "domain/classic/difficulty_policy.hpp"
 
 namespace snake {
 
