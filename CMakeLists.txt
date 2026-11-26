@@ -170,6 +170,8 @@ if(SNAKE_BUILD_TESTS)
     semantic_artifacts/src/platform/orbital/transmission_participation_policy.cpp
     tests/test_orbital_transmission_reception_authority.cpp
     semantic_artifacts/src/platform/orbital/transmission_reception_authority.cpp
+    tests/test_orbital_phone_composition.cpp
+    realizations/orbital_loopback/phone_composition.cpp
     tests/test_orbital_admission_policy.cpp
     tests/test_orbital_pursuit_policy.cpp
     tests/test_orbital_order_selection_authority.cpp
@@ -210,6 +212,7 @@ if(SNAKE_BUILD_TESTS)
   target_include_directories(test_snake PRIVATE
     ${PROJECT_SOURCE_DIR}/include
     ${PROJECT_SOURCE_DIR}/semantic_artifacts/include
+    ${PROJECT_SOURCE_DIR}/realizations
     ${PROJECT_SOURCE_DIR}/tests
   )
   target_compile_options(test_snake PRIVATE -Wall -Wextra -Wpedantic -Werror)
