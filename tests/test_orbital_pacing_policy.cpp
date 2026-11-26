@@ -62,5 +62,14 @@ TEST(PacingPolicy, PlacesTimeLimitInLastStep) {
   EXPECT_EQ(step, pacing_policy::LAST_STEP);
 }
 
+/// @brief No step follows the last one, so a later time still belongs to it
+TEST(PacingPolicy, PlacesTimeAfterTimeLimitInLastStep) {
+  // When: the step of a time one step interval after the game's time limit is asked
+  constexpr StepId step = pacing_policy::stepAt(pacing_policy::GAME_DURATION + pacing_policy::STEP_INTERVAL);
+
+  // Then: it is the last step
+  EXPECT_EQ(step, pacing_policy::LAST_STEP);
+}
+
 }  // namespace orbital
 }  // namespace snake
