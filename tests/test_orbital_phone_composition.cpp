@@ -82,6 +82,18 @@ TEST_F(PhoneCompositionTest, SelectsSubmissionInStepOfItsTime) {
       (std::vector<Forwarded>{OrderSubmitted{ROUND, OrderNumber{1}, PLAYER_A, Point{3, 4}, StepId{22}, std::nullopt}}));
 }
 
+/// @brief A device clock running behind the host's may read a time before the game started
+TEST_F(PhoneCompositionTest, SelectsSubmissionBeforeGameStartTimeInStepZero) {
+  // Given: the game started
+  startGame();
+
+  // When: the player submits at a host time before the game started
+  SubmissionOutcome outcome = phone_.submit(Point{3, 4}, T0 - milliseconds{50});
+
+  // Then: it is accepted in step 0
+  EXPECT_EQ(std::get<SubmissionAccepted>(outcome).submitted_at, StepId{0});
+}
+
 /// @brief The timer may fire late; an opportunity whose time came before the submission still takes place first
 TEST_F(PhoneCompositionTest, TransmitsAtDueOpportunityBeforeLaterSubmission) {
   // Given: the game started, and the player submitted in step 0
@@ -167,6 +179,22 @@ TEST_F(PhoneCompositionTest, TransmitsAtEachMissedOpportunityWithItsOwnStep) {
             (std::vector<Forwarded>{
                 OrderSubmitted{ROUND, OrderNumber{1}, PLAYER_A, Point{3, 4}, StepId{0}, std::nullopt},
                 OrderTransmitted{ROUND, OrderNumber{1}, PLAYER_A, Point{3, 4}, StepId{0}, StepId{1}, std::nullopt}}));
+}
+
+/// @brief Catching up after a stall still lets a selection wait for the opportunity of its submission
+TEST_F(PhoneCompositionTest, TransmitsHeldUpSelectionAtOpportunityOfItsSubmission) {
+  // Given: the game started, and the player submitted exactly at the time of the opportunity of step 1
+  startGame();
+  phone_.submit(Point{3, 4}, atStep(1));
+
+  // When: the device is held up until after the opportunity of step 21
+  phone_.transmitAtDueOpportunities(atStep(30));
+
+  // Then: the order is transmitted once, at the opportunity of step 21
+  EXPECT_EQ(host_.forwarded,
+            (std::vector<Forwarded>{
+                OrderSubmitted{ROUND, OrderNumber{1}, PLAYER_A, Point{3, 4}, StepId{1}, std::nullopt},
+                OrderTransmitted{ROUND, OrderNumber{1}, PLAYER_A, Point{3, 4}, StepId{1}, StepId{21}, std::nullopt}}));
 }
 
 TEST_F(PhoneCompositionTest, TakesPlaceAtEachOpportunityOnce) {
