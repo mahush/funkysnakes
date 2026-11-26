@@ -722,7 +722,7 @@ TEST_F(OrbitalGameDomainApplication, RejectsSubmissionAfterConclusion) {
   // When: a player submits an order
   game_.submit(app::Submit{PLAYER_A, Point{3, 3}});
 
-  // Then: it is rejected because the round is over
+  // Then: it is rejected because the game has concluded
   ASSERT_EQ(players_.submissions.size(), 1U);
   EXPECT_EQ(std::get<SubmissionRejected>(players_.submissions.front()).reason, SubmissionRejectionReason::CONCLUDED);
 }

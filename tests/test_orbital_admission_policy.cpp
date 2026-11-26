@@ -54,11 +54,11 @@ TEST(OrbitalAdmissionPolicy, RejectsSubmissionBeforeStartAsNotStarted) {
   EXPECT_EQ(rejection, SubmissionRejectionReason::NOT_STARTED);
 }
 
-TEST(OrbitalAdmissionPolicy, RejectsSubmissionAfterConclusionAsRoundOver) {
+TEST(OrbitalAdmissionPolicy, RejectsSubmissionAfterConclusionAsConcluded) {
   // When: a submission is asked for after the game concluded
   std::optional<SubmissionRejectionReason> rejection = admission_policy::submissionRejectionIn(GamePhase::CONCLUDED);
 
-  // Then: it is refused because the round is over
+  // Then: it is refused because the game has concluded
   EXPECT_EQ(rejection, SubmissionRejectionReason::CONCLUDED);
 }
 
