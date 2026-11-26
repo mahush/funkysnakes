@@ -724,7 +724,7 @@ TEST_F(OrbitalGameDomainApplication, RejectsSubmissionAfterConclusion) {
 
   // Then: it is rejected because the round is over
   ASSERT_EQ(players_.submissions.size(), 1U);
-  EXPECT_EQ(std::get<SubmissionRejected>(players_.submissions.front()).reason, SubmissionRejectionReason::ROUND_OVER);
+  EXPECT_EQ(std::get<SubmissionRejected>(players_.submissions.front()).reason, SubmissionRejectionReason::CONCLUDED);
 }
 
 /// @brief Both players share one end, so a refusal names whose submission it refuses
