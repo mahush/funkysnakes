@@ -164,6 +164,7 @@ if(SNAKE_BUILD_TESTS)
     tests/test_classic_game_lifecycle_authority.cpp
     tests/test_scoring_policy.cpp
     tests/test_difficulty_policy.cpp
+    tests/test_orbital_pacing_policy.cpp
     tests/test_orbital_transmission_schedule_policy.cpp
     tests/test_orbital_transmission_participation_policy.cpp
     semantic_artifacts/src/platform/orbital/transmission_participation_policy.cpp

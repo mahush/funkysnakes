@@ -47,8 +47,8 @@ using game_boundary::Submit;
  * started, running, concluded) is the Admission Policy's answer, which it passes on as the outcome.
  *
  * One logical clock drives the round; steps fall due at the Pacing Policy's step interval. A
- * submission is selected (Order Selection Authority) in the step the clock is in. Each step that falls
- * due runs:
+ * submission is selected (Order Selection Authority) in the step the clock is in (Pacing Policy). Each step that
+ * falls due runs:
  *   transmitted orders that take part in the step (Transmission Schedule Policy) → step (Arena Authority)
  *   → score, advance handover chains and check end (Game Authority)
  *   → if concluded: end execution (Arena Authority) → cancel the selections (Order Selection Authority)
@@ -56,8 +56,7 @@ using game_boundary::Submit;
  *     (Order Selection Authority) → learn the transmissions (Game Authority)
  * So a transmitted order is tried at the step after its transmission, before that step's movement, and
  * the Arena Authority decides its outcome in that step. No transmitted order is left at the conclusion.
- * The clock never stands on a step that has not run, so a submission happens in the last step that
- * ran, after that step's movement and its transmission.
+ * Which step a submission belongs to is the Pacing Policy's answer for the clock's time (see pacing_policy::stepAt).
  */
 
 // ============================================================================

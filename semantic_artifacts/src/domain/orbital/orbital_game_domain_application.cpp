@@ -215,8 +215,7 @@ std::tuple<State, Observations> apply(State state, const Submit& submit) {
 
   auto [selections, submitted] = order_selection_authority::submit(
       std::move(*state.selections),
-      order_selection_authority::Submission{
-          submit.player, submit.target, arena_authority::lastCompletedStep(*state.arena)});
+      order_selection_authority::Submission{submit.player, submit.target, pacing_policy::stepAt(state.clock.now)});
   state.selections = std::move(selections);
   observations.submission = SubmissionAccepted{submitted.player, submitted.order, submitted.submitted_at};
   observations.submitted = submitted;

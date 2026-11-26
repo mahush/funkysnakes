@@ -37,6 +37,21 @@ static_assert(GAME_DURATION % STEP_INTERVAL == std::chrono::milliseconds{0}, "th
  */
 constexpr std::chrono::milliseconds timeOfStep(StepId step) { return STEP_INTERVAL * step.value; }
 
+/**
+ * @brief Step that a time of the round falls in
+ *
+ * A time at which a step falls due belongs to that step, after its movement.
+ *
+ * @param since_round_start Time on the round's timeline; a time before round start belongs to step 0
+ * @return The step whose time span contains since_round_start
+ */
+constexpr StepId stepAt(std::chrono::milliseconds since_round_start) {
+  if (since_round_start < std::chrono::milliseconds{0}) {
+    return StepId{0};
+  }
+  return StepId{static_cast<int>(since_round_start / STEP_INTERVAL)};
+}
+
 }  // namespace pacing_policy
 }  // namespace orbital
 }  // namespace snake
