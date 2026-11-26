@@ -49,7 +49,7 @@ constexpr std::optional<StartRejectionReason> startRejectionIn(GamePhase phase) 
  * @brief Why a submission is refused in the given phase
  *
  * @param phase Phase of the game
- * @return Empty while the game is running; NOT_STARTED before the start; ROUND_OVER after the conclusion
+ * @return Empty while the game is running; NOT_STARTED before the start; CONCLUDED after the conclusion
  */
 constexpr std::optional<SubmissionRejectionReason> submissionRejectionIn(GamePhase phase) {
   switch (phase) {
@@ -58,9 +58,9 @@ constexpr std::optional<SubmissionRejectionReason> submissionRejectionIn(GamePha
     case GamePhase::RUNNING:
       return std::nullopt;
     case GamePhase::CONCLUDED:
-      return SubmissionRejectionReason::ROUND_OVER;
+      return SubmissionRejectionReason::CONCLUDED;
   }
-  return SubmissionRejectionReason::ROUND_OVER;
+  return SubmissionRejectionReason::CONCLUDED;
 }
 
 }  // namespace admission_policy

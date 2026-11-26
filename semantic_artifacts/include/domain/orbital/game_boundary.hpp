@@ -87,7 +87,7 @@ struct SubmissionAccepted {
  */
 enum class SubmissionRejectionReason {
   NOT_STARTED,  // No game has started yet
-  ROUND_OVER    // The game has concluded
+  CONCLUDED     // The game has concluded
 };
 
 /**

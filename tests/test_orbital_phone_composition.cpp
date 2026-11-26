@@ -108,7 +108,7 @@ TEST_F(PhoneCompositionTest, RejectsSubmissionAfterConclusion) {
   SubmissionOutcome outcome = phone_.submit(Point{3, 4}, atStep(5));
 
   // Then: it is rejected, and nothing is forwarded
-  EXPECT_EQ(std::get<SubmissionRejected>(outcome).reason, SubmissionRejectionReason::ROUND_OVER);
+  EXPECT_EQ(std::get<SubmissionRejected>(outcome).reason, SubmissionRejectionReason::CONCLUDED);
   EXPECT_TRUE(host_.forwarded.empty());
 }
 

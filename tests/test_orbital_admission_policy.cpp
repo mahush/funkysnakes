@@ -59,7 +59,7 @@ TEST(OrbitalAdmissionPolicy, RejectsSubmissionAfterConclusionAsRoundOver) {
   std::optional<SubmissionRejectionReason> rejection = admission_policy::submissionRejectionIn(GamePhase::CONCLUDED);
 
   // Then: it is refused because the round is over
-  EXPECT_EQ(rejection, SubmissionRejectionReason::ROUND_OVER);
+  EXPECT_EQ(rejection, SubmissionRejectionReason::CONCLUDED);
 }
 
 }  // namespace orbital
