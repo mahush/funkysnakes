@@ -173,6 +173,7 @@ if(SNAKE_BUILD_TESTS)
     tests/test_orbital_phone_composition.cpp
     realizations/orbital_loopback/phone_composition.cpp
     tests/test_orbital_host_composition.cpp
+    tests/test_orbital_loopback.cpp
     realizations/orbital_loopback/host_composition.cpp
     tests/test_orbital_admission_policy.cpp
     tests/test_orbital_pursuit_policy.cpp
