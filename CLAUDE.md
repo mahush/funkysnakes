@@ -162,13 +162,17 @@ Point getHead(const Snake& snake);
 std::optional<Message> tryTakeMessage();
 ```
 
-**Factory Functions**: prefix with `make` - functions whose purpose is to build a value or configuration from parameters
+**Factory Functions**: prefix with `make` - functions whose purpose is to build a value or configuration from parameters,
+test helpers included; name them after what they make, usually its type
 ```cpp
 RoundSetup makeLanes(FoodItems food);
 RandomIntGeneratorFn makeRandomIntGenerator();
+OrderSubmitted makeOrderSubmitted(const PlayerId& player, int order, Point target, int submitted_at);  // not submittedBy
 ```
 Authority construction transitions and Policy answers keep their domain names (`startRound`, `initial`,
-`startLayout`); queries, transitions and Policy answers are not factories just because they return a value.
+`startLayout`); queries, transitions and Policy answers are not factories just because they return a value. Neither
+is a helper that collects an owner's answers: name it after the answers, e.g. `routesNowTo` for the Arena Authority's
+route per player, not `makeRoutes`.
 
 **Member Variables**: `snake_case_` - lowercase with trailing underscore
 ```cpp
