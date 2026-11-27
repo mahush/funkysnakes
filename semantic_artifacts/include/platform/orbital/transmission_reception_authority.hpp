@@ -13,28 +13,32 @@ namespace platform {
 namespace transmission_reception_authority {
 
 /**
- * Transmission Reception Authority - owns which transmissions of a round wait for their step
+ * Transmission Reception Authority - owns which of a phone's facts take effect on arrival, and which transmissions of a
+ * round wait for their step
  *
- * Platform Authority: where transmissions travel over a link, they can arrive early or late. It keeps them
- * waiting and hands their orders over for the steps they take part in, at most one order per player and step. Whether
- * a transmission waits, takes part, also late, or is superseded is the Transmission Participation Policy's answer. What
- * differs from a transmission taking part in its scheduled step is reported: as a deviation, or as the receipt
- * ROUND_CONCLUDED of a transmission that arrives after the conclusion.
+ * Platform Authority: where a phone's facts travel over a link, they can arrive early or late, also before the round
+ * started or after it concluded. A fact takes effect only while the round runs; before and after, it is answered with
+ * its receipt and changes nothing. A received transmission waits, and its order is handed over for the step it takes
+ * part in, at most one order per player and step. Whether a transmission waits, takes part, also late, or is
+ * superseded is the Transmission Participation Policy's answer. What differs from a transmission taking part in its
+ * scheduled step is reported: as a deviation, or as a receipt other than RECEIVED.
  *
- * It relies on the transport guarantee: each transmission arrives at most once, and a player's transmissions arrive in
- * the order they were sent. Delay is not limited, and transmissions of different players may arrive in any order.
- * A transport that resends, for instance after a reconnect, does not keep the guarantee by itself.
+ * It relies on the transport guarantee: each of a phone's facts, its submission and transmission records, arrives at
+ * most once, and each phone's facts arrive in the order the phone sent them. Delay is not limited, and facts of
+ * different phones may arrive in any order. A transport that resends, for instance after a reconnect, does not keep
+ * the guarantee by itself.
  *
  * It owns no selection (Order Selection Authority), decides no activation (Arena Authority) and no points (Game
  * Authority), and keeps no outcome of an order it handed over.
  */
 
 /**
- * @brief What became of a transmission that arrived
+ * @brief What became of a phone's fact that arrived
  */
 enum class Receipt {
-  RECEIVED,        // It waits for its step
-  ROUND_CONCLUDED  // The round has concluded
+  RECEIVED,           // It takes effect; a transmission waits for its step
+  ROUND_NOT_STARTED,  // The round has not started yet
+  ROUND_CONCLUDED     // The round has concluded
 };
 
 /**
@@ -82,18 +86,21 @@ class State {
   State() = default;
 
   std::vector<OrderTransmitted> waiting_;  // Received, not yet handed over, in order of receipt
+  bool started_{false};
   bool concluded_{false};
 
   // Construction
-  friend State startRound();
+  friend State initial();
 
   // Transitions
+  friend State startRound(State state);
   friend std::tuple<State, Receipt> receive(State state, const OrderTransmitted& transmitted);
   friend std::tuple<State, std::vector<Order>, std::vector<LateTransmission>, std::vector<SupersededTransmission>>
   release(State state, StepId step);
   friend std::tuple<State, std::vector<DiscardedTransmission>> conclude(State state);
 
   // Queries
+  friend Receipt receiptOf(const State& state, const OrderSubmitted& submitted);
   friend std::vector<OrderTransmitted> waiting(const State& state);
 };
 
@@ -102,24 +109,35 @@ class State {
 // ============================================================================
 
 /**
- * @brief Start the reception of a round's transmissions
+ * @brief Set up the reception before its round started
  *
- * @return State without any waiting transmission
+ * @return State without any waiting transmission, in which no fact takes effect yet
  */
-State startRound();
+State initial();
 
 // ============================================================================
 // Transitions: evolve the state; return it with outputs it does not encode itself
 // ============================================================================
 
 /**
+ * @brief Start the reception of the round's facts
+ *
+ * From now on the facts that arrive take effect, until the conclusion. Starting a reception that started already
+ * changes nothing.
+ *
+ * @param state Current reception state
+ * @return State in which arriving facts take effect
+ */
+State startRound(State state);
+
+/**
  * @brief Receive a transmission
  *
- * The transmission waits for its step, whether it arrives early, in time or late. After the conclusion it changes
- * nothing.
+ * While the round runs, the transmission waits for its step, whether it arrives early, in time or late. Before the
+ * start and after the conclusion it changes nothing.
  *
- * Admitted input: transmissions of one round, each at most once, and each player's transmissions in the order they were
- * sent (the transport guarantee); in any order across players and relative to the released steps.
+ * Admitted input: transmissions of one round, as the transport guarantee delivers them; in any order across players and
+ * relative to the released steps.
  *
  * @param state Current reception state
  * @param transmitted The transmission that arrived
@@ -160,6 +178,19 @@ std::tuple<State, std::vector<DiscardedTransmission>> conclude(State state);
 // ============================================================================
 // Queries: read the state without evolving it
 // ============================================================================
+
+/**
+ * @brief What becomes of a submission record that arrives now
+ *
+ * The record takes effect only while the round runs; the Authority keeps no submission.
+ *
+ * Admitted input: submission records of one round, as the transport guarantee delivers them.
+ *
+ * @param state Current reception state
+ * @param submitted The submission record that arrived
+ * @return RECEIVED while the round runs, otherwise ROUND_NOT_STARTED or ROUND_CONCLUDED
+ */
+Receipt receiptOf(const State& state, const OrderSubmitted& submitted);
 
 /**
  * @brief The received transmissions that wait to be handed over

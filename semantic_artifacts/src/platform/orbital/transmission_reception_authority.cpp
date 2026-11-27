@@ -22,16 +22,29 @@ Order orderOf(const OrderTransmitted& transmitted) {
   return Order{transmitted.round, transmitted.order, transmitted.player, transmitted.target};
 }
 
+// A fact takes effect only while the round runs
+Receipt receiptIn(bool started, bool concluded) {
+  if (!started) {
+    return Receipt::ROUND_NOT_STARTED;
+  }
+  return concluded ? Receipt::ROUND_CONCLUDED : Receipt::RECEIVED;
+}
+
 }  // namespace
 
-State startRound() { return State{}; }
+State initial() { return State{}; }
+
+State startRound(State state) {
+  state.started_ = true;
+  return state;
+}
 
 std::tuple<State, Receipt> receive(State state, const OrderTransmitted& transmitted) {
-  if (state.concluded_) {
-    return {std::move(state), Receipt::ROUND_CONCLUDED};
+  const Receipt receipt = receiptIn(state.started_, state.concluded_);
+  if (receipt == Receipt::RECEIVED) {
+    state.waiting_.push_back(transmitted);
   }
-  state.waiting_.push_back(transmitted);
-  return {std::move(state), Receipt::RECEIVED};
+  return {std::move(state), receipt};
 }
 
 std::tuple<State, std::vector<Order>, std::vector<LateTransmission>, std::vector<SupersededTransmission>> release(
@@ -70,6 +83,10 @@ std::tuple<State, std::vector<DiscardedTransmission>> conclude(State state) {
   state.waiting_.clear();
   state.concluded_ = true;
   return {std::move(state), std::move(discarded)};
+}
+
+Receipt receiptOf(const State& state, const OrderSubmitted& /* submitted */) {
+  return receiptIn(state.started_, state.concluded_);
 }
 
 std::vector<OrderTransmitted> waiting(const State& state) { return state.waiting_; }
