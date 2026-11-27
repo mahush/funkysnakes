@@ -88,6 +88,8 @@ using SubmissionsByStep = std::map<int, std::vector<std::pair<PlayerId, Point>>>
 struct WholeGame {
   std::vector<ComparableViews> reference_views;  // After every step and its submissions
   std::vector<ComparableViews> host_views;
+  std::vector<game_authority::HandoverGranted> reference_handovers;  // As reported with the steps, in order
+  std::vector<game_authority::HandoverGranted> host_handovers;       // With the steps, then those counted on arrival
   std::vector<game_authority::GameConcluded> reference_conclusions;
   std::vector<game_authority::GameConcluded> host_conclusions;
 };
@@ -128,6 +130,15 @@ WholeGame playWholeGame(SubmissionsByStep submissions) {
     game.host_views.push_back(makeComparableViews(*host_players.views));
   }
 
+  for (const game_boundary::StepReport& step : reference_players.steps) {
+    game.reference_handovers.insert(game.reference_handovers.end(), step.handovers.begin(), step.handovers.end());
+  }
+  for (const game_boundary::StepReport& step : host_players.steps) {
+    game.host_handovers.insert(game.host_handovers.end(), step.handovers.begin(), step.handovers.end());
+  }
+  for (const TransmissionReceipt& receipt : host.record().receipts) {
+    game.host_handovers.insert(game.host_handovers.end(), receipt.handovers.begin(), receipt.handovers.end());
+  }
   game.reference_conclusions = reference_players.conclusions;
   game.host_conclusions = host_players.conclusions;
   return game;
@@ -157,6 +168,26 @@ TEST(OrbitalLoopback, ShowsViewsOfDomainApplicationAfterEveryStep) {
   ASSERT_EQ(game.host_conclusions.size(), 1U);
   ASSERT_EQ(game.reference_conclusions.size(), 1U);
   EXPECT_EQ(game.host_conclusions.front().result, game.reference_conclusions.front().result);
+}
+
+/// @brief Handover scoring and prospects depend on the host's wiring of selections, waiting transmissions and steps
+TEST(OrbitalLoopback, CountsHandoverChainAsDomainApplicationDoes) {
+  // When: both run the whole game; A's order 1 completes in step 25, its successor 2, submitted in step 23, is
+  //       transmitted in step 40 and completes in step 46, and its successor 3, submitted in step 45, is transmitted
+  //       in step 59
+  WholeGame game = playWholeGame({
+      {1, {{PLAYER_A, Point{3, 11}}}},
+      {23, {{PLAYER_A, Point{24, 11}}}},
+      {45, {{PLAYER_A, Point{14, 11}}}},
+  });
+
+  // Then: the reference counts a chain of two handovers, the second with twice the bonus, the host counts the same,
+  //       and the views agree after every step
+  EXPECT_EQ(game.reference_handovers,
+            (std::vector<game_authority::HandoverGranted>{{PLAYER_A, OrderNumber{2}, 1, 10},
+                                                          {PLAYER_A, OrderNumber{3}, 2, 20}}));
+  EXPECT_EQ(game.host_handovers, game.reference_handovers);
+  EXPECT_EQ(game.host_views, game.reference_views);
 }
 
 }  // namespace loopback
