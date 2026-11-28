@@ -32,7 +32,7 @@ Order orderOf(const OrderTransmitted& transmitted) {
 
 // Reception of the round after the given transmissions arrived
 State makeReception(const std::vector<OrderTransmitted>& transmissions) {
-  State state = transmission_reception_authority::startRound();
+  State state = transmission_reception_authority::startRound(transmission_reception_authority::initial());
   for (const OrderTransmitted& transmitted : transmissions) {
     state = std::get<State>(transmission_reception_authority::receive(std::move(state), transmitted));
   }
@@ -54,10 +54,12 @@ State releaseStep(State state, StepId step) {
 /// @section transmission_reception_authority::receive
 
 TEST(TransmissionReceptionAuthority, KeepsReceivedTransmissionWaiting) {
+  // Given: the round started
+  State started = transmission_reception_authority::startRound(transmission_reception_authority::initial());
+
   // When: a transmission of player A arrives
   const OrderTransmitted fourth = makeTransmission(PLAYER_A, OrderNumber{4}, StepId{21});
-  auto [state, receipt] =
-      transmission_reception_authority::receive(transmission_reception_authority::startRound(), fourth);
+  auto [state, receipt] = transmission_reception_authority::receive(std::move(started), fourth);
 
   // Then: it is received and waits
   EXPECT_EQ(receipt, Receipt::RECEIVED);
@@ -79,9 +81,20 @@ TEST(TransmissionReceptionAuthority, ReceivesSameOrderNumberOfBothPlayers) {
   EXPECT_EQ(transmission_reception_authority::waiting(next_state), (std::vector<OrderTransmitted>{of_a, of_b}));
 }
 
+TEST(TransmissionReceptionAuthority, RefusesTransmissionBeforeStart) {
+  // When: a transmission arrives before the round started
+  auto [state, receipt] = transmission_reception_authority::receive(
+      transmission_reception_authority::initial(), makeTransmission(PLAYER_A, OrderNumber{4}, StepId{21}));
+
+  // Then: it is refused and does not wait
+  EXPECT_EQ(receipt, Receipt::ROUND_NOT_STARTED);
+  EXPECT_TRUE(transmission_reception_authority::waiting(state).empty());
+}
+
 TEST(TransmissionReceptionAuthority, RefusesTransmissionAfterConclusion) {
   // Given: the round concluded
-  auto [state, discarded] = transmission_reception_authority::conclude(transmission_reception_authority::startRound());
+  auto [state, discarded] = transmission_reception_authority::conclude(
+      transmission_reception_authority::startRound(transmission_reception_authority::initial()));
 
   // When: a transmission arrives
   auto [next_state, receipt] =
@@ -90,6 +103,62 @@ TEST(TransmissionReceptionAuthority, RefusesTransmissionAfterConclusion) {
   // Then: it is refused and does not wait
   EXPECT_EQ(receipt, Receipt::ROUND_CONCLUDED);
   EXPECT_TRUE(transmission_reception_authority::waiting(next_state).empty());
+}
+
+/// @section transmission_reception_authority::startRound
+
+/// @brief A reception plays one round: a concluded reception does not run again
+TEST(TransmissionReceptionAuthority, KeepsConclusionOnRepeatedStart) {
+  // Given: the round started and concluded
+  auto [concluded, discarded] = transmission_reception_authority::conclude(
+      transmission_reception_authority::startRound(transmission_reception_authority::initial()));
+
+  // When: the reception is started again and a transmission arrives
+  auto [state, receipt] =
+      transmission_reception_authority::receive(transmission_reception_authority::startRound(std::move(concluded)),
+                                                makeTransmission(PLAYER_A, OrderNumber{4}, StepId{21}));
+
+  // Then: it is still refused as after the conclusion
+  EXPECT_EQ(receipt, Receipt::ROUND_CONCLUDED);
+  EXPECT_TRUE(transmission_reception_authority::waiting(state).empty());
+}
+
+/// @section transmission_reception_authority::receiptOf
+
+TEST(TransmissionReceptionAuthority, ReceivesSubmissionRecordWhileRoundRuns) {
+  // Given: the round started
+  State state = transmission_reception_authority::startRound(transmission_reception_authority::initial());
+
+  // When: a submission record arrives
+  Receipt receipt = transmission_reception_authority::receiptOf(
+      state, OrderSubmitted{RoundId{1}, OrderNumber{4}, PLAYER_A, Point{4, 7}, StepId{20}, std::nullopt});
+
+  // Then: it takes effect
+  EXPECT_EQ(receipt, Receipt::RECEIVED);
+}
+
+TEST(TransmissionReceptionAuthority, RefusesSubmissionRecordBeforeStart) {
+  // When: a submission record arrives before the round started
+  Receipt receipt = transmission_reception_authority::receiptOf(
+      transmission_reception_authority::initial(),
+      OrderSubmitted{RoundId{1}, OrderNumber{4}, PLAYER_A, Point{4, 7}, StepId{20}, std::nullopt});
+
+  // Then: it takes no effect
+  EXPECT_EQ(receipt, Receipt::ROUND_NOT_STARTED);
+}
+
+/// @brief A phone that learns of the conclusion late may still forward a submission record
+TEST(TransmissionReceptionAuthority, RefusesSubmissionRecordAfterConclusion) {
+  // Given: the round concluded
+  auto [state, discarded] = transmission_reception_authority::conclude(
+      transmission_reception_authority::startRound(transmission_reception_authority::initial()));
+
+  // When: a submission record arrives
+  Receipt receipt = transmission_reception_authority::receiptOf(
+      state, OrderSubmitted{RoundId{1}, OrderNumber{4}, PLAYER_A, Point{4, 7}, StepId{20}, std::nullopt});
+
+  // Then: it takes no effect
+  EXPECT_EQ(receipt, Receipt::ROUND_CONCLUDED);
 }
 
 /// @section transmission_reception_authority::release
